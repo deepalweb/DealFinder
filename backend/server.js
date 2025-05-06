@@ -12,23 +12,39 @@ const PORT = process.env.PORT || 5001;
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-
 // Ensure CORS is properly configured
 app.use(cors({
-  origin: ['http://127.0.0.1:5500', 'http://localhost:5500'], // Allow Live Server origin (adjust port if needed)
+  origin: ['http://127.0.0.1:5001', 'http://localhost:5001', 'http://127.0.0.1:5500', 'http://localhost:5500'], // Allow both server and Live Server origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
 
-// Serve static files from backend/public/libs under /backend/public/libs path
-app.use('/backend/public/libs', express.static(path.join(__dirname, 'public/libs')));
+// API status route
+app.get('/api/status', (req, res) => {
+  res.send('API is running...');
+});
 
-// Serve static files (scripts, styles) from the frontend directory
+// Import Routes
+const userRoutes = require('./routes/userRoutes');
+const promotionRoutes = require('./routes/promotionRoutes');
+const merchantRoutes = require('./routes/merchantRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+
+// Use API Routes
+app.use('/api/users', userRoutes);
+app.use('/api/promotions', promotionRoutes);
+app.use('/api/merchants', merchantRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+// Serve static files - IMPORTANT: These must come BEFORE the catch-all routes
+app.use('/backend/public/libs', express.static(path.join(__dirname, 'public/libs')));
 app.use('/scripts', express.static(path.join(__dirname, '../frontend/scripts')));
 app.use('/styles', express.static(path.join(__dirname, '../frontend/styles')));
 
-// Remove the overly broad static serving of the parent directory
-// app.use(express.static(path.join(__dirname, '../')));
+// Debug route to test static file serving
+app.get('/test-static', (req, res) => {
+  res.send('Static file serving is working');
+});
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -38,31 +54,18 @@ mongoose.connect(process.env.MONGO_URI, {
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('Error connecting to MongoDB:', err));
 
-// Import Routes
-const userRoutes = require('./routes/userRoutes');
-const promotionRoutes = require('./routes/promotionRoutes');
-const merchantRoutes = require('./routes/merchantRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-
-// Use Routes
-app.use('/api/users', userRoutes);
-app.use('/api/promotions', promotionRoutes);
-app.use('/api/merchants', merchantRoutes);
-app.use('/api/notifications', notificationRoutes);
-
-// API status route
-app.get('/api/status', (req, res) => {
-  res.send('API is running...');
-});
-
-// Serve the frontend at the root URL
+// Serve the frontend at the root URL - This should come AFTER all API and static routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-// Fallback route for SPA
+// Fallback route for SPA - This should be the LAST route
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html')); // Point to the frontend index.html
+  // Exclude .js files from the catch-all route to prevent serving HTML for JS requests
+  if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.png') || req.path.endsWith('.jpg') || req.path.endsWith('.svg')) {
+    return res.status(404).send('File not found');
+  }
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 // Start Server
