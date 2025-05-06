@@ -62,3 +62,23 @@ jobs:
           slot-name: 'Production'
           package: .
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_3685225F4A254736BF76EA0D4CF4315B }}
+      
+      - name: 'Configure App Settings'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'dealfinder'
+          app-settings-json: |
+            [
+              {
+                "name": "MONGO_URI",
+                "value": "${{ secrets.MONGO_URI }}",
+                "slotSetting": false
+              },
+              {
+                "name": "PORT",
+                "value": "8080",
+                "slotSetting": false
+              }
+            ]
+          slot-name: 'Production'
+        id: settings
