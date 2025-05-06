@@ -1,7 +1,7 @@
 // API Helper functions for making requests to the backend
 
 // Base API URL
-const API_BASE_URL = 'http://localhost:5001/api';
+const API_BASE_URL = '/api';
 
 // Generic fetch function with error handling
 async function fetchAPI(endpoint, options = {}) {
