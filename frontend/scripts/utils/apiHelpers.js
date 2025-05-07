@@ -57,6 +57,9 @@ const PromotionAPI = {
 
 // Merchant API functions
 const MerchantAPI = {
+  // Get all merchants
+  getAll: () => fetchAPI('/merchants'),
+  
   // Get merchant by ID
   getById: (id) => fetchAPI(`/merchants/${id}`),
   
