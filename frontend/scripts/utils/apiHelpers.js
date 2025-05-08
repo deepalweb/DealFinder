@@ -26,33 +26,41 @@ async function fetchAPI(endpoint, options = {}, retries = 2) {
     
     console.log(`API Request: ${API_BASE_URL}${endpoint}`);
     
-    // Create an AbortController for timeout
+    // Create an AbortController for timeout - with a longer timeout (30 seconds)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => {
+      console.log(`Request timeout for ${endpoint} after 30 seconds`);
+      controller.abort();
+    }, 30000); // 30 second timeout
     
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
-      // Add credentials to handle cookies properly
-      credentials: 'include'
-    });
-    
-    // Clear the timeout since the request completed
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      console.error(`API Error: ${response.status} for ${endpoint}`);
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `API Error: ${response.status}`);
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        // Add credentials to handle cookies properly
+        credentials: 'include'
+      });
+      
+      // Clear the timeout since the request completed
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.error(`API Error: ${response.status} for ${endpoint}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`API Response for ${endpoint}:`, { dataLength: Array.isArray(data) ? data.length : 'object' });
+      return data;
+    } finally {
+      // Ensure timeout is cleared even if there's an error
+      clearTimeout(timeoutId);
     }
-    
-    const data = await response.json();
-    console.log(`API Response for ${endpoint}:`, { dataLength: Array.isArray(data) ? data.length : 'object' });
-    return data;
   } catch (error) {
     console.error('API Request Error:', error);
     
@@ -63,6 +71,8 @@ async function fetchAPI(endpoint, options = {}, retries = 2) {
       error.message.includes('failed to fetch')
     )) {
       console.log(`Retrying request to ${endpoint}, ${retries} attempts left`);
+      // Add a small delay before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
       return await fetchAPI(endpoint, options, retries - 1);
     }
     
@@ -70,16 +80,38 @@ async function fetchAPI(endpoint, options = {}, retries = 2) {
   }
 }
 
-// Promotion API functions
+// Promotion API functions with fallback to local data
 const PromotionAPI = {
   // Get all promotions
-  getAll: () => fetchAPI('promotions'),
+  getAll: async () => {
+    try {
+      return await fetchAPI('promotions');
+    } catch (error) {
+      console.warn('Failed to fetch promotions from API, using local data');
+      // Return empty array to allow the app to use local data
+      return [];
+    }
+  },
   
   // Get a promotion by ID
-  getById: (id) => fetchAPI(`promotions/${id}`),
+  getById: async (id) => {
+    try {
+      return await fetchAPI(`promotions/${id}`);
+    } catch (error) {
+      console.warn(`Failed to fetch promotion ${id}, using local data if available`);
+      throw error;
+    }
+  },
   
   // Get promotions by merchant ID
-  getByMerchant: (merchantId) => fetchAPI(`promotions/merchant/${merchantId}`),
+  getByMerchant: async (merchantId) => {
+    try {
+      return await fetchAPI(`promotions/merchant/${merchantId}`);
+    } catch (error) {
+      console.warn(`Failed to fetch promotions for merchant ${merchantId}, using local data if available`);
+      return [];
+    }
+  },
   
   // Create a new promotion
   create: (promotionData) => fetchAPI('promotions', {
@@ -102,7 +134,14 @@ const PromotionAPI = {
 // Merchant API functions
 const MerchantAPI = {
   // Get all merchants
-  getAll: () => fetchAPI('merchants'),
+  getAll: async () => {
+    try {
+      return await fetchAPI('merchants');
+    } catch (error) {
+      console.warn('Failed to fetch merchants from API, using local data if available');
+      return [];
+    }
+  },
   
   // Get merchant by ID
   getById: (id) => fetchAPI(`merchants/${id}`),
