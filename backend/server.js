@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '.env') }); // Ensure d
 const mongoose = require('mongoose');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 8080;
 
 // Middleware
 app.use(bodyParser.json({ limit: '50mb' }));
@@ -14,7 +14,13 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // Ensure CORS is properly configured
 app.use(cors({
-  origin: ['http://127.0.0.1:5001', 'http://localhost:5001', 'http://127.0.0.1:5500', 'http://localhost:5500'], // Allow both server and Live Server origins
+  origin: [
+    'http://127.0.0.1:5001', 
+    'http://localhost:5001', 
+    'http://127.0.0.1:5500', 
+    'http://localhost:5500', 
+    'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
+  ], // Allow both server and Live Server origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
@@ -46,13 +52,18 @@ app.get('/test-static', (req, res) => {
   res.send('Static file serving is working');
 });
 
-// Connect to MongoDB
+// Connect to MongoDB with better error handling
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('Error connecting to MongoDB:', err));
+.then(() => console.log('Connected to MongoDB'))
+.catch((err) => {
+  console.error('Error connecting to MongoDB:', err);
+  // Log more details about the connection attempt
+  console.error('MongoDB URI (masked):', process.env.MONGO_URI ? '***' + process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@')) : 'Not provided');
+  console.error('Environment:', process.env.NODE_ENV);
+});
 
 // Serve the frontend at the root URL - This should come AFTER all API and static routes
 app.get('/', (req, res) => {
@@ -66,6 +77,15 @@ app.get('*', (req, res) => {
     return res.status(404).send('File not found');
   }
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
+// Global error handling middleware
+app.use((err, req, res, next) => {
+  console.error('API Error:', err);
+  res.status(500).json({ 
+    message: 'Internal Server Error', 
+    error: process.env.NODE_ENV === 'production' ? 'An error occurred' : err.message 
+  });
 });
 
 // Start Server
