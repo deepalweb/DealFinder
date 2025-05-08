@@ -9,12 +9,18 @@ function UserProfile() {
   const [savedPromotions, setSavedPromotions] = useState([]);
   const [followedMerchants, setFollowedMerchants] = useState([]);
   const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imageKey, setImageKey] = useState(Date.now());
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     businessName: '',
+    profile: '',
+    contactInfo: '',
+    logo: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -27,33 +33,43 @@ function UserProfile() {
   });
 
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem('dealFinderUser');
+    try {
+      // Check if user is logged in
+      const userData = localStorage.getItem('dealFinderUser');
 
-    if (!userData) {
-      navigate('/login');
-      return;
-    }
-
-    const parsedUser = JSON.parse(userData);
-    setUser(parsedUser);
-
-    // Set initial form data
-    setFormData({
-      name: parsedUser.name || '',
-      email: parsedUser.email || '',
-      businessName: parsedUser.businessName || '',
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: '',
-      notifications: {
-        email: true,
-        expiringDeals: true,
-        favoriteStores: true,
-        recommendations: true,
-        ...(parsedUser.preferences?.notifications || {})
+      if (!userData) {
+        navigate('/login');
+        return;
       }
-    });
+
+      const parsedUser = JSON.parse(userData);
+      setUser(parsedUser);
+      
+      // Reset image key to ensure fresh rendering
+      setImageKey(Date.now());
+
+      // Set basic user data for all users
+      setFormData(prevData => ({
+        ...prevData,
+        name: parsedUser.name || '',
+        email: parsedUser.email || '',
+        notifications: {
+          ...prevData.notifications,
+          ...(parsedUser.preferences?.notifications || {})
+        }
+      }));
+
+      // If user is a merchant, fetch additional merchant details
+      if (parsedUser.role === 'merchant' && parsedUser.merchantId) {
+        fetchMerchantDetails(parsedUser.merchantId);
+      } else {
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("Error in UserProfile initialization:", err);
+      setError("Failed to load profile. Please try again.");
+      setLoading(false);
+    }
 
     // Load user's saved promotions
     const favorites = window.Helpers.getFavoritePromotions();
@@ -84,9 +100,45 @@ function UserProfile() {
       activeDeals: 2
     }]
     );
-
-    setLoading(false);
   }, []);
+
+  const fetchMerchantDetails = async (merchantId) => {
+    try {
+      if (!merchantId) {
+        console.error('No merchant ID provided');
+        setError('Failed to load merchant details: Missing merchant ID');
+        setLoading(false);
+        return;
+      }
+      
+      // Then fetch merchant data
+      const merchantData = await window.API.Merchants.getById(merchantId);
+      
+      if (merchantData) {
+        // Update image key if logo is present
+        if (merchantData.logo) {
+          setImageKey(Date.now());
+          console.log("Merchant logo found:", merchantData.logo.substring(0, 50) + "...");
+        }
+        
+        setFormData(prevData => ({
+          ...prevData,
+          businessName: merchantData.name || '',
+          profile: merchantData.profile || '',
+          contactInfo: merchantData.contactInfo || '',
+          logo: merchantData.logo || ''
+        }));
+      } else {
+        console.warn('No merchant data returned from API');
+      }
+    } catch (err) {
+      console.error('Error fetching merchant details:', err);
+      setError('Failed to load merchant details. Please try again.');
+      // Still allow the user to edit their basic profile even if merchant details fail
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -110,17 +162,58 @@ function UserProfile() {
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setSuccess('');
-
+    setError('');
+    
     try {
+      if (!user || !user._id) {
+        setError('User information is missing. Please try logging in again.');
+        return;
+      }
+      
+      // Generate a new image key to ensure fresh rendering
+      setImageKey(Date.now());
+      
+      // Validate image size if it's a base64 string (uploaded file)
+      if (formData.logo && formData.logo.startsWith('data:image')) {
+        // Rough estimation of base64 size: 4/3 of the string length
+        const sizeInBytes = Math.round((formData.logo.length * 3) / 4);
+        const sizeInMB = sizeInBytes / (1024 * 1024);
+        
+        console.log("Submitting image, size:", sizeInMB.toFixed(2), "MB");
+        
+        if (sizeInMB > 2) {
+          setError('Logo image is too large. Maximum size is 2MB.');
+          return;
+        }
+      }
+      
       // Prepare data for API
       const profileData = {
         name: formData.name,
         email: formData.email,
         businessName: user.role === 'merchant' ? formData.businessName : undefined
       };
-
-      // Update user profile via API
+      
+      // Update user profile
       const updatedUser = await window.API.Users.updateProfile(user._id, profileData);
+      
+      // If user is a merchant, update merchant profile too
+      if (user.role === 'merchant' && user.merchantId) {
+        const merchantData = {
+          name: formData.businessName,
+          profile: formData.profile,
+          contactInfo: formData.contactInfo,
+          logo: formData.logo
+        };
+        
+        try {
+          await window.API.Merchants.update(user.merchantId, merchantData);
+        } catch (merchantErr) {
+          console.error('Error updating merchant profile:', merchantErr);
+          // Continue with user profile update even if merchant update fails
+          setError('Your profile was updated, but there was an issue updating your merchant details.');
+        }
+      }
       
       // Update local storage
       const updatedUserData = { 
@@ -135,21 +228,24 @@ function UserProfile() {
       localStorage.setItem('dealFinderUser', JSON.stringify(updatedUserData));
       setUser(updatedUserData);
       
-      // Show success message
-      setSuccess('Profile updated successfully!');
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      alert('Failed to update profile. Please try again.');
+      // Show success message (only if there's no error)
+      if (!error) {
+        setSuccess('Profile updated successfully!');
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setError('Failed to update profile. Please try again.');
     }
   };
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
     setSuccess('');
+    setError('');
 
     // Validate passwords
     if (formData.newPassword !== formData.confirmPassword) {
-      alert('New passwords do not match!');
+      setError('New passwords do not match!');
       return;
     }
 
@@ -268,6 +364,12 @@ function UserProfile() {
                 </div>
               )}
               
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  {error}
+                </div>
+              )}
+              
               {/* Profile Settings */}
               {activeTab === 'profile' &&
               <div>
@@ -299,17 +401,126 @@ function UserProfile() {
                     </div>
                     
                     {user.role === 'merchant' && (
-                      <div className="mb-4">
-                        <label className="block text-sm font-medium mb-1">Business Name</label>
-                        <input
-                          type="text"
-                          name="businessName"
-                          value={formData.businessName}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                          required
-                        />
-                      </div>
+                      <>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Name</label>
+                          <input
+                            type="text"
+                            name="businessName"
+                            value={formData.businessName}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            required
+                          />
+                        </div>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Profile</label>
+                          <textarea
+                            name="profile"
+                            value={formData.profile}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            rows="3"
+                          ></textarea>
+                          <p className="text-sm text-gray-500 mt-1">Describe your business in a few sentences</p>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Contact Information</label>
+                          <input
+                            type="text"
+                            name="contactInfo"
+                            value={formData.contactInfo}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">Phone number or additional email</p>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Logo</label>
+                          
+                          <div className="flex items-center space-x-4 mb-2">
+                            <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                              <img
+                                key={imageKey} 
+                                src={formData.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.businessName || 'M')}&background=random&size=300`}
+                                alt="Logo Preview"
+                                className="w-full h-full object-cover logo-preview-img"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.businessName || 'M')}&background=random&size=300`;
+                                }}
+                              />
+                            </div>
+                            
+                            <div className="flex-grow">
+                              <input
+                                type="text"
+                                name="logo"
+                                value={formData.logo}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                                placeholder="https://example.com/logo.jpg"
+                              />
+                              <p className="text-sm text-gray-500 mt-1">Enter a URL for your business logo</p>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-2">
+                            <label className="block text-sm font-medium mb-1">Or upload an image:</label>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  // Check file size (max 2MB)
+                                  if (file.size > 2 * 1024 * 1024) {
+                                    setError('Image file is too large. Maximum size is 2MB.');
+                                    e.target.value = ''; // Clear the file input
+                                    return;
+                                  }
+                                  
+                                  // Convert to base64 for preview
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    const imageData = reader.result;
+                                    console.log("Image loaded, length:", imageData.length);
+                                    
+                                    // Generate a new image key to force re-render
+                                    const newImageKey = Date.now();
+                                    setImageKey(newImageKey);
+                                    
+                                    // Update the form data with the new image
+                                    setFormData(prevState => ({
+                                      ...prevState,
+                                      logo: imageData
+                                    }));
+                                    
+                                    setSuccess('Image uploaded successfully. Click "Save Changes" to update your profile.');
+                                    
+                                    // Force browser to re-render the image
+                                    setTimeout(() => {
+                                      const imgElement = document.querySelector('.logo-preview-img');
+                                      if (imgElement) {
+                                        imgElement.src = imageData;
+                                      }
+                                    }, 50);
+                                  };
+                                  reader.onerror = () => {
+                                    setError('Failed to read the image file. Please try again.');
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-color file:text-white hover:file:bg-primary-dark"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Max file size: 2MB. Supported formats: JPG, PNG, GIF</p>
+                          </div>
+                        </div>
+                      </>
                     )}
                     
                     <button type="submit" className="btn btn-primary">
@@ -478,7 +689,11 @@ function UserProfile() {
                         <img
                           src={promotion.image}
                           alt={promotion.title}
-                          className="w-full h-full object-cover" />
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = "https://via.placeholder.com/300?text=No+Image";
+                          }} />
                         }
                             </div>
                             
@@ -524,7 +739,11 @@ function UserProfile() {
                       <img
                         src={merchant.logo}
                         alt={merchant.name}
-                        className="w-full h-full object-cover" />
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(merchant.name)}&background=random&size=300`;
+                        }} />
                       }
                             <button
                         onClick={() => handleUnfollowMerchant(merchant.id)}

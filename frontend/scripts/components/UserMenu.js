@@ -40,7 +40,7 @@ function UserMenu() {
 
   if (!user) {
     return (
-      <div className="flex items-center space-x-4" data-id="y0ckerqo0" data-path="scripts/components/UserMenu.js">
+      <div className="flex items-center space-x-4">
         <Link to="/login" className="text-dark-gray hover:text-primary-color">
           Login
         </Link>
@@ -48,69 +48,71 @@ function UserMenu() {
           Sign Up
         </Link>
       </div>);
-
   }
 
   return (
-    <div className="relative" ref={menuRef} data-id="ac1u48s87" data-path="scripts/components/UserMenu.js">
+    <div className="relative" ref={menuRef}>
       <button
         onClick={toggleMenu}
         className="flex items-center focus:outline-none"
         aria-label="User menu"
-        aria-expanded={isMenuOpen} data-id="x3q7nc5wq" data-path="scripts/components/UserMenu.js">
-
-        <span className="hidden md:block mr-2" data-id="it6ihhi12" data-path="scripts/components/UserMenu.js">{user.name}</span>
-        <div className="w-9 h-9 bg-primary-color rounded-full flex items-center justify-center text-white font-bold" data-id="0a78zvimu" data-path="scripts/components/UserMenu.js">
+        aria-expanded={isMenuOpen}>
+        <span className="hidden md:block mr-2">{user.name}</span>
+        <div className="w-9 h-9 bg-primary-color rounded-full flex items-center justify-center text-white font-bold">
           {user.name.charAt(0)}
         </div>
       </button>
       
       {isMenuOpen &&
-      <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10" data-id="37owmfxpj" data-path="scripts/components/UserMenu.js">
-          {user.role === 'merchant' ?
-        <Link
-          to="/merchant/dashboard"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          onClick={() => setIsMenuOpen(false)}>
-
-              <i className="fas fa-store mr-2" data-id="n5u7l16lq" data-path="scripts/components/UserMenu.js"></i> Merchant Dashboard
-            </Link> :
-
-        <Link
-          to="/profile"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          onClick={() => setIsMenuOpen(false)}>
-
-              <i className="fas fa-user mr-2" data-id="7ubms8acy" data-path="scripts/components/UserMenu.js"></i> My Profile
+      <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-10">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <p className="font-semibold">{user.name}</p>
+            <p className="text-sm text-gray-500">{user.email}</p>
+            {user.role === 'merchant' && (
+              <span className="inline-block mt-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                Merchant Account
+              </span>
+            )}
+          </div>
+          
+          <Link
+            to="/profile"
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            onClick={() => setIsMenuOpen(false)}>
+            <i className="fas fa-user mr-2"></i> My Profile
+          </Link>
+          
+          {user.role === 'merchant' &&
+            <Link
+              to="/merchant/dashboard"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsMenuOpen(false)}>
+              <i className="fas fa-store mr-2"></i> Merchant Dashboard
             </Link>
-        }
+          }
           
           <Link
-          to="/favorites"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          onClick={() => setIsMenuOpen(false)}>
-
-            <i className="fas fa-heart mr-2" data-id="58e1x1o8y" data-path="scripts/components/UserMenu.js"></i> My Favorites
+            to="/favorites"
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            onClick={() => setIsMenuOpen(false)}>
+            <i className="fas fa-heart mr-2"></i> My Favorites
           </Link>
           
           <Link
-          to="/notification-settings"
-          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          onClick={() => setIsMenuOpen(false)}>
-
-            <i className="fas fa-bell mr-2" data-id="0399rxnme" data-path="scripts/components/UserMenu.js"></i> Notification Settings
+            to="/notification-settings"
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            onClick={() => setIsMenuOpen(false)}>
+            <i className="fas fa-bell mr-2"></i> Notification Settings
           </Link>
           
-          <hr className="my-1" data-id="n29940ida" data-path="scripts/components/UserMenu.js" />
+          <hr className="my-1" />
           
           <button
-          onClick={handleLogout}
-          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100" data-id="yxx30ayn9" data-path="scripts/components/UserMenu.js">
-
-            <i className="fas fa-sign-out-alt mr-2" data-id="5wvsvbu39" data-path="scripts/components/UserMenu.js"></i> Logout
+            onClick={handleLogout}
+            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">
+            <i className="fas fa-sign-out-alt mr-2"></i> Logout
           </button>
         </div>
       }
     </div>);
-
 }
