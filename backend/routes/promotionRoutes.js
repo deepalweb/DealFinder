@@ -6,15 +6,34 @@ const Merchant = require('../models/Merchant');
 // Get all promotions
 router.get('/', async (req, res) => {
   try {
+    console.log('GET /api/promotions - Fetching active promotions');
     const now = new Date();
+    console.log('Current date for promotion filtering:', now);
+    
     // Find promotions that are currently active based on dates
     const promotions = await Promotion.find({
       startDate: { $lte: now }, // Start date is less than or equal to now
       endDate: { $gte: now }    // End date is greater than or equal to now
     }).populate('merchant');
+    
+    console.log(`Found ${promotions.length} active promotions`);
     res.status(200).json(promotions);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching promotions', error });
+    console.error('Error in GET /api/promotions:', error);
+    // Log more details about the error
+    if (error.name === 'MongoServerError') {
+      console.error('MongoDB server error details:', error.code, error.codeName);
+    }
+    if (error.name === 'ValidationError') {
+      console.error('Validation error details:', error.errors);
+    }
+    
+    res.status(500).json({ 
+      message: 'Error fetching promotions', 
+      errorName: error.name,
+      errorMessage: error.message,
+      errorCode: error.code
+    });
   }
 });
 
@@ -25,7 +44,8 @@ router.get('/:id', async (req, res) => {
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json(promotion);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching promotion', error });
+    console.error(`Error fetching promotion ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Error fetching promotion', error: error.message });
   }
 });
 
@@ -35,7 +55,8 @@ router.get('/merchant/:merchantId', async (req, res) => {
     const promotions = await Promotion.find({ merchant: req.params.merchantId });
     res.status(200).json(promotions);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching merchant promotions', error });
+    console.error(`Error fetching promotions for merchant ${req.params.merchantId}:`, error);
+    res.status(500).json({ message: 'Error fetching merchant promotions', error: error.message });
   }
 });
 
@@ -72,7 +93,8 @@ router.post('/', async (req, res) => {
     
     res.status(201).json(savedPromotion);
   } catch (error) {
-    res.status(500).json({ message: 'Error creating promotion', error });
+    console.error('Error creating promotion:', error);
+    res.status(500).json({ message: 'Error creating promotion', error: error.message });
   }
 });
 
@@ -107,7 +129,8 @@ router.put('/:id', async (req, res) => {
     
     res.status(200).json(updatedPromotion);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating promotion', error });
+    console.error(`Error updating promotion ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Error updating promotion', error: error.message });
   }
 });
 
@@ -128,7 +151,8 @@ router.delete('/:id', async (req, res) => {
     await Promotion.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: 'Promotion deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting promotion', error });
+    console.error(`Error deleting promotion ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Error deleting promotion', error: error.message });
   }
 });
 
