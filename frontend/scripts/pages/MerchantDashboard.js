@@ -291,11 +291,19 @@ function MerchantDashboard() {
 
   // Filter analyticsData to only include clicks for this merchant's promotions
   const merchantPromotionIds = promotions.map(p => p.id);
-  const filteredAnalyticsData = analyticsData.filter(item => merchantPromotionIds.includes(item.promotionId));
+  const filteredAnalyticsData = analyticsData.filter(item => {
+    if (!item.promotion) return false;
+    const promoId = item.promotion._id || item.promotion.id || item.promotion;
+    return merchantPromotionIds.includes(promoId?.toString());
+  });
 
   // Compute click counts per promotion using backend analyticsData
   const clickCounts = promotions.reduce((acc, promo) => {
-    acc[promo.id] = analyticsData.filter(a => a.promotion && (a.promotion._id === promo.id || a.promotion.id === promo.id)).length;
+    acc[promo.id] = analyticsData.filter(a => {
+      if (!a.promotion) return false;
+      const promoId = a.promotion._id || a.promotion.id || a.promotion;
+      return promoId?.toString() === promo.id?.toString();
+    }).length;
     return acc;
   }, {});
 
