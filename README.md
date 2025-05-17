@@ -1,3 +1,3 @@
 # DealFinder
 
-Deployment trigger: Updated README on 2025-05-17
+Deployment trigger: Redeploy from GitHub on 2025-05-17
