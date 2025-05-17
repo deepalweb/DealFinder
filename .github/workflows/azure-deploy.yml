@@ -1,50 +1,33 @@
-name: Deploy to Azure
+name: Deploy Node.js app to Azure Web App
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18.x'
-    
-    - name: Install dependencies
-      run: npm install
-    
-    - name: Zip the application
-      run: zip -r dealfinder.zip . -x "node_modules/*" ".git/*"
-    
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: 'dealfinder'
-        slot-name: 'production'
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: './dealfinder.zip'
-    
-    - name: Configure App Settings
-      uses: azure/appservice-settings@v1
-      with:
-        app-name: 'dealfinder'
-        app-settings-json: |
-          [
-            {
-              "name": "MONGO_URI",
-              "value": "${{ secrets.MONGO_URI }}",
-              "slotSetting": false
-            },
-            {
-              "name": "NODE_ENV",
-              "value": "production",
-              "slotSetting": false
-            }
-          ]
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # or your required version
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          npm install
+
+      # Add frontend build steps here if needed
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'dealfinder' # Your Azure Web App name
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: backend
