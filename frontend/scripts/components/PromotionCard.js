@@ -66,7 +66,8 @@ function PromotionCard({ promotion, onFavoriteToggle }) {
     // If promotion has URL, navigate to it
     if (promotion.url) {
       // Track this click for analytics before redirecting
-      trackPromotionClick(promotion.id, promotion.title, getMerchantName(promotion.merchant));
+      const promoId = promotion.id || promotion._id;
+      trackPromotionClick(promoId, promotion.title, getMerchantName(promotion.merchant));
 
       // Open URL in a new tab
       window.open(promotion.url, '_blank', 'noopener,noreferrer');
