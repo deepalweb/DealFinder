@@ -20,19 +20,11 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: ./frontend
-        run: npm ci
+        run: npm install
 
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
-
-      - name: Custom build step
-        run: |
-          # Insert your custom build commands below
-          echo "Running custom build step..."
-          # Example: npm run lint
-          # Example: yarn workspace tools build
-          # Replace above with your actual custom build commands
 
       - name: Copy frontend build to backend public directory
         run: |
@@ -42,7 +34,7 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: ./backend
-        run: npm ci
+        run: npm install
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
