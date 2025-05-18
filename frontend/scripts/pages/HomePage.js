@@ -20,9 +20,9 @@ function HomePage() {
         const featured = allPromotions.filter((promo) => promo.featured);
         setFeaturedPromotions(featured);
     
-        // Get latest promotions (sorted by start date)
+        // Get latest promotions (sorted by createdAt)
         const latest = [...allPromotions]
-          .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
           .slice(0, 8);
         setLatestPromotions(latest);
       } catch (error) {

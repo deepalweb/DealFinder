@@ -77,8 +77,12 @@ function sortPromotions(promotions, sortBy) {
 
   switch (sortBy) {
     case 'newest':
-      return [...promotions].sort((a, b) =>
-      new Date(b.startDate) - new Date(a.startDate));
+      // Sort by createdAt if available, fallback to startDate
+      return [...promotions].sort((a, b) => {
+        const aDate = a.createdAt ? new Date(a.createdAt) : new Date(a.startDate);
+        const bDate = b.createdAt ? new Date(b.createdAt) : new Date(b.startDate);
+        return bDate - aDate;
+      });
     case 'ending-soon':
       return [...promotions].sort((a, b) => {
         // Filter out expired deals
