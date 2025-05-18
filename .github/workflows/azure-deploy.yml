@@ -1,4 +1,4 @@
-name: Deploy Node.js app to Azure Web App
+name: Deploy to Azure Web App
 
 on:
   push:
@@ -10,29 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # or your required version
+          node-version: 18
 
-      - name: Install dependencies
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Custom build step
         run: |
-          cd backend
-          npm install
+          # Insert your custom build commands below
+          echo "Running custom build step..."
+          # Example: npm run lint
+          # Example: yarn workspace tools build
+          # Replace above with your actual custom build commands
 
-      # Add frontend build steps here if needed
+      - name: Copy frontend build to backend public directory
+        run: |
+          rm -rf backend/public
+          mkdir -p backend/public
+          cp -r frontend/build/* backend/public/
 
-      - name: Log in to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
 
       - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         with:
-          app-name: 'dealfinder' # Your Azure Web App name
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: backend
+          package: .
