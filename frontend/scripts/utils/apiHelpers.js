@@ -4,7 +4,8 @@
 const isProduction = window.location.hostname.includes('azurewebsites.net');
 const API_BASE_URL = isProduction 
   ? 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/'
-  : 'http://localhost:8080/api/';
+  : 'http://localhost:8080/api/'
+  ||'https://drstores.lk/api/'; // Fallback to local server if not in production
 
 console.log('Using API base URL:', API_BASE_URL);
 

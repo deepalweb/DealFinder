@@ -17,8 +17,7 @@ app.use(cors({
   origin: [
     'http://127.0.0.1:5001', 
     'http://localhost:5001', 
-    'http://127.0.0.1:5500', 
-    'http://localhost:5500', 
+    'http://127.0.0.1:5500', , 
     'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net',
     'https://drstores.lk' // Allow production frontend domain
   ], // Allow both server and Live Server origins
