@@ -235,4 +235,61 @@ router.post('/:id/click', async (req, res) => {
   }
 });
 
+// --- Comments & Ratings ---
+// Add a comment to a promotion
+router.post('/:id/comments', async (req, res) => {
+  try {
+    const { userId, text } = req.body;
+    if (!userId || !text) return res.status(400).json({ message: 'User and text are required.' });
+    const promotion = await Promotion.findById(req.params.id);
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    promotion.comments.push({ user: userId, text });
+    await promotion.save();
+    res.status(201).json(promotion.comments[promotion.comments.length - 1]);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Get comments for a promotion
+router.get('/:id/comments', async (req, res) => {
+  try {
+    const promotion = await Promotion.findById(req.params.id).populate('comments.user', 'name email');
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    res.status(200).json(promotion.comments);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Add or update a rating for a promotion
+router.post('/:id/ratings', async (req, res) => {
+  try {
+    const { userId, value } = req.body;
+    if (!userId || typeof value !== 'number' || value < 1 || value > 5) {
+      return res.status(400).json({ message: 'User and valid rating value (1-5) are required.' });
+    }
+    const promotion = await Promotion.findById(req.params.id);
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    // Remove previous rating by this user
+    promotion.ratings = promotion.ratings.filter(r => r.user.toString() !== userId);
+    promotion.ratings.push({ user: userId, value });
+    await promotion.save();
+    res.status(201).json(promotion.ratings);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Get ratings for a promotion
+router.get('/:id/ratings', async (req, res) => {
+  try {
+    const promotion = await Promotion.findById(req.params.id).populate('ratings.user', 'name email');
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    res.status(200).json(promotion.ratings);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
 module.exports = router;

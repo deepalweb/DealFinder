@@ -51,13 +51,15 @@ function MerchantProfilePage() {
     fetchMerchantData();
   }, [merchantId]);
 
-  const handleFollowToggle = () => {
+  const handleFollowToggle = async () => {
     // Toggle follow status
     const newFollowStatus = !isFollowing;
     setIsFollowing(newFollowStatus);
 
     // Update local storage
     const followedMerchants = JSON.parse(localStorage.getItem('dealFinderFollowing') || '[]');
+    const userData = localStorage.getItem('dealFinderUser');
+    let parsedUser = userData ? JSON.parse(userData) : null;
 
     if (newFollowStatus) {
       // Add to following
@@ -73,14 +75,27 @@ function MerchantProfilePage() {
           }).length
         });
       }
+      // Update backend: set merchantId for user
+      if (parsedUser && parsedUser._id) {
+        await window.API.Users.updateProfile(parsedUser._id, { merchantId: merchant.id });
+        // Update local user data
+        parsedUser.merchantId = merchant.id;
+        localStorage.setItem('dealFinderUser', JSON.stringify(parsedUser));
+      }
     } else {
       // Remove from following
       const index = followedMerchants.findIndex((m) => m.id === merchant.id);
       if (index !== -1) {
         followedMerchants.splice(index, 1);
       }
+      // Update backend: remove merchantId for user
+      if (parsedUser && parsedUser._id) {
+        await window.API.Users.updateProfile(parsedUser._id, { merchantId: null });
+        // Update local user data
+        delete parsedUser.merchantId;
+        localStorage.setItem('dealFinderUser', JSON.stringify(parsedUser));
+      }
     }
-
     localStorage.setItem('dealFinderFollowing', JSON.stringify(followedMerchants));
   };
 
@@ -192,7 +207,7 @@ function MerchantProfilePage() {
                 </div>
               )}
               
-              {(merchant.socialMedia && (merchant.socialMedia.facebook || merchant.socialMedia.instagram || merchant.socialMedia.twitter)) && (
+              {(merchant.socialMedia && (merchant.socialMedia.facebook || merchant.socialMedia.instagram || merchant.socialMedia.twitter || merchant.socialMedia.tiktok)) && (
                 <div>
                   <h3 className="font-semibold mb-2">Social Media</h3>
                   <div className="flex space-x-2">
@@ -223,6 +238,16 @@ function MerchantProfilePage() {
                         rel="noopener noreferrer"
                         className="w-8 h-8 bg-blue-400 text-white rounded-full flex items-center justify-center hover:bg-blue-500">
                         <i className="fab fa-twitter"></i>
+                      </a>
+                    )}
+                    
+                    {merchant.socialMedia.tiktok && (
+                      <a
+                        href={`https://tiktok.com/@${merchant.socialMedia.tiktok}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-8 h-8 bg-black text-white rounded-full flex items-center justify-center hover:bg-gray-800">
+                        <i className="fab fa-tiktok"></i>
                       </a>
                     )}
                   </div>

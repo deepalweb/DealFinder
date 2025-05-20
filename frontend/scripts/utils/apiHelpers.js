@@ -4,7 +4,7 @@
 const isProduction = window.location.hostname.includes('azurewebsites.net');
 const API_BASE_URL = isProduction 
   ? 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/'
-  : '/api/';
+  : 'http://localhost:8080/api/';
 
 console.log('Using API base URL:', API_BASE_URL);
 

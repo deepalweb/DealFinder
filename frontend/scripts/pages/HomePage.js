@@ -80,8 +80,13 @@ function HomePage() {
             {searchResults.length > 0 ?
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="6gw38lo3e" data-path="scripts/pages/HomePage.js">
                 {searchResults.map((promotion) =>
-            <PromotionCard key={promotion.id} promotion={promotion} onFavoriteToggle={() => {}} />
-            )}
+                  <div key={promotion.id}>
+                    <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
+                      className="cursor-pointer">
+                      <PromotionCard promotion={promotion} />
+                    </div>
+                  </div>
+                )}
               </div> :
 
           <div className="text-center py-8" data-id="ckbgklt24" data-path="scripts/pages/HomePage.js">
@@ -101,8 +106,13 @@ function HomePage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="peyc4yr8a" data-path="scripts/pages/HomePage.js">
                 {featuredPromotions.map((promotion) =>
-              <PromotionCard key={promotion.id} promotion={promotion} onFavoriteToggle={() => {}} />
-              )}
+                  <div key={promotion.id}>
+                    <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
+                      className="cursor-pointer">
+                      <PromotionCard promotion={promotion} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
@@ -114,8 +124,13 @@ function HomePage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="4bl781b6h" data-path="scripts/pages/HomePage.js">
                 {latestPromotions.map((promotion) =>
-              <PromotionCard key={promotion.id} promotion={promotion} onFavoriteToggle={() => {}} />
-              )}
+                  <div key={promotion.id}>
+                    <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
+                      className="cursor-pointer">
+                      <PromotionCard promotion={promotion} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>

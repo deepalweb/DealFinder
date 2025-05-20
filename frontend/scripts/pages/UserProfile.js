@@ -30,7 +30,15 @@ function UserProfile() {
       favoriteStores: true,
       recommendations: true
     },
-    profilePicture: ''
+    profilePicture: '',
+    address: '',
+    contactNumber: '',
+    facebook: '',
+    instagram: '',
+    twitter: '',
+    tiktok: '',
+    locationLat: '',
+    locationLng: ''
   });
 
   useEffect(() => {
@@ -102,7 +110,15 @@ function UserProfile() {
           businessName: merchantData.name || '',
           profile: merchantData.profile || '',
           contactInfo: merchantData.contactInfo || '',
-          logo: merchantData.logo || ''
+          logo: merchantData.logo || '',
+          address: merchantData.address || '',
+          contactNumber: merchantData.contactNumber || '',
+          facebook: merchantData.socialMedia?.facebook || '',
+          instagram: merchantData.socialMedia?.instagram || '',
+          twitter: merchantData.socialMedia?.twitter || '',
+          tiktok: merchantData.socialMedia?.tiktok || '',
+          locationLat: merchantData.location?.lat || '',
+          locationLng: merchantData.location?.lng || ''
         }));
       } else {
         console.warn('No merchant data returned from API');
@@ -181,7 +197,14 @@ function UserProfile() {
           name: formData.businessName,
           profile: formData.profile,
           contactInfo: formData.contactInfo,
-          logo: formData.logo
+          logo: formData.logo,
+          address: formData.address,
+          contactNumber: formData.contactNumber,
+          socialMedia: formData.socialMedia,
+          location: {
+            lat: formData.locationLat,
+            lng: formData.locationLng
+          }
         };
         
         try {
@@ -530,6 +553,91 @@ function UserProfile() {
                             <p className="text-xs text-gray-500 mt-1">Max file size: 2MB. Supported formats: JPG, PNG, GIF</p>
                           </div>
                         </div>
+                        
+                        {/* New fields for merchant details */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Address</label>
+                          <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            placeholder="Enter your business address"
+                          />
+                        </div>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Contact Number</label>
+                          <input
+                            type="text"
+                            name="contactNumber"
+                            value={formData.contactNumber}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            placeholder="Enter your contact number"
+                          />
+                        </div>
+                        
+                        {/* Social Media Section */}
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Social Media Profiles</label>
+                          <div className="space-y-2">
+                            {/* List of added social media accounts */}
+                            {Object.entries(formData.socialMedia || {}).filter(([platform, username]) => username).map(([platform, username]) => (
+                              <div key={platform} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded">
+                                <span className="capitalize font-medium"><i className={`fab fa-${platform} mr-1`}></i>{platform}</span>
+                                <span className="text-gray-700">{username}</span>
+                                <button type="button" className="ml-2 text-red-500 hover:text-red-700" onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    socialMedia: { ...prev.socialMedia, [platform]: '' }
+                                  }));
+                                }}>
+                                  <i className="fas fa-times"></i>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Add Social Media UI */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <select
+                              value={formData._newSocialPlatform || ''}
+                              onChange={e => setFormData(prev => ({ ...prev, _newSocialPlatform: e.target.value }))}
+                              className="px-2 py-1 border rounded"
+                            >
+                              <option value="">Select Platform</option>
+                              {['facebook', 'instagram', 'twitter', 'tiktok'].filter(p => !(formData.socialMedia && formData.socialMedia[p])).map(platform => (
+                                <option key={platform} value={platform}>{platform.charAt(0).toUpperCase() + platform.slice(1)}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Username"
+                              value={formData._newSocialUsername || ''}
+                              onChange={e => setFormData(prev => ({ ...prev, _newSocialUsername: e.target.value }))}
+                              className="px-2 py-1 border rounded"
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-primary px-3 py-1"
+                              disabled={!(formData._newSocialPlatform && formData._newSocialUsername)}
+                              onClick={() => {
+                                if (formData._newSocialPlatform && formData._newSocialUsername) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    socialMedia: {
+                                      ...prev.socialMedia,
+                                      [formData._newSocialPlatform]: formData._newSocialUsername
+                                    },
+                                    _newSocialPlatform: '',
+                                    _newSocialUsername: ''
+                                  }));
+                                }
+                              }}
+                            >Add</button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Add only your active social media accounts. You can remove or edit them anytime.</p>
+                        </div>
                       </>
                     )}
                     
@@ -573,6 +681,38 @@ function UserProfile() {
                         <p className="text-xs text-gray-500 mt-1">Max file size: 2MB. Supported formats: JPG, PNG, GIF</p>
                       </div>
                     </div>
+                    
+                    {/* Store Location Section */}
+                    {user.role === 'merchant' && (
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">Store Location (Google Map)</label>
+                        <div className="mb-2">
+                          {formData.locationLat && formData.locationLng ? (
+                            <div className="mb-2">
+                              <div className="text-xs text-gray-600 mb-1">Current Location: <span className="font-mono">{formData.locationLat.toFixed(6)}, {formData.locationLng.toFixed(6)}</span></div>
+                              <button type="button" className="text-red-500 hover:text-red-700 text-xs mb-2" onClick={() => setFormData(prev => ({ ...prev, locationLat: '', locationLng: '' }))}>
+                                Remove Location
+                              </button>
+                            </div>
+                          ) : null}
+                          <div id="store-map" style={{ width: '100%', height: '250px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '8px' }}></div>
+                          <button
+                            type="button"
+                            className="btn btn-primary px-3 py-1 mt-2"
+                            onClick={() => {
+                              // Try to get current location
+                              if (navigator.geolocation) {
+                                navigator.geolocation.getCurrentPosition(pos => {
+                                  setFormData(prev => ({ ...prev, locationLat: pos.coords.latitude, locationLng: pos.coords.longitude }));
+                                  if (window.setMapMarker) window.setMapMarker(pos.coords.latitude, pos.coords.longitude);
+                                });
+                              }
+                            }}
+                          >Use My Current Location</button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Drag the marker or search to set your store's location. Only latitude/longitude will be saved.</p>
+                      </div>
+                    )}
                     
                     <button type="submit" className="btn btn-primary">
                       Save Changes

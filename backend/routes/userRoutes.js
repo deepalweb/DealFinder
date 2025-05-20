@@ -43,9 +43,15 @@ function authenticateJWT(req, res, next) {
   }
 }
 
-// Protect all user routes except register/login
+// Protect all user routes except register/login/reset-password
 router.use((req, res, next) => {
-  if (['/register', '/login'].includes(req.path) && req.method === 'POST') {
+  const openRoutes = [
+    { path: '/register', method: 'POST' },
+    { path: '/login', method: 'POST' },
+    { path: '/reset-password', method: 'POST' },
+    { path: '/reset-password/confirm', method: 'POST' }
+  ];
+  if (openRoutes.some(r => r.path === req.path && r.method === req.method)) {
     return next();
   }
   authenticateJWT(req, res, next);

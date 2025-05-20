@@ -64,20 +64,26 @@ router.post('/', [
   body('profile').optional().isString(),
   body('contactInfo').optional().isString(),
   body('userId').optional().isString(),
+  body('address').optional().isString(),
+  body('contactNumber').optional().isString(),
+  body('socialMedia').optional().isObject(), // Accepts facebook, instagram, twitter, tiktok
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, userId } = req.body;
+    const { name, profile, contactInfo, userId, address, contactNumber, socialMedia } = req.body;
     
     // Create the merchant
     const merchant = new Merchant({
       name,
       profile,
       contactInfo,
-      promotions: []
+      promotions: [],
+      address,
+      contactNumber,
+      socialMedia
     });
     
     const savedMerchant = await merchant.save();
@@ -102,16 +108,19 @@ router.put('/:id', [
   body('profile').optional().isString(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
+  body('address').optional().isString(),
+  body('contactNumber').optional().isString(),
+  body('socialMedia').optional().isObject(),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, logo } = req.body;
+    const { name, profile, contactInfo, logo, address, contactNumber, socialMedia } = req.body;
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       req.params.id,
-      { name, profile, contactInfo, logo },
+      { name, profile, contactInfo, logo, address, contactNumber, socialMedia },
       { new: true }
     );
     if (!updatedMerchant) {

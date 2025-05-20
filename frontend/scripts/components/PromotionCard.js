@@ -1,4 +1,4 @@
-function PromotionCard({ promotion, onFavoriteToggle }) {
+function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
   const { useState, useEffect } = React;
   const daysRemaining = calculateDaysRemaining(promotion.endDate);
   const daysText = getDaysText(daysRemaining);
@@ -62,26 +62,173 @@ function PromotionCard({ promotion, onFavoriteToggle }) {
   const handleCardClick = (event) => {
     // Don't redirect if the click is on the favorite button or copy button
     if (event.target.closest('button')) return;
-
-    // If promotion has URL, navigate to it
+    // If promotion has URL, navigate to it in the same tab
     if (promotion.url) {
-      // Track this click for analytics before redirecting
       const promoId = promotion.id || promotion._id;
       trackPromotionClick(promoId, promotion.title, getMerchantName(promotion.merchant));
-
-      // Open URL in a new tab
-      window.open(promotion.url, '_blank', 'noopener,noreferrer');
+      window.location.href = promotion.url;
     }
   };
+
+  // --- Comments & Ratings UI ---
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState("");
+  const [ratings, setRatings] = useState([]);
+  const [userRating, setUserRating] = useState(0);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [loadingRatings, setLoadingRatings] = useState(false);
+
+  // Fetch comments and ratings on mount
+  useEffect(() => {
+    async function fetchSocial() {
+      setLoadingComments(true);
+      setLoadingRatings(true);
+      try {
+        const [commentsRes, ratingsRes] = await Promise.all([
+          fetch(`/api/promotions/${promotion.id || promotion._id}/comments`),
+          fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`)
+        ]);
+        setComments(await commentsRes.json());
+        const ratingsData = await ratingsRes.json();
+        setRatings(ratingsData);
+        // Set user's rating if exists
+        const userData = localStorage.getItem('dealFinderUser');
+        if (userData) {
+          const user = JSON.parse(userData);
+          const found = ratingsData.find(r => r.user && (r.user._id === user._id));
+          setUserRating(found ? found.value : 0);
+        }
+      } catch {}
+      setLoadingComments(false);
+      setLoadingRatings(false);
+    }
+    fetchSocial();
+  }, [promotion.id, promotion._id]);
+
+  // Add comment handler
+  async function handleAddComment(e) {
+    e.preventDefault();
+    const userData = localStorage.getItem('dealFinderUser');
+    if (!userData || !commentText.trim()) return;
+    const user = JSON.parse(userData);
+    const res = await fetch(`/api/promotions/${promotion.id || promotion._id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user._id, text: commentText })
+    });
+    if (res.ok) {
+      const newComment = await res.json();
+      setComments([...comments, { ...newComment, user: { _id: user._id, name: user.name, email: user.email } }]);
+      setCommentText("");
+    }
+  }
+
+  // Add/update rating handler
+  async function handleRate(value) {
+    const userData = localStorage.getItem('dealFinderUser');
+    if (!userData) return;
+    const user = JSON.parse(userData);
+    const res = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user._id, value })
+    });
+    if (res.ok) {
+      setUserRating(value);
+      // Reload ratings after update
+      const ratingsRes = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`);
+      setRatings(await ratingsRes.json());
+    }
+  }
+
+  const averageRating = ratings.length > 0
+    ? (ratings.reduce((sum, r) => sum + r.value, 0) / ratings.length).toFixed(1)
+    : null;
+
+  // Only show social features if singlePageMode is true
+  if (singlePageMode) {
+    return (
+      <div>
+        {/* Average Rating UI */}
+        <div className="flex items-center mb-1">
+          <span className="text-yellow-500 mr-1">
+            {[1,2,3,4,5].map(star => (
+              <i key={star} className={`fa-star ${averageRating && averageRating >= star ? 'fas' : 'far'}`}></i>
+            ))}
+          </span>
+          {averageRating ? (
+            <span className="text-xs text-gray-600">{averageRating} / 5</span>
+          ) : (
+            <span className="text-xs text-gray-400">No ratings yet</span>
+          )}
+        </div>
+        {/* Ratings UI */}
+        <div className="flex items-center mb-2">
+          <span className="mr-2 text-sm text-gray-600">Rate this deal:</span>
+          {[1,2,3,4,5].map(star => (
+            <button key={star} onClick={() => handleRate(star)} className="focus:outline-none">
+              <i className={`fa-star ${userRating >= star ? 'fas text-yellow-400' : 'far text-gray-400'}`}></i>
+            </button>
+          ))}
+          <span className="ml-2 text-xs text-gray-500">({ratings.length} ratings)</span>
+        </div>
+        {/* Promo link button */}
+        {promotion.url && (
+          <div className="mb-2">
+            <button className="btn btn-accent btn-xs" onClick={() => {
+              const promoId = promotion.id || promotion._id;
+              trackPromotionClick(promoId, promotion.title, getMerchantName(promotion.merchant));
+              window.open(promotion.url, '_blank', 'noopener');
+            }}>
+              Go to Promotion
+            </button>
+          </div>
+        )}
+        {/* Comments UI */}
+        <div className="mb-2">
+          <div className="font-semibold text-sm mb-1">Comments</div>
+          <div className="max-h-24 overflow-y-auto border rounded bg-gray-50 p-2 mb-1">
+            {loadingComments ? <div>Loading...</div> :
+              comments.length === 0 ? <div className="text-xs text-gray-400">No comments yet.</div> :
+              comments.map((c, i) => (
+                <div key={i} className="mb-1 text-xs"><span className="font-bold">{c.user?.name || c.user?.email || 'User'}:</span> {c.text}</div>
+              ))}
+          </div>
+          <form onSubmit={handleAddComment} className="flex gap-2 mt-1">
+            <input type="text" value={commentText} onChange={e => setCommentText(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs" placeholder="Add a comment..." maxLength={200} />
+            <button type="submit" className="btn btn-primary btn-xs">Post</button>
+          </form>
+        </div>
+        {/* Share button */}
+        <div className="mb-2">
+          <button className="btn btn-primary btn-xs" onClick={() => {
+            const url = window.location.href;
+            if (navigator.share) {
+              navigator.share({ title: promotion.title, text: promotion.description, url });
+            } else {
+              navigator.clipboard.writeText(url);
+              alert("Deal link copied to clipboard!");
+            }
+          }}><i className="fas fa-share-alt mr-1"></i>Share</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       className={`promotion-card fade-in relative transform transition-all duration-200 hover:scale-105 hover:shadow-2xl ${promotion.url ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
       onClick={promotion.url ? handleCardClick : undefined} data-id="fvxy2i9nx" data-path="scripts/components/PromotionCard.js"
-    >
-      {promotion.url && (
-        <div className="absolute top-2 right-2 z-10 text-primary-color">
-          <i className="fas fa-external-link-alt"></i>
+    >      {promotion.url && (
+        <div className="absolute top-2 right-2 z-10">
+          <button className="btn btn-accent btn-xs" onClick={e => {
+            e.stopPropagation();
+            const promoId = promotion.id || promotion._id;
+            trackPromotionClick(promoId, promotion.title, getMerchantName(promotion.merchant));
+            window.open(promotion.url, '_blank', 'noopener');
+          }}>
+            Go to Promotion
+          </button>
         </div>
       )}
       <button
@@ -113,6 +260,19 @@ function PromotionCard({ promotion, onFavoriteToggle }) {
         <h3 className="promo-title flex items-center gap-2 text-lg font-semibold">
           <i className="fas fa-tag text-accent-color"></i>{promotion.title}
         </h3>
+        {/* Average Rating in Card View */}
+        <div className="flex items-center mb-1 mt-1">
+          <span className="text-yellow-500 mr-1">
+            {[1,2,3,4,5].map(star => (
+              <i key={star} className={`fa-star ${averageRating && averageRating >= star ? 'fas' : 'far'}`}></i>
+            ))}
+          </span>
+          {averageRating ? (
+            <span className="text-xs text-gray-600">{averageRating} / 5</span>
+          ) : (
+            <span className="text-xs text-gray-400">No ratings</span>
+          )}
+        </div>
         <p className="promo-description mb-4 text-gray-700 flex items-center gap-2 text-sm">
           <i className="fas fa-info-circle text-gray-400"></i>{promotion.description}
         </p>
@@ -131,6 +291,7 @@ function PromotionCard({ promotion, onFavoriteToggle }) {
             <i className="far fa-copy"></i> Copy
           </button>
         </div>
+        {/* Remove ratings, comments, and share from card view */}
       </div>
     </div>
   );

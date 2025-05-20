@@ -102,7 +102,12 @@ function CategoryPage() {
         ) : promotions.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
             {promotions.map((promotion) =>
-              <PromotionCard key={promotion.id} promotion={promotion} onFavoriteToggle={() => {}} />
+              <div key={promotion.id}>
+                <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
+                  className="cursor-pointer">
+                  <PromotionCard promotion={promotion} />
+                </div>
+              </div>
             )}
           </div>
         ) : (
