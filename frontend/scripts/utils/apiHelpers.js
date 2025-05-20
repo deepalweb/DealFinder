@@ -1,11 +1,13 @@
 // API Helper functions for making requests to the backend
 
 // Base API URL - Use absolute URL for Azure deployment
-const isProduction = window.location.hostname.includes('azurewebsites.net');
-const API_BASE_URL = isProduction 
+const isAzure = window.location.hostname.includes('azurewebsites.net');
+const isDrstores = window.location.hostname.includes('drstores.lk');
+const API_BASE_URL = isAzure
   ? 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/'
-  : 'http://localhost:8080/api/'
-  ||'https://drstores.lk/api/'; // Fallback to local server if not in production
+  : isDrstores
+    ? 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/'
+    : 'http://localhost:8080/api/';
 
 console.log('Using API base URL:', API_BASE_URL);
 
