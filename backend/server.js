@@ -19,7 +19,8 @@ app.use(cors({
     'http://localhost:5001', 
     'http://127.0.0.1:5500', 
     'http://localhost:5500', 
-    'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
+    'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net',
+    'https://drstores.lk' // Allow production frontend domain
   ], // Allow both server and Live Server origins
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
@@ -53,10 +54,7 @@ app.get('/test-static', (req, res) => {
 });
 
 // Connect to MongoDB with better error handling
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
+mongoose.connect(process.env.MONGO_URI)
 .then(() => console.log('Connected to MongoDB'))
 .catch((err) => {
   console.error('Error connecting to MongoDB:', err);
@@ -91,6 +89,7 @@ app.use((err, req, res, next) => {
 // Ensure JWT_SECRET is set
 if (!process.env.JWT_SECRET) {
   console.warn('Warning: JWT_SECRET is not set in environment variables. Using default (insecure) secret.');
+  console.warn('To fix: Set JWT_SECRET in a .env file at backend/.env or in your environment variables.');
 }
 
 // Start Server
