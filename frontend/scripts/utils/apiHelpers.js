@@ -15,7 +15,7 @@ console.log('Using API base URL:', API_BASE_URL);
 async function fetchAPI(endpoint, options = {}, retries = 2) {
   try {
     // Prepare options for production environment
-    if (isProduction) {
+    if (isAzure || isDrstores) {
       options = {
         ...options,
         mode: 'cors',
