@@ -79,8 +79,6 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
   const [userRating, setUserRating] = useState(0);
   const [loadingComments, setLoadingComments] = useState(false);
   const [loadingRatings, setLoadingRatings] = useState(false);
-  // Emoji picker expand/collapse state
-  const [showAllEmojis, setShowAllEmojis] = useState(false);
 
   // Fetch comments and ratings on mount
   useEffect(() => {
