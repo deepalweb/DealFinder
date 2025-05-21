@@ -3,6 +3,8 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
   const daysRemaining = calculateDaysRemaining(promotion.endDate);
   const daysText = getDaysText(daysRemaining);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [showAllEmojis, setShowAllEmojis] = useState(false);
 
   // Check if promotion is in favorites on component mount
   useEffect(() => {
@@ -77,6 +79,8 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
   const [userRating, setUserRating] = useState(0);
   const [loadingComments, setLoadingComments] = useState(false);
   const [loadingRatings, setLoadingRatings] = useState(false);
+  // Emoji picker expand/collapse state
+  const [showAllEmojis, setShowAllEmojis] = useState(false);
 
   // Fetch comments and ratings on mount
   useEffect(() => {
@@ -128,16 +132,29 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
     const userData = localStorage.getItem('dealFinderUser');
     if (!userData) return;
     const user = JSON.parse(userData);
-    const res = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user._id, value })
-    });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id, value })
+      });
+      if (!res.ok) {
+        let errorMsg = `Failed to save rating. Status: ${res.status}`;
+        try {
+          const errData = await res.json();
+          errorMsg += `\n${errData.message || JSON.stringify(errData)}`;
+        } catch {}
+        alert(errorMsg);
+        console.error('Rating save error:', res);
+        return;
+      }
       setUserRating(value);
       // Reload ratings after update
       const ratingsRes = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`);
       setRatings(await ratingsRes.json());
+    } catch (err) {
+      alert('An error occurred while saving your rating. See console for details.');
+      console.error('Rating save exception:', err);
     }
   }
 
@@ -166,8 +183,21 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
         <div className="flex items-center mb-2">
           <span className="mr-2 text-sm text-gray-600">Rate this deal:</span>
           {[1,2,3,4,5].map(star => (
-            <button key={star} onClick={() => handleRate(star)} className="focus:outline-none">
-              <i className={`fa-star ${userRating >= star ? 'fas text-yellow-400' : 'far text-gray-400'}`}></i>
+            <button
+              key={star}
+              type="button"
+              onClick={() => handleRate(star)}
+              onMouseEnter={() => setHoverRating(star)}
+              onMouseLeave={() => setHoverRating(0)}
+              className="focus:outline-none p-1 cursor-pointer group"
+              aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+              style={{ background: 'none', border: 'none' }}
+            >
+              <i className={`fa-star ${
+                (hoverRating ? hoverRating >= star : userRating >= star)
+                  ? 'fas text-yellow-400'
+                  : 'far text-gray-400'
+              } group-hover:text-yellow-500 transition-colors duration-150`}></i>
             </button>
           ))}
           <span className="ml-2 text-xs text-gray-500">({ratings.length} ratings)</span>
@@ -194,8 +224,74 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
                 <div key={i} className="mb-1 text-xs"><span className="font-bold">{c.user?.name || c.user?.email || 'User'}:</span> {c.text}</div>
               ))}
           </div>
+          {/* Emoji Picker with Expandable Option */}
+          <div className="flex flex-wrap gap-1 mb-1 items-center">
+            {/* Show a few common emojis by default */}
+            {['😀','😂','😍','👍','🎉','🔥','😢','🙏'].map(emoji => (
+              <button
+                key={emoji}
+                type="button"
+                className="text-lg hover:scale-125 transition-transform"
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                title={emoji}
+                onClick={e => {
+                  e.preventDefault();
+                  const input = document.getElementById(`comment-input-${promotion.id || promotion._id}`);
+                  if (input) {
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    const value = input.value;
+                    const newValue = value.slice(0, start) + emoji + value.slice(end);
+                    input.value = newValue;
+                    input.focus();
+                    input.selectionStart = input.selectionEnd = start + emoji.length;
+                    setCommentText(newValue);
+                  }
+                }}
+              >{emoji}</button>
+            ))}
+            {/* Expand/collapse for more emojis */}
+            <span>
+              <button
+                type="button"
+                className="text-xs px-2 py-1 border rounded bg-gray-100 hover:bg-gray-200 ml-1"
+                style={{ lineHeight: 1, fontWeight: 500 }}
+                onClick={e => {
+                  e.preventDefault();
+                  setShowAllEmojis(v => !v);
+                }}
+              >{showAllEmojis ? 'Less...' : 'More...'}</button>
+            </span>
+            {showAllEmojis && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {['😎','🥳','😡','👏','💯','🤩','😅','😇','😜','😏','😬','🤔'].map(emoji => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className="text-lg hover:scale-125 transition-transform"
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                    title={emoji}
+                    onClick={e => {
+                      e.preventDefault();
+                      const input = document.getElementById(`comment-input-${promotion.id || promotion._id}`);
+                      if (input) {
+                        const start = input.selectionStart;
+                        const end = input.selectionEnd;
+                        const value = input.value;
+                        const newValue = value.slice(0, start) + emoji + value.slice(end);
+                        input.value = newValue;
+                        input.focus();
+                        input.selectionStart = input.selectionEnd = start + emoji.length;
+                        setCommentText(newValue);
+                      }
+                    }}
+                  >{emoji}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <form onSubmit={handleAddComment} className="flex gap-2 mt-1">
-            <input type="text" value={commentText} onChange={e => setCommentText(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs" placeholder="Add a comment..." maxLength={200} />
+            <input id={`comment-input-${promotion.id || promotion._id}`} type="text" value={commentText} onChange={e => setCommentText(e.target.value)} className="flex-1 border rounded px-2 py-1 text-xs" placeholder="Add a comment..." maxLength={200} />
             <button type="submit" className="btn btn-primary btn-xs">Post</button>
           </form>
         </div>
