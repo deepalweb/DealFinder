@@ -3,6 +3,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const Notification = require('../models/Notification');
 const transporter = require('../mailer');
+const { authenticateJWT, authorizeAdmin } = require('../middleware/auth');
 
 // Add safeError helper
 function safeError(error) {
@@ -12,8 +13,8 @@ function safeError(error) {
   return { message: error.message, stack: error.stack };
 }
 
-// Get all notifications
-router.get('/', async (req, res) => {
+// Get all notifications (Admin only)
+router.get('/', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {
     const notifications = await Notification.find();
     res.status(200).json(notifications);
@@ -22,9 +23,9 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create a new notification
-router.post('/', [
-  body('userId').trim().notEmpty().withMessage('User ID is required'),
+// Create a new notification (Admin only - for a specific user)
+router.post('/', authenticateJWT, authorizeAdmin, [
+  body('userId').trim().notEmpty().withMessage('User ID is required'), // Admin specifies which user to notify
   body('message').trim().notEmpty().withMessage('Message is required'),
   body('type').optional().isString(),
 ], async (req, res) => {
@@ -34,6 +35,7 @@ router.post('/', [
   }
   const { userId, message, type } = req.body;
   try {
+    // TODO: Optionally, check if userId exists before creating notification
     const newNotification = new Notification({ userId, message, type });
     await newNotification.save();
     res.status(201).json(newNotification);
@@ -42,10 +44,13 @@ router.post('/', [
   }
 });
 
-// Test route to send a notification email
-router.post('/test-email', async (req, res) => {
+// Test route to send a notification email (Admin only)
+router.post('/test-email', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {
     const { to, subject, text } = req.body;
+    if (!to || !subject || !text) {
+      return res.status(400).json({ message: 'Missing required fields: to, subject, text' });
+    }
     await transporter.sendMail({
       from: `DealFinder <${process.env.M365_EMAIL}>`,
       to,
