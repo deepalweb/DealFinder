@@ -9,21 +9,46 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Middleware
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+// Set a more reasonable default body limit. 10MB is still generous.
+// If specific routes need larger limits (e.g., for base64 image uploads),
+// they can have bodyParser middleware applied with a custom limit.
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 
-// Ensure CORS is properly configured
+// CORS Configuration
+const allowedOrigins_DEV = [
+  'http://127.0.0.1:5001',
+  'http://localhost:5001',
+  'http://127.0.0.1:5500', // VS Code Live Server
+  // Include Azure URL if it's used for development/staging branches accessible during dev
+  'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
+];
+const allowedOrigins_PROD = [
+  'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net',
+  'https://drstores.lk'
+  // Add any other production frontend domains here
+];
+const currentOrigins = process.env.NODE_ENV === 'production' ? allowedOrigins_PROD : allowedOrigins_DEV;
+
+console.log(`CORS enabled for NODE_ENV: ${process.env.NODE_ENV || 'development (default)'}`);
+console.log('Allowed CORS origins:', currentOrigins);
+
 app.use(cors({
-  origin: [
-    'http://127.0.0.1:5001', 
-    'http://localhost:5001', 
-    'http://127.0.0.1:5500', , 
-    'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net',
-    'https://drstores.lk' // Allow production frontend domain
-  ], // Allow both server and Live Server origins
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (currentOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS: Blocked origin - ${origin}`);
+      callback(new Error(`CORS policy does not allow access from origin: ${origin}`), false);
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true,
 }));
+
 
 // API status route
 app.get('/api/status', (req, res) => {
@@ -89,6 +114,12 @@ app.use((err, req, res, next) => {
 if (!process.env.JWT_SECRET) {
   console.warn('Warning: JWT_SECRET is not set in environment variables. Using default (insecure) secret.');
   console.warn('To fix: Set JWT_SECRET in a .env file at backend/.env or in your environment variables.');
+}
+
+// Ensure JWT_REFRESH_SECRET is set
+if (!process.env.JWT_REFRESH_SECRET) {
+  console.warn('Warning: JWT_REFRESH_SECRET is not set in environment variables. Using default (insecure) secret.');
+  console.warn('To fix: Set JWT_REFRESH_SECRET in a .env file at backend/.env or in your environment variables.');
 }
 
 // Start Server

@@ -3,6 +3,7 @@ const router = express.Router();
 const Merchant = require('../models/Merchant');
 const User = require('../models/User');
 const { body, validationResult } = require('express-validator');
+const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin } = require('../middleware/auth');
 
 // Remove sensitive error details from all API responses in production
 function safeError(error) {
@@ -58,11 +59,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create a new merchant
-router.post('/', [
+// Create a new merchant (Admin Only)
+router.post('/', authenticateJWT, authorizeAdmin, [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('profile').optional().isString(),
   body('contactInfo').optional().isString(),
+  // userId in body is used by admin to link this new merchant profile to an existing user
   body('userId').optional().isString(),
   body('address').optional().isString(),
   body('contactNumber').optional().isString(),
@@ -102,8 +104,8 @@ router.post('/', [
   }
 });
 
-// Update a merchant
-router.put('/:id', [
+// Update a merchant (Merchant Self or Admin)
+router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
   body('profile').optional().isString(),
   body('contactInfo').optional().isString(),
@@ -132,8 +134,10 @@ router.put('/:id', [
   }
 });
 
-// Delete a merchant
-router.delete('/:id', async (req, res) => {
+// Delete a merchant (Merchant Self or Admin)
+// Note: authorizeMerchantSelfOrAdmin checks if req.user.merchantId matches req.params.id for merchants.
+// For admins, it just lets them through.
+router.delete('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, async (req, res) => {
   try {
     const merchant = await Merchant.findById(req.params.id);
     if (!merchant) {
@@ -153,8 +157,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Get merchant dashboard data
-router.get('/:id/dashboard', async (req, res) => {
+// Get merchant dashboard data (Merchant Self or Admin)
+router.get('/:id/dashboard', authenticateJWT, authorizeMerchantSelfOrAdmin, async (req, res) => {
   try {
     const merchant = await Merchant.findById(req.params.id).populate('promotions');
     if (!merchant) {

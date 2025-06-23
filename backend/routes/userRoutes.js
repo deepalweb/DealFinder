@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
+const { authenticateJWT, authorizeAdmin, authorizeSelfOrAdmin } = require('../middleware/auth');
 
 // In-memory store for refresh tokens
 const refreshTokens = new Set();
@@ -13,7 +14,8 @@ const refreshTokens = new Set();
 // Helper: Generate JWT
 function generateToken(user) {
   return jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
+    // Ensure merchantId is included in the token if the user is a merchant
+    { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
     process.env.JWT_SECRET || 'your_jwt_secret',
     { expiresIn: '7d' }
   );
@@ -22,43 +24,52 @@ function generateToken(user) {
 // Helper: Generate Refresh Token
 function generateRefreshToken(user) {
   return jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
+    // Ensure merchantId is included in the token if the user is a merchant
+    { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
     process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret',
     { expiresIn: '30d' }
   );
 }
 
-// JWT Middleware
-function authenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
-      if (err) return res.status(403).json({ message: 'Invalid or expired token' });
-      req.user = user;
-      next();
-    });
-  } else {
-    res.status(401).json({ message: 'Authorization token required' });
-  }
-}
-
-// Protect all user routes except register/login/reset-password
-router.use((req, res, next) => {
+// Middleware to protect routes
+function protectRoute(req, res, next) {
   const openRoutes = [
     { path: '/register', method: 'POST' },
     { path: '/login', method: 'POST' },
+    { path: '/refresh-token', method: 'POST' },
     { path: '/reset-password', method: 'POST' },
     { path: '/reset-password/confirm', method: 'POST' }
   ];
+
   if (openRoutes.some(r => r.path === req.path && r.method === req.method)) {
     return next();
   }
   authenticateJWT(req, res, next);
-});
+}
 
-// Get all users
-router.get('/', async (req, res) => {
+router.use(protectRoute);
+
+
+// Authorization Middleware: Admin only
+function authorizeAdmin(req, res, next) {
+  if (req.user && req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Forbidden: Admin access required' });
+  }
+}
+
+// Authorization Middleware: Self or Admin
+function authorizeSelfOrAdmin(req, res, next) {
+  if (req.user && (req.user.id === req.params.id || req.user.role === 'admin')) {
+    next();
+  } else {
+    res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource' });
+  }
+}
+
+// Get all users (Admin only)
+router.get('/', authorizeAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.status(200).json(users);
@@ -67,8 +78,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get a user by ID
-router.get('/:id', async (req, res) => {
+// Get a user by ID (Self or Admin)
+router.get('/:id', authorizeSelfOrAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -198,8 +209,8 @@ router.post('/logout', (req, res) => {
   res.status(200).json({ message: 'Logged out successfully' });
 });
 
-// Update user profile
-router.put('/:id', [
+// Update user profile (Self or Admin)
+router.put('/:id', authorizeSelfOrAdmin, [
   body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
   body('email').optional().isEmail().withMessage('Valid email is required'),
   body('businessName').optional().isString(),
@@ -233,8 +244,8 @@ router.put('/:id', [
   }
 });
 
-// Add promotion to favorites
-router.post('/:id/favorites', async (req, res) => {
+// Add promotion to favorites (Self or Admin)
+router.post('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
   try {
     const { promotionId } = req.body;
     
@@ -257,8 +268,8 @@ router.post('/:id/favorites', async (req, res) => {
   }
 });
 
-// Remove promotion from favorites
-router.delete('/:id/favorites/:promotionId', async (req, res) => {
+// Remove promotion from favorites (Self or Admin)
+router.delete('/:id/favorites/:promotionId', authorizeSelfOrAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) {
@@ -277,8 +288,8 @@ router.delete('/:id/favorites/:promotionId', async (req, res) => {
   }
 });
 
-// Get user's favorite promotions
-router.get('/:id/favorites', async (req, res) => {
+// Get user's favorite promotions (Self or Admin)
+router.get('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate({
       path: 'favorites',
