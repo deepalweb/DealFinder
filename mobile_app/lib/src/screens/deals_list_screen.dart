@@ -3,9 +3,14 @@ import '../services/api_service.dart';
 import '../models/promotion.dart';
 import '../widgets/deal_card.dart'; // Import the new DealCard widget
 import '../widgets/deal_card_shimmer.dart'; // Import the shimmer widget
+import '../models/category.dart'; // Import Category model
+import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
+
 
 class DealsListScreen extends StatefulWidget {
-  const DealsListScreen({super.key});
+  final Category? categoryFilter; // Optional category to filter by
+
+  const DealsListScreen({super.key, this.categoryFilter});
 
   @override
   State<DealsListScreen> createState() => _DealsListScreenState();
@@ -29,9 +34,14 @@ class _DealsListScreenState extends State<DealsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine the AppBar title based on whether a category filter is active
+    final appBarTitle = widget.categoryFilter != null
+        ? 'Deals: ${widget.categoryFilter!.name}'
+        : 'All Deals & Promotions';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Deals & Promotions'),
+        title: Text(appBarTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -124,8 +134,17 @@ class _DealsListScreenState extends State<DealsListScreen> {
                 itemCount: promotions.length,
                 itemBuilder: (context, index) {
                   Promotion promo = promotions[index];
-                  // Use the new DealCard widget
-                  return DealCard(promotion: promo);
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DealDetailScreen(promotion: promo),
+                        ),
+                      );
+                    },
+                    child: DealCard(promotion: promo),
+                  );
                 },
               );
             }
