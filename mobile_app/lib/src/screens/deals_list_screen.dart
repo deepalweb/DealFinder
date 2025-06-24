@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/promotion.dart';
+import '../widgets/deal_card.dart'; // Import the new DealCard widget
+import '../widgets/deal_card_shimmer.dart'; // Import the shimmer widget
+import '../models/category.dart'; // Import Category model
+import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
+
 
 class DealsListScreen extends StatefulWidget {
-  const DealsListScreen({super.key});
+  final Category? categoryFilter; // Optional category to filter by
+
+  const DealsListScreen({super.key, this.categoryFilter});
 
   @override
   State<DealsListScreen> createState() => _DealsListScreenState();
@@ -16,58 +23,133 @@ class _DealsListScreenState extends State<DealsListScreen> {
   @override
   void initState() {
     super.initState();
-    _promotionsFuture = _apiService.fetchPromotions();
+    _refreshPromotions();
+  }
+
+  Future<void> _refreshPromotions() async {
+    setState(() {
+      _promotionsFuture = _apiService.fetchPromotions();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Determine the AppBar title based on whether a category filter is active
+    final appBarTitle = widget.categoryFilter != null
+        ? 'Deals: ${widget.categoryFilter!.name}'
+        : 'All Deals & Promotions';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Nearby Deals'), // Updated title
+        title: Text(appBarTitle),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search Deals',
+            onPressed: () {
+              // Placeholder for search functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Search functionality coming soon!')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'Filter Deals',
+            onPressed: () {
+              // Placeholder for filter functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Filter functionality coming soon!')),
+              );
+            },
+          ),
+        ],
       ),
-      body: FutureBuilder<List<Promotion>>(
-        future: _promotionsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No deals found.'));
-          } else {
-            List<Promotion> promotions = snapshot.data!;
-            return ListView.builder(
-              itemCount: promotions.length,
-              itemBuilder: (context, index) {
-                Promotion promo = promotions[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                  child: ListTile(
-                    // Leading: promo.imageUrl != null && promo.imageUrl!.isNotEmpty
-                    //     ? Image.network(promo.imageUrl!, width: 80, height: 80, fit: BoxFit.cover,
-                    //         errorBuilder: (context, error, stackTrace) => const Icon(Icons.image_not_supported, size: 60))
-                    //     : const Icon(Icons.store, size: 60), // Placeholder if no image
-                    title: Text(promo.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(promo.description),
-                        const SizedBox(height: 4),
-                        if (promo.merchantName != null) Text('Merchant: ${promo.merchantName}'),
-                        if (promo.discount != null) Text('Discount: ${promo.discount}'),
-                        if (promo.code != null) Text('Code: ${promo.code}'),
-                        // Basic date display, can be formatted better
-                        if (promo.endDate != null)
-                           Text('Expires: ${promo.endDate!.toLocal().toString().split(' ')[0]}'),
-                      ],
-                    ),
-                    isThreeLine: true, // Adjust based on content
+      body: RefreshIndicator(
+        onRefresh: _refreshPromotions,
+        child: FutureBuilder<List<Promotion>>(
+          future: _promotionsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+              // Initial loading state (before first data arrives)
+              // Use the shimmer effect
+              return buildDealsListShimmer();
+            } else if (snapshot.hasError) {
+              // Error state
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.error_outline, color: Colors.red[400], size: 50),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Failed to load deals: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.red[700]),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Try Again'),
+                        onPressed: _refreshPromotions,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      )
+                    ],
                   ),
-                );
-              },
-            );
-          }
-        },
+                ),
+              );
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              // Empty state (no deals found)
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.sentiment_dissatisfied, color: Colors.grey[600], size: 50),
+                      const SizedBox(height: 10),
+                      Text(
+                        'No deals found at the moment.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Pull down to refresh or check back later!',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            } else {
+              // Data loaded successfully
+              List<Promotion> promotions = snapshot.data!;
+              return ListView.builder(
+                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0), // Add some padding for the list
+                itemCount: promotions.length,
+                itemBuilder: (context, index) {
+                  Promotion promo = promotions[index];
+                  return InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DealDetailScreen(promotion: promo),
+                        ),
+                      );
+                    },
+                    child: DealCard(promotion: promo),
+                  );
+                },
+              );
+            }
+          },
+        ),
       ),
     );
   }

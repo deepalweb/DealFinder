@@ -13,6 +13,8 @@ class Promotion {
   final DateTime? endDate;
   final String? category;
   final bool? featured;
+  final String? websiteUrl; // Added for "Visit Website" button
+  final String? termsAndConditions; // Added for T&C section
 
   Promotion({
     required this.id,
@@ -27,6 +29,8 @@ class Promotion {
     this.endDate,
     this.category,
     this.featured,
+    this.websiteUrl,
+    this.termsAndConditions,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
@@ -59,6 +63,8 @@ class Promotion {
       endDate: _parseDate(json['endDate'] as String?),
       category: json['category'] as String?,
       featured: json['featured'] as bool?,
+      websiteUrl: json['websiteUrl'] as String?,
+      termsAndConditions: json['termsAndConditions'] as String?,
     );
   }
 
@@ -77,6 +83,8 @@ class Promotion {
       'endDate': endDate?.toIso8601String(),
       'category': category,
       'featured': featured,
+      'websiteUrl': websiteUrl,
+      'termsAndConditions': termsAndConditions,
     };
   }
 }
