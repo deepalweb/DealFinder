@@ -12,6 +12,8 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0 # For making HTTP requests
+  intl: ^0.18.1 # For date formatting
+  shimmer: ^3.0.0 # For shimmer loading effect
   cupertino_icons: ^1.0.2 # Standard iOS icons
 
 dev_dependencies:
