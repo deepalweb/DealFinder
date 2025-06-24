@@ -49,26 +49,8 @@ function protectRoute(req, res, next) {
 
 router.use(protectRoute);
 
-
-// Authorization Middleware: Admin only
-function authorizeAdmin(req, res, next) {
-  if (req.user && req.user.role === 'admin') {
-    next();
-  } else {
-    res.status(403).json({ message: 'Forbidden: Admin access required' });
-  }
-}
-
-// Authorization Middleware: Self or Admin
-function authorizeSelfOrAdmin(req, res, next) {
-  if (req.user && (req.user.id === req.params.id || req.user.role === 'admin')) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource' });
-  }
-}
-
 // Get all users (Admin only)
+// Uses authorizeAdmin imported from ../middleware/auth
 router.get('/', authorizeAdmin, async (req, res) => {
   try {
     const users = await User.find().select('-password');
