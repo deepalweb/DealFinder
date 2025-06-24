@@ -1,3 +1,5 @@
+import 'dart:convert'; // For base64Decode
+import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Clipboard
 import 'package:intl/intl.dart'; // For date formatting
@@ -43,24 +45,9 @@ class DealDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // Promotion Image
-            if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12.0),
-                child: Image.network(
-                  promotion.imageUrl!,
-                  width: double.infinity,
-                  height: 250,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 250,
-                    width: double.infinity,
-                    color: Colors.grey[300],
-                    child: Icon(Icons.broken_image, size: 60, color: Colors.grey[600]),
-                  ),
-                ),
-              ),
-            if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
+            // Promotion Image (Handles Base64 or falls back to placeholder)
+            _buildImageWidget(context, promotion.imageDataString),
+            if (promotion.imageDataString != null && promotion.imageDataString!.isNotEmpty)
               const SizedBox(height: 20.0),
 
             // Promotion Title
@@ -228,6 +215,50 @@ class DealDetailScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageWidget(BuildContext context, String? imageDataString) {
+    if (imageDataString == null || imageDataString.isEmpty) {
+      return _buildImageErrorPlaceholder(context);
+    }
+
+    if (imageDataString.startsWith('data:image') && imageDataString.contains(';base64,')) {
+      try {
+        final String base64Data = imageDataString.substring(imageDataString.indexOf(',') + 1);
+        final Uint8List decodedBytes = base64Decode(base64Data);
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12.0),
+          child: Image.memory(
+            decodedBytes,
+            width: double.infinity,
+            height: 250,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
+          ),
+        );
+      } catch (e) {
+        print('Error decoding Base64 image for DetailScreen: $e');
+        return _buildImageErrorPlaceholder(context, error: e);
+      }
+    }
+    // Fallback for non-Base64 or if only Base64 is expected and it's malformed
+    // If regular URLs are also possible, add Image.network() logic here similar to DealCard
+    return _buildImageErrorPlaceholder(context);
+  }
+
+  Widget _buildImageErrorPlaceholder(BuildContext context, {Object? error}) {
+    if (error != null) {
+      print("DetailScreen Image loading/decoding error: $error");
+    }
+    return Container(
+      height: 250,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(12.0),
+      ),
+      child: Icon(Icons.broken_image_outlined, size: 60, color: Colors.grey[600]),
     );
   }
 }
