@@ -247,21 +247,7 @@ router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (re
 });
 
 // Record a promotion click (Optionally authenticated)
-// We'll use a light middleware to make req.user available if token exists, but not fail if not.
-function gentleAuthenticateJWT(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
-      if (!err) {
-        req.user = user;
-      } // If error, just proceed without req.user
-      next();
-    });
-  } else {
-    next();
-  }
-}
+// Uses gentleAuthenticateJWT imported from ../middleware/auth
 router.post('/:id/click', gentleAuthenticateJWT, async (req, res) => {
   try {
     const promotion = await Promotion.findById(req.params.id);
