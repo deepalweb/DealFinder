@@ -4,9 +4,13 @@ function AdminDashboard() {
   const { Link, useNavigate } = ReactRouterDOM;
 
   const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [usersOverTimeData, setUsersOverTimeData] = useState(null);
+  const [promotionsByCategoryData, setPromotionsByCategoryData] = useState(null);
+  const [loading, setLoading] = useState(true); // For initial summary
+  const [chartsLoading, setChartsLoading] = useState(true); // For chart data
   const [error, setError] = useState('');
-  const [currentView, setCurrentView] = useState('dashboard'); // MOVED HERE
+  const [chartsError, setChartsError] = useState('');
+  const [currentView, setCurrentView] = useState('dashboard');
 
   const navigate = useNavigate();
 
@@ -29,42 +33,133 @@ function AdminDashboard() {
       return;
     }
 
-    const fetchSummary = async () => {
+    const fetchAdminData = async () => {
       try {
-        setLoading(true);
-        if (window.API && window.API.Admin && window.API.Admin.getSummary) {
-          const data = await window.API.Admin.getSummary();
-          setSummary(data);
-        } else {
-          throw new Error("Admin API not available.");
+        setLoading(true); // For summary
+        setChartsLoading(true); // For charts
+        setError('');
+        setChartsError('');
+
+        if (!window.API || !window.API.Admin) {
+          throw new Error("Admin API helper not available.");
         }
+
+        // Fetch summary
+        if (window.API.Admin.getSummary) {
+          const summaryData = await window.API.Admin.getSummary();
+          setSummary(summaryData);
+        } else {
+          throw new Error("getSummary API method not found.");
+        }
+        setLoading(false); // Summary loaded or failed
+
+        // Fetch chart data concurrently
+        let usersData = null;
+        if (window.API.Admin.getUsersOverTime) {
+          usersData = await window.API.Admin.getUsersOverTime();
+          setUsersOverTimeData(usersData);
+        } else {
+          setChartsError(prev => prev + ' getUsersOverTime API method not found.');
+        }
+
+        let categoriesData = null;
+        if (window.API.Admin.getPromotionsByCategory) {
+          categoriesData = await window.API.Admin.getPromotionsByCategory();
+          setPromotionsByCategoryData(categoriesData);
+        } else {
+          setChartsError(prev => prev + ' getPromotionsByCategory API method not found.');
+        }
+
       } catch (e) {
-        console.error("Failed to fetch admin summary:", e);
-        setError('Failed to load summary data. ' + e.message);
+        console.error("Failed to fetch admin data:", e);
+        const errorMessage = 'Failed to load admin data. ' + e.message;
+        if (loading) setError(errorMessage); // Error happened during summary fetch
+        setChartsError(prev => prev + ' ' + errorMessage);
       } finally {
-        setLoading(false);
+        setLoading(false); // Ensure summary loading is always stopped
+        setChartsLoading(false); // Charts attempt finished
       }
     };
 
-    fetchSummary();
+    fetchAdminData();
   }, [navigate]);
 
+  // Effect for Users Over Time Chart
+  useEffect(() => {
+    let chartInstance = null;
+    if (usersOverTimeData && document.getElementById('usersOverTimeChart')) {
+      const ctx = document.getElementById('usersOverTimeChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: usersOverTimeData.map(d => d.date),
+          datasets: [{
+            label: 'New Users',
+            data: usersOverTimeData.map(d => d.count),
+            borderColor: 'rgb(99, 102, 241)',
+            backgroundColor: 'rgba(99, 102, 241, 0.5)',
+            tension: 0.1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    }
+    return () => { // Cleanup
+      if (chartInstance) chartInstance.destroy();
+    };
+  }, [usersOverTimeData]); // Re-run if data changes
+
+  // Effect for Promotions By Category Chart
+  useEffect(() => {
+    let chartInstance = null;
+    if (promotionsByCategoryData && document.getElementById('promotionsByCategoryChart')) {
+      const ctx = document.getElementById('promotionsByCategoryChart').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'bar', // or 'pie'
+        data: {
+          labels: promotionsByCategoryData.map(d => d.category),
+          datasets: [{
+            label: 'Promotions',
+            data: promotionsByCategoryData.map(d => d.count),
+            backgroundColor: [ // Add more colors if more categories expected
+              'rgba(255, 99, 132, 0.7)', 'rgba(54, 162, 235, 0.7)',
+              'rgba(255, 206, 86, 0.7)', 'rgba(75, 192, 192, 0.7)',
+              'rgba(153, 102, 255, 0.7)', 'rgba(255, 159, 64, 0.7)'
+            ],
+            borderColor: [
+              'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)',
+              'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)',
+              'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          indexAxis: 'y', // For horizontal bar chart, if preferred
+          scales: { x: { beginAtZero: true } }
+        }
+      });
+    }
+    return () => { // Cleanup
+      if (chartInstance) chartInstance.destroy();
+    };
+  }, [promotionsByCategoryData]); // Re-run if data changes
+
+  // Combined loading state for initial dashboard view (summary is key)
   if (loading) {
-    return <div className="container text-center py-10"><i className="fas fa-spinner fa-spin text-3xl text-primary-color"></i> Loading Admin Dashboard...</div>;
+    return <div className="container text-center py-10"><i className="fas fa-spinner fa-spin text-3xl text-primary-color"></i> Loading Admin Dashboard Summary...</div>;
   }
 
-  if (error) {
-    return <div className="container text-center py-10 text-red-500">Error: {error}</div>;
+  // Error for summary data - critical for dashboard
+  if (error && !summary) {
+    return <div className="container text-center py-10 text-red-500">Error loading summary: {error}</div>;
   }
 
-  if (!summary) {
-    // This case might still be an issue if fetchSummary completed, setLoading(false) ran, but summary remained null.
-    // It's generally better to initialize summary to a state that doesn't immediately trigger this (e.g. empty object if appropriate)
-    // or ensure that error is set if the fetch fails to produce a summary.
-    // For now, the hook order fix is the main thing.
-    return <div className="container text-center py-10">No summary data available. (Or still loading initial data)</div>;
-  }
-
+  // If summary is loaded, but then chart data fails, chartsError will be shown within the dashboard view.
   // Ensure UserManagement, MerchantManagement, PromotionManagement are available
   // They are expected to be declared at the top of this function's scope from window object.
 
@@ -95,6 +190,28 @@ function AdminDashboard() {
             <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-xl transition-shadow">
               <h3 className="text-xl font-semibold text-gray-700 mb-2">Promotion Clicks</h3>
               <p className="text-3xl font-bold text-primary-color">{summary.totalPromotionClicks}</p>
+            </div>
+          </div>
+
+          {/* Charts Section */}
+          <div className="mt-8">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-4">Analytics Visualizations</h2>
+            {chartsError && <p className="text-red-500 bg-red-100 p-3 rounded-md mb-4">Error loading chart data: {chartsError}</p>}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Users Over Time Chart */}
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">New Users (Last 30 Days)</h3>
+                {chartsLoading && !usersOverTimeData && <p><i className="fas fa-spinner fa-spin"></i> Loading chart...</p>}
+                <canvas id="usersOverTimeChart"></canvas>
+              </div>
+
+              {/* Promotions By Category Chart */}
+              <div className="bg-white p-6 rounded-lg shadow-md">
+                <h3 className="text-xl font-semibold text-gray-700 mb-3">Promotions by Category</h3>
+                {chartsLoading && !promotionsByCategoryData && <p><i className="fas fa-spinner fa-spin"></i> Loading chart...</p>}
+                <canvas id="promotionsByCategoryChart"></canvas>
+              </div>
             </div>
           </div>
         );
