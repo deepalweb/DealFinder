@@ -6,6 +6,7 @@
     "scripts": {
         "start": "node backend/server.js",
         "test": "echo \"No tests specified\""
+        "build": "echo \"No build step required\""
     },
     "engines": {
         "node": "18.x"
