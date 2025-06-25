@@ -107,6 +107,15 @@ function UserMenu() {
               <i className="fas fa-store mr-2"></i> Merchant Dashboard
             </Link>
           }
+
+          {user.role === 'admin' &&
+            <Link
+              to="/admin"
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => setIsMenuOpen(false)}>
+              <i className="fas fa-shield-alt mr-2"></i> Admin Panel
+            </Link>
+          }
           
           <Link
             to="/favorites"
