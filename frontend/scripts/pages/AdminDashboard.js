@@ -6,6 +6,8 @@ function AdminDashboard() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [currentView, setCurrentView] = useState('dashboard'); // MOVED HERE
+
   const navigate = useNavigate();
 
   // Ensure 'UserManagement', 'MerchantManagement', 'PromotionManagement' are globally available or imported
@@ -56,11 +58,16 @@ function AdminDashboard() {
   }
 
   if (!summary) {
-    return <div className="container text-center py-10">No summary data available.</div>;
+    // This case might still be an issue if fetchSummary completed, setLoading(false) ran, but summary remained null.
+    // It's generally better to initialize summary to a state that doesn't immediately trigger this (e.g. empty object if appropriate)
+    // or ensure that error is set if the fetch fails to produce a summary.
+    // For now, the hook order fix is the main thing.
+    return <div className="container text-center py-10">No summary data available. (Or still loading initial data)</div>;
   }
 
-  // Placeholder for navigation state
-  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard', 'users', 'merchants', 'promotions'
+  const UserManagement = window.UserManagement;
+  const MerchantManagement = window.MerchantManagement;
+  const PromotionManagement = window.PromotionManagement;
 
   const renderCurrentView = () => {
     switch (currentView) {
