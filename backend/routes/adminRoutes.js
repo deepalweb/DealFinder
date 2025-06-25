@@ -37,6 +37,77 @@ router.get('/analytics/summary', async (req, res) => {
   }
 });
 
+router.get('/analytics/users-over-time', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const usersByDate = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 } // Sort by date
+      },
+      {
+        $project: {
+          date: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+    res.status(200).json(usersByDate);
+  } catch (error) {
+    console.error("Error fetching users over time analytics:", error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/analytics/promotions-by-category', async (req, res) => {
+  try {
+    const now = new Date();
+    const promotionsByCategory = await Promotion.aggregate([
+      {
+        $match: {
+          // Optional: Filter for active promotions
+          // startDate: { $lte: now },
+          // endDate: { $gte: now },
+          // status: 'active' // If status field is reliably updated
+        }
+      },
+      {
+        $group: {
+          _id: "$category",
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 } // Sort by count descending
+      },
+      {
+        $project: {
+          category: "$_id",
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+    res.status(200).json(promotionsByCategory);
+  } catch (error) {
+    console.error("Error fetching promotions by category analytics:", error);
+    res.status(500).json(safeError(error));
+  }
+});
+
 // --- User Management ---
 // Get all users
 router.get('/users', async (req, res) => {
