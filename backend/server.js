@@ -60,12 +60,14 @@ const userRoutes = require('./routes/userRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');
 const merchantRoutes = require('./routes/merchantRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Use API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Serve static files - IMPORTANT: These must come BEFORE the catch-all routes
 app.use('/backend/public/libs', express.static(path.join(__dirname, 'public/libs')));
