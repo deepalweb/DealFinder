@@ -65,9 +65,8 @@ function AdminDashboard() {
     return <div className="container text-center py-10">No summary data available. (Or still loading initial data)</div>;
   }
 
-  const UserManagement = window.UserManagement;
-  const MerchantManagement = window.MerchantManagement;
-  const PromotionManagement = window.PromotionManagement;
+  // Ensure UserManagement, MerchantManagement, PromotionManagement are available
+  // They are expected to be declared at the top of this function's scope from window object.
 
   const renderCurrentView = () => {
     switch (currentView) {
