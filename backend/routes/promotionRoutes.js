@@ -56,7 +56,9 @@ router.get('/', async (req, res) => {
     const promotions = await Promotion.find({
       startDate: { $lte: now }, // Start date is less than or equal to now
       endDate: { $gte: now }    // End date is greater than or equal to now
-    }).populate('merchant');
+    })
+      .populate('merchant')
+      .sort({ createdAt: -1 }); // Sort by newest first
     
     console.log(`Found ${promotions.length} active promotions`);
     res.status(200).json(promotions);

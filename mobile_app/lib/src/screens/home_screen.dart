@@ -199,8 +199,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
-                      final allPromotions = snapshot.data!;
-                      final featuredDeals = allPromotions.take(10).toList();
+                      // Sort all promotions by startDate descending (newest first)
+                      final sortedPromotions = List<Promotion>.from(snapshot.data!)
+                        ..sort((a, b) => b.startDate?.compareTo(a.startDate ?? DateTime(1970)) ?? 0);
+                      // Featured: first 10, Latest: rest
+                      final featuredDeals = sortedPromotions.take(10).toList();
+                      List<Promotion> latestDeals = [];
+                      if (sortedPromotions.length > 10) {
+                        latestDeals = sortedPromotions.skip(10).toList();
+                      } else {
+                        latestDeals = sortedPromotions;
+                      }
 
                       if (featuredDeals.isEmpty) {
                         return Container(
@@ -285,10 +294,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               }
-              final allPromotions = snapshot.data!;
+              // Sort all promotions by startDate descending (newest first)
+              final sortedPromotions = List<Promotion>.from(snapshot.data!)
+                ..sort((a, b) => b.startDate?.compareTo(a.startDate ?? DateTime(1970)) ?? 0);
+              // Featured: first 10, Latest: rest
+              final featuredDeals = sortedPromotions.take(10).toList();
               List<Promotion> latestDeals = [];
-              if (allPromotions.length > 10) {
-                latestDeals = allPromotions.skip(10).toList(); // Removed .take(10)
+              if (sortedPromotions.length > 10) {
+                latestDeals = sortedPromotions.skip(10).toList();
+              } else {
+                latestDeals = sortedPromotions;
               }
 
               if (latestDeals.isEmpty) {
