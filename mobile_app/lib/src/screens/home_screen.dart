@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 80, // Width of each category item
                               padding: const EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(12.0),
                                 // border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.5))
                               ),
