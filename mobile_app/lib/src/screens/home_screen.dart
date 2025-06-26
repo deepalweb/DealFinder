@@ -16,49 +16,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Promotion>> _featuredDealsFuture;
-  late Future<List<Promotion>> _nearbyDealsPreviewFuture;
+  late Future<List<Promotion>> _allPromotionsFuture;
   final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _featuredDealsFuture = _fetchFeaturedDeals();
-    _nearbyDealsPreviewFuture = _fetchNearbyDealsPreview();
+    _allPromotionsFuture = _fetchAllPromotions();
   }
 
-  Future<List<Promotion>> _fetchFeaturedDeals() async {
-    // For now, fetch all promotions and take the first 3-5 as "featured"
-    // In a real app, this might be a separate API endpoint: /api/promotions/featured
+  Future<List<Promotion>> _fetchAllPromotions() async {
     try {
-      final allPromotions = await _apiService.fetchPromotions();
-      // Ensure we don't try to take more items than available
-      return allPromotions.take(5).toList();
+      // Optional: Add a print statement here to confirm it's called once.
+      // print('Fetching all promotions from API...');
+      return await _apiService.fetchPromotions();
     } catch (e) {
-      // Handle error, e.g., return empty list or rethrow
-      print('Error fetching featured deals: $e');
-      return [];
-    }
-  }
-
-  Future<List<Promotion>> _fetchNearbyDealsPreview() async {
-    // Fetch all promotions and take a small number for preview (e.g., 3)
-    // This assumes no specific "nearby" logic yet, just a general preview.
-    // If location services were active, this would fetch based on location.
-    try {
-      final allPromotions = await _apiService.fetchPromotions();
-      // Shuffling to make it seem more dynamic, or take from a different part of the list
-      // For now, just taking a different slice.
-      if (allPromotions.length > 8) { // ensure there are enough deals
-        return allPromotions.skip(5).take(3).toList();
-      } else if (allPromotions.length > 5) {
-         return allPromotions.skip(5).toList();
-      }
-      // If fewer than 5 deals, featured might show all, so nearby preview might be empty or repeat.
-      // A more robust solution would be needed for small datasets or actual location filtering.
-      return [];
-    } catch (e) {
-      print('Error fetching nearby deals preview: $e');
+      print('Error fetching all promotions: $e');
+      // Return an empty list or rethrow based on how you want to handle errors globally
       return [];
     }
   }
@@ -200,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   FutureBuilder<List<Promotion>>(
-                    future: _featuredDealsFuture,
+                    future: _allPromotionsFuture, // Use the single future
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer(); // Shimmer for featured deals
@@ -215,7 +189,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
-                      final featuredDeals = snapshot.data!;
+                      final allPromotions = snapshot.data!;
+                      final featuredDeals = allPromotions.take(10).toList();
+
+                      if (featuredDeals.isEmpty) {
+                        return Container(
+                          height: 220,
+                          child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
+                        );
+                      }
+
                       return Container(
                         height: 270, // Adjusted height for larger cards with some vertical padding
                         child: ListView.builder(
@@ -280,14 +263,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
           // --- Nearby Deals List ---
           FutureBuilder<List<Promotion>>(
-            future: _nearbyDealsPreviewFuture,
+            future: _allPromotionsFuture, // Use the single future
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 // Show a limited number of shimmer cards for the preview
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => const DealCardShimmer(),
-                    childCount: 2, // Show 2 shimmer cards for preview
+                    childCount: 4, // Show 4 shimmer cards for a better preview of a list of 10
                   ),
                 );
               } else if (snapshot.hasError) {
@@ -305,7 +288,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               }
-              final nearbyDeals = snapshot.data!;
+              final allPromotions = snapshot.data!;
+              List<Promotion> nearbyDeals = [];
+              if (allPromotions.length > 10) {
+                nearbyDeals = allPromotions.skip(10).take(10).toList();
+              }
+
+              if (nearbyDeals.isEmpty) {
+                 return SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(child: Text('No other deals available currently.', style: TextStyle(color: Colors.grey[600]))),
+                  ),
+                );
+              }
+
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
@@ -370,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 270,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 3, // Show 3 shimmer cards
+        itemCount: 4, // Show 4 shimmer cards for a better preview of a list of 10
         padding: const EdgeInsets.symmetric(horizontal: 12.0),
         itemBuilder: (context, index) {
           return Container(
