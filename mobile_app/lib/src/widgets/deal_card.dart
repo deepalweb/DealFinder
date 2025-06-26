@@ -1,11 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'dart:convert'; // For base64Decode
+import 'dart:typed_data'; // For Uint8List
 import '../models/promotion.dart';
 
 class DealCard extends StatelessWidget {
   final Promotion promotion;
 
   const DealCard({super.key, required this.promotion});
+
+  Widget _buildImageWidget(BuildContext context, String imageUrl) {
+    Widget errorDisplayWidget = Container(
+      height: 150,
+      width: double.infinity,
+      color: Colors.grey[300],
+      child: Icon(Icons.broken_image, size: 50, color: Colors.grey[600]),
+    );
+
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        // Find the start of the Base64 data
+        final base64Data = imageUrl.substring(imageUrl.indexOf(',') + 1);
+        final Uint8List bytes = base64Decode(base64Data);
+        return Image.memory(
+          bytes,
+          height: 150,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+        );
+      } catch (e) {
+        print('Error decoding Base64 image: $e');
+        return errorDisplayWidget;
+      }
+    } else if (imageUrl.startsWith('http')) {
+      // Standard network image
+      return Image.network(
+        imageUrl,
+        height: 150,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+        loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 150,
+            width: double.infinity,
+            color: Colors.grey[200],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // If it's not a data URI and not an HTTP/HTTPS URL, it's an invalid format
+      print('Invalid image URL format: $imageUrl');
+      return errorDisplayWidget;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,19 +75,18 @@ class DealCard extends StatelessWidget {
       if (promotion.discount == null || promotion.discount!.isEmpty) {
         return const TextSpan(text: '');
       }
-      // Simple check if discount is percentage or fixed amount - can be more sophisticated
       if (promotion.discount!.contains('%')) {
         return TextSpan(
           text: promotion.discount,
           style: TextStyle(
-            color: theme.colorScheme.primary, // Use primary color for emphasis
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
         );
       } else if (promotion.discount!.startsWith('\$') || promotion.discount!.startsWith('USD')) {
          return TextSpan(
-          text: promotion.discount, // Assuming it's already formatted like "$10 off"
+          text: promotion.discount,
           style: TextStyle(
             color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
@@ -38,7 +94,6 @@ class DealCard extends StatelessWidget {
           ),
         );
       }
-      // Default styling if not recognized format
       return TextSpan(text: promotion.discount, style: const TextStyle(fontSize: 14));
     }
 
@@ -55,35 +110,7 @@ class DealCard extends StatelessWidget {
             if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(8.0),
-                child: Image.network(
-                  promotion.imageUrl!,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 150,
-                      width: double.infinity,
-                      color: Colors.grey[300],
-                      child: Icon(Icons.broken_image, size: 50, color: Colors.grey[600]),
-                    );
-                  },
-                  loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      height: 150,
-                      width: double.infinity,
-                      color: Colors.grey[200],
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                              : null,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                child: _buildImageWidget(context, promotion.imageUrl!),
               ),
             if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
               const SizedBox(height: 12.0),

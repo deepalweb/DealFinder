@@ -17,6 +17,7 @@ class ApiService {
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
       List<Promotion> promotions = body.map((dynamic item) => Promotion.fromJson(item)).toList();
+
       return promotions;
     } else {
       throw Exception('Failed to load promotions. Status code: ${response.statusCode}, Body: ${response.body}');
