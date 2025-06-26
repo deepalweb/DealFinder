@@ -250,28 +250,15 @@ class _HomeScreenState extends State<HomeScreen> {
            SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Latest Deals', // Renamed from 'Nearby Deals'
-                     style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                       Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const DealsListScreen()),
-                      );
-                    },
-                    child: const Text('View All'),
-                  )
-                ],
+              // Row is no longer needed if "View All" is removed, title can be directly in Padding
+              child: Text(
+                'Latest Deals', // Renamed from 'Nearby Deals'
+                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
           ),
 
-          // --- Nearby Deals List ---
+          // --- Latest Deals List (previously Nearby Deals) ---
           FutureBuilder<List<Promotion>>(
             future: _allPromotionsFuture, // Use the single future
             builder: (context, snapshot) {
@@ -299,12 +286,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
               final allPromotions = snapshot.data!;
-              List<Promotion> nearbyDeals = [];
+              List<Promotion> latestDeals = [];
               if (allPromotions.length > 10) {
-                nearbyDeals = allPromotions.skip(10).take(10).toList();
+                latestDeals = allPromotions.skip(10).toList(); // Removed .take(10)
               }
 
-              if (nearbyDeals.isEmpty) {
+              if (latestDeals.isEmpty) {
                  return SliverToBoxAdapter(
                   child: Container(
                     padding: const EdgeInsets.all(16.0),
@@ -316,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final promotion = nearbyDeals[index];
+                    final promotion = latestDeals[index];
                     return InkWell(
                       onTap: () {
                         Navigator.push(
@@ -329,7 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: DealCard(promotion: promotion),
                     );
                   },
-                  childCount: nearbyDeals.length,
+                  childCount: latestDeals.length,
                 ),
               );
             },
