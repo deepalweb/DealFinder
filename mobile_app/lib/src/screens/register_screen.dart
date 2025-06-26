@@ -63,7 +63,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (token != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userToken', token);
-          // Optionally store other user info
+
+          // Store additional user details from the registration response
+          // Assuming the registration response structure is similar to login for these fields
+          await prefs.setString('userName', response['name'] as String? ?? 'N/A');
+          await prefs.setString('userEmail', response['email'] as String? ?? 'N/A');
+          final userRole = response['role'] as String? ?? 'user';
+          await prefs.setString('userRole', userRole);
+          if (userRole == 'merchant' && response['businessName'] != null) {
+            await prefs.setString('userBusinessName', response['businessName'] as String);
+          } else {
+             await prefs.remove('userBusinessName');
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
