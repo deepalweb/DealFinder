@@ -7,6 +7,7 @@ import '../services/api_service.dart'; // Import the API service
 import '../widgets/deal_card.dart'; // Import the DealCard widget
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
 import 'deals_list_screen.dart'; // Import DealsListScreen for "View All"
+import 'user_profile_screen.dart'; // Import UserProfileScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -42,16 +43,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DealFinder'), // Or a logo
-        // actions: [ // Potential actions like notifications or profile
-        //   IconButton(
-        //     icon: const Icon(Icons.notifications_none),
-        //     onPressed: () {},
-        //   ),
-        //   IconButton(
-        //     icon: const Icon(Icons.account_circle),
-        //     onPressed: () {},
-        //   ),
-        // ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Profile',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const UserProfileScreen()),
+              );
+            },
+          ),
+          // Potential other actions like notifications
+          // IconButton(
+          //   icon: const Icon(Icons.notifications_none_outlined),
+          //   tooltip: 'Notifications',
+          //   onPressed: () {
+          //     // TODO: Navigate to Notifications Screen
+          //   },
+          // ),
+        ],
       ),
       body: CustomScrollView(
         slivers: <Widget>[

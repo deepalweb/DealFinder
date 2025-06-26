@@ -47,11 +47,17 @@ class _LoginScreenState extends State<LoginScreen> {
           // Store the token
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userToken', token);
-          // Optionally store other user info if needed globally, or manage via a state management solution
-          // await prefs.setString('userName', response['name'] as String? ?? 'User');
-          // await prefs.setString('userEmail', response['email'] as String? ?? '');
-          // await prefs.setString('userRole', response['role'] as String? ?? 'user');
 
+          // Store additional user details
+          await prefs.setString('userName', response['name'] as String? ?? 'N/A');
+          await prefs.setString('userEmail', response['email'] as String? ?? 'N/A');
+          final userRole = response['role'] as String? ?? 'user';
+          await prefs.setString('userRole', userRole);
+          if (userRole == 'merchant' && response['businessName'] != null) {
+            await prefs.setString('userBusinessName', response['businessName'] as String);
+          } else {
+            await prefs.remove('userBusinessName'); // Ensure it's clear if not a merchant or no business name
+          }
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -196,9 +202,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text("Don't have an account?"),
                   TextButton(
                     onPressed: () {
-                      // TODO: Navigate to Register screen
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Register here tapped. (Not implemented yet)')),
+                      Navigator.of(context).pushReplacement( // Or push, if you want Login to be easily accessible via back button
+                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
                       );
                     },
                     child: const Text('Register here'),
