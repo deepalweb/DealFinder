@@ -196,9 +196,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text("Don't have an account?"),
                   TextButton(
                     onPressed: () {
-                      // TODO: Navigate to Register screen
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Register here tapped. (Not implemented yet)')),
+                      Navigator.of(context).pushReplacement( // Or push, if you want Login to be easily accessible via back button
+                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
                       );
                     },
                     child: const Text('Register here'),

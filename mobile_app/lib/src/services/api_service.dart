@@ -50,4 +50,29 @@ class ApiService {
       throw Exception('Failed to login. Status code: ${response.statusCode}, Body: ${response.body}');
     }
   }
+
+  Future<Map<String, dynamic>> registerUser(Map<String, dynamic> userData) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}users/register'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(userData),
+    );
+
+    if (response.statusCode == 201) { // Registration successful
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else if (response.statusCode == 400) { // Bad request (e.g., validation errors, email exists)
+      final errorBody = jsonDecode(response.body);
+      // Backend might return specific error messages or an array of errors
+      if (errorBody['errors'] != null && errorBody['errors'] is List) {
+        // Join multiple validation errors if present
+        String messages = (errorBody['errors'] as List).map((e) => e['msg']).join(', ');
+        throw Exception(messages.isNotEmpty ? messages : 'Registration failed. Please check your input.');
+      }
+      throw Exception(errorBody['message'] ?? 'Registration failed. Please check your input.');
+    } else {
+      throw Exception('Registration failed. Status code: ${response.statusCode}, Body: ${response.body}');
+    }
+  }
 }
