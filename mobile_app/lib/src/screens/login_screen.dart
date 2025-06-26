@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import 'home_screen.dart'; // For navigation after login
+import 'register_screen.dart'; // Importing RegisterScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

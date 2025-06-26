@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
             color: Colors.black87, // Adjusted for Material3 defaults if not using colored AppBar
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 2.0, // Slightly more elevation for cards
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0), // More rounded cards
