@@ -10,27 +10,34 @@ function UserMenu() {
   useEffect(() => {
     // Function to update user state from localStorage
     const updateUserState = () => {
+      console.log('[UserMenu] updateUserState: Reading from localStorage.');
       const userData = localStorage.getItem('dealFinderUser');
       if (userData) {
         try {
-          setUser(JSON.parse(userData));
+          const parsedUser = JSON.parse(userData);
+          console.log('[UserMenu] updateUserState: User data found, setting state.', parsedUser);
+          setUser(parsedUser);
         } catch (e) {
-          console.error("Failed to parse user data from localStorage", e);
+          console.error("[UserMenu] updateUserState: Failed to parse user data from localStorage", e);
           localStorage.removeItem('dealFinderUser'); // Clear corrupted data
           setUser(null);
         }
       } else {
+        console.log('[UserMenu] updateUserState: No user data found in localStorage, setting user to null.');
         setUser(null);
       }
     };
 
+    console.log('[UserMenu] useEffect: Component did mount. Setting up initial state and listeners.');
     // Initial check
     updateUserState();
 
     // Listen for auth state changes
-    const handleAuthStateChange = () => {
+    const handleAuthStateChange = (event) => {
+      console.log('[UserMenu] handleAuthStateChange: Received authStateChange event.', event);
       updateUserState();
     };
+    console.log('[UserMenu] useEffect: Adding authStateChange event listener.');
     window.addEventListener('authStateChange', handleAuthStateChange);
 
     // Close menu when clicking outside
