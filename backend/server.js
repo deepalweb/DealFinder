@@ -112,21 +112,25 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Ensure JWT_SECRET is set
+// Ensure critical JWT secrets are set
 if (!process.env.JWT_SECRET) {
-  console.warn('Warning: JWT_SECRET is not set in environment variables. Using default (insecure) secret.');
-  console.warn('To fix: Set JWT_SECRET in a .env file at backend/.env or in your environment variables.');
+  console.error('CRITICAL ERROR: JWT_SECRET is not defined in environment variables.');
+  console.error('The application cannot start without a JWT_SECRET.');
+  console.error('Please set JWT_SECRET in your environment (e.g., .env file or hosting provider configuration).');
+  process.exit(1); // Exit the process with an error code
 }
 
-// Ensure JWT_REFRESH_SECRET is set
 if (!process.env.JWT_REFRESH_SECRET) {
-  console.warn('Warning: JWT_REFRESH_SECRET is not set in environment variables. Using default (insecure) secret.');
-  console.warn('To fix: Set JWT_REFRESH_SECRET in a .env file at backend/.env or in your environment variables.');
+  console.error('CRITICAL ERROR: JWT_REFRESH_SECRET is not defined in environment variables.');
+  console.error('The application cannot start without a JWT_REFRESH_SECRET.');
+  console.error('Please set JWT_REFRESH_SECRET in your environment (e.g., .env file or hosting provider configuration).');
+  process.exit(1); // Exit the process with an error code
 }
 
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log('JWT_SECRET and JWT_REFRESH_SECRET environment variables are loaded.'); // Confirmation that checks passed
 });
 
 module.exports = mongoose;

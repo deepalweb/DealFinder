@@ -16,7 +16,7 @@ function generateToken(user) {
   return jwt.sign(
     // Ensure merchantId is included in the token if the user is a merchant
     { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_SECRET || 'your_jwt_secret',
+    process.env.JWT_SECRET, // Relies on server startup check for presence
     { expiresIn: '7d' }
   );
 }
@@ -26,7 +26,7 @@ function generateRefreshToken(user) {
   return jwt.sign(
     // Ensure merchantId is included in the token if the user is a merchant
     { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret',
+    process.env.JWT_REFRESH_SECRET, // Relies on server startup check for presence
     { expiresIn: '30d' }
   );
 }
@@ -177,7 +177,8 @@ router.post('/refresh-token', (req, res) => {
   if (!refreshToken || !refreshTokens.has(refreshToken)) {
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
-  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret', (err, user) => {
+  // generateToken and generateRefreshToken will now rely on server checks for JWT_SECRET and JWT_REFRESH_SECRET
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid or expired refresh token' });
     const newToken = generateToken(user);
     res.status(200).json({ token: newToken });
