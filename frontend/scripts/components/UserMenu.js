@@ -8,11 +8,30 @@ function UserMenu() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem('dealFinderUser');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
+    // Function to update user state from localStorage
+    const updateUserState = () => {
+      const userData = localStorage.getItem('dealFinderUser');
+      if (userData) {
+        try {
+          setUser(JSON.parse(userData));
+        } catch (e) {
+          console.error("Failed to parse user data from localStorage", e);
+          localStorage.removeItem('dealFinderUser'); // Clear corrupted data
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
+    };
+
+    // Initial check
+    updateUserState();
+
+    // Listen for auth state changes
+    const handleAuthStateChange = () => {
+      updateUserState();
+    };
+    window.addEventListener('authStateChange', handleAuthStateChange);
 
     // Close menu when clicking outside
     const handleClickOutside = (event) => {
@@ -20,10 +39,12 @@ function UserMenu() {
         setIsMenuOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
+
+    // Cleanup
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('authStateChange', handleAuthStateChange);
     };
   }, []);
 

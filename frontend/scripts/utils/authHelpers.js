@@ -33,11 +33,13 @@ function isAdmin() {
 // Login user (store in localStorage)
 function loginUser(userData) {
   localStorage.setItem('dealFinderUser', JSON.stringify(userData));
+  window.dispatchEvent(new CustomEvent('authStateChange'));
 }
 
 // Logout user
 function logoutUser() {
   localStorage.removeItem('dealFinderUser');
+  window.dispatchEvent(new CustomEvent('authStateChange'));
 }
 
 // Register and login
