@@ -146,7 +146,16 @@ const PromotionAPI = {
     body: JSON.stringify(data)
   }),
   getAnalyticsByMerchant: (merchantId) => fetchAPI(`promotions/analytics/merchant/${merchantId}`),
-  getAnalyticsByPromotion: (promotionId) => fetchAPI(`promotions/${promotionId}/analytics`)
+  getAnalyticsByPromotion: (promotionId) => fetchAPI(`promotions/${promotionId}/analytics`),
+  addComment: (promotionId, commentData) => fetchAPI(`promotions/${promotionId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData)
+  }),
+  getRatings: (promotionId) => fetchAPI(`promotions/${promotionId}/ratings`),
+  addRating: (promotionId, ratingData) => fetchAPI(`promotions/${promotionId}/ratings`, {
+    method: 'POST',
+    body: JSON.stringify(ratingData)
+  })
 };
 
 // Merchant API functions
