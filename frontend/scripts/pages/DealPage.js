@@ -50,6 +50,20 @@ function DealPage() {
             <span className="text-xs text-gray-500">Code: <code className="bg-gray-100 px-1 rounded">{deal.code}</code></span>
           </div>
           <div className="mb-2 text-xs text-gray-500">{new Date(deal.startDate).toLocaleDateString()} - {new Date(deal.endDate).toLocaleDateString()}</div>
+          {/* Price Section */}
+          {(deal.price || deal.originalPrice || deal.discountedPrice) && (
+            <div className="mb-2 flex gap-2 items-center">
+              {deal.originalPrice && (
+                <span className="line-through text-gray-400 text-base">Rs. {deal.originalPrice.toFixed(2)}</span>
+              )}
+              {deal.discountedPrice && (
+                <span className="text-green-600 font-bold text-lg">Rs. {deal.discountedPrice.toFixed(2)}</span>
+              )}
+              {deal.price && !deal.discountedPrice && (
+                <span className="text-primary-color font-bold text-lg">Rs. {deal.price.toFixed(2)}</span>
+              )}
+            </div>
+          )}
           <button className="btn btn-primary btn-sm mt-2" onClick={handleShare}><i className="fas fa-share-alt mr-1"></i>Share</button>
         </div>
         {/* Comments & Ratings UI (reuse PromotionCard logic) */}

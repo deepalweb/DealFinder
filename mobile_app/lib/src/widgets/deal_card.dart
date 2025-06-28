@@ -71,7 +71,7 @@ class DealCard extends StatelessWidget {
     final DateFormat dateFormat = DateFormat('MMM d, yyyy'); // Example: Jan 1, 2023
 
     // Helper to build rich text for discount
-    InlineSpan _buildDiscountText() {
+    InlineSpan buildDiscountText() {
       if (promotion.discount == null || promotion.discount!.isEmpty) {
         return const TextSpan(text: '');
       }
@@ -153,7 +153,7 @@ class DealCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Discount
-                RichText(text: _buildDiscountText()),
+                RichText(text: buildDiscountText()),
                 // Promo Code (if available)
                 if (promotion.code != null && promotion.code!.isNotEmpty)
                   Container(
