@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Container(
+                  SizedBox(
                     height: 90, // Height for category items
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
@@ -189,12 +189,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer(); // Shimmer for featured deals
                       } else if (snapshot.hasError) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(child: Text('Could not load featured deals.', style: TextStyle(color: Colors.red[400]))),
                         );
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
@@ -212,13 +212,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
 
                       if (featuredDeals.isEmpty) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
 
-                      return Container(
+                      return SizedBox(
                         height: 270, // Adjusted height for larger cards with some vertical padding
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
@@ -375,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Shimmer placeholder for Featured Deals section
   Widget _buildFeaturedDealsShimmer() {
-    return Container(
+    return SizedBox(
       height: 270,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,

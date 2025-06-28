@@ -354,25 +354,6 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
         <p className="promo-description mb-4 text-gray-700 flex items-center gap-2 text-sm">
           <i className="fas fa-info-circle text-gray-400"></i>{promotion.description}
         </p>
-
-        {/* Price Display */}
-        {(promotion.price || promotion.originalPrice || promotion.discountedPrice) && (
-          <div className="mb-3 price-display">
-            {promotion.discountedPrice && promotion.originalPrice ? (
-              <p className="text-xl font-bold text-red-600">
-                ${promotion.discountedPrice.toFixed(2)}
-                <span className="text-sm text-gray-500 line-through ml-2">${promotion.originalPrice.toFixed(2)}</span>
-              </p>
-            ) : promotion.price ? (
-              <p className="text-xl font-bold text-primary-color">${promotion.price.toFixed(2)}</p>
-            ) : promotion.discountedPrice ? (
-              <p className="text-xl font-bold text-red-600">${promotion.discountedPrice.toFixed(2)}</p>
-            ) : promotion.originalPrice ? (
-              <p className="text-xl font-bold text-primary-color">${promotion.originalPrice.toFixed(2)} (Original Price)</p>
-            ) : null}
-          </div>
-        )}
-
         <div className="flex justify-between items-center mt-2">
           <div className="flex items-center">
             <span className="text-sm mr-2 flex items-center gap-1">

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
+import 'dart:convert'; // For base64 decoding
 
 class DealDetailScreen extends StatefulWidget {
   final Promotion promotion;
@@ -58,6 +59,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     Share.share(text.trim());
   }
 
+  // Helper to decode base64 image
+  Uint8List _decodeBase64Image(String dataUrl) {
+    final base64String = dataUrl.split(',').last;
+    return base64Decode(base64String);
+  }
+
   @override
   Widget build(BuildContext context) {
     final promotion = widget.promotion;
@@ -92,18 +99,38 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
               ClipRRect(
                 borderRadius: BorderRadius.circular(12.0),
-                child: Image.network(
-                  promotion.imageUrl!,
-                  width: double.infinity,
-                  height: 250,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    height: 250,
-                    width: double.infinity,
-                    color: Colors.grey[300],
-                    child: Icon(Icons.broken_image, size: 60, color: Colors.grey[600]),
-                  ),
-                ),
+                child: promotion.imageUrl!.startsWith('http')
+                    ? Image.network(
+                        promotion.imageUrl!,
+                        width: double.infinity,
+                        height: 250,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 250,
+                          width: double.infinity,
+                          color: Colors.grey[300],
+                          child: Icon(Icons.broken_image, size: 60, color: Colors.grey[600]),
+                        ),
+                      )
+                    : (promotion.imageUrl!.startsWith('data:image')
+                        ? Image.memory(
+                            _decodeBase64Image(promotion.imageUrl!),
+                            width: double.infinity,
+                            height: 250,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              height: 250,
+                              width: double.infinity,
+                              color: Colors.grey[300],
+                              child: Icon(Icons.broken_image, size: 60, color: Colors.grey[600]),
+                            ),
+                          )
+                        : Container(
+                            height: 250,
+                            width: double.infinity,
+                            color: Colors.grey[300],
+                            child: Icon(Icons.broken_image, size: 60, color: Colors.grey[600]),
+                          )),
               ),
             if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
               const SizedBox(height: 20.0),
@@ -177,6 +204,46 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 ),
               ),
             const SizedBox(height: 16.0),
+
+            // Price Section
+            if (promotion.price != null || promotion.originalPrice != null || promotion.discountedPrice != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Row(
+                  children: [
+                    if (promotion.originalPrice != null)
+                      Text(
+                        'Rs. ${promotion.originalPrice!.toStringAsFixed(2)}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    if (promotion.discountedPrice != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text(
+                          'Rs. ${promotion.discountedPrice!.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    if (promotion.price != null && promotion.discountedPrice == null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text(
+                          'Rs. ${promotion.price!.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
 
             // Full Description
             Text(
@@ -290,7 +357,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   return Container(
                     width: 140,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceVariant,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.all(12),

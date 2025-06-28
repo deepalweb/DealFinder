@@ -46,7 +46,7 @@ class MyApp extends StatelessWidget {
           ),
            focusedBorder: OutlineInputBorder( // Border when TextField is focused
             borderRadius: BorderRadius.circular(10.0),
-            borderSide: BorderSide(color: Colors.deepPurple, width: 1.5),
+            borderSide: const BorderSide(color: Colors.deepPurple, width: 1.5),
           ),
           hintStyle: TextStyle(color: Colors.grey[600]),
           // Apply some padding within the text field
