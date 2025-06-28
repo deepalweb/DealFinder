@@ -45,6 +45,29 @@ function DealPage() {
           <img src={deal.image} alt={deal.title} className="w-48 h-48 object-cover rounded mb-2" />
           <h1 className="text-2xl font-bold mb-1">{deal.title}</h1>
           <div className="text-gray-600 mb-2">{deal.description}</div>
+
+          {/* Price Display for Deal Page */}
+          {(deal.price || deal.originalPrice || deal.discountedPrice) && (
+            <div className="my-3 p-3 bg-gray-50 rounded-md price-details">
+              {deal.discountedPrice && deal.originalPrice ? (
+                <div>
+                  <p className="text-2xl font-bold text-red-700">
+                    ${deal.discountedPrice.toFixed(2)}
+                  </p>
+                  <p className="text-md text-gray-500 ">
+                    Original Price: <span className="line-through">${deal.originalPrice.toFixed(2)}</span>
+                  </p>
+                </div>
+              ) : deal.price ? (
+                <p className="text-2xl font-bold text-primary-color">${deal.price.toFixed(2)}</p>
+              ) : deal.discountedPrice ? (
+                <p className="text-2xl font-bold text-red-700">${deal.discountedPrice.toFixed(2)}</p>
+              ) : deal.originalPrice ? (
+                <p className="text-xl text-gray-700">${deal.originalPrice.toFixed(2)} (Original Price)</p>
+              ) : null}
+            </div>
+          )}
+
           <div className="mb-2 flex gap-2 items-center">
             <span className="bg-primary-color text-white px-2 py-1 rounded text-sm font-semibold">{deal.discount} OFF</span>
             <span className="text-xs text-gray-500">Code: <code className="bg-gray-100 px-1 rounded">{deal.code}</code></span>
