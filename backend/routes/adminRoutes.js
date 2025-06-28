@@ -294,15 +294,16 @@ router.get('/promotions/:id', async (req, res) => {
 
 // Create a new promotion
 router.post('/promotions', async (req, res) => {
-    // Add validation
+    // Add validation (basic example, should be more comprehensive like in promotionRoutes)
     try {
-        const { title, description, discount, code, category, merchantId, startDate, endDate, image, url, featured } = req.body;
+        const { title, description, discount, code, category, merchantId, startDate, endDate, image, url, featured, price, originalPrice, discountedPrice } = req.body;
         const merchant = await Merchant.findById(merchantId);
         if (!merchant) return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
 
         const promotion = new Promotion({
             title, description, discount, code, category, merchant: merchantId,
             startDate, endDate, image, url, featured,
+            price, originalPrice, discountedPrice, // Add price fields
             status: new Date(endDate) > new Date() ? 'active' : 'expired'
         });
         const savedPromotion = await promotion.save();
@@ -316,13 +317,24 @@ router.post('/promotions', async (req, res) => {
 
 // Update a promotion
 router.put('/promotions/:id', async (req, res) => {
-  // Add validation
+  // Add validation (basic example, should be more comprehensive)
   try {
-    const { endDate } = req.body; // Get endDate to recalculate status
-    const status = endDate && (new Date(endDate) > new Date()) ? 'active' : 'expired';
+    const { endDate, ...updateData } = req.body; // Separate endDate to calculate status
+    let status;
+    if (endDate) {
+      status = new Date(endDate) > new Date() ? 'active' : 'expired';
+      updateData.status = status;
+    }
+
+    // Ensure price fields are included if they are in req.body
+    // updateData will already contain price, originalPrice, discountedPrice if they are in req.body
+
+    // Remove undefined fields from updateData so they don't overwrite existing values with null
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
     const updatedPromotion = await Promotion.findByIdAndUpdate(
         req.params.id,
-        { ...req.body, status }, // Include status in the update
+        updateData,
         { new: true }
     ).populate('merchant');
     if (!updatedPromotion) return res.status(404).json({ message: 'Promotion not found' });
