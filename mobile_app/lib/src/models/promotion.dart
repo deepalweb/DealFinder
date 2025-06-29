@@ -6,7 +6,7 @@ class Promotion {
   final String description;
   final String? merchantId; // Assuming it might be nullable or not always present
   final String? merchantName; // Assuming it might be nullable
-  final String? imageUrl;
+  final String? imageDataString; // Changed from imageUrl to hold Base64 string or a regular URL
   final String? code;
   final String? discount; // Could be "10% off", "$5", etc.
   final DateTime? startDate;
@@ -25,7 +25,7 @@ class Promotion {
     required this.description,
     this.merchantId,
     this.merchantName,
-    this.imageUrl,
+    this.imageDataString,
     this.code,
     this.discount,
     this.startDate,
@@ -62,7 +62,9 @@ class Promotion {
       description: json['description'] as String? ?? 'No Description',
       merchantId: json['merchantId'] as String?,
       merchantName: json['merchantName'] as String?, // Or potentially json['merchant']['name'] if nested
-      imageUrl: json['imageUrl'] as String? ?? json['image'] as String?,
+      // Assuming the API might send 'imageUrl' or 'image' for either Base64 or a URL.
+      // If it's specifically for Base64, the API field name might be different.
+      imageDataString: json['imageUrl'] as String? ?? json['image'] as String?,
       code: json['code'] as String?,
       discount: json['discount'] as String?,
       startDate: parseDate(json['startDate'] as String?),
@@ -85,7 +87,7 @@ class Promotion {
       'description': description,
       'merchantId': merchantId,
       'merchantName': merchantName,
-      'imageUrl': imageUrl,
+      'imageDataString': imageDataString,
       'code': code,
       'discount': discount,
       'startDate': startDate?.toIso8601String(),

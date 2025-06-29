@@ -1,3 +1,5 @@
+import 'dart:convert'; // For base64Decode
+import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
 import 'dart:convert'; // For base64Decode
@@ -105,14 +107,8 @@ class DealCard extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Image Section (Optional)
-            if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8.0),
-                child: _buildImageWidget(context, promotion.imageUrl!),
-              ),
-            if (promotion.imageUrl != null && promotion.imageUrl!.isNotEmpty)
+          children: <Widget>
+          
               const SizedBox(height: 12.0),
 
             // Title
@@ -194,6 +190,80 @@ class DealCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildImageWidget(BuildContext context, String? imageDataString) {
+    if (imageDataString == null || imageDataString.isEmpty) {
+      return _buildImageErrorPlaceholder(context); // Or return SizedBox.shrink() if no placeholder desired
+    }
+
+    // Check if it's a Base64 string
+    if (imageDataString.startsWith('data:image') && imageDataString.contains(';base64,')) {
+      try {
+        // Extract the Base64 part
+        final String base64Data = imageDataString.substring(imageDataString.indexOf(',') + 1);
+        final Uint8List decodedBytes = base64Decode(base64Data);
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8.0),
+          child: Image.memory(
+            decodedBytes,
+            height: 150,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
+          ),
+        );
+      } catch (e) {
+        print('Error decoding Base64 image: $e');
+        return _buildImageErrorPlaceholder(context, error: e);
+      }
+    }
+    // Assume it's a regular URL if not Base64 (optional, if your API might send both)
+    // else if (imageDataString.startsWith('http')) {
+    //   return ClipRRect(
+    //     borderRadius: BorderRadius.circular(8.0),
+    //     child: Image.network(
+    //       imageDataString,
+    //       height: 150,
+    //       width: double.infinity,
+    //       fit: BoxFit.cover,
+    //       errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
+    //       loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+    //         if (loadingProgress == null) return child;
+    //         return Container( // Shimmer or progress indicator for network image
+    //           height: 150,
+    //           width: double.infinity,
+    //           color: Colors.grey[200],
+    //           child: Center(
+    //             child: CircularProgressIndicator(
+    //               value: loadingProgress.expectedTotalBytes != null
+    //                   ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+    //                   : null,
+    //             ),
+    //           ),
+    //         );
+    //       },
+    //     ),
+    //   );
+    // }
+
+    // Fallback if not Base64 and not a recognized URL (or if you only expect Base64)
+    return _buildImageErrorPlaceholder(context);
+  }
+
+  Widget _buildImageErrorPlaceholder(BuildContext context, {Object? error}) {
+    if (error != null) {
+      print("Image loading/decoding error: $error");
+    }
+    return Container(
+      height: 150,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Icon(Icons.broken_image_outlined, size: 50, color: Colors.grey[600]),
     );
   }
 }
