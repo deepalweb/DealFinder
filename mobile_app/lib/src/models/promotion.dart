@@ -15,6 +15,9 @@ class Promotion {
   final bool? featured;
   final String? websiteUrl; // Added for "Visit Website" button
   final String? termsAndConditions; // Added for T&C section
+  final double? price;
+  final double? originalPrice;
+  final double? discountedPrice;
 
   Promotion({
     required this.id,
@@ -31,11 +34,14 @@ class Promotion {
     this.featured,
     this.websiteUrl,
     this.termsAndConditions,
+    this.price,
+    this.originalPrice,
+    this.discountedPrice,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
     // Helper to safely parse dates
-    DateTime? _parseDate(String? dateString) {
+    DateTime? parseDate(String? dateString) {
       if (dateString == null || dateString.isEmpty) {
         return null;
       }
@@ -61,12 +67,15 @@ class Promotion {
       imageDataString: json['imageUrl'] as String? ?? json['image'] as String?,
       code: json['code'] as String?,
       discount: json['discount'] as String?,
-      startDate: _parseDate(json['startDate'] as String?),
-      endDate: _parseDate(json['endDate'] as String?),
+      startDate: parseDate(json['startDate'] as String?),
+      endDate: parseDate(json['endDate'] as String?),
       category: json['category'] as String?,
       featured: json['featured'] as bool?,
       websiteUrl: json['websiteUrl'] as String?,
       termsAndConditions: json['termsAndConditions'] as String?,
+      price: (json['price'] as num?)?.toDouble(),
+      originalPrice: (json['originalPrice'] as num?)?.toDouble(),
+      discountedPrice: (json['discountedPrice'] as num?)?.toDouble(),
     );
   }
 
@@ -87,6 +96,9 @@ class Promotion {
       'featured': featured,
       'websiteUrl': websiteUrl,
       'termsAndConditions': termsAndConditions,
+      'price': price,
+      'originalPrice': originalPrice,
+      'discountedPrice': discountedPrice,
     };
   }
 }

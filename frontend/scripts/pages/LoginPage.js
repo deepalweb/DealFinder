@@ -52,8 +52,11 @@ function LoginPage() {
           businessName: 'Demo Merchant Shop'
         };
         
-        // Store in localStorage
-        localStorage.setItem('dealFinderUser', JSON.stringify(demoUser));
+        console.log('[LoginPage] handleSubmit: Demo login. User data:', demoUser);
+        // Store in localStorage using the auth helper
+        // localStorage.setItem('dealFinderUser', JSON.stringify(demoUser)); // Old direct way
+        window.Auth.loginUser(demoUser); // This will also dispatch the event
+        console.log('[LoginPage] handleSubmit: Demo login. Called window.Auth.loginUser. Navigation next.');
         
         // Navigate to merchant dashboard
         navigate('/merchant/dashboard');
@@ -63,8 +66,11 @@ function LoginPage() {
       // For real authentication, use the API
       const response = await window.API.Users.login(formData);
       
-      // Store user data in localStorage (including token)
-      localStorage.setItem('dealFinderUser', JSON.stringify(response));
+      console.log('[LoginPage] handleSubmit: Login API success. Response:', response);
+      // Store user data in localStorage (including token) using the auth helper
+      // localStorage.setItem('dealFinderUser', JSON.stringify(response)); // Old direct way
+      window.Auth.loginUser(response); // This will also dispatch the event
+      console.log('[LoginPage] handleSubmit: Called window.Auth.loginUser. Navigation next.');
       
       // Navigate based on user role
       if (response.role === 'merchant') {

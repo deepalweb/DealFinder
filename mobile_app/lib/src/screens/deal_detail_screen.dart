@@ -3,51 +3,101 @@ import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Clipboard
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/promotion.dart';
-// import 'package:url_launcher/url_launcher.dart'; // For launching URLs - add to pubspec if used
+import '../services/favorites_manager.dart';
+import 'dart:convert'; // For base64 decoding
 
-class DealDetailScreen extends StatelessWidget {
+class DealDetailScreen extends StatefulWidget {
   final Promotion promotion;
-
   const DealDetailScreen({super.key, required this.promotion});
 
+  @override
+  State<DealDetailScreen> createState() => _DealDetailScreenState();
+}
+
+class _DealDetailScreenState extends State<DealDetailScreen> {
+  bool _isFavorite = false;
+  bool _showTerms = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavoriteStatus();
+  }
+
+  Future<void> _loadFavoriteStatus() async {
+    final isFav = await FavoritesManager.isFavorite(widget.promotion.id);
+    setState(() {
+      _isFavorite = isFav;
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isFavorite) {
+      await FavoritesManager.removeFavorite(widget.promotion.id);
+    } else {
+      await FavoritesManager.addFavorite(widget.promotion.id);
+    }
+    setState(() {
+      _isFavorite = !_isFavorite;
+    });
+  }
+
   // Helper to launch URL - requires url_launcher package
-  // Future<void> _launchURL(String urlString) async {
-  //   final Uri url = Uri.parse(urlString);
-  //   if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-  //     throw Exception('Could not launch $urlString');
-  //   }
-  // }
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not launch $urlString')),
+      );
+    }
+  }
+
+  void _shareDeal() {
+    final promo = widget.promotion;
+    final text = '${promo.title}\n${promo.description}\n${promo.websiteUrl ?? ''}';
+    Share.share(text.trim());
+  }
+
+  // Helper to decode base64 image
+  Uint8List _decodeBase64Image(String dataUrl) {
+    final base64String = dataUrl.split(',').last;
+    return base64Decode(base64String);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final DateFormat dateFormat = DateFormat('MMM d, yyyy');
+    final promotion = widget.promotion;
+    final theme = Theme.of(context);
+    final dateFormat = DateFormat('MMM d, yyyy');
 
     return Scaffold(
       appBar: AppBar(
         title: Text(promotion.title, overflow: TextOverflow.ellipsis),
-        // actions: [ // Placeholder for Share action
-        //   IconButton(
-        //     icon: const Icon(Icons.share_outlined),
-        //     tooltip: 'Share Deal',
-        //     onPressed: () {
-        //       // Implement sharing functionality
-        //       ScaffoldMessenger.of(context).showSnackBar(
-        //         const SnackBar(content: Text('Share functionality TBD')),
-        //       );
-        //     },
-        //   ),
-        // ],
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: _isFavorite ? Colors.red : null,
+            ),
+            tooltip: 'Toggle Favorite',
+            onPressed: _toggleFavorite,
+          ),
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Share Deal',
+            onPressed: _shareDeal,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            // Promotion Image (Handles Base64 or falls back to placeholder)
-            _buildImageWidget(context, promotion.imageDataString),
-            if (promotion.imageDataString != null && promotion.imageDataString!.isNotEmpty)
+
               const SizedBox(height: 20.0),
 
             // Promotion Title
@@ -120,6 +170,46 @@ class DealDetailScreen extends StatelessWidget {
               ),
             const SizedBox(height: 16.0),
 
+            // Price Section
+            if (promotion.price != null || promotion.originalPrice != null || promotion.discountedPrice != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Row(
+                  children: [
+                    if (promotion.originalPrice != null)
+                      Text(
+                        'Rs. ${promotion.originalPrice!.toStringAsFixed(2)}',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    if (promotion.discountedPrice != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text(
+                          'Rs. ${promotion.discountedPrice!.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    if (promotion.price != null && promotion.discountedPrice == null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8.0),
+                        child: Text(
+                          'Rs. ${promotion.price!.toStringAsFixed(2)}',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
             // Full Description
             Text(
               'Details:',
@@ -150,17 +240,37 @@ class DealDetailScreen extends StatelessWidget {
                 ],
               ),
 
-            // Terms & Conditions (Placeholder)
-            // Text(
-            //   'Terms & Conditions:',
-            //   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            // ),
-            // const SizedBox(height: 6.0),
-            // Text(
-            //   promotion.termsAndConditions ?? 'Not specified.', // Assuming a field like this in Promotion model
-            //   style: theme.textTheme.bodyMedium,
-            // ),
-            // const SizedBox(height: 24.0),
+            // Terms & Conditions (Collapsible)
+            if (promotion.termsAndConditions != null && promotion.termsAndConditions!.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showTerms = !_showTerms;
+                      });
+                    },
+                    child: Row(
+                      children: [
+                        Text(
+                          'Terms & Conditions',
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Icon(_showTerms ? Icons.expand_less : Icons.expand_more),
+                      ],
+                    ),
+                  ),
+                  if (_showTerms)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6.0, bottom: 16.0),
+                      child: Text(
+                        promotion.termsAndConditions!,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                ],
+              ),
 
             // Action Buttons
             Wrap(
@@ -168,50 +278,76 @@ class DealDetailScreen extends StatelessWidget {
               runSpacing: 8.0, // Vertical space if buttons wrap
               alignment: WrapAlignment.center,
               children: [
-                // Placeholder for Visit Website - needs url_launcher
-                // if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty)
-                //   ElevatedButton.icon(
-                //     icon: const Icon(Icons.public),
-                //     label: const Text('Visit Website'),
-                //     onPressed: () => _launchURL(promotion.websiteUrl!),
-                //   ),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.language_outlined),
-                  label: const Text('Visit Website (TBD)'),
-                  style: ElevatedButton.styleFrom(backgroundColor: theme.colorScheme.tertiary, foregroundColor: theme.colorScheme.onTertiary),
-                  onPressed: () {
-                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Visit Website functionality TBD. Needs URL in promotion data and url_launcher package.')),
-                      );
-                  },
-                ),
+                if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.public),
+                    label: const Text('Visit Website'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.tertiary,
+                      foregroundColor: theme.colorScheme.onTertiary,
+                    ),
+                    onPressed: () => _launchURL(promotion.websiteUrl!),
+                  ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.share_outlined),
                   label: const Text('Share Deal'),
-                  onPressed: () {
-                    // Placeholder: Implement sharing functionality (e.g., using share_plus package)
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Share functionality TBD (e.g., using share_plus).')),
-                    );
-                  },
+                  onPressed: _shareDeal,
                 ),
-                // Placeholder for Save to Favorites
                 OutlinedButton.icon(
-                  icon: const Icon(Icons.favorite_border_outlined), // Change to Icons.favorite for filled
-                  label: const Text('Save to Favorites'),
+                  icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border_outlined, color: theme.colorScheme.primary),
+                  label: Text(_isFavorite ? 'Remove Favorite' : 'Save to Favorites'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: theme.colorScheme.primary,
                     side: BorderSide(color: theme.colorScheme.primary),
                   ),
-                  onPressed: () {
-                    // Placeholder: Implement save to favorites
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Save to Favorites functionality TBD.')),
-                    );
-                  },
+                  onPressed: _toggleFavorite,
                 ),
               ],
-            )
+            ),
+
+            // Recommendations/Similar Deals (Placeholder)
+            const SizedBox(height: 32.0),
+            Text(
+              'You might also like',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12.0),
+            SizedBox(
+              height: 180,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3, // Placeholder count
+                separatorBuilder: (context, index) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  return Container(
+                    width: 140,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 70,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.local_offer, size: 40, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Deal Title', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text('Short description...', style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),

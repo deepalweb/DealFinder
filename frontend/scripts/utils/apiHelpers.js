@@ -146,7 +146,16 @@ const PromotionAPI = {
     body: JSON.stringify(data)
   }),
   getAnalyticsByMerchant: (merchantId) => fetchAPI(`promotions/analytics/merchant/${merchantId}`),
-  getAnalyticsByPromotion: (promotionId) => fetchAPI(`promotions/${promotionId}/analytics`)
+  getAnalyticsByPromotion: (promotionId) => fetchAPI(`promotions/${promotionId}/analytics`),
+  addComment: (promotionId, commentData) => fetchAPI(`promotions/${promotionId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify(commentData)
+  }),
+  getRatings: (promotionId) => fetchAPI(`promotions/${promotionId}/ratings`),
+  addRating: (promotionId, ratingData) => fetchAPI(`promotions/${promotionId}/ratings`, {
+    method: 'POST',
+    body: JSON.stringify(ratingData)
+  })
 };
 
 // Merchant API functions
@@ -217,9 +226,30 @@ const UserAPI = {
   getFavorites: (userId) => fetchAPI(`users/${userId}/favorites`)
 };
 
+// Admin API functions
+const AdminAPI = {
+  getSummary: () => fetchAPI('admin/analytics/summary'),
+  getUsers: () => fetchAPI('admin/users'),
+  getUser: (id) => fetchAPI(`admin/users/${id}`),
+  createUser: (userData) => fetchAPI('admin/users', { method: 'POST', body: JSON.stringify(userData) }),
+  updateUser: (id, userData) => fetchAPI(`admin/users/${id}`, { method: 'PUT', body: JSON.stringify(userData) }),
+  deleteUser: (id) => fetchAPI(`admin/users/${id}`, { method: 'DELETE' }),
+  getMerchants: () => fetchAPI('admin/merchants'),
+  getMerchant: (id) => fetchAPI(`admin/merchants/${id}`),
+  createMerchant: (merchantData) => fetchAPI('admin/merchants', { method: 'POST', body: JSON.stringify(merchantData) }),
+  updateMerchant: (id, merchantData) => fetchAPI(`admin/merchants/${id}`, { method: 'PUT', body: JSON.stringify(merchantData) }),
+  deleteMerchant: (id) => fetchAPI(`admin/merchants/${id}`, { method: 'DELETE' }),
+  getPromotions: () => fetchAPI('admin/promotions'),
+  getPromotion: (id) => fetchAPI(`admin/promotions/${id}`),
+  createPromotion: (promotionData) => fetchAPI('admin/promotions', { method: 'POST', body: JSON.stringify(promotionData) }),
+  updatePromotion: (id, promotionData) => fetchAPI(`admin/promotions/${id}`, { method: 'PUT', body: JSON.stringify(promotionData) }),
+  deletePromotion: (id) => fetchAPI(`admin/promotions/${id}`, { method: 'DELETE' }),
+};
+
 // Export all API helpers
 window.API = {
   Promotions: PromotionAPI,
   Merchants: MerchantAPI,
-  Users: UserAPI
+  Users: UserAPI,
+  Admin: AdminAPI
 };

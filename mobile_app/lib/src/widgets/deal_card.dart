@@ -2,12 +2,69 @@ import 'dart:convert'; // For base64Decode
 import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'dart:convert'; // For base64Decode
+import 'dart:typed_data'; // For Uint8List
 import '../models/promotion.dart';
 
 class DealCard extends StatelessWidget {
   final Promotion promotion;
 
   const DealCard({super.key, required this.promotion});
+
+  Widget _buildImageWidget(BuildContext context, String imageUrl) {
+    Widget errorDisplayWidget = Container(
+      height: 150,
+      width: double.infinity,
+      color: Colors.grey[300],
+      child: Icon(Icons.broken_image, size: 50, color: Colors.grey[600]),
+    );
+
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        // Find the start of the Base64 data
+        final base64Data = imageUrl.substring(imageUrl.indexOf(',') + 1);
+        final Uint8List bytes = base64Decode(base64Data);
+        return Image.memory(
+          bytes,
+          height: 150,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+        );
+      } catch (e) {
+        print('Error decoding Base64 image: $e');
+        return errorDisplayWidget;
+      }
+    } else if (imageUrl.startsWith('http')) {
+      // Standard network image
+      return Image.network(
+        imageUrl,
+        height: 150,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+        loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            height: 150,
+            width: double.infinity,
+            color: Colors.grey[200],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+              ),
+            ),
+          );
+        },
+      );
+    } else {
+      // If it's not a data URI and not an HTTP/HTTPS URL, it's an invalid format
+      print('Invalid image URL format: $imageUrl');
+      return errorDisplayWidget;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,23 +73,22 @@ class DealCard extends StatelessWidget {
     final DateFormat dateFormat = DateFormat('MMM d, yyyy'); // Example: Jan 1, 2023
 
     // Helper to build rich text for discount
-    InlineSpan _buildDiscountText() {
+    InlineSpan buildDiscountText() {
       if (promotion.discount == null || promotion.discount!.isEmpty) {
         return const TextSpan(text: '');
       }
-      // Simple check if discount is percentage or fixed amount - can be more sophisticated
       if (promotion.discount!.contains('%')) {
         return TextSpan(
           text: promotion.discount,
           style: TextStyle(
-            color: theme.colorScheme.primary, // Use primary color for emphasis
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
         );
       } else if (promotion.discount!.startsWith('\$') || promotion.discount!.startsWith('USD')) {
          return TextSpan(
-          text: promotion.discount, // Assuming it's already formatted like "$10 off"
+          text: promotion.discount,
           style: TextStyle(
             color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
@@ -40,7 +96,6 @@ class DealCard extends StatelessWidget {
           ),
         );
       }
-      // Default styling if not recognized format
       return TextSpan(text: promotion.discount, style: const TextStyle(fontSize: 14));
     }
 
@@ -52,10 +107,8 @@ class DealCard extends StatelessWidget {
         padding: const EdgeInsets.all(12.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Image Section (Handles Base64 or falls back to placeholder)
-            _buildImageWidget(context, promotion.imageDataString),
-            if (promotion.imageDataString != null && promotion.imageDataString!.isNotEmpty)
+          children: <Widget>
+          
               const SizedBox(height: 12.0),
 
             // Title
@@ -96,7 +149,7 @@ class DealCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 // Discount
-                RichText(text: _buildDiscountText()),
+                RichText(text: buildDiscountText()),
                 // Promo Code (if available)
                 if (promotion.code != null && promotion.code!.isNotEmpty)
                   Container(

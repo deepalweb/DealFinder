@@ -7,7 +7,6 @@ import '../services/api_service.dart'; // Import the API service
 import '../widgets/deal_card.dart'; // Import the DealCard widget
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
 import 'deals_list_screen.dart'; // Import DealsListScreen for "View All"
-import 'search_screen.dart'; // Import SearchScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,49 +16,23 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Promotion>> _featuredDealsFuture;
-  late Future<List<Promotion>> _nearbyDealsPreviewFuture;
+  late Future<List<Promotion>> _allPromotionsFuture;
   final ApiService _apiService = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _featuredDealsFuture = _fetchFeaturedDeals();
-    _nearbyDealsPreviewFuture = _fetchNearbyDealsPreview();
+    _allPromotionsFuture = _fetchAllPromotions();
   }
 
-  Future<List<Promotion>> _fetchFeaturedDeals() async {
-    // For now, fetch all promotions and take the first 3-5 as "featured"
-    // In a real app, this might be a separate API endpoint: /api/promotions/featured
+  Future<List<Promotion>> _fetchAllPromotions() async {
     try {
-      final allPromotions = await _apiService.fetchPromotions();
-      // Ensure we don't try to take more items than available
-      return allPromotions.take(5).toList();
+      // Optional: Add a print statement here to confirm it's called once.
+      // print('Fetching all promotions from API...');
+      return await _apiService.fetchPromotions();
     } catch (e) {
-      // Handle error, e.g., return empty list or rethrow
-      print('Error fetching featured deals: $e');
-      return [];
-    }
-  }
-
-  Future<List<Promotion>> _fetchNearbyDealsPreview() async {
-    // Fetch all promotions and take a small number for preview (e.g., 3)
-    // This assumes no specific "nearby" logic yet, just a general preview.
-    // If location services were active, this would fetch based on location.
-    try {
-      final allPromotions = await _apiService.fetchPromotions();
-      // Shuffling to make it seem more dynamic, or take from a different part of the list
-      // For now, just taking a different slice.
-      if (allPromotions.length > 8) { // ensure there are enough deals
-        return allPromotions.skip(5).take(3).toList();
-      } else if (allPromotions.length > 5) {
-         return allPromotions.skip(5).toList();
-      }
-      // If fewer than 5 deals, featured might show all, so nearby preview might be empty or repeat.
-      // A more robust solution would be needed for small datasets or actual location filtering.
-      return [];
-    } catch (e) {
-      print('Error fetching nearby deals preview: $e');
+      print('Error fetching all promotions: $e');
+      // Return an empty list or rethrow based on how you want to handle errors globally
       return [];
     }
   }
@@ -69,16 +42,25 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DealFinder'), // Or a logo
-        // actions: [ // Potential actions like notifications or profile
-        //   IconButton(
-        //     icon: const Icon(Icons.notifications_none),
-        //     onPressed: () {},
-        //   ),
-        //   IconButton(
-        //     icon: const Icon(Icons.account_circle),
-        //     onPressed: () {},
-        //   ),
-        // ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Profile',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const UserProfileScreen()),
+              );
+            },
+          ),
+          // Potential other actions like notifications
+          // IconButton(
+          //   icon: const Icon(Icons.notifications_none_outlined),
+          //   tooltip: 'Notifications',
+          //   onPressed: () {
+          //     // TODO: Navigate to Notifications Screen
+          //   },
+          // ),
+        ],
       ),
       body: CustomScrollView(
         slivers: <Widget>[
@@ -123,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Container(
+                  SizedBox(
                     height: 90, // Height for category items
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
@@ -151,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 80, // Width of each category item
                               padding: const EdgeInsets.all(8.0),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
+                                color: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.5),
                                 borderRadius: BorderRadius.circular(12.0),
                                 // border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.5))
                               ),
@@ -201,23 +183,41 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   FutureBuilder<List<Promotion>>(
-                    future: _featuredDealsFuture,
+                    future: _allPromotionsFuture, // Use the single future
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer(); // Shimmer for featured deals
                       } else if (snapshot.hasError) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(child: Text('Could not load featured deals.', style: TextStyle(color: Colors.red[400]))),
                         );
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
-                      final featuredDeals = snapshot.data!;
-                      return Container(
+                      // Sort all promotions by startDate descending (newest first)
+                      final sortedPromotions = List<Promotion>.from(snapshot.data!)
+                        ..sort((a, b) => b.startDate?.compareTo(a.startDate ?? DateTime(1970)) ?? 0);
+                      // Featured: first 10, Latest: rest
+                      final featuredDeals = sortedPromotions.take(10).toList();
+                      List<Promotion> latestDeals = [];
+                      if (sortedPromotions.length > 10) {
+                        latestDeals = sortedPromotions.skip(10).toList();
+                      } else {
+                        latestDeals = sortedPromotions;
+                      }
+
+                      if (featuredDeals.isEmpty) {
+                        return SizedBox(
+                          height: 220,
+                          child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
+                        );
+                      }
+
+                      return SizedBox(
                         height: 270, // Adjusted height for larger cards with some vertical padding
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
@@ -258,37 +258,24 @@ class _HomeScreenState extends State<HomeScreen> {
            SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Nearby Deals',
-                     style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                       Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const DealsListScreen()),
-                      );
-                    },
-                    child: const Text('View All'),
-                  )
-                ],
+              // Row is no longer needed if "View All" is removed, title can be directly in Padding
+              child: Text(
+                'Latest Deals', // Renamed from 'Nearby Deals'
+                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
           ),
 
-          // --- Nearby Deals List ---
+          // --- Latest Deals List (previously Nearby Deals) ---
           FutureBuilder<List<Promotion>>(
-            future: _nearbyDealsPreviewFuture,
+            future: _allPromotionsFuture, // Use the single future
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 // Show a limited number of shimmer cards for the preview
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) => const DealCardShimmer(),
-                    childCount: 2, // Show 2 shimmer cards for preview
+                    childCount: 4, // Show 4 shimmer cards for a better preview of a list of 10
                   ),
                 );
               } else if (snapshot.hasError) {
@@ -306,11 +293,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               }
-              final nearbyDeals = snapshot.data!;
+              // Sort all promotions by startDate descending (newest first)
+              final sortedPromotions = List<Promotion>.from(snapshot.data!)
+                ..sort((a, b) => b.startDate?.compareTo(a.startDate ?? DateTime(1970)) ?? 0);
+              // Featured: first 10, Latest: rest
+              final featuredDeals = sortedPromotions.take(10).toList();
+              List<Promotion> latestDeals = [];
+              if (sortedPromotions.length > 10) {
+                latestDeals = sortedPromotions.skip(10).toList();
+              } else {
+                latestDeals = sortedPromotions;
+              }
+
+              if (latestDeals.isEmpty) {
+                 return SliverToBoxAdapter(
+                  child: Container(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(child: Text('No other deals available currently.', style: TextStyle(color: Colors.grey[600]))),
+                  ),
+                );
+              }
+
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final promotion = nearbyDeals[index];
+                    final promotion = latestDeals[index];
                     return InkWell(
                       onTap: () {
                         Navigator.push(
@@ -323,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: DealCard(promotion: promotion),
                     );
                   },
-                  childCount: nearbyDeals.length,
+                  childCount: latestDeals.length,
                 ),
               );
             },
@@ -367,11 +374,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Shimmer placeholder for Featured Deals section
   Widget _buildFeaturedDealsShimmer() {
-    return Container(
+    return SizedBox(
       height: 270,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: 3, // Show 3 shimmer cards
+        itemCount: 4, // Show 4 shimmer cards for a better preview of a list of 10
         padding: const EdgeInsets.symmetric(horizontal: 12.0),
         itemBuilder: (context, index) {
           return Container(
