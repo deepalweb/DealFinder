@@ -75,4 +75,43 @@ class ApiService {
       throw Exception('Registration failed. Status code: ${response.statusCode}, Body: ${response.body}');
     }
   }
+
+  // Fetch user's favorite promotions
+  Future<List<Promotion>> fetchFavorites(String userId, String token) async {
+    final response = await http.get(
+      Uri.parse('${_baseUrl}users/$userId/favorites'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => Promotion.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load favorites');
+    }
+  }
+
+  // Fetch notifications for the user (assumes /notifications?userId=...)
+  Future<List<Map<String, dynamic>>> fetchNotifications(String userId, String token) async {
+    final response = await http.get(
+      Uri.parse('${_baseUrl}notifications?userId=$userId'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load notifications');
+    }
+  }
+
+  // Fetch all merchants/stores
+  Future<List<Map<String, dynamic>>> fetchMerchants() async {
+    final response = await http.get(Uri.parse('${_baseUrl}merchants'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load merchants');
+    }
+  }
 }

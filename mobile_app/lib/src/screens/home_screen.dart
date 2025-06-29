@@ -7,6 +7,8 @@ import '../services/api_service.dart'; // Import the API service
 import '../widgets/deal_card.dart'; // Import the DealCard widget
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
 import 'deals_list_screen.dart'; // Import DealsListScreen for "View All"
+import 'user_profile_screen.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,7 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Profile',
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const UserProfileScreen()),
+                MaterialPageRoute(builder: (context) => UserProfileScreen()),
               );
             },
           ),
@@ -82,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SearchScreen()),
+                    MaterialPageRoute(builder: (context) => SearchScreen()),
                   );
                 },
                 readOnly: true, // Keep true as tapping just navigates

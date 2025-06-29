@@ -358,7 +358,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (imageDataString == null || imageDataString.isEmpty) {
       return _buildImageErrorPlaceholder(context);
     }
-
     if (imageDataString.startsWith('data:image') && imageDataString.contains(';base64,')) {
       try {
         final String base64Data = imageDataString.substring(imageDataString.indexOf(',') + 1);
@@ -377,9 +376,20 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         print('Error decoding Base64 image for DetailScreen: $e');
         return _buildImageErrorPlaceholder(context, error: e);
       }
+    } else if (imageDataString.startsWith('http')) {
+      // Support for network images
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12.0),
+        child: Image.network(
+          imageDataString,
+          width: double.infinity,
+          height: 250,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
+        ),
+      );
     }
     // Fallback for non-Base64 or if only Base64 is expected and it's malformed
-    // If regular URLs are also possible, add Image.network() logic here similar to DealCard
     return _buildImageErrorPlaceholder(context);
   }
 

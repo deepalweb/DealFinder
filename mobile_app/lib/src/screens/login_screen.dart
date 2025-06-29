@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'home_screen.dart'; // For navigation after login
 import 'register_screen.dart'; // Importing RegisterScreen
+import 'main_navigation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,12 +42,13 @@ class _LoginScreenState extends State<LoginScreen> {
         // Assuming the token is returned in the response map under the key 'token'
         // And user details are also in the response map.
         final String? token = response['token'] as String?;
-        // final Map<String, dynamic>? user = response['user'] as Map<String, dynamic>?; // Or however user data is structured
+        final String? userId = response['id'] as String? ?? response['_id'] as String? ?? response['user']?['id'] as String?;
 
-        if (token != null) {
+        if (token != null && userId != null) {
           // Store the token
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userToken', token);
+          await prefs.setString('userId', userId);
 
           // Store additional user details
           await prefs.setString('userName', response['name'] as String? ?? 'N/A');
@@ -64,13 +65,18 @@ class _LoginScreenState extends State<LoginScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Login Successful!'), backgroundColor: Colors.green),
             );
-            // Navigate to HomeScreen
+            // Navigate to MainNavigationScreen
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+              MaterialPageRoute(
+                builder: (context) => MainNavigationScreen(
+                  userId: userId,
+                  token: token,
+                ),
+              ),
             );
           }
         } else {
-          throw Exception('Token not found in response');
+          throw Exception('Token or user ID not found in response');
         }
       } catch (e) {
         if (mounted) {
