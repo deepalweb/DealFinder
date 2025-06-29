@@ -8,6 +8,8 @@ const merchantSchema = new mongoose.Schema({
   logo: { type: String }, // Add logo field for profile image
   createdAt: { type: Date, default: Date.now },
   address: { type: String },
+  latitude: { type: Number },
+  longitude: { type: Number },
   contactNumber: { type: String },
   socialMedia: {
     facebook: { type: String },
