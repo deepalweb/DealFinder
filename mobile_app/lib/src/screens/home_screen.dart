@@ -7,6 +7,7 @@ import '../services/api_service.dart'; // Import the API service
 import '../widgets/deal_card.dart'; // Import the DealCard widget
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
 import 'deals_list_screen.dart'; // Import DealsListScreen for "View All"
+import 'search_screen.dart'; // Import SearchScreen
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -97,12 +98,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   fillColor: Colors.grey[200],
                 ),
                 onTap: () {
-                  // Placeholder: Navigate to a dedicated search screen or show overlay
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Search bar tapped! Full search page TBD.')),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SearchScreen()),
                   );
                 },
-                readOnly: true, // Make it readOnly if onTap is used for navigation
+                readOnly: true, // Keep true as tapping just navigates
               ),
             ),
           ),
