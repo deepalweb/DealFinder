@@ -17,6 +17,8 @@ const merchantSchema = new mongoose.Schema({
     twitter: { type: String },
     tiktok: { type: String }
   },
+  website: { type: String },
+  bannerImage: { type: String }, // For cover photo
 });
 
 module.exports = mongoose.model('Merchant', merchantSchema);

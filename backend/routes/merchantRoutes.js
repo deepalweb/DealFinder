@@ -71,13 +71,15 @@ router.post('/', authenticateJWT, authorizeAdmin, [
   body('longitude').optional().isNumeric().withMessage('Longitude must be a number'),
   body('contactNumber').optional().isString(),
   body('socialMedia').optional().isObject(), // Accepts facebook, instagram, twitter, tiktok
+  body('website').optional().isURL().withMessage('Website must be a valid URL'),
+  body('bannerImage').optional().isString().withMessage('Banner Image must be a string (URL)'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, userId, address, latitude, longitude, contactNumber, socialMedia } = req.body;
+    const { name, profile, contactInfo, userId, address, latitude, longitude, contactNumber, socialMedia, website, bannerImage } = req.body;
     
     // Create the merchant
     const merchant = new Merchant({
@@ -89,7 +91,9 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       latitude,
       longitude,
       contactNumber,
-      socialMedia
+      socialMedia,
+      website,
+      bannerImage
     });
     
     const savedMerchant = await merchant.save();
@@ -119,16 +123,18 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('longitude').optional().isNumeric().withMessage('Longitude must be a number'),
   body('contactNumber').optional().isString(),
   body('socialMedia').optional().isObject(),
+  body('website').optional().isURL().withMessage('Website must be a valid URL'),
+  body('bannerImage').optional().isString().withMessage('Banner Image must be a string (URL)'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, logo, address, latitude, longitude, contactNumber, socialMedia } = req.body;
+    const { name, profile, contactInfo, logo, address, latitude, longitude, contactNumber, socialMedia, website, bannerImage } = req.body;
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       req.params.id,
-      { name, profile, contactInfo, logo, address, latitude, longitude, contactNumber, socialMedia },
+      { name, profile, contactInfo, logo, address, latitude, longitude, contactNumber, socialMedia, website, bannerImage },
       { new: true }
     );
     if (!updatedMerchant) {
