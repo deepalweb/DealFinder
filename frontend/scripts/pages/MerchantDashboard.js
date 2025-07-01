@@ -24,6 +24,8 @@ function MerchantDashboard() {
     longitude: null,
     contactNumber: '',
     socialMedia: { facebook: '', instagram: '', twitter: '', tiktok: '' },
+    website: '',
+    bannerImage: '', // For Cover Photo
     // Add other relevant merchant fields here if needed
   });
 
@@ -107,6 +109,8 @@ function MerchantDashboard() {
               longitude: profileData.longitude || null,
               contactNumber: profileData.contactNumber || '',
               socialMedia: profileData.socialMedia || { facebook: '', instagram: '', twitter: '', tiktok: '' },
+              website: profileData.website || '',
+              bannerImage: profileData.bannerImage || '',
             });
           }
 
@@ -283,8 +287,27 @@ function MerchantDashboard() {
   }, [selectedPromotionId]);
 
   const handleProfileChange = (e) => {
-    const { name, value } = e.target;
-    if (name.startsWith('socialMedia.')) {
+    const { name, value, type, files } = e.target;
+
+    if (name === 'logoFile' && type === 'file' && files && files[0]) {
+      const file = files[0];
+      if (file.size > 2 * 1024 * 1024) { // Max 2MB
+        alert('Logo file is too large. Maximum size is 2MB.');
+        e.target.value = ''; // Clear the file input
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMerchantProfileData(prev => ({
+          ...prev,
+          logo: reader.result // Set logo to base64 data URL
+        }));
+      };
+      reader.onerror = () => {
+        alert('Failed to read the logo file. Please try again.');
+      };
+      reader.readAsDataURL(file);
+    } else if (name.startsWith('socialMedia.')) {
       const key = name.split('.')[1];
       setMerchantProfileData(prev => ({
         ...prev,
@@ -1088,8 +1111,44 @@ function MerchantDashboard() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
                       placeholder="https://example.com/logo.png"
                     />
+                    <label className="block text-sm font-medium text-gray-700 mt-2 mb-1">Or Upload Logo File:</label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      name="logoFile" // Different name to distinguish in handler
+                      onChange={handleProfileChange} // We'll adapt handleProfileChange
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-color file:text-white hover:file:bg-primary-dark"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Max 2MB. JPG, PNG, GIF.</p>
                     {merchantProfileData.logo && (
-                      <img src={merchantProfileData.logo} alt="Logo Preview" className="mt-2 h-16 w-auto rounded-md"/>
+                      <div className="mt-2">
+                        <img src={merchantProfileData.logo} alt="Logo Preview" className="h-16 w-auto rounded-md"/>
+                        {merchantProfileData.logo.startsWith('data:image') && (
+                          <button
+                            type="button"
+                            onClick={() => setMerchantProfileData(prev => ({...prev, logo: ''}))}
+                            className="text-xs text-red-500 hover:text-red-700 mt-1"
+                          >
+                            Clear Uploaded Logo
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Banner Image URL */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cover Photo URL</label>
+                    <input
+                      type="text"
+                      name="bannerImage"
+                      value={merchantProfileData.bannerImage}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      placeholder="https://example.com/cover.jpg"
+                    />
+                    {merchantProfileData.bannerImage && (
+                      <img src={merchantProfileData.bannerImage} alt="Cover Photo Preview" className="mt-2 h-32 w-auto rounded-md object-contain"/>
                     )}
                   </div>
 
@@ -1105,6 +1164,19 @@ function MerchantDashboard() {
                     />
                   </div>
 
+                  {/* Website URL */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                    <input
+                      type="url"
+                      name="website"
+                      value={merchantProfileData.website}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      placeholder="https://www.yourbusiness.com"
+                    />
+                  </div>
+
                   {/* Address */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
@@ -1113,21 +1185,21 @@ function MerchantDashboard() {
                       name="address"
                       value={merchantProfileData.address}
                       onChange={handleProfileChange}
-                       onBlur={handleAddressGeocode} // For geocoding
+                       // onBlur={handleAddressGeocode} // Geocoding on blur temporarily disabled
                       className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
                       placeholder="Start typing your address..."
                     />
                   </div>
 
-                  {/* Map Container */}
+                  {/* Map Container - Temporarily Commented Out
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Set Location on Map</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Set Location on Map (Optional)</label>
                     <div id="profile-edit-map-container" style={{ height: '300px', width: '100%', borderRadius: '8px', backgroundColor: '#f0f0f0' }}>
-                      {/* Map will be initialized here */}
-                       <p className="p-4 text-center text-gray-500">Map loading...</p>
+                       <p className="p-4 text-center text-gray-500">Map functionality temporarily disabled.</p>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Click or drag the pin to set exact location. Latitude: {merchantProfileData.latitude || 'N/A'}, Longitude: {merchantProfileData.longitude || 'N/A'}</p>
+                    <p className="text-xs text-gray-500 mt-1">Latitude: {merchantProfileData.latitude || 'N/A'}, Longitude: {merchantProfileData.longitude || 'N/A'}</p>
                   </div>
+                  */}
 
                   {/* Social Media Links */}
                   <h3 className="md:col-span-2 text-lg font-semibold text-gray-700 mt-4 mb-2">Social Media (Usernames or Handles)</h3>
