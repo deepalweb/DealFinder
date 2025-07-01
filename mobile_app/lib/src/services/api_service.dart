@@ -114,4 +114,92 @@ class ApiService {
       throw Exception('Failed to load merchants');
     }
   }
+
+  // Search promotions by query (title, description, merchant, etc.)
+  Future<List<Promotion>> searchPromotions(String query) async {
+    final response = await http.get(Uri.parse('${_baseUrl}promotions?search=$query'));
+    if (response.statusCode == 200) {
+      List<dynamic> body = jsonDecode(response.body);
+      return body.map((dynamic item) => Promotion.fromJson(item)).toList();
+    } else {
+      throw Exception('Failed to search promotions. Status code: ${response.statusCode}, Body: ${response.body}');
+    }
+  }
+
+  // Filter promotions by category
+  Future<List<Promotion>> filterPromotionsByCategory(String category) async {
+    final response = await http.get(Uri.parse('${_baseUrl}promotions?category=$category'));
+    if (response.statusCode == 200) {
+      List<dynamic> body = jsonDecode(response.body);
+      return body.map((dynamic item) => Promotion.fromJson(item)).toList();
+    } else {
+      throw Exception('Failed to filter promotions. Status code: ${response.statusCode}, Body: ${response.body}');
+    }
+  }
+
+  // Fetch comments (reviews) for a promotion
+  Future<List<Map<String, dynamic>>> fetchPromotionComments(String promotionId) async {
+    final response = await http.get(Uri.parse('${_baseUrl}promotions/$promotionId/comments'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load comments');
+    }
+  }
+
+  // Post a comment (review) for a promotion (requires auth)
+  Future<Map<String, dynamic>> postPromotionComment(String promotionId, String text, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions/$promotionId/comments'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'text': text}),
+    );
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to post comment: ${response.body}');
+    }
+  }
+
+  // Post or update a rating for a promotion (requires auth)
+  Future<Map<String, dynamic>> postPromotionRating(String promotionId, double value, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions/$promotionId/ratings'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'value': value}),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to post rating: ${response.body}');
+    }
+  }
+
+  // Fetch a single merchant by ID
+  Future<Map<String, dynamic>> fetchMerchantById(String merchantId) async {
+    final response = await http.get(Uri.parse('${_baseUrl}merchants/$merchantId'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      throw Exception('Failed to load merchant');
+    }
+  }
+
+  // Fetch promotions by merchant ID
+  Future<List<Map<String, dynamic>>> fetchPromotionsByMerchant(String merchantId) async {
+    final response = await http.get(Uri.parse('${_baseUrl}promotions?merchantId=$merchantId'));
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Failed to load promotions for merchant');
+    }
+  }
 }

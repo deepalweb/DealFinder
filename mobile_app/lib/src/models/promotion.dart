@@ -18,6 +18,7 @@ class Promotion {
   final double? price;
   final double? originalPrice;
   final double? discountedPrice;
+  final String? location; // Added for map/location support
 
   Promotion({
     required this.id,
@@ -37,6 +38,7 @@ class Promotion {
     this.price,
     this.originalPrice,
     this.discountedPrice,
+    this.location,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
@@ -76,6 +78,7 @@ class Promotion {
       price: (json['price'] as num?)?.toDouble(),
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
       discountedPrice: (json['discountedPrice'] as num?)?.toDouble(),
+      location: json['location'] as String?,
     );
   }
 
@@ -99,6 +102,7 @@ class Promotion {
       'price': price,
       'originalPrice': originalPrice,
       'discountedPrice': discountedPrice,
+      'location': location,
     };
   }
 }

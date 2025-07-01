@@ -5,9 +5,10 @@ import 'package:flutter/services.dart'; // For Clipboard
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
-import 'dart:convert'; // For base64 decoding
+import '../services/api_service.dart';
 
 class DealDetailScreen extends StatefulWidget {
   final Promotion promotion;
@@ -20,11 +21,29 @@ class DealDetailScreen extends StatefulWidget {
 class _DealDetailScreenState extends State<DealDetailScreen> {
   bool _isFavorite = false;
   bool _showTerms = false;
+  List<Map<String, dynamic>> _comments = [];
+  bool _loadingComments = true;
+  double _averageRating = 0;
+  int _reviewCount = 0;
+  final ApiService _apiService = ApiService();
+  // TODO: Replace with your actual auth logic
+  String? _userToken; // Set this from your auth provider
+  String? _userId;    // Set this from your auth provider
 
   @override
   void initState() {
     super.initState();
     _loadFavoriteStatus();
+    _fetchComments();
+    _loadUserAuth();
+  }
+
+  Future<void> _loadUserAuth() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userToken = prefs.getString('userToken');
+      _userId = prefs.getString('userId');
+    });
   }
 
   Future<void> _loadFavoriteStatus() async {
@@ -61,10 +80,53 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     Share.share(text.trim());
   }
 
-  // Helper to decode base64 image
-  Uint8List _decodeBase64Image(String dataUrl) {
-    final base64String = dataUrl.split(',').last;
-    return base64Decode(base64String);
+  Future<void> _fetchComments() async {
+    setState(() { _loadingComments = true; });
+    try {
+      final comments = await _apiService.fetchPromotionComments(widget.promotion.id);
+      setState(() {
+        _comments = comments;
+        _reviewCount = comments.length;
+        if (comments.isNotEmpty) {
+          // If your backend provides ratings, calculate average here
+          final ratings = comments.map((c) => (c['rating'] ?? 5.0) as num).toList();
+          _averageRating = ratings.isNotEmpty ? ratings.reduce((a, b) => a + b) / ratings.length : 0;
+        } else {
+          _averageRating = 0;
+        }
+      });
+    } catch (e) {
+      setState(() { _comments = []; });
+    } finally {
+      setState(() { _loadingComments = false; });
+    }
+  }
+
+  Future<void> _submitReview(double rating, String review) async {
+    print('DEBUG: _submitReview called with rating: '
+        '[32m$rating[0m, review: [32m$review[0m');
+    print('DEBUG: _userToken: [32m[1m[4m$_userToken[0m');
+    if (_userToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You must be logged in to submit a review.')),
+      );
+      return;
+    }
+    try {
+      final commentResp = await _apiService.postPromotionComment(widget.promotion.id, review, _userToken!);
+      print('DEBUG: postPromotionComment response: $commentResp');
+      final ratingResp = await _apiService.postPromotionRating(widget.promotion.id, rating, _userToken!);
+      print('DEBUG: postPromotionRating response: $ratingResp');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Review submitted!')),
+      );
+      _fetchComments();
+    } catch (e) {
+      print('ERROR: Failed to submit review: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit review: $e')),
+      );
+    }
   }
 
   @override
@@ -97,8 +159,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-
-              const SizedBox(height: 20.0),
+            // Promotion Image
+            _buildImageWidget(context, promotion.imageDataString),
+            const SizedBox(height: 20.0),
 
             // Promotion Title
             Text(
@@ -109,15 +172,27 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
             // Merchant Information (if available)
             if (promotion.merchantName != null && promotion.merchantName!.isNotEmpty)
-              Row(
-                children: [
-                  Icon(Icons.storefront_outlined, size: 20, color: theme.textTheme.bodyMedium?.color),
-                  const SizedBox(width: 8.0),
-                  Text(
-                    promotion.merchantName!,
-                    style: theme.textTheme.titleMedium,
-                  ),
-                ],
+              GestureDetector(
+                onTap: () {
+                  // TODO: Implement navigation to merchant profile screen
+                  // Navigator.push(context, MaterialPageRoute(builder: (_) => MerchantProfileScreen(merchantId: promotion.merchantId)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Navigate to merchant profile (to be implemented)')),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Icon(Icons.storefront_outlined, size: 20, color: theme.textTheme.bodyMedium?.color),
+                    const SizedBox(width: 8.0),
+                    Text(
+                      promotion.merchantName!,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        decoration: TextDecoration.underline,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             if (promotion.merchantName != null && promotion.merchantName!.isNotEmpty)
               const SizedBox(height: 16.0),
@@ -302,6 +377,31 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   ),
                   onPressed: _toggleFavorite,
                 ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.flag_outlined),
+                  label: const Text('Report Deal'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[100],
+                    foregroundColor: Colors.red[900],
+                  ),
+                  onPressed: () {
+                    // TODO: Implement report deal logic
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Report submitted (to be implemented)')),
+                    );
+                  },
+                ),
+                if (promotion.endDate != null)
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.event),
+                    label: const Text('Add to Calendar'),
+                    onPressed: () {
+                      // TODO: Integrate with device calendar
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Add to calendar (to be implemented)')),
+                      );
+                    },
+                  ),
               ],
             ),
 
@@ -348,49 +448,139 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 },
               ),
             ),
+
+            // Ratings & Reviews Section (Integrated)
+            const SizedBox(height: 32.0),
+            Text(
+              'Ratings & Reviews',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12.0),
+            Row(
+              children: [
+                Icon(Icons.star, color: Colors.amber, size: 28),
+                Text(_averageRating.toStringAsFixed(1), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                Text('($_reviewCount reviews)', style: theme.textTheme.bodyMedium),
+              ],
+            ),
+            const SizedBox(height: 8.0),
+            if (_loadingComments)
+              const Center(child: CircularProgressIndicator()),
+            if (!_loadingComments && _comments.isEmpty)
+              Text('No reviews yet. Be the first to review!', style: theme.textTheme.bodyMedium),
+            if (!_loadingComments && _comments.isNotEmpty)
+              Column(
+                children: _comments.map((c) => ListTile(
+                  leading: Icon(Icons.account_circle, size: 32),
+                  title: Text(c['user']?['name'] ?? 'User'),
+                  subtitle: Text(c['text'] ?? ''),
+                  trailing: c['rating'] != null ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 18),
+                      Text(c['rating'].toString()),
+                    ],
+                  ) : null,
+                )).toList(),
+              ),
+            const SizedBox(height: 12.0),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.rate_review_outlined),
+              label: const Text('Write a Review'),
+              onPressed: () async {
+                double rating = 5;
+                TextEditingController reviewController = TextEditingController();
+                final result = await showDialog<Map<String, dynamic>>(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Write a Review'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(5, (index) => IconButton(
+                              icon: Icon(
+                                index < rating ? Icons.star : Icons.star_border,
+                                color: Colors.amber,
+                              ),
+                              onPressed: () {
+                                rating = index + 1.0;
+                                (context as Element).markNeedsBuild();
+                              },
+                            )),
+                          ),
+                          TextField(
+                            controller: reviewController,
+                            decoration: const InputDecoration(
+                              labelText: 'Your review',
+                            ),
+                            maxLines: 3,
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop({
+                              'rating': rating,
+                              'review': reviewController.text,
+                            });
+                          },
+                          child: const Text('Submit'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (result != null) {
+                  _submitReview(result['rating'], result['review']);
+                }
+              },
+            ),
+
+            // Map/Location Section (with Get Directions)
+            if (promotion.location != null && promotion.location!.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 32.0),
+                  Text('Location', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8.0),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on, color: theme.colorScheme.primary),
+                      const SizedBox(width: 8.0),
+                      Expanded(child: Text(promotion.location!)),
+                    ],
+                  ),
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.directions),
+                    label: const Text('Get Directions'),
+                    onPressed: () async {
+                      final query = Uri.encodeComponent(promotion.location!);
+                      final googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=$query';
+                      if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
+                        await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not open maps.')),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
           ],
         ),
       ),
     );
-  }
-
-  Widget _buildImageWidget(BuildContext context, String? imageDataString) {
-    if (imageDataString == null || imageDataString.isEmpty) {
-      return _buildImageErrorPlaceholder(context);
-    }
-    if (imageDataString.startsWith('data:image') && imageDataString.contains(';base64,')) {
-      try {
-        final String base64Data = imageDataString.substring(imageDataString.indexOf(',') + 1);
-        final Uint8List decodedBytes = base64Decode(base64Data);
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12.0),
-          child: Image.memory(
-            decodedBytes,
-            width: double.infinity,
-            height: 250,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
-          ),
-        );
-      } catch (e) {
-        print('Error decoding Base64 image for DetailScreen: $e');
-        return _buildImageErrorPlaceholder(context, error: e);
-      }
-    } else if (imageDataString.startsWith('http')) {
-      // Support for network images
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12.0),
-        child: Image.network(
-          imageDataString,
-          width: double.infinity,
-          height: 250,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
-        ),
-      );
-    }
-    // Fallback for non-Base64 or if only Base64 is expected and it's malformed
-    return _buildImageErrorPlaceholder(context);
   }
 
   Widget _buildImageErrorPlaceholder(BuildContext context, {Object? error}) {
@@ -406,5 +596,55 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       ),
       child: Icon(Icons.broken_image_outlined, size: 60, color: Colors.grey[600]),
     );
+  }
+
+  Widget _buildImageWidget(BuildContext context, String? imageDataString) {
+    void showFullScreenImage(Widget imageWidget) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: EdgeInsets.zero,
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: InteractiveViewer(child: imageWidget),
+          ),
+        ),
+      );
+    }
+    if (imageDataString == null || imageDataString.isEmpty) {
+      return _buildImageErrorPlaceholder(context);
+    }
+    if (imageDataString.startsWith('data:image') && imageDataString.contains(';base64,')) {
+      try {
+        final String base64Data = imageDataString.substring(imageDataString.indexOf(',') + 1);
+        final Uint8List decodedBytes = base64Decode(base64Data);
+        final image = Image.memory(
+          decodedBytes,
+          width: double.infinity,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
+        );
+        return GestureDetector(
+          onTap: () => showFullScreenImage(image),
+          child: image,
+        );
+      } catch (e) {
+        print('Error decoding Base64 image for DetailScreen: $e');
+        return _buildImageErrorPlaceholder(context, error: e);
+      }
+    } else if (imageDataString.startsWith('http')) {
+      final image = Image.network(
+        imageDataString,
+        width: double.infinity,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) => _buildImageErrorPlaceholder(context, error: error),
+      );
+      return GestureDetector(
+        onTap: () => showFullScreenImage(image),
+        child: image,
+      );
+    }
+    return _buildImageErrorPlaceholder(context);
   }
 }

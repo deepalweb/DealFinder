@@ -2,6 +2,7 @@ import 'dart:convert'; // For base64Decode
 import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart'; // For date formatting
+import 'package:url_launcher/url_launcher.dart'; // For launching URLs
 import '../models/promotion.dart';
 
 class DealCard extends StatelessWidget {
@@ -11,55 +12,78 @@ class DealCard extends StatelessWidget {
 
   Widget _buildImageWidget(BuildContext context, String imageUrl) {
     Widget errorDisplayWidget = Container(
-      height: 150,
+      constraints: BoxConstraints(
+        maxHeight: 220,
+      ),
       width: double.infinity,
       color: Colors.grey[300],
       child: Icon(Icons.broken_image, size: 50, color: Colors.grey[600]),
     );
 
+    void showFullScreenImage(Widget imageWidget) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: EdgeInsets.zero,
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: InteractiveViewer(
+              child: imageWidget,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget buildImage(Widget image) {
+      return GestureDetector(
+        onTap: () => showFullScreenImage(image),
+        child: image,
+      );
+    }
+
     if (imageUrl.startsWith('data:image')) {
       try {
-        // Find the start of the Base64 data
         final base64Data = imageUrl.substring(imageUrl.indexOf(',') + 1);
         final Uint8List bytes = base64Decode(base64Data);
-        return Image.memory(
-          bytes,
-          height: 150,
-          width: double.infinity,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+        return buildImage(
+          Image.memory(
+            bytes,
+            width: double.infinity,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+          ),
         );
       } catch (e) {
         print('Error decoding Base64 image: $e');
         return errorDisplayWidget;
       }
     } else if (imageUrl.startsWith('http')) {
-      // Standard network image
-      return Image.network(
-        imageUrl,
-        height: 150,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
-        loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
-          if (loadingProgress == null) return child;
-          return Container(
-            height: 150,
-            width: double.infinity,
-            color: Colors.grey[200],
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                    : null,
+      return buildImage(
+        Image.network(
+          imageUrl,
+          width: double.infinity,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Container(
+              constraints: BoxConstraints(maxHeight: 220),
+              width: double.infinity,
+              color: Colors.grey[200],
+              child: Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                      : null,
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       );
     } else {
-      // If it's not a data URI and not an HTTP/HTTPS URL, it's an invalid format
-      print('Invalid image URL format: $imageUrl');
       return errorDisplayWidget;
     }
   }
@@ -67,7 +91,6 @@ class DealCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ThemeData theme = Theme.of(context);
-    final NumberFormat currencyFormat = NumberFormat.simpleCurrency(locale: 'en_US', name: 'USD'); // Adjust locale/currency as needed
     final DateFormat dateFormat = DateFormat('MMM d, yyyy'); // Example: Jan 1, 2023
 
     // Helper to build rich text for discount
@@ -186,24 +209,38 @@ class DealCard extends StatelessWidget {
                   ),
                 ],
               ),
+            // Get Directions Button (if location is available)
+            if (promotion.location != null && promotion.location!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 10.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.directions),
+                    label: const Text('Get Directions'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () async {
+                      final location = promotion.location!;
+                      final encodedLocation = Uri.encodeComponent(location);
+                      final googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=$encodedLocation';
+                      if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
+                        await launchUrl(Uri.parse(googleMapsUrl));
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open Maps.')),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildImageErrorPlaceholder(BuildContext context, {Object? error}) {
-    if (error != null) {
-      print("Image loading/decoding error: $error");
-    }
-    return Container(
-      height: 150,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: Icon(Icons.broken_image_outlined, size: 50, color: Colors.grey[600]),
     );
   }
 }
