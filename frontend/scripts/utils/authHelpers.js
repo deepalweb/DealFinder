@@ -32,20 +32,12 @@ function isAdmin() {
 
 // Login user (store in localStorage)
 function loginUser(userData) {
-  console.log('[authHelpers] loginUser: Setting user data to localStorage.', userData);
   localStorage.setItem('dealFinderUser', JSON.stringify(userData));
-  console.log('[authHelpers] loginUser: Dispatching authStateChange event.');
-  window.dispatchEvent(new CustomEvent('authStateChange'));
-  console.log('[authHelpers] loginUser: authStateChange event dispatched.');
 }
 
 // Logout user
 function logoutUser() {
-  console.log('[authHelpers] logoutUser: Removing user data from localStorage.');
   localStorage.removeItem('dealFinderUser');
-  console.log('[authHelpers] logoutUser: Dispatching authStateChange event.');
-  window.dispatchEvent(new CustomEvent('authStateChange'));
-  console.log('[authHelpers] logoutUser: authStateChange event dispatched.');
 }
 
 // Register and login

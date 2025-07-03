@@ -14,10 +14,7 @@ dependencies:
   http: ^1.1.0 # For making HTTP requests
   intl: ^0.18.1 # For date formatting
   shimmer: ^3.0.0 # For shimmer loading effect
-  shared_preferences: ^2.2.2 # For storing token
   cupertino_icons: ^1.0.2 # Standard iOS icons
-  url_launcher: ^6.2.5
-  share_plus: ^7.2.1
 
 dev_dependencies:
   flutter_test:

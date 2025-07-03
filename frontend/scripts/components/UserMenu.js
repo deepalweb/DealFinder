@@ -8,37 +8,11 @@ function UserMenu() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Function to update user state from localStorage
-    const updateUserState = () => {
-      console.log('[UserMenu] updateUserState: Reading from localStorage.');
-      const userData = localStorage.getItem('dealFinderUser');
-      if (userData) {
-        try {
-          const parsedUser = JSON.parse(userData);
-          console.log('[UserMenu] updateUserState: User data found, setting state.', parsedUser);
-          setUser(parsedUser);
-        } catch (e) {
-          console.error("[UserMenu] updateUserState: Failed to parse user data from localStorage", e);
-          localStorage.removeItem('dealFinderUser'); // Clear corrupted data
-          setUser(null);
-        }
-      } else {
-        console.log('[UserMenu] updateUserState: No user data found in localStorage, setting user to null.');
-        setUser(null);
-      }
-    };
-
-    console.log('[UserMenu] useEffect: Component did mount. Setting up initial state and listeners.');
-    // Initial check
-    updateUserState();
-
-    // Listen for auth state changes
-    const handleAuthStateChange = (event) => {
-      console.log('[UserMenu] handleAuthStateChange: Received authStateChange event.', event);
-      updateUserState();
-    };
-    console.log('[UserMenu] useEffect: Adding authStateChange event listener.');
-    window.addEventListener('authStateChange', handleAuthStateChange);
+    // Check if user is logged in
+    const userData = localStorage.getItem('dealFinderUser');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
 
     // Close menu when clicking outside
     const handleClickOutside = (event) => {
@@ -46,12 +20,10 @@ function UserMenu() {
         setIsMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
 
-    // Cleanup
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('authStateChange', handleAuthStateChange);
     };
   }, []);
 
@@ -133,15 +105,6 @@ function UserMenu() {
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               onClick={() => setIsMenuOpen(false)}>
               <i className="fas fa-store mr-2"></i> Merchant Dashboard
-            </Link>
-          }
-
-          {user.role === 'admin' &&
-            <Link
-              to="/admin"
-              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-              onClick={() => setIsMenuOpen(false)}>
-              <i className="fas fa-shield-alt mr-2"></i> Admin Panel
             </Link>
           }
           

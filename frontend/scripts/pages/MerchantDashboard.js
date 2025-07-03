@@ -23,10 +23,7 @@ function MerchantDashboard() {
     endDate: '',
     image: '',
     url: '',
-    featured: false, // Add featured field to form state
-    price: '',
-    originalPrice: '',
-    discountedPrice: ''
+    featured: false // Add featured field to form state
   });
 
   // For image upload preview
@@ -105,14 +102,11 @@ function MerchantDashboard() {
         endDate: nextMonth.toISOString().split('T')[0],
         image: '',
         url: '',
-        featured: false, // Reset featured
-        price: '',
-        originalPrice: '',
-        discountedPrice: ''
+        featured: false // Reset featured
       });
       setImagePreview(null);
     }
-  }, [isAddModalOpen, editingPromotion]); // Added editingPromotion to dependency array
+  }, [isAddModalOpen]);
 
   // Set form data when editing
   useEffect(() => {
@@ -133,10 +127,7 @@ function MerchantDashboard() {
         endDate: formatDateForInput(editingPromotion.endDate),
         image: editingPromotion.image || '',
         url: editingPromotion.url || '',
-        featured: !!editingPromotion.featured, // Set featured from editing promotion
-        price: editingPromotion.price || '',
-        originalPrice: editingPromotion.originalPrice || '',
-        discountedPrice: editingPromotion.discountedPrice || ''
+        featured: !!editingPromotion.featured // Set featured from editing promotion
       });
       setImagePreview(editingPromotion.image || null);
       setIsAddModalOpen(true);
@@ -233,18 +224,8 @@ function MerchantDashboard() {
       const promotionData = {
         ...formData,
         featured: Boolean(formData.featured), // Force boolean
-        merchantId: user.merchantId,
-        price: formData.price ? parseFloat(formData.price) : undefined,
-        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : undefined,
-        discountedPrice: formData.discountedPrice ? parseFloat(formData.discountedPrice) : undefined,
+        merchantId: user.merchantId
       };
-
-      // Remove any price fields that are undefined (e.g., if input was empty)
-      // to avoid sending them as null or empty strings if the backend expects numbers or nothing.
-      if (promotionData.price === undefined) delete promotionData.price;
-      if (promotionData.originalPrice === undefined) delete promotionData.originalPrice;
-      if (promotionData.discountedPrice === undefined) delete promotionData.discountedPrice;
-
 
       let savedPromotion;
 
@@ -740,44 +721,9 @@ function MerchantDashboard() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
                     required />
                   </div>
-
-                  {/* Price Fields */}
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Price (Optional)</label>
-                    <input
-                      type="number"
-                      name="price"
-                      value={formData.price}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                      placeholder="e.g. 99.99"
-                      step="0.01" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Original Price (Optional)</label>
-                    <input
-                      type="number"
-                      name="originalPrice"
-                      value={formData.originalPrice}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                      placeholder="e.g. 120.00"
-                      step="0.01" />
-                  </div>
-                  <div className="col-span-2 md:col-span-1"> {/* Adjusted for possible third price field or full width */}
-                    <label className="block text-sm font-medium mb-1">Discounted Price (Optional)</label>
-                    <input
-                      type="number"
-                      name="discountedPrice"
-                      value={formData.discountedPrice}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                      placeholder="e.g. 79.99"
-                      step="0.01" />
-                  </div>
                 </div>
                 
-                <div className="col-span-2 flex items-center mt-4 mb-4"> {/* Added mb-4 for spacing */}
+                <div className="col-span-2 flex items-center mt-2">
                     <input
                       type="checkbox"
                       id="featured"
