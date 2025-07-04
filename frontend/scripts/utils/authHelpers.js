@@ -36,8 +36,38 @@ function loginUser(userData) {
 }
 
 // Logout user
-function logoutUser() {
+async function logoutUser() {
+  const currentUser = getCurrentUser(); // Get user before clearing localStorage
+  const refreshToken = currentUser && currentUser.refreshToken ? currentUser.refreshToken : null;
+
+  // Always clear local storage immediately for responsiveness
   localStorage.removeItem('dealFinderUser');
+  console.log('User logged out from client-side. Local storage cleared.');
+
+  if (refreshToken && window.API_BASE_URL) {
+    try {
+      console.log('Attempting to invalidate refresh token on backend...');
+      const response = await fetch(`${window.API_BASE_URL}users/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+      if (response.ok) {
+        console.log('Refresh token invalidated on backend successfully.');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('Failed to invalidate refresh token on backend:', response.status, errorData.message);
+      }
+    } catch (error) {
+      console.error('Error calling backend logout:', error);
+    }
+  } else if (!refreshToken) {
+    console.warn('No refresh token found, skipping backend logout call.');
+  } else if (!window.API_BASE_URL) {
+    console.error('API_BASE_URL not defined, skipping backend logout call.');
+  }
+  // Note: Redirection after logout is typically handled by the calling context,
+  // e.g., if (logoutUser()) window.location.href = '/login';
 }
 
 // Register and login
@@ -109,18 +139,64 @@ function isTokenExpired(token) {
 }
 
 // Get a new access token using refresh token
-async function refreshAccessToken(refreshToken) {
+async function refreshAccessToken() {
+  const currentUser = getCurrentUser();
+  const refreshToken = currentUser && currentUser.refreshToken ? currentUser.refreshToken : null;
+
+  if (!window.API_BASE_URL) {
+    console.error("API_BASE_URL is not defined. Ensure apiHelpers.js is loaded before authHelpers.js and then authHelpers.js.");
+    // Cannot proceed without API_BASE_URL, this is a critical setup error.
+    // Forcing logout/redirect might be too aggressive if other parts of app could work.
+    // However, auth is critical. For now, let's assume this implies a broken state.
+    if (isLoggedIn()) logoutUser(); // Attempt to clear session
+    window.location.href = '/login?error=config_error'; // Redirect with error
+    return null; // Signal failure
+  }
+
+  if (!refreshToken) {
+    console.warn('No refresh token found. Redirecting to login.');
+    if (isLoggedIn()) logoutUser(); // Clear any partial session if exists
+    window.location.href = '/login?error=no_refresh_token';
+    return null; // Signal failure
+  }
+
   try {
-    const response = await fetch('/api/users/refresh-token', {
+    const response = await fetch(`${window.API_BASE_URL}users/refresh-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken })
     });
-    if (!response.ok) throw new Error('Failed to refresh token');
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Failed to parse error response from refresh token endpoint.' }));
+      console.error('Failed to refresh token:', response.status, errorData.message);
+      // Regardless of specific error, if refresh fails, treat as session expiry.
+      logoutUser(); // This will clear dealFinderUser from localStorage
+      window.location.href = `/login?error=refresh_failed&status=${response.status}`; // Redirect to login
+      return null; // Signal failure
+    }
+
     const data = await response.json();
-    return data.token;
+    const newAccessToken = data.token;
+
+    if (newAccessToken && currentUser) {
+      const updatedUserData = { ...currentUser, token: newAccessToken };
+      loginUser(updatedUserData); // loginUser updates localStorage
+      console.log('Access token refreshed successfully via refreshAccessToken.');
+      return newAccessToken;
+    } else {
+      // This case should ideally not be reached if response.ok and data.token is present
+      console.error('Refresh token endpoint responded OK but no new access token was provided.');
+      logoutUser();
+      window.location.href = '/login?error=refresh_no_token';
+      return null; // Signal failure
+    }
   } catch (error) {
-    return null;
+    // This catches network errors or issues with fetch itself
+    console.error('Network or other critical error during refreshAccessToken:', error);
+    logoutUser(); // Ensure user is logged out
+    window.location.href = '/login?error=refresh_network_error';
+    return null; // Signal failure
   }
 }
 
