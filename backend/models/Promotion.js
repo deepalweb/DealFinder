@@ -28,11 +28,7 @@ const promotionSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     value: { type: Number, min: 1, max: 5, required: true },
     createdAt: { type: Date, default: Date.now }
-  }],
-  // Price fields
-  price: { type: Number }, // Current price or general price if no sale
-  originalPrice: { type: Number }, // Price before discount
-  discountedPrice: { type: Number } // Price after discount, if applicable
+  }]
 });
 
 module.exports = mongoose.model('Promotion', promotionSchema);

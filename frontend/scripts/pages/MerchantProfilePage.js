@@ -51,31 +51,6 @@ function MerchantProfilePage() {
     fetchMerchantData();
   }, [merchantId]);
 
-  // Effect to initialize the map
-  useEffect(() => {
-    // Ensure merchant data with lat/lng is loaded and Google Maps API is available
-    if (merchant && typeof merchant.latitude === 'number' && typeof merchant.longitude === 'number' && window.google && window.google.maps) {
-      const mapContainer = document.getElementById('merchant-map-container');
-
-      if (mapContainer && !mapContainer.hasChildNodes()) { // Initialize map only if not already initialized
-        const location = { lat: merchant.latitude, lng: merchant.longitude };
-        const map = new window.google.maps.Map(mapContainer, {
-          center: location,
-          zoom: 15, // Adjust zoom level as needed
-          disableDefaultUI: true, // Optional: hide default controls for a cleaner look
-          gestureHandling: 'cooperative' // Recommended for better user experience on mobile
-        });
-
-        new window.google.maps.Marker({
-          position: location,
-          map: map,
-          title: merchant.name,
-        });
-      }
-    }
-    // Rerun this effect if merchant data changes or if google object becomes available later
-  }, [merchant, window.google]);
-
   const handleFollowToggle = async () => {
     // Toggle follow status
     const newFollowStatus = !isFollowing;
@@ -218,16 +193,6 @@ function MerchantProfilePage() {
                 <h3 className="font-semibold mb-2">About</h3>
                 <p className="text-sm text-gray-600">{merchant.description}</p>
               </div>
-
-              {merchant.address && (
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2">Address</h3>
-                  <p className="text-sm text-gray-600 flex items-start">
-                    <i className="fas fa-map-marker-alt mr-2 mt-1 text-primary-color"></i>
-                    <span>{merchant.address}</span>
-                  </p>
-                </div>
-              )}
               
               {merchant.website && merchant.website !== "#" && (
                 <div className="mb-4">
@@ -285,16 +250,6 @@ function MerchantProfilePage() {
                         <i className="fab fa-tiktok"></i>
                       </a>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {/* Map Container */}
-              {merchant && merchant.latitude && merchant.longitude && (
-                <div className="mt-4">
-                  <h3 className="font-semibold mb-2">Location</h3>
-                  <div id="merchant-map-container" style={{ height: '250px', width: '100%', borderRadius: '8px' }}>
-                    {/* Map will be initialized here by JavaScript */}
                   </div>
                 </div>
               )}
