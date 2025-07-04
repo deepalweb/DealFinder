@@ -10,6 +10,7 @@ const API_BASE_URL = isAzure
     : 'http://localhost:8080/api/';
 
 console.log('Using API base URL:', API_BASE_URL);
+window.API_BASE_URL = API_BASE_URL; // Expose for other scripts like authHelpers
 
 // Generic fetch function with error handling
 async function fetchAPI(endpoint, options = {}, retries = 2) {
@@ -28,7 +29,36 @@ async function fetchAPI(endpoint, options = {}, retries = 2) {
     }
     
     // Add Authorization header with JWT if available
-    const token = window.Auth && window.Auth.getAuthToken ? window.Auth.getAuthToken() : null;
+    let token = window.Auth && window.Auth.getAuthToken ? window.Auth.getAuthToken() : null;
+
+    if (token && window.Auth.isTokenExpired(token)) {
+      console.log('Access token expired, attempting to refresh...');
+      try {
+        const newToken = await window.Auth.refreshAccessToken();
+        const newToken = await window.Auth.refreshAccessToken(); // refreshAccessToken now handles logout/redirect on failure
+        if (newToken) {
+          token = newToken; // Use the new token for the current request
+          console.log('Access token obtained via refresh for current request.');
+        } else {
+          // refreshAccessToken returned null, meaning it handled logout and redirection.
+          // Stop further execution of this fetchAPI call.
+          console.warn('fetchAPI: Token refresh failed and was handled by refreshAccessToken. Aborting current API request.');
+          return Promise.reject(new Error('Token refresh failed; user redirected.'));
+        }
+      } catch (refreshError) {
+        // This catch block might be redundant if refreshAccessToken handles all its own errors
+        // and guarantees redirection. However, as a safeguard:
+        console.error('fetchAPI: Unexpected error during token refresh process. Error:', refreshError);
+        if (window.Auth && typeof window.Auth.logoutUser === 'function' && localStorage.getItem('dealFinderUser')) {
+            window.Auth.logoutUser();
+        }
+        if (window.location.pathname !== '/login') { // Avoid redirect loops if already on login
+            window.location.href = '/login?error=fetch_refresh_exception';
+        }
+        return Promise.reject(new Error('Critical token refresh error; user redirected.'));
+      }
+    }
+
     if (!options.headers) options.headers = {};
     if (token) {
       options.headers['Authorization'] = `Bearer ${token}`;
