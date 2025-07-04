@@ -829,7 +829,7 @@ function UserProfile() {
                         rows="3"
                       ></textarea>
                     </div>
-                     <div className="mb-4">
+                    <div className="mb-4">
                         <label htmlFor="initLogo" className="block text-sm font-medium mb-1">Business Logo URL (Optional)</label>
                         <input
                             type="url"
