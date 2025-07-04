@@ -100,9 +100,9 @@ router.get('/merchant/:merchantId', async (req, res) => {
 // Create a new promotion (Authenticated: Admin, or Merchant for themselves)
 router.post('/', authenticateJWT, [
   body('title').trim().notEmpty().withMessage('Title is required'),
-  body('description').optional().isString(),
+  body('description').trim().notEmpty().withMessage('Description is required'),
   body('discount').trim().notEmpty().withMessage('Discount is required'),
-  body('code').optional().isString(),
+  body('code').trim().notEmpty().withMessage('Promotion code is required'),
   body('category').trim().notEmpty().withMessage('Category is required'),
   body('startDate').isISO8601().withMessage('Start date must be a valid date'),
   body('endDate').isISO8601().withMessage('End date must be a valid date'),
