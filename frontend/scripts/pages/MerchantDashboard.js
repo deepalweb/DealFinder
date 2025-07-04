@@ -219,12 +219,19 @@ function MerchantDashboard() {
       return;
     }
 
+    // Ensure merchantId is present before attempting to save
+    if (!user || !user.merchantId) {
+      console.error('Error saving promotion: merchantId is missing from user object.', user);
+      alert('Cannot save promotion: Your merchant account is not properly configured. Please re-login or contact support.');
+      return;
+    }
+
     try {
       // Ensure featured is a boolean
       const promotionData = {
         ...formData,
         featured: Boolean(formData.featured), // Force boolean
-        merchantId: user.merchantId
+        merchantId: user.merchantId // Now we know user.merchantId exists
       };
 
       let savedPromotion;
