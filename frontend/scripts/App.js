@@ -31,7 +31,6 @@ function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/reset-password/confirm" element={<ResetPasswordConfirmPage />} />
             <Route path="/deal/:dealId" element={<window.DealPage />} />
-            <Route path="/admin" element={<window.AdminDashboard />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

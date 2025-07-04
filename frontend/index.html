@@ -8,8 +8,6 @@
 		<script src="/backend/public/libs/tailwind.js"></script>
 		<link rel="stylesheet" href="/styles/global.css">
 		<link rel="stylesheet" href="/styles/components.css">
-		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js CDN -->
-		<script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places&callback=initMap"></script>
 	<meta name="description" content="Explore the latest discounts and promotions on your favorite products and services. Save big with our curated deals."><meta property="og:title" content="Find Amazing Discounts and Promotions Today!"><meta property="og:description" content="Access exclusive discounts and promotions online. Save money on top brands and services with our easy-to-use platform."><meta name="twitter:title" content="💸 Exclusive Discounts Await!"><meta name="twitter:description" content="Save big with our curated promotions. No sign-up required, mobile-friendly deals!">
 	
 		<!-- Google Analytics -->
@@ -75,25 +73,6 @@
 		<script type="text/babel" src="/scripts/pages/ResetPasswordConfirmPage.js"></script>
 		<script type="text/babel" src="/scripts/pages/ResetPasswordPage.js"></script>
 		<script type="text/babel" src="/scripts/pages/DealPage.js"></script>
-
-		<!-- Admin Panel Sub-Components - Load these first -->
-		<script type="text/babel" src="/scripts/components/admin/UserManagement.js"></script>
-		<script type="text/babel" src="/scripts/components/admin/MerchantManagement.js"></script>
-		<script type="text/babel" src="/scripts/components/admin/PromotionManagement.js"></script>
-
-		<!-- Admin Dashboard Page - Load after its sub-components -->
-		<script type="text/babel" src="/scripts/pages/AdminDashboard.js"></script>
-
-		<!-- Main App - Load last or after all page/component scripts it might reference on window -->
 		<script type="text/babel" src="/scripts/App.js"></script>
-
-		<script>
-			// Google Maps API callback function
-			function initMap() {
-				// Google Maps API is loaded and ready.
-				// You can now initialize map-related components or trigger events.
-				console.log("Google Maps API loaded.");
-			}
-		</script>
 	</body>
 </html>

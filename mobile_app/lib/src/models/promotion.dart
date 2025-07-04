@@ -6,7 +6,7 @@ class Promotion {
   final String description;
   final String? merchantId; // Assuming it might be nullable or not always present
   final String? merchantName; // Assuming it might be nullable
-  final String? imageDataString; // Changed from imageUrl to hold Base64 string or a regular URL
+  final String? imageUrl;
   final String? code;
   final String? discount; // Could be "10% off", "$5", etc.
   final DateTime? startDate;
@@ -15,10 +15,6 @@ class Promotion {
   final bool? featured;
   final String? websiteUrl; // Added for "Visit Website" button
   final String? termsAndConditions; // Added for T&C section
-  final double? price;
-  final double? originalPrice;
-  final double? discountedPrice;
-  final String? location; // Added for map/location support
 
   Promotion({
     required this.id,
@@ -26,7 +22,7 @@ class Promotion {
     required this.description,
     this.merchantId,
     this.merchantName,
-    this.imageDataString,
+    this.imageUrl,
     this.code,
     this.discount,
     this.startDate,
@@ -35,15 +31,11 @@ class Promotion {
     this.featured,
     this.websiteUrl,
     this.termsAndConditions,
-    this.price,
-    this.originalPrice,
-    this.discountedPrice,
-    this.location,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
     // Helper to safely parse dates
-    DateTime? parseDate(String? dateString) {
+    DateTime? _parseDate(String? dateString) {
       if (dateString == null || dateString.isEmpty) {
         return null;
       }
@@ -64,21 +56,15 @@ class Promotion {
       description: json['description'] as String? ?? 'No Description',
       merchantId: json['merchantId'] as String?,
       merchantName: json['merchantName'] as String?, // Or potentially json['merchant']['name'] if nested
-      // Assuming the API might send 'imageUrl' or 'image' for either Base64 or a URL.
-      // If it's specifically for Base64, the API field name might be different.
-      imageDataString: json['imageUrl'] as String? ?? json['image'] as String?,
+      imageUrl: json['imageUrl'] as String? ?? json['image'] as String?,
       code: json['code'] as String?,
       discount: json['discount'] as String?,
-      startDate: parseDate(json['startDate'] as String?),
-      endDate: parseDate(json['endDate'] as String?),
+      startDate: _parseDate(json['startDate'] as String?),
+      endDate: _parseDate(json['endDate'] as String?),
       category: json['category'] as String?,
       featured: json['featured'] as bool?,
       websiteUrl: json['websiteUrl'] as String?,
       termsAndConditions: json['termsAndConditions'] as String?,
-      price: (json['price'] as num?)?.toDouble(),
-      originalPrice: (json['originalPrice'] as num?)?.toDouble(),
-      discountedPrice: (json['discountedPrice'] as num?)?.toDouble(),
-      location: json['location'] as String?,
     );
   }
 
@@ -90,7 +76,7 @@ class Promotion {
       'description': description,
       'merchantId': merchantId,
       'merchantName': merchantName,
-      'imageDataString': imageDataString,
+      'imageUrl': imageUrl,
       'code': code,
       'discount': discount,
       'startDate': startDate?.toIso8601String(),
@@ -99,10 +85,6 @@ class Promotion {
       'featured': featured,
       'websiteUrl': websiteUrl,
       'termsAndConditions': termsAndConditions,
-      'price': price,
-      'originalPrice': originalPrice,
-      'discountedPrice': discountedPrice,
-      'location': location,
     };
   }
 }
