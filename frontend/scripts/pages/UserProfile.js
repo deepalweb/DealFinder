@@ -10,6 +10,7 @@ function UserProfile() {
   const [followedMerchants, setFollowedMerchants] = useState([]);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [showMerchantInitForm, setShowMerchantInitForm] = useState(false); // New state
   const [imageFile, setImageFile] = useState(null);
   const [imageKey, setImageKey] = useState(Date.now());
 
@@ -66,22 +67,27 @@ function UserProfile() {
       if (parsedUser.role === 'merchant') {
         if (parsedUser.merchantId) {
           fetchMerchantDetails(parsedUser.merchantId);
+          setShowMerchantInitForm(false); // Ensure init form is hidden if merchantId exists
         } else {
           // User is a merchant but has no merchantId
           console.warn('UserProfile: User is merchant but merchantId is missing.', parsedUser);
-          setError('Your merchant profile is not fully set up or linked. Please contact support or re-register as a merchant if this issue persists.');
+          setError('Your merchant account needs to be set up. Please complete the form below.'); // Informative message
+          setShowMerchantInitForm(true); // Show the initialization form
           setLoading(false);
         }
       } else {
         // Not a merchant, normal user profile loading
+        setShowMerchantInitForm(false);
         setLoading(false);
       }
 
-      // Load user's saved promotions from backend
-      window.API.Users.getFavorites(parsedUser._id).then(favorites => {
-        favorites = favorites.map(p => ({ ...p, id: p.id || p._id }));
-        setSavedPromotions(favorites);
-      });
+      // Load user's saved promotions from backend (only if not showing init form)
+      if (!showMerchantInitForm && parsedUser._id) {
+        window.API.Users.getFavorites(parsedUser._id).then(favorites => {
+            favorites = favorites.map(p => ({ ...p, id: p.id || p._id }));
+            setSavedPromotions(favorites);
+        }).catch(err => console.error("Failed to load favorites:", err));
+      }
       // Load followed merchants from localStorage (real data only)
       let following = [];
       try {
@@ -93,8 +99,67 @@ function UserProfile() {
       console.error("Error in UserProfile initialization:", err);
       setError("Failed to load profile. Please try again.");
       setLoading(false);
+      setShowMerchantInitForm(false);
     }
-  }, []);
+  }, [user?.merchantId]); // Re-run if user.merchantId changes (e.g., after init)
+
+  const handleInitializeMerchantProfileSubmit = async (e) => {
+    e.preventDefault();
+    setSuccess('');
+    setError('');
+    setLoading(true);
+
+    // Basic validation for businessName
+    if (!formData.businessName || formData.businessName.trim() === '') {
+      setError('Business name is required to initialize your merchant profile.');
+      setLoading(false);
+      return;
+    }
+
+    const merchantInitData = {
+      businessName: formData.businessName,
+      profile: formData.profile, // Optional
+      contactInfo: formData.contactInfo, // Optional, defaults to user email on backend
+      logo: formData.logo, // Optional
+      address: formData.address, // Optional
+      contactNumber: formData.contactNumber, // Optional
+      socialMedia: { // Assuming structure for socialMedia
+        facebook: formData.facebook,
+        instagram: formData.instagram,
+        twitter: formData.twitter,
+        tiktok: formData.tiktok,
+      }
+    };
+
+    try {
+      // Assuming UserAPI.initializeMerchantProfile is added in apiHelpers.js (next step)
+      const response = await window.API.Users.initializeMerchantProfile(merchantInitData);
+
+      // Update localStorage with the new user data (which includes token and merchantId)
+      localStorage.setItem('dealFinderUser', JSON.stringify(response));
+
+      // Update component state
+      setUser(response); // This should have the new merchantId and token
+      setFormData(prevData => ({ // Pre-fill form with initialized data
+        ...prevData,
+        businessName: response.businessName || '', // From user obj
+        // Merchant details might not be on user obj, fetch them if needed or rely on next load
+      }));
+
+      setSuccess('Merchant profile initialized successfully! You can now complete further details.');
+      setError('');
+      setShowMerchantInitForm(false); // Hide init form, show normal profile
+      // Potentially call fetchMerchantDetails if the response doesn't contain full merchant details
+      if (response.merchantId) {
+        fetchMerchantDetails(response.merchantId); // Fetch full merchant details now
+      }
+    } catch (err) {
+      console.error('Error initializing merchant profile:', err);
+      setError(err.message || 'Failed to initialize merchant profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchMerchantDetails = async (merchantId) => {
     try {
@@ -414,7 +479,7 @@ function UserProfile() {
               )}
               
               {/* Profile Settings */}
-              {activeTab === 'profile' &&
+              {activeTab === 'profile' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Profile Settings</h1>
                   
@@ -729,10 +794,62 @@ function UserProfile() {
                     </button>
                   </form>
                 </div>
-              }
+              )}
+
+              {/* Merchant Initialization Form */}
+              {showMerchantInitForm && activeTab === 'profile' && (
+                <div>
+                  <h1 className="text-2xl font-bold mb-4">Complete Your Merchant Profile</h1>
+                  <p className="text-gray-600 mb-6">
+                    Your user account is marked as a merchant, but your specific merchant details haven't been set up yet.
+                    Please provide your business name to initialize your merchant profile. You can add more details afterwards.
+                  </p>
+                  <form onSubmit={handleInitializeMerchantProfileSubmit}>
+                    <div className="mb-4">
+                      <label htmlFor="initBusinessName" className="block text-sm font-medium mb-1">Business Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        id="initBusinessName"
+                        name="businessName" // Must match formData property
+                        value={formData.businessName} // Controlled component
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                        required
+                      />
+                    </div>
+                    {/* Optional fields for initialization - can be expanded later */}
+                    <div className="mb-4">
+                      <label htmlFor="initProfile" className="block text-sm font-medium mb-1">Business Profile (Optional)</label>
+                      <textarea
+                        id="initProfile"
+                        name="profile"
+                        value={formData.profile}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                        rows="3"
+                      ></textarea>
+                    </div>
+                     <div className="mb-4">
+                        <label htmlFor="initLogo" className="block text-sm font-medium mb-1">Business Logo URL (Optional)</label>
+                        <input
+                            type="url"
+                            id="initLogo"
+                            name="logo"
+                            value={formData.logo}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            placeholder="https://example.com/logo.jpg"
+                        />
+                    </div>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                      {loading ? 'Initializing...' : 'Initialize Merchant Profile'}
+                    </button>
+                  </form>
+                </div>
+              )}
               
               {/* Security */}
-              {activeTab === 'security' &&
+              {activeTab === 'security' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Security</h1>
                   
@@ -778,7 +895,7 @@ function UserProfile() {
               }
               
               {/* Notifications */}
-              {activeTab === 'notifications' &&
+              {activeTab === 'notifications' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Notification Preferences</h1>
                   
@@ -859,7 +976,7 @@ function UserProfile() {
               }
               
               {/* Favorites */}
-              {activeTab === 'favorites' &&
+              {activeTab === 'favorites' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">My Favorite Deals</h1>
                   
@@ -917,7 +1034,7 @@ function UserProfile() {
               }
               
               {/* Following */}
-              {activeTab === 'following' &&
+              {activeTab === 'following' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Stores You Follow</h1>
                   
