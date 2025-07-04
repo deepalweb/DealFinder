@@ -34,8 +34,7 @@ async function fetchAPI(endpoint, options = {}, retries = 2) {
     if (token && window.Auth.isTokenExpired(token)) {
       console.log('Access token expired, attempting to refresh...');
       try {
-        const newToken = await window.Auth.refreshAccessToken();
-        const newToken = await window.Auth.refreshAccessToken(); // refreshAccessToken now handles logout/redirect on failure
+        const newToken = await window.Auth.refreshAccessToken(); // Call refreshAccessToken once
         if (newToken) {
           token = newToken; // Use the new token for the current request
           console.log('Access token obtained via refresh for current request.');
