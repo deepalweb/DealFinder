@@ -32,42 +32,15 @@ function isAdmin() {
 
 // Login user (store in localStorage)
 function loginUser(userData) {
+  console.log('[authHelpers] loginUser: Setting user data to localStorage.', userData);
   localStorage.setItem('dealFinderUser', JSON.stringify(userData));
+  console.log('[authHelpers] loginUser: Dispatching authStateChange event.');
+  window.dispatchEvent(new CustomEvent('authStateChange'));
+  console.log('[authHelpers] loginUser: authStateChange event dispatched.');
 }
 
 // Logout user
-async function logoutUser() {
-  const currentUser = getCurrentUser(); // Get user before clearing localStorage
-  const refreshToken = currentUser && currentUser.refreshToken ? currentUser.refreshToken : null;
 
-  // Always clear local storage immediately for responsiveness
-  localStorage.removeItem('dealFinderUser');
-  console.log('User logged out from client-side. Local storage cleared.');
-
-  if (refreshToken && window.API_BASE_URL) {
-    try {
-      console.log('Attempting to invalidate refresh token on backend...');
-      const response = await fetch(`${window.API_BASE_URL}users/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken })
-      });
-      if (response.ok) {
-        console.log('Refresh token invalidated on backend successfully.');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.warn('Failed to invalidate refresh token on backend:', response.status, errorData.message);
-      }
-    } catch (error) {
-      console.error('Error calling backend logout:', error);
-    }
-  } else if (!refreshToken) {
-    console.warn('No refresh token found, skipping backend logout call.');
-  } else if (!window.API_BASE_URL) {
-    console.error('API_BASE_URL not defined, skipping backend logout call.');
-  }
-  // Note: Redirection after logout is typically handled by the calling context,
-  // e.g., if (logoutUser()) window.location.href = '/login';
 }
 
 // Register and login
@@ -101,7 +74,6 @@ async function loginWithCredentials(email, password) {
     throw error;
   }
 }
-
 // Update user profile
 async function updateUserProfile(userId, userData) {
   try {

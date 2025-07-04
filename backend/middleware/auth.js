@@ -6,7 +6,11 @@ function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
+    if (!process.env.JWT_SECRET) {
+      console.error('CRITICAL: JWT_SECRET is not defined in environment variables.');
+      return res.status(500).json({ message: 'Server configuration error.' });
+    }
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
       if (err) {
         // console.error("JWT Verification Error:", err.message);
         return res.status(403).json({ message: 'Invalid or expired token' });
@@ -69,7 +73,10 @@ function gentleAuthenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
+    // No need to check JWT_SECRET here again if authenticateJWT already does,
+    // but gentle one might be called independently. For safety, keep a check or ensure server exits if not set.
+    // For now, assuming server startup check will handle this.
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
       if (!err) {
         req.user = user;
       } // If error, just proceed without req.user

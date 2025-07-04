@@ -113,15 +113,13 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
     const userData = localStorage.getItem('dealFinderUser');
     if (!userData || !commentText.trim()) return;
     const user = JSON.parse(userData);
-    const res = await fetch(`/api/promotions/${promotion.id || promotion._id}/comments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user._id, text: commentText })
-    });
-    if (res.ok) {
-      const newComment = await res.json();
+    try {
+      const newComment = await window.API.Promotions.addComment(promotion.id || promotion._id, { userId: user._id, text: commentText });
       setComments([...comments, { ...newComment, user: { _id: user._id, name: user.name, email: user.email } }]);
       setCommentText("");
+    } catch (err) {
+      alert('Failed to add comment. See console for details.');
+      console.error('Comment add error:', err);
     }
   }
 
@@ -131,25 +129,11 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
     if (!userData) return;
     const user = JSON.parse(userData);
     try {
-      const res = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id, value })
-      });
-      if (!res.ok) {
-        let errorMsg = `Failed to save rating. Status: ${res.status}`;
-        try {
-          const errData = await res.json();
-          errorMsg += `\n${errData.message || JSON.stringify(errData)}`;
-        } catch {}
-        alert(errorMsg);
-        console.error('Rating save error:', res);
-        return;
-      }
+      await window.API.Promotions.addRating(promotion.id || promotion._id, { userId: user._id, value });
       setUserRating(value);
       // Reload ratings after update
-      const ratingsRes = await fetch(`/api/promotions/${promotion.id || promotion._id}/ratings`);
-      setRatings(await ratingsRes.json());
+      const ratingsRes = await window.API.Promotions.getRatings(promotion.id || promotion._id);
+      setRatings(ratingsRes);
     } catch (err) {
       alert('An error occurred while saving your rating. See console for details.');
       console.error('Rating save exception:', err);

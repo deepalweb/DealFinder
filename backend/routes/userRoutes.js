@@ -16,7 +16,7 @@ function generateToken(user) {
   return jwt.sign(
     // Ensure merchantId is included in the token if the user is a merchant
     { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_SECRET || 'your_jwt_secret',
+    process.env.JWT_SECRET, // Relies on server startup check for presence
     { expiresIn: '7d' }
   );
 }
@@ -26,7 +26,7 @@ function generateRefreshToken(user) {
   return jwt.sign(
     // Ensure merchantId is included in the token if the user is a merchant
     { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret',
+    process.env.JWT_REFRESH_SECRET, // Relies on server startup check for presence
     { expiresIn: '30d' }
   );
 }
@@ -159,11 +159,30 @@ router.post('/login', [
     }
     
     // Don't return the password
-    const userResponse = user.toObject();
+    let userResponse = user.toObject();
     delete userResponse.password;
+
+    // If user is a merchant, ensure merchantId is present and fetch current businessName
+    if (user.role === 'merchant' && user.merchantId) {
+      const merchant = await Merchant.findById(user.merchantId);
+      if (merchant) {
+        userResponse.businessName = merchant.name; // Ensure businessName is from Merchant record
+        // userResponse.merchantId is already part of the user object from DB
+      } else {
+        // This case should ideally not happen if data is consistent
+        console.warn(`Merchant record not found for user ${user._id} with merchantId ${user.merchantId}`);
+      }
+    } else if (user.role === 'merchant' && !user.merchantId) {
+      // This indicates an inconsistency: role is merchant but no merchantId linked
+      console.error(`User ${user._id} has role 'merchant' but no merchantId.`);
+      // Potentially clear businessName if it's somehow set without a merchantId
+      delete userResponse.businessName;
+    }
+
+
     // Generate tokens
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
+    const token = generateToken(user); // user object here contains merchantId from DB
+    const refreshToken = generateRefreshToken(user); // user object here contains merchantId from DB
     refreshTokens.add(refreshToken);
     res.status(200).json({ ...userResponse, token, refreshToken });
   } catch (error) {
@@ -177,7 +196,8 @@ router.post('/refresh-token', (req, res) => {
   if (!refreshToken || !refreshTokens.has(refreshToken)) {
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
-  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret', (err, user) => {
+  // generateToken and generateRefreshToken will now rely on server checks for JWT_SECRET and JWT_REFRESH_SECRET
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid or expired refresh token' });
     const newToken = generateToken(user);
     res.status(200).json({ token: newToken });

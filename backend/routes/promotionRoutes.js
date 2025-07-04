@@ -56,7 +56,9 @@ router.get('/', async (req, res) => {
     const promotions = await Promotion.find({
       startDate: { $lte: now }, // Start date is less than or equal to now
       endDate: { $gte: now }    // End date is greater than or equal to now
-    }).populate('merchant');
+    })
+      .populate('merchant')
+      .sort({ createdAt: -1 }); // Sort by newest first
     
     console.log(`Found ${promotions.length} active promotions`);
     res.status(200).json(promotions);
@@ -110,13 +112,17 @@ router.post('/', authenticateJWT, [
   body('url').optional().isString(),
   body('merchantId').trim().notEmpty().withMessage('Merchant ID is required'),
   body('featured').optional().isBoolean(),
+  // Price fields validation
+  body('price').optional().isNumeric().withMessage('Price must be a number'),
+  body('originalPrice').optional().isNumeric().withMessage('Original price must be a number'),
+  body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    let { title, description, discount, code, category, startDate, endDate, image, url, merchantId, featured } = req.body;
+    let { title, description, discount, code, category, startDate, endDate, image, url, merchantId, featured, price, originalPrice, discountedPrice } = req.body;
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
@@ -153,7 +159,10 @@ router.post('/', authenticateJWT, [
       url,
       merchant: merchantId,
       featured: featured === true || featured === 'true', // ensure boolean
-      status: new Date(endDate) > new Date() ? 'active' : 'expired'
+      status: new Date(endDate) > new Date() ? 'active' : 'expired',
+      price,
+      originalPrice,
+      discountedPrice
     });
     
     const savedPromotion = await promotion.save();
@@ -181,31 +190,50 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
   body('image').optional().isString(),
   body('url').optional().isString(),
   body('featured').optional().isBoolean(),
+  // Price fields validation
+  body('price').optional().isNumeric().withMessage('Price must be a number'),
+  body('originalPrice').optional().isNumeric().withMessage('Original price must be a number'),
+  body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { title, description, discount, code, category, startDate, endDate, image, url, featured } = req.body;
+    const { title, description, discount, code, category, startDate, endDate, image, url, featured, price, originalPrice, discountedPrice } = req.body;
     
-    // Calculate status based on end date
-    const status = new Date(endDate) > new Date() ? 'active' : 'expired';
+    // Calculate status based on end date if endDate is provided
+    let status;
+    if (endDate) {
+      status = new Date(endDate) > new Date() ? 'active' : 'expired';
+    }
+
+    const updateData = {
+      title,
+      description,
+      discount,
+      code,
+      category,
+      startDate,
+      endDate,
+      image,
+      url,
+      featured: featured === true || featured === 'true', // ensure boolean
+      price,
+      originalPrice,
+      discountedPrice
+    };
+
+    if (status) {
+      updateData.status = status;
+    }
+
+    // Remove undefined fields from updateData so they don't overwrite existing values with null
+    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       req.params.id,
-      {
-        title,
-        description,
-        discount,
-        code,
-        category,
-        startDate,
-        endDate,
-        image,
-        url,
-        featured: featured === true || featured === 'true', // ensure boolean
-        status
-      },
+      updateData,
       { new: true }
     );
     

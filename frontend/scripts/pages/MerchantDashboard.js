@@ -12,6 +12,23 @@ function MerchantDashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState(null);
 
+  // State for profile editing modal
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+  const [merchantProfileData, setMerchantProfileData] = useState({
+    name: '',
+    profile: '', // For description
+    contactInfo: '',
+    logo: '',
+    address: '',
+    latitude: null,
+    longitude: null,
+    contactNumber: '',
+    socialMedia: { facebook: '', instagram: '', twitter: '', tiktok: '' },
+    website: '',
+    bannerImage: '', // For Cover Photo
+    // Add other relevant merchant fields here if needed
+  });
+
   // Form state for new/edit promotion
   const [formData, setFormData] = useState({
     title: '',
@@ -23,7 +40,10 @@ function MerchantDashboard() {
     endDate: '',
     image: '',
     url: '',
-    featured: false // Add featured field to form state
+    featured: false, // Add featured field to form state
+    price: '',
+    originalPrice: '',
+    discountedPrice: ''
   });
 
   // For image upload preview
@@ -32,6 +52,10 @@ function MerchantDashboard() {
   // --- Analytics by Promotion ---
   const [selectedPromotionId, setSelectedPromotionId] = useState(null);
   const [promotionClicks, setPromotionClicks] = useState([]);
+
+  // State for Google Map in Edit Profile Modal
+  const [editMapInstance, setEditMapInstance] = useState(null);
+  const [editMapMarkerInstance, setEditMapMarkerInstance] = useState(null);
 
   useEffect(() => {
     // Load analytics data from localStorage
@@ -58,30 +82,50 @@ function MerchantDashboard() {
     }
     setUser(parsedUser);
 
-    // Only load merchant's promotions from API
-    const fetchPromotions = async () => {
+    // Only load merchant's promotions and profile data from API
+    const fetchData = async () => {
       try {
         setLoading(true);
         if (parsedUser.merchantId) {
-          let data = await window.API.Promotions.getByMerchant(parsedUser.merchantId);
-          if (!Array.isArray(data)) {
-            console.warn('Expected array of promotions, got:', data);
-            data = [];
+          // Fetch Promotions
+          let promoData = await window.API.Promotions.getByMerchant(parsedUser.merchantId);
+          if (!Array.isArray(promoData)) {
+            console.warn('Expected array of promotions, got:', promoData);
+            promoData = [];
           }
-          data = data.map(p => ({ ...p, id: p._id }));
-          setPromotions(data);
+          promoData = promoData.map(p => ({ ...p, id: p._id }));
+          setPromotions(promoData);
+
+          // Fetch Merchant Profile Data
+          const profileData = await window.API.Merchants.getById(parsedUser.merchantId);
+          if (profileData) {
+            setMerchantProfileData({
+              name: profileData.name || '',
+              profile: profileData.profile || '', // Description
+              contactInfo: profileData.contactInfo || '',
+              logo: profileData.logo || '',
+              address: profileData.address || '',
+              latitude: profileData.latitude || null,
+              longitude: profileData.longitude || null,
+              contactNumber: profileData.contactNumber || '',
+              socialMedia: profileData.socialMedia || { facebook: '', instagram: '', twitter: '', tiktok: '' },
+              website: profileData.website || '',
+              bannerImage: profileData.bannerImage || '',
+            });
+          }
+
         } else {
           setPromotions([]);
         }
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching promotions:', err);
-        setError('Failed to load promotions. Please try again later.');
+        console.error('Error fetching merchant data:', err);
+        setError('Failed to load merchant data. Please try again later.');
         setLoading(false);
       }
     };
 
-    fetchPromotions();
+    fetchData();
   }, []);
 
   // Reset form when opening modal
@@ -102,11 +146,14 @@ function MerchantDashboard() {
         endDate: nextMonth.toISOString().split('T')[0],
         image: '',
         url: '',
-        featured: false // Reset featured
+        featured: false, // Reset featured
+        price: '',
+        originalPrice: '',
+        discountedPrice: ''
       });
       setImagePreview(null);
     }
-  }, [isAddModalOpen]);
+  }, [isAddModalOpen, editingPromotion]); // Added editingPromotion to dependency array
 
   // Set form data when editing
   useEffect(() => {
@@ -127,12 +174,108 @@ function MerchantDashboard() {
         endDate: formatDateForInput(editingPromotion.endDate),
         image: editingPromotion.image || '',
         url: editingPromotion.url || '',
-        featured: !!editingPromotion.featured // Set featured from editing promotion
+        featured: !!editingPromotion.featured, // Set featured from editing promotion
+        price: editingPromotion.price || '',
+        originalPrice: editingPromotion.originalPrice || '',
+        discountedPrice: editingPromotion.discountedPrice || ''
       });
       setImagePreview(editingPromotion.image || null);
       setIsAddModalOpen(true);
     }
   }, [editingPromotion]);
+
+  // Effect to initialize map in Edit Profile Modal
+  useEffect(() => {
+    if (isEditProfileModalOpen && window.google && window.google.maps) {
+      const mapContainer = document.getElementById('profile-edit-map-container');
+      if (mapContainer && !editMapInstance) { // Initialize only if map instance doesn't exist
+        const initialLat = typeof merchantProfileData.latitude === 'number' ? merchantProfileData.latitude : 34.0522; // Default to LA
+        const initialLng = typeof merchantProfileData.longitude === 'number' ? merchantProfileData.longitude : -118.2437; // Default to LA
+        const initialZoom = (typeof merchantProfileData.latitude === 'number' && typeof merchantProfileData.longitude === 'number') ? 15 : 8;
+
+        const map = new window.google.maps.Map(mapContainer, {
+          center: { lat: initialLat, lng: initialLng },
+          zoom: initialZoom,
+          gestureHandling: 'cooperative',
+        });
+        setEditMapInstance(map);
+
+        const marker = new window.google.maps.Marker({
+          position: { lat: initialLat, lng: initialLng },
+          map: map,
+          draggable: true,
+          title: 'Drag to set location',
+        });
+        setEditMapMarkerInstance(marker);
+
+        // Listener for marker drag end
+        marker.addListener('dragend', () => {
+          const newPos = marker.getPosition();
+          if (newPos) {
+            setMerchantProfileData(prev => ({
+              ...prev,
+              latitude: newPos.lat(),
+              longitude: newPos.lng(),
+            }));
+            // Reverse geocode to update address field
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: newPos }, (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                setMerchantProfileData(prev => ({ ...prev, address: results[0].formatted_address }));
+              } else {
+                console.warn('Reverse geocode was not successful for the following reason: ' + status);
+              }
+            });
+          }
+        });
+
+        // Listener for map click (to move marker)
+        map.addListener('click', (mapsMouseEvent) => {
+          const newPos = mapsMouseEvent.latLng;
+          if (newPos) {
+            marker.setPosition(newPos);
+            setMerchantProfileData(prev => ({
+                ...prev,
+                latitude: newPos.lat(),
+                longitude: newPos.lng(),
+            }));
+            // Reverse geocode to update address field
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ location: newPos }, (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                setMerchantProfileData(prev => ({ ...prev, address: results[0].formatted_address }));
+              } else {
+                console.warn('Reverse geocode was not successful for the following reason: ' + status);
+              }
+            });
+          }
+        });
+
+      } else if (mapContainer && editMapInstance && editMapMarkerInstance) {
+        // If map already initialized, just recenter and set marker if lat/lng changed
+        const currentMapCenter = editMapInstance.getCenter();
+        const currentMarkerPos = editMapMarkerInstance.getPosition();
+        const newLat = typeof merchantProfileData.latitude === 'number' ? merchantProfileData.latitude : currentMapCenter.lat();
+        const newLng = typeof merchantProfileData.longitude === 'number' ? merchantProfileData.longitude : currentMapCenter.lng();
+
+        if (currentMapCenter.lat() !== newLat || currentMapCenter.lng() !== newLng) {
+            editMapInstance.setCenter({ lat: newLat, lng: newLng });
+        }
+        if (currentMarkerPos.lat() !== newLat || currentMarkerPos.lng() !== newLng) {
+            editMapMarkerInstance.setPosition({ lat: newLat, lng: newLng });
+        }
+      }
+    } else if (!isEditProfileModalOpen && editMapInstance) {
+      // Clean up map instance when modal is closed to prevent issues
+      // This might be too aggressive if modal reopens frequently. Consider just hiding.
+      // For now, let's set them to null. A more robust solution might involve .unbindAll() or similar.
+      setEditMapInstance(null);
+      setEditMapMarkerInstance(null);
+      const mapContainer = document.getElementById('profile-edit-map-container');
+      if (mapContainer) mapContainer.innerHTML = '<p class="p-4 text-center text-gray-500">Map loading...</p>'; // Reset placeholder
+    }
+  }, [isEditProfileModalOpen, merchantProfileData.latitude, merchantProfileData.longitude, window.google]);
+
 
   // Fetch clicks for a selected promotion
   useEffect(() => {
@@ -142,6 +285,67 @@ function MerchantDashboard() {
         .catch(() => setPromotionClicks([]));
     }
   }, [selectedPromotionId]);
+
+  const handleProfileChange = (e) => {
+    const { name, value, type, files } = e.target;
+
+    if (name === 'logoFile' && type === 'file' && files && files[0]) {
+      const file = files[0];
+      if (file.size > 2 * 1024 * 1024) { // Max 2MB
+        alert('Logo file is too large. Maximum size is 2MB.');
+        e.target.value = ''; // Clear the file input
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setMerchantProfileData(prev => ({
+          ...prev,
+          logo: reader.result // Set logo to base64 data URL
+        }));
+      };
+      reader.onerror = () => {
+        alert('Failed to read the logo file. Please try again.');
+      };
+      reader.readAsDataURL(file);
+    } else if (name.startsWith('socialMedia.')) {
+      const key = name.split('.')[1];
+      setMerchantProfileData(prev => ({
+        ...prev,
+        socialMedia: {
+          ...prev.socialMedia,
+          [key]: value
+        }
+      }));
+    } else {
+      setMerchantProfileData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handleAddressGeocode = () => {
+    if (merchantProfileData.address && window.google && window.google.maps) {
+      const geocoder = new window.google.maps.Geocoder();
+      geocoder.geocode({ address: merchantProfileData.address }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const location = results[0].geometry.location;
+          setMerchantProfileData(prev => ({
+            ...prev,
+            latitude: location.lat(),
+            longitude: location.lng(),
+            // Optionally, update address to the formatted address from Google for consistency
+            // address: results[0].formatted_address
+          }));
+          // The map should recenter automatically due to useEffect dependency on latitude/longitude
+        } else {
+          console.warn('Geocode was not successful for the following reason: ' + status);
+          // Optionally, alert the user that the address could not be found
+          // alert('Address could not be found on the map. Please try a different address or set location manually.');
+        }
+      });
+    }
+  };
 
   // Fetch analytics from backend for this merchant
   useEffect(() => {
@@ -224,8 +428,18 @@ function MerchantDashboard() {
       const promotionData = {
         ...formData,
         featured: Boolean(formData.featured), // Force boolean
-        merchantId: user.merchantId
+        merchantId: user.merchantId,
+        price: formData.price ? parseFloat(formData.price) : undefined,
+        originalPrice: formData.originalPrice ? parseFloat(formData.originalPrice) : undefined,
+        discountedPrice: formData.discountedPrice ? parseFloat(formData.discountedPrice) : undefined,
       };
+
+      // Remove any price fields that are undefined (e.g., if input was empty)
+      // to avoid sending them as null or empty strings if the backend expects numbers or nothing.
+      if (promotionData.price === undefined) delete promotionData.price;
+      if (promotionData.originalPrice === undefined) delete promotionData.originalPrice;
+      if (promotionData.discountedPrice === undefined) delete promotionData.discountedPrice;
+
 
       let savedPromotion;
 
@@ -277,6 +491,40 @@ function MerchantDashboard() {
         console.error('Error deleting promotion:', err);
         alert('Failed to delete promotion. Please try again.');
       }
+    }
+  };
+
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    if (!user || !user.merchantId) {
+      alert('Error: No merchant identified. Please re-login.');
+      return;
+    }
+
+    // Ensure latitude and longitude are numbers or null
+    const profileToSubmit = {
+      ...merchantProfileData,
+      latitude: merchantProfileData.latitude ? parseFloat(merchantProfileData.latitude) : null,
+      longitude: merchantProfileData.longitude ? parseFloat(merchantProfileData.longitude) : null,
+    };
+
+    try {
+      const updatedMerchant = await window.API.Merchants.update(user.merchantId, profileToSubmit);
+      // Update user's businessName in the dashboard if it changed
+      if (user.businessName !== updatedMerchant.name) {
+        setUser(prevUser => ({...prevUser, businessName: updatedMerchant.name}));
+        // Also update localStorage if businessName is stored there as part of user object
+        const localUser = JSON.parse(localStorage.getItem('dealFinderUser'));
+        if (localUser) {
+            localUser.businessName = updatedMerchant.name; // Assuming businessName is a top-level prop in user object
+            localStorage.setItem('dealFinderUser', JSON.stringify(localUser));
+        }
+      }
+      alert('Profile updated successfully!');
+      setIsEditProfileModalOpen(false);
+    } catch (err) {
+      console.error('Error updating merchant profile:', err);
+      alert('Failed to update profile. Please try again. Details: ' + (err.message || 'Unknown error'));
     }
   };
 
@@ -364,6 +612,11 @@ function MerchantDashboard() {
                 setIsAddModalOpen(true);
               }}>
               <i className="fas fa-plus mr-2"></i> Add New Promotion
+            </button>
+            <button
+              className="btn btn-secondary ml-4" // Using a secondary style, adjust if needed
+              onClick={() => setIsEditProfileModalOpen(true)}>
+              <i className="fas fa-user-edit mr-2"></i> Edit Profile
             </button>
           </div>
           
@@ -721,9 +974,44 @@ function MerchantDashboard() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
                     required />
                   </div>
+
+                  {/* Price Fields */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Price (Optional)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                      placeholder="e.g. 99.99"
+                      step="0.01" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Original Price (Optional)</label>
+                    <input
+                      type="number"
+                      name="originalPrice"
+                      value={formData.originalPrice}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                      placeholder="e.g. 120.00"
+                      step="0.01" />
+                  </div>
+                  <div className="col-span-2 md:col-span-1"> {/* Adjusted for possible third price field or full width */}
+                    <label className="block text-sm font-medium mb-1">Discounted Price (Optional)</label>
+                    <input
+                      type="number"
+                      name="discountedPrice"
+                      value={formData.discountedPrice}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                      placeholder="e.g. 79.99"
+                      step="0.01" />
+                  </div>
                 </div>
                 
-                <div className="col-span-2 flex items-center mt-2">
+                <div className="col-span-2 flex items-center mt-4 mb-4"> {/* Added mb-4 for spacing */}
                     <input
                       type="checkbox"
                       id="featured"
@@ -758,5 +1046,194 @@ function MerchantDashboard() {
           </div>
         </div>
       }
+
+      {/* Edit Profile Modal */}
+      {isEditProfileModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-800">Edit Merchant Profile</h2>
+                <button
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                  onClick={() => setIsEditProfileModalOpen(false)}>
+                  <i className="fas fa-times text-2xl"></i>
+                </button>
+              </div>
+
+              {/* Profile Form Placeholder */}
+              <form onSubmit={handleProfileSubmit}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  {/* Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={merchantProfileData.name}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                    />
+                  </div>
+
+                  {/* Contact Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                    <input
+                      type="text"
+                      name="contactNumber"
+                      value={merchantProfileData.contactNumber}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                    />
+                  </div>
+
+                  {/* Profile/Description */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Profile Description</label>
+                    <textarea
+                      name="profile"
+                      value={merchantProfileData.profile}
+                      onChange={handleProfileChange}
+                      rows="3"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                    ></textarea>
+                  </div>
+
+                  {/* Logo URL */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo URL</label>
+                    <input
+                      type="text"
+                      name="logo"
+                      value={merchantProfileData.logo}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      placeholder="https://example.com/logo.png"
+                    />
+                    <label className="block text-sm font-medium text-gray-700 mt-2 mb-1">Or Upload Logo File:</label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif"
+                      name="logoFile" // Different name to distinguish in handler
+                      onChange={handleProfileChange} // We'll adapt handleProfileChange
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-color file:text-white hover:file:bg-primary-dark"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Max 2MB. JPG, PNG, GIF.</p>
+                    {merchantProfileData.logo && (
+                      <div className="mt-2">
+                        <img src={merchantProfileData.logo} alt="Logo Preview" className="h-16 w-auto rounded-md"/>
+                        {merchantProfileData.logo.startsWith('data:image') && (
+                          <button
+                            type="button"
+                            onClick={() => setMerchantProfileData(prev => ({...prev, logo: ''}))}
+                            className="text-xs text-red-500 hover:text-red-700 mt-1"
+                          >
+                            Clear Uploaded Logo
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Banner Image URL */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Cover Photo URL</label>
+                    <input
+                      type="text"
+                      name="bannerImage"
+                      value={merchantProfileData.bannerImage}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      placeholder="https://example.com/cover.jpg"
+                    />
+                    {merchantProfileData.bannerImage && (
+                      <img src={merchantProfileData.bannerImage} alt="Cover Photo Preview" className="mt-2 h-32 w-auto rounded-md object-contain"/>
+                    )}
+                  </div>
+
+                  {/* Contact Info (general) */}
+                   <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">General Contact Info (e.g., Email)</label>
+                    <input
+                      type="text"
+                      name="contactInfo"
+                      value={merchantProfileData.contactInfo}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                    />
+                  </div>
+
+                  {/* Website URL */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                    <input
+                      type="url"
+                      name="website"
+                      value={merchantProfileData.website}
+                      onChange={handleProfileChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      placeholder="https://www.yourbusiness.com"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={merchantProfileData.address}
+                      onChange={handleProfileChange}
+                       // onBlur={handleAddressGeocode} // Geocoding on blur temporarily disabled
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      placeholder="Start typing your address..."
+                    />
+                  </div>
+
+                  {/* Map Container - Temporarily Commented Out
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Set Location on Map (Optional)</label>
+                    <div id="profile-edit-map-container" style={{ height: '300px', width: '100%', borderRadius: '8px', backgroundColor: '#f0f0f0' }}>
+                       <p className="p-4 text-center text-gray-500">Map functionality temporarily disabled.</p>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Latitude: {merchantProfileData.latitude || 'N/A'}, Longitude: {merchantProfileData.longitude || 'N/A'}</p>
+                  </div>
+                  */}
+
+                  {/* Social Media Links */}
+                  <h3 className="md:col-span-2 text-lg font-semibold text-gray-700 mt-4 mb-2">Social Media (Usernames or Handles)</h3>
+                  {Object.keys(merchantProfileData.socialMedia || {}).map((key) => (
+                    <div key={key}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">{key}</label>
+                      <input
+                        type="text"
+                        name={`socialMedia.${key}`}
+                        value={merchantProfileData.socialMedia[key]}
+                        onChange={handleProfileChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary-color focus:border-primary-color"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-gray-200">
+                  <button
+                    type="button"
+                    className="mr-3 px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    onClick={() => setIsEditProfileModalOpen(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-primary-color text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-color transition-colors">
+                    Save Profile
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>);
 }

@@ -5,6 +5,7 @@ import '../widgets/deal_card.dart'; // Import the new DealCard widget
 import '../widgets/deal_card_shimmer.dart'; // Import the shimmer widget
 import '../models/category.dart'; // Import Category model
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
+import 'search_screen.dart'; // Import SearchScreen for navigation
 
 
 class DealsListScreen extends StatefulWidget {
@@ -47,9 +48,9 @@ class _DealsListScreenState extends State<DealsListScreen> {
             icon: const Icon(Icons.search),
             tooltip: 'Search Deals',
             onPressed: () {
-              // Placeholder for search functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search functionality coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SearchScreen()),
               );
             },
           ),

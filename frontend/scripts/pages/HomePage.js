@@ -4,7 +4,8 @@ function HomePage() {
   const navigate = useNavigate();
 
   const [featuredPromotions, setFeaturedPromotions] = useState([]);
-  const [latestPromotions, setLatestPromotions] = useState([]);
+  const [allLatestPromotions, setAllLatestPromotions] = useState([]); // Store all latest promotions
+  const [visibleLatestCount, setVisibleLatestCount] = useState(12); // Number of latest promotions to show
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -20,11 +21,11 @@ function HomePage() {
         const featured = allPromotions.filter((promo) => promo.featured);
         setFeaturedPromotions(featured);
     
-        // Get latest promotions (sorted by createdAt)
-        const latest = [...allPromotions]
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 8);
-        setLatestPromotions(latest);
+        // Get latest promotions (sorted by createdAt) - store all, display a slice
+        const sortedLatest = [...allPromotions]
+          .filter(p => !p.featured) // Optionally, ensure latest are not also featured if you want distinct sections
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setAllLatestPromotions(sortedLatest);
       } catch (error) {
         console.error('Error loading promotions:', error);
       }
@@ -123,8 +124,8 @@ function HomePage() {
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="4bl781b6h" data-path="scripts/pages/HomePage.js">
-                {latestPromotions.map((promotion) =>
-                  <div key={promotion.id}>
+                {allLatestPromotions.slice(0, visibleLatestCount).map((promotion) =>
+                  <div key={promotion.id || promotion._id}>
                     <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
                       className="cursor-pointer">
                       <PromotionCard promotion={promotion} />
@@ -132,6 +133,16 @@ function HomePage() {
                   </div>
                 )}
               </div>
+              {allLatestPromotions.length > visibleLatestCount && (
+                <div className="text-center mt-8">
+                  <button
+                    onClick={() => setVisibleLatestCount(prevCount => prevCount + 12)}
+                    className="btn btn-primary hover:bg-primary-dark"
+                  >
+                    Show More Deals
+                  </button>
+                </div>
+              )}
             </div>
           </>
         }
