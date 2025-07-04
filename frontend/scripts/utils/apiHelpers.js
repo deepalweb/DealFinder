@@ -243,7 +243,13 @@ const UserAPI = {
   }),
   
   // Get user's favorite promotions
-  getFavorites: (userId) => fetchAPI(`users/${userId}/favorites`)
+  getFavorites: (userId) => fetchAPI(`users/${userId}/favorites`),
+
+  // Initialize merchant profile for a user
+  initializeMerchantProfile: (merchantData) => fetchAPI('users/initialize-merchant-profile', {
+    method: 'POST',
+    body: JSON.stringify(merchantData)
+  })
 };
 
 // Export all API helpers

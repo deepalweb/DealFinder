@@ -354,3 +354,79 @@ function safeError(error) {
 // });
 
 module.exports = router;
+
+// Initialize Merchant Profile for an existing user with role 'merchant' but no merchantId
+router.post('/initialize-merchant-profile', authenticateJWT, [
+  body('businessName').trim().notEmpty().withMessage('Business name is required.'),
+  body('profile').optional().isString(),
+  body('contactInfo').optional().isEmail().withMessage('Valid contact email is optional.'),
+  body('logo').optional().isURL().withMessage('Logo must be a valid URL.'),
+  // Add other merchant fields as necessary from your Merchant model that should be initialized
+  body('address').optional().isString(),
+  body('contactNumber').optional().isString(),
+  // socialMedia can be an object, so specific validation might be more complex if needed here
+  body('socialMedia').optional().isObject(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  // Authorization: User must be a merchant and not already have a merchantId
+  if (req.user.role !== 'merchant') {
+    return res.status(403).json({ message: 'Forbidden: Only users with role merchant can initialize a merchant profile.' });
+  }
+  if (req.user.merchantId) {
+    return res.status(400).json({ message: 'Bad Request: Merchant profile already initialized for this user.' });
+  }
+
+  try {
+    const { businessName, profile, contactInfo, logo, address, contactNumber, socialMedia } = req.body;
+    const userId = req.user.id;
+
+    // 1. Create a new Merchant document
+    const newMerchant = new Merchant({
+      name: businessName,
+      profile: profile || '',
+      contactInfo: contactInfo || req.user.email, // Default to user's email if not provided
+      logo: logo || '',
+      address: address || '',
+      contactNumber: contactNumber || '',
+      socialMedia: socialMedia || {},
+      promotions: [] // Initialize with empty promotions
+    });
+    const savedMerchant = await newMerchant.save();
+
+    // 2. Update the User document with the new merchantId
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: { merchantId: savedMerchant._id, businessName: savedMerchant.name } }, // Also save businessName on user for convenience
+      { new: true }
+    ).select('-password'); // Exclude password from the returned user
+
+    if (!updatedUser) {
+      // This should ideally not happen if authenticateJWT worked
+      return res.status(404).json({ message: 'User not found after update.' });
+    }
+
+    // 3. Generate new tokens as merchantId in JWT payload needs to be updated
+    const token = generateToken(updatedUser); // updatedUser now has merchantId
+    const refreshToken = generateRefreshToken(updatedUser);
+    refreshTokens.add(refreshToken); // Assuming refreshTokens is your in-memory store
+
+    // 4. Respond with updated user object and new tokens
+    const userResponse = updatedUser.toObject();
+    // merchantId should already be on userResponse due to findByIdAndUpdate and toObject()
+
+    res.status(200).json({
+      ...userResponse,
+      token,
+      refreshToken,
+      message: 'Merchant profile initialized successfully.'
+    });
+
+  } catch (error) {
+    console.error('Error initializing merchant profile:', error);
+    res.status(500).json(safeError(error));
+  }
+});
