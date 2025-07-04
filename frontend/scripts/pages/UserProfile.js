@@ -797,7 +797,7 @@ function UserProfile() {
               )}
 
               {/* Merchant Initialization Form */}
-              {showMerchantInitForm && activeTab === 'profile' && (
+              {showMerchantInitForm && activeTab === 'profile' &&
                 <div>
                   <h1 className="text-2xl font-bold mb-4">Complete Your Merchant Profile</h1>
                   <p className="text-gray-600 mb-6">
