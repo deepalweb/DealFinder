@@ -478,7 +478,7 @@ function UserProfile() {
                 </div>
               )}
               
-              {/* Profile Settings */}
+              {/* Profile Settings - Temporarily Commented Out for Debugging Syntax Error
               {activeTab === 'profile' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Profile Settings</h1>
@@ -795,6 +795,7 @@ function UserProfile() {
                   </form>
                 </div>
               )}
+              */}
 
               {/* Merchant Initialization Form */}
               {showMerchantInitForm && activeTab === 'profile' &&
