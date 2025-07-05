@@ -10,6 +10,7 @@ function UserProfile() {
   const [followedMerchants, setFollowedMerchants] = useState([]);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [showMerchantInitForm, setShowMerchantInitForm] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imageKey, setImageKey] = useState(Date.now());
 
@@ -17,10 +18,10 @@ function UserProfile() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    // businessName: '', // Removed
-    // profile: '', // Removed (merchant profile description)
-    // contactInfo: '', // Removed (merchant contact)
-    logo: '', // Kept, assuming this could be a user's own logo/avatar if not a merchant
+    businessName: '',
+    profile: '',
+    contactInfo: '',
+    logo: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -31,14 +32,14 @@ function UserProfile() {
       recommendations: true
     },
     profilePicture: '',
-    // address: '', // Removed (merchant address)
-    // contactNumber: '', // Removed (merchant contact number)
-    // facebook: '', // Removed (merchant social)
-    // instagram: '', // Removed (merchant social)
-    // twitter: '', // Removed (merchant social)
-    // tiktok: '', // Removed (merchant social)
-    // locationLat: '', // Removed
-    // locationLng: '' // Removed
+    address: '',
+    contactNumber: '',
+    facebook: '',
+    instagram: '',
+    twitter: '',
+    tiktok: '',
+    locationLat: '',
+    locationLng: ''
   });
 
   useEffect(() => {
@@ -62,18 +63,32 @@ function UserProfile() {
           ...(parsedUser.preferences?.notifications || {})
         }
       }));
-      // Removed conditional call to fetchMerchantDetails and else block
-      // if (parsedUser.role === 'merchant' && parsedUser.merchantId) {
-      //   fetchMerchantDetails(parsedUser.merchantId);
-      // } else {
-      //   setLoading(false);
-      // }
-      setLoading(false); // Now unconditionally sets loading to false after initial user setup
-      // Load user's saved promotions from backend
-      window.API.Users.getFavorites(parsedUser._id).then(favorites => {
-        favorites = favorites.map(p => ({ ...p, id: p.id || p._id }));
-        setSavedPromotions(favorites);
-      });
+
+      if (parsedUser.role === 'merchant') {
+        if (parsedUser.merchantId) {
+          // fetchMerchantDetails(parsedUser.merchantId); // Will be re-added in a later step
+          setShowMerchantInitForm(false);
+          setLoading(false); // Assuming for now that if merchantId exists, details are loaded or not needed by this simplified version
+        } else {
+          // User is a merchant but has no merchantId
+          console.warn('UserProfile: User is merchant but merchantId is missing.', parsedUser);
+          setError('Your merchant account needs to be set up. Please complete the form below.');
+          setShowMerchantInitForm(true);
+          setLoading(false);
+        }
+      } else {
+        // Not a merchant, normal user profile loading
+        setShowMerchantInitForm(false);
+        setLoading(false);
+      }
+
+      // Load user's saved promotions from backend (only if not showing init form and user exists)
+      if (!showMerchantInitForm && parsedUser && parsedUser._id) {
+        window.API.Users.getFavorites(parsedUser._id).then(favorites => {
+          favorites = favorites.map(p => ({ ...p, id: p.id || p._id }));
+          setSavedPromotions(favorites);
+        }).catch(err => console.error("Failed to load favorites:", err));
+      }
       // Load followed merchants from localStorage (real data only)
       let following = [];
       try {
@@ -86,9 +101,120 @@ function UserProfile() {
       setError("Failed to load profile. Please try again.");
       setLoading(false);
     }
-  }, []);
+  }, [navigate]); // Changed from [] to [navigate] to match previous step's final state.
 
-  // const fetchMerchantDetails = async (merchantId) => { ... }; // Definition removed
+  const handleInitializeMerchantProfileSubmit = async (e) => {
+    e.preventDefault();
+    setSuccess('');
+    setError('');
+    setLoading(true);
+
+    if (!formData.businessName || formData.businessName.trim() === '') {
+      setError('Business name is required to initialize your merchant profile.');
+      setLoading(false);
+      return;
+    }
+
+    const merchantInitData = {
+      businessName: formData.businessName.trim(),
+      profile: formData.profile || '', // Send empty string if not provided
+      logo: formData.logo || '',       // Send empty string if not provided
+      contactInfo: formData.contactInfo || '', // Assuming these might be part of formData now or soon
+      address: formData.address || '',
+      contactNumber: formData.contactNumber || '',
+      socialMedia: {
+        facebook: formData.facebook || '',
+        instagram: formData.instagram || '',
+        twitter: formData.twitter || '',
+        tiktok: formData.tiktok || ''
+      }
+    };
+
+    try {
+      const response = await window.API.Users.initializeMerchantProfile(merchantInitData);
+
+      // The backend returns the updated user object with new tokens
+      localStorage.setItem('dealFinderUser', JSON.stringify(response));
+
+      setUser(response); // Update user state, this will also update user.merchantId
+
+      // Pre-fill form data for subsequent edits.
+      // Note: response from initializeMerchantProfile contains the updated user object,
+      // not necessarily the full merchant details object.
+      // We rely on fetchMerchantDetails to get the full merchant object.
+      setFormData(prevData => ({
+        ...prevData,
+        businessName: response.businessName || '', // From user object
+        // Other merchant fields will be populated by fetchMerchantDetails
+      }));
+
+      setSuccess('Merchant profile initialized successfully! You can now complete further details.');
+      setError('');
+      setShowMerchantInitForm(false); // Hide init form
+
+      // Call fetchMerchantDetails to load the full merchant data into the form
+      // This function will be fully re-implemented in the next steps.
+      // For now, ensure it exists, even if it's a shell, or handle its absence.
+      if (response.merchantId && typeof fetchMerchantDetails === 'function') {
+         // Ensure fetchMerchantDetails is defined before calling
+        fetchMerchantDetails(response.merchantId);
+      } else if (!response.merchantId) {
+        console.error("MerchantId missing in response after initialization.");
+        setError("Profile initialized, but there was an issue loading full details. Please refresh or re-login.");
+      }
+
+    } catch (err) {
+      console.error('Error initializing merchant profile:', err);
+      setError(err.message || 'Failed to initialize merchant profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchMerchantDetails = async (merchantId) => {
+    try {
+      if (!merchantId) {
+        console.error('fetchMerchantDetails: No merchant ID provided');
+        // setError('Failed to load merchant details: Missing merchant ID'); // Avoid overriding init success/error messages
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true); // Set loading before fetch
+      const merchantData = await window.API.Merchants.getById(merchantId);
+
+      if (merchantData) {
+        if (merchantData.logo) {
+          setImageKey(Date.now());
+        }
+
+        setFormData(prevData => ({
+          ...prevData,
+          businessName: merchantData.name || prevData.businessName || '', // Prioritize fresh data but keep existing if API returns nothing
+          profile: merchantData.profile || prevData.profile || '',
+          contactInfo: merchantData.contactInfo || prevData.contactInfo || '',
+          logo: merchantData.logo || prevData.logo || '',
+          address: merchantData.address || prevData.address || '',
+          contactNumber: merchantData.contactNumber || prevData.contactNumber || '',
+          facebook: merchantData.socialMedia?.facebook || prevData.facebook || '',
+          instagram: merchantData.socialMedia?.instagram || prevData.instagram || '',
+          twitter: merchantData.socialMedia?.twitter || prevData.twitter || '',
+          tiktok: merchantData.socialMedia?.tiktok || prevData.tiktok || '',
+          locationLat: merchantData.location?.lat || prevData.locationLat || '',
+          locationLng: merchantData.location?.lng || prevData.locationLng || ''
+        }));
+      } else {
+        console.warn('fetchMerchantDetails: No merchant data returned from API for ID:', merchantId);
+        // Don't set a general error here if the main purpose was to populate after init.
+        // The user might have just initialized and some fields are still empty.
+      }
+    } catch (err) {
+      console.error('Error fetching merchant details:', err);
+      setError('Failed to load full merchant details. Some information may be incomplete. Please try refreshing.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -149,8 +275,36 @@ function UserProfile() {
       // Update user profile
       const updatedUser = await window.API.Users.updateProfile(user._id, profileData);
       
-      // MERCHANT-SPECIFIC UPDATE LOGIC REMOVED
-      // if (user.role === 'merchant' && user.merchantId) { ... }
+      // If user is a merchant, update merchant profile too
+      if (user.role === 'merchant' && user.merchantId) {
+        const merchantData = {
+          name: formData.businessName, // This should be formData.businessName
+          profile: formData.profile,
+          contactInfo: formData.contactInfo,
+          logo: formData.logo, // Ensure logo is part of merchantData as well
+          address: formData.address,
+          contactNumber: formData.contactNumber,
+          socialMedia: { // Reconstruct socialMedia object for merchant update
+            facebook: formData.facebook,
+            instagram: formData.instagram,
+            twitter: formData.twitter,
+            tiktok: formData.tiktok,
+          },
+          location: {
+            lat: formData.locationLat,
+            lng: formData.locationLng
+          }
+        };
+
+        try {
+          await window.API.Merchants.update(user.merchantId, merchantData);
+        } catch (merchantErr) {
+          console.error('Error updating merchant profile:', merchantErr);
+          // Continue with user profile update even if merchant update fails for now,
+          // but set an error to inform the user.
+          setError(prevError => prevError ? `${prevError} Also failed to update merchant details.` : 'Your profile was updated, but there was an issue updating your merchant details.');
+        }
+      }
       
       // Update local storage and state with new logo (for all users)
       const updatedUserData = {
@@ -341,7 +495,7 @@ function UserProfile() {
               )}
               
               {/* Profile Settings */}
-              {activeTab === 'profile' &&
+              {activeTab === 'profile' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Profile Settings</h1>
                   
@@ -370,7 +524,178 @@ function UserProfile() {
                       <p className="text-sm text-gray-500 mt-1">Email cannot be changed</p>
                     </div>
                     
-                    {/* MERCHNAT SPECIFIC FIELDS REMOVED */}
+                    {user?.role === 'merchant' && ( // Ensure user object exists before checking role
+                      <>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Name</label>
+                          <input
+                            type="text"
+                            name="businessName"
+                            value={formData.businessName}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            required
+                          />
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Profile</label>
+                          <textarea
+                            name="profile"
+                            value={formData.profile}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            rows="3"
+                          ></textarea>
+                          <p className="text-sm text-gray-500 mt-1">Describe your business in a few sentences</p>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Contact Information</label>
+                          <input
+                            type="text"
+                            name="contactInfo"
+                            value={formData.contactInfo}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">Phone number or additional email</p>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Logo</label>
+                          <div className="flex items-center space-x-4 mb-2">
+                            <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden flex-shrink-0">
+                              <img
+                                key={imageKey} // Use imageKey to force re-render on logo change
+                                src={getSafeLogo(formData.logo, formData.businessName || user?.name)}
+                                alt="Logo Preview"
+                                className="w-full h-full object-cover logo-preview-img"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.businessName || user?.name || 'M')}&background=random&size=300`;
+                                }}
+                              />
+                            </div>
+                            <div className="flex-grow">
+                              <input
+                                type="text"
+                                name="logo"
+                                value={formData.logo}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                                placeholder="https://example.com/logo.jpg"
+                              />
+                              <p className="text-sm text-gray-500 mt-1">Enter a URL for your business logo</p>
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <label className="block text-sm font-medium mb-1">Or upload an image:</label>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/gif"
+                              onChange={(e) => {
+                                const file = e.target.files[0];
+                                if (file) {
+                                  if (file.size > 2 * 1024 * 1024) {
+                                    setError('Image file is too large. Maximum size is 2MB.');
+                                    e.target.value = ''; return;
+                                  }
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setFormData(prevState => ({ ...prevState, logo: reader.result }));
+                                    setImageKey(Date.now()); // Force preview update
+                                    setSuccess('Image uploaded. Click "Save Changes" to update your profile.');
+                                  };
+                                  reader.onerror = () => setError('Failed to read the image file.');
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary-color file:text-white hover:file:bg-primary-dark"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Max file size: 2MB. Supported formats: JPG, PNG, GIF</p>
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Business Address</label>
+                          <input
+                            type="text"
+                            name="address"
+                            value={formData.address}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            placeholder="Enter your business address"
+                          />
+                        </div>
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Contact Number</label>
+                          <input
+                            type="text"
+                            name="contactNumber"
+                            value={formData.contactNumber}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            placeholder="Enter your contact number"
+                          />
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="block text-sm font-medium mb-1">Social Media Profiles</label>
+                          <div className="space-y-2">
+                            {Object.entries(formData.socialMedia || {}).filter(([platform, username]) => username).map(([platform, username]) => (
+                              <div key={platform} className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded">
+                                <span className="capitalize font-medium"><i className={`fab fa-${platform} mr-1`}></i>{platform}</span>
+                                <span className="text-gray-700">{username}</span>
+                                <button type="button" className="ml-2 text-red-500 hover:text-red-700" onClick={() => {
+                                  setFormData(prev => ({ ...prev, socialMedia: { ...prev.socialMedia, [platform]: '' } }));
+                                }}>
+                                  <i className="fas fa-times"></i>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <select
+                              value={formData._newSocialPlatform || ''}
+                              onChange={e => setFormData(prev => ({ ...prev, _newSocialPlatform: e.target.value }))}
+                              className="px-2 py-1 border rounded"
+                            >
+                              <option value="">Select Platform</option>
+                              {['facebook', 'instagram', 'twitter', 'tiktok'].filter(p => !(formData.socialMedia && formData.socialMedia[p])).map(platform => (
+                                <option key={platform} value={platform}>{platform.charAt(0).toUpperCase() + platform.slice(1)}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              placeholder="Username"
+                              value={formData._newSocialUsername || ''}
+                              onChange={e => setFormData(prev => ({ ...prev, _newSocialUsername: e.target.value }))}
+                              className="px-2 py-1 border rounded"
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-primary px-3 py-1"
+                              disabled={!(formData._newSocialPlatform && formData._newSocialUsername)}
+                              onClick={() => {
+                                if (formData._newSocialPlatform && formData._newSocialUsername) {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    socialMedia: {
+                                      ...prev.socialMedia,
+                                      [formData._newSocialPlatform]: formData._newSocialUsername
+                                    },
+                                    _newSocialPlatform: '',
+                                    _newSocialUsername: ''
+                                  }));
+                                }
+                              }}
+                            >Add</button>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">Add only your active social media accounts. You can remove or edit them anytime.</p>
+                        </div>
+                      </>
+                    )}
                     
                     {/* Profile Picture Upload */}
                     <div className="mb-4">
@@ -450,9 +775,62 @@ function UserProfile() {
                   </form>
                 </div>
               }
+
+              {/* Merchant Initialization Form */}
+              {activeTab === 'profile' && showMerchantInitForm && (
+                <div>
+                  <h1 className="text-2xl font-bold mb-4">Complete Your Merchant Profile</h1>
+                  <p className="text-gray-600 mb-6">
+                    Your user account is marked as a merchant, but your specific merchant details haven't been set up yet.
+                    Please provide your business name to initialize your merchant profile. You can add more details afterwards.
+                  </p>
+                  <form onSubmit={handleInitializeMerchantProfileSubmit}>
+                    <div className="mb-4">
+                      <label htmlFor="initBusinessName" className="block text-sm font-medium mb-1">Business Name <span className="text-red-500">*</span></label>
+                      <input
+                        type="text"
+                        id="initBusinessName"
+                        name="businessName" // Should match a key in formData for controlled input
+                        value={formData.businessName || ''} // Ensure controlled input
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                        required
+                      />
+                    </div>
+                    {/* Re-introducing optional fields */}
+                    <div className="mb-4">
+                      <label htmlFor="initProfile" className="block text-sm font-medium mb-1">Business Profile (Optional)</label>
+                      <textarea
+                        id="initProfile"
+                        name="profile"
+                        value={formData.profile}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                        rows="3"
+                      ></textarea>
+                    </div>
+                    <div className="mb-4">
+                        <label htmlFor="initLogo" className="block text-sm font-medium mb-1">Business Logo URL (Optional)</label>
+                        <input
+                            type="url"
+                            id="initLogo"
+                            name="logo"
+                            value={formData.logo}
+                            onChange={handleInputChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                            placeholder="https://example.com/logo.jpg"
+                        />
+                    </div>
+                    {/* Consider adding other fields like contactInfo, address, etc., if desired for the init form */}
+                    <button type="submit" className="btn btn-primary" disabled={loading}>
+                      {loading ? 'Initializing...' : 'Initialize Merchant Profile'}
+                    </button>
+                  </form>
+                </div>
+              )}
               
               {/* Security */}
-              {activeTab === 'security' &&
+              {activeTab === 'security' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Security</h1>
                   
@@ -498,7 +876,7 @@ function UserProfile() {
               }
               
               {/* Notifications */}
-              {activeTab === 'notifications' &&
+              {activeTab === 'notifications' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Notification Preferences</h1>
                   
@@ -579,7 +957,7 @@ function UserProfile() {
               }
               
               {/* Favorites */}
-              {activeTab === 'favorites' &&
+              {activeTab === 'favorites' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">My Favorite Deals</h1>
                   
@@ -637,7 +1015,7 @@ function UserProfile() {
               }
               
               {/* Following */}
-              {activeTab === 'following' &&
+              {activeTab === 'following' && !showMerchantInitForm && (
               <div>
                   <h1 className="text-2xl font-bold mb-6">Stores You Follow</h1>
                   
