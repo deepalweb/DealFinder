@@ -817,7 +817,8 @@ function UserProfile() {
                         required
                       />
                     </div>
-                    {/* Optional fields for initialization - can be expanded later */}
+                    {/* Optional fields for initialization - Temporarily Commented Out */}
+                    {/*
                     <div className="mb-4">
                       <label htmlFor="initProfile" className="block text-sm font-medium mb-1">Business Profile (Optional)</label>
                       <textarea
@@ -841,6 +842,7 @@ function UserProfile() {
                             placeholder="https://example.com/logo.jpg"
                         />
                     </div>
+                    */}
                     <button type="submit" className="btn btn-primary" disabled={loading}>
                       {loading ? 'Initializing...' : 'Initialize Merchant Profile'}
                     </button>
@@ -1103,3 +1105,4 @@ function UserProfile() {
     </div>
   );
 }
+window.UserProfile = UserProfile; // Expose component to global scope for router
