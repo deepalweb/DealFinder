@@ -17,6 +17,14 @@ const userSchema = new mongoose.Schema({
   resetPasswordToken: { type: String },
   resetPasswordExpires: { type: Date },
   profilePicture: { type: String }, // base64 or URL for user profile image
+  preferences: {
+    notifications: {
+      email: { type: Boolean, default: true },
+      expiringDeals: { type: Boolean, default: true },
+      favoriteStores: { type: Boolean, default: true },
+      recommendations: { type: Boolean, default: true },
+    }
+  }
 });
 
 module.exports = mongoose.model('User', userSchema);
