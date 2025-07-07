@@ -153,10 +153,42 @@ function UserProfile() {
     }
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    // ... (password submit logic - assuming it's okay for now)
-    setSuccess('Password update UI - backend not implemented in this snippet.');
+    setSuccess('');
+    setError('');
+    setLoading(true);
+
+    if (formData.newPassword !== formData.confirmPassword) {
+      setError("New passwords do not match.");
+      setLoading(false);
+      return;
+    }
+
+    if (!user || !user._id) {
+      setError('User information is missing. Please try logging in again.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await window.API.Users.changePassword(user._id, {
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
+      setSuccess('Password updated successfully!');
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }));
+    } catch (err) {
+      console.error('Error updating password:', err);
+      setError(err.message || 'Failed to update password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleFavoriteToggle = async (promotionId) => {
@@ -281,8 +313,53 @@ function UserProfile() {
                   React.createElement("button", { type: "submit", className: "btn btn-primary" }, "Save Changes")
                 )
               ),
-              activeTab === 'security' && React.createElement("div", null, /* Security content */ React.createElement("h1", {className: "text-2xl font-bold mb-6"}, "Security")),
-              activeTab === 'notifications' && React.createElement("div", null, /* Notifications content */ React.createElement("h1", {className: "text-2xl font-bold mb-6"}, "Notification Preferences")),
+              activeTab === 'security' && React.createElement("div", null,
+                React.createElement("h1", { className: "text-2xl font-bold mb-6" }, "Change Password"),
+                React.createElement("form", { onSubmit: handlePasswordSubmit },
+                  React.createElement("div", { className: "mb-4" },
+                    React.createElement("label", { className: "block text-sm font-medium mb-1", htmlFor: "currentPassword" }, "Current Password"),
+                    React.createElement("input", { type: "password", name: "currentPassword", id: "currentPassword", value: formData.currentPassword, onChange: handleInputChange, className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color", required: true })
+                  ),
+                  React.createElement("div", { className: "mb-4" },
+                    React.createElement("label", { className: "block text-sm font-medium mb-1", htmlFor: "newPassword" }, "New Password"),
+                    React.createElement("input", { type: "password", name: "newPassword", id: "newPassword", value: formData.newPassword, onChange: handleInputChange, className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color", required: true })
+                  ),
+                  React.createElement("div", { className: "mb-6" },
+                    React.createElement("label", { className: "block text-sm font-medium mb-1", htmlFor: "confirmPassword" }, "Confirm New Password"),
+                    React.createElement("input", { type: "password", name: "confirmPassword", id: "confirmPassword", value: formData.confirmPassword, onChange: handleInputChange, className: "w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color", required: true })
+                  ),
+                  React.createElement("button", { type: "submit", className: "btn btn-primary", disabled: loading },
+                    loading && activeTab === 'security' ? React.createElement("i", { className: "fas fa-spinner fa-spin mr-2" }) : null,
+                    "Change Password"
+                  )
+                )
+              ),
+              activeTab === 'notifications' && React.createElement("div", null,
+                React.createElement("h1", { className: "text-2xl font-bold mb-6" }, "Notification Preferences"),
+                React.createElement("form", { onSubmit: handleProfileSubmit }, // Use handleProfileSubmit as it updates the whole user profile
+                  React.createElement("div", { className: "space-y-4" },
+                    Object.keys(formData.notifications).map(key =>
+                      React.createElement("div", { key: key, className: "flex items-center" },
+                        React.createElement("input", {
+                          type: "checkbox",
+                          name: key,
+                          id: `notif-${key}`,
+                          checked: formData.notifications[key],
+                          onChange: handleNotificationChange,
+                          className: "h-4 w-4 text-primary-color border-gray-300 rounded focus:ring-primary-color"
+                        }),
+                        React.createElement("label", { htmlFor: `notif-${key}`, className: "ml-2 block text-sm text-gray-900 capitalize" },
+                          key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()) // Format key for display
+                        )
+                      )
+                    )
+                  ),
+                  React.createElement("button", { type: "submit", className: "btn btn-primary mt-6", disabled: loading },
+                    loading && activeTab === 'notifications' ? React.createElement("i", { className: "fas fa-spinner fa-spin mr-2" }) : null,
+                    "Save Preferences"
+                  )
+                )
+              ),
               activeTab === 'favorites' && React.createElement("div", null, /* Favorites content */ React.createElement("h1", {className: "text-2xl font-bold mb-6"}, "My Favorite Deals")),
               activeTab === 'following' && React.createElement("div", null, /* Following content */ React.createElement("h1", {className: "text-2xl font-bold mb-6"}, "Stores You Follow"))
             )

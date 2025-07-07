@@ -60,6 +60,43 @@ router.get('/', authorizeAdmin, async (req, res) => {
   }
 });
 
+// Change user password (Self or Admin)
+router.post('/:id/change-password', authorizeSelfOrAdmin, [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check current password
+    const passwordMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid current password' });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password changed successfully' });
+
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Get a user by ID (Self or Admin)
 router.get('/:id', authorizeSelfOrAdmin, async (req, res) => {
   try {
@@ -198,16 +235,22 @@ router.put('/:id', authorizeSelfOrAdmin, [
   body('businessName').optional().isString(),
   body('logo').optional().isString(),
   body('profilePicture').optional().isString(),
+  body('preferences').optional().isObject(), // For notification preferences
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, email, businessName, logo, profilePicture } = req.body;
+    const { name, email, businessName, logo, profilePicture, preferences } = req.body;
+    const updateData = { name, email, businessName, logo, profilePicture };
+    if (preferences) {
+      updateData.preferences = preferences;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { name, email, businessName, logo, profilePicture },
+      updateData,
       { new: true }
     ).select('-password');
     if (!updatedUser) {

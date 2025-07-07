@@ -230,6 +230,12 @@ const UserAPI = {
     method: 'PUT',
     body: JSON.stringify(userData)
   }),
+
+  // Change user password
+  changePassword: (userId, passwordData) => fetchAPI(`users/${userId}/change-password`, {
+    method: 'POST',
+    body: JSON.stringify(passwordData)
+  }),
   
   // Add promotion to favorites
   addFavorite: (userId, promotionId) => fetchAPI(`users/${userId}/favorites`, {

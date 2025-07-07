@@ -10,7 +10,9 @@ function MerchantDashboard() {
   const [activeTab, setActiveTab] = useState('active');
   const [analyticsData, setAnalyticsData] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState(null);
+  const [merchantData, setMerchantData] = useState(null);
 
   // Form state for new/edit promotion
   const [formData, setFormData] = useState({
@@ -28,6 +30,24 @@ function MerchantDashboard() {
 
   // For image upload preview
   const [imagePreview, setImagePreview] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+
+  // Form state for editing merchant profile
+  const [profileFormData, setProfileFormData] = useState({
+    name: '',
+    profile: '', // description
+    contactInfo: '', // email or main contact
+    logo: '',
+    address: '',
+    contactNumber: '',
+    socialMedia: {
+      facebook: '',
+      instagram: '',
+      twitter: '',
+      tiktok: ''
+    }
+  });
+
 
   // --- Analytics by Promotion ---
   const [selectedPromotionId, setSelectedPromotionId] = useState(null);
@@ -59,30 +79,48 @@ function MerchantDashboard() {
     setUser(parsedUser);
 
     // Only load merchant's promotions from API
-    const fetchPromotions = async () => {
+    const fetchMerchantData = async (merchantId) => {
       try {
-        setLoading(true);
-        if (parsedUser.merchantId) {
-          let data = await window.API.Promotions.getByMerchant(parsedUser.merchantId);
-          if (!Array.isArray(data)) {
-            console.warn('Expected array of promotions, got:', data);
-            data = [];
-          }
-          data = data.map(p => ({ ...p, id: p._id }));
-          setPromotions(data);
-        } else {
-          setPromotions([]);
-        }
-        setLoading(false);
+        const merchData = await window.API.Merchants.getById(merchantId);
+        setMerchantData(merchData);
       } catch (err) {
-        console.error('Error fetching promotions:', err);
-        setError('Failed to load promotions. Please try again later.');
-        setLoading(false);
+        console.error('Error fetching merchant details:', err);
+        setError('Failed to load merchant details.');
       }
     };
 
-    fetchPromotions();
-  }, []);
+    const fetchPromotions = async (merchantId) => {
+      try {
+        let data = await window.API.Promotions.getByMerchant(merchantId);
+        if (!Array.isArray(data)) {
+          console.warn('Expected array of promotions, got:', data);
+          data = [];
+        }
+        data = data.map(p => ({ ...p, id: p._id }));
+        setPromotions(data);
+      } catch (err) {
+        console.error('Error fetching promotions:', err);
+        setError('Failed to load promotions. Please try again later.');
+      }
+    };
+
+    const loadDashboardData = async () => {
+      setLoading(true);
+      if (parsedUser.merchantId) {
+        await fetchMerchantData(parsedUser.merchantId);
+        await fetchPromotions(parsedUser.merchantId);
+      } else {
+        // This case should ideally not happen if role is 'merchant'
+        // but if it does, the user might need to initialize their merchant profile.
+        console.warn("Merchant user does not have a merchantId. Profile might need initialization.");
+        setError("Merchant profile not fully initialized. Please contact support or try re-logging.");
+        setPromotions([]);
+      }
+      setLoading(false);
+    };
+
+    loadDashboardData();
+  }, [navigate]); // Added navigate to dependency array as per ESLint suggestion, though not strictly needed for this logic.
 
   // Reset form when opening modal
   useEffect(() => {
@@ -133,6 +171,28 @@ function MerchantDashboard() {
       setIsAddModalOpen(true);
     }
   }, [editingPromotion]);
+
+  // Populate profile form when merchantData is loaded or modal opens
+  useEffect(() => {
+    if (merchantData && isEditProfileModalOpen) {
+      setProfileFormData({
+        name: merchantData.name || '',
+        profile: merchantData.profile || '',
+        contactInfo: merchantData.contactInfo || '',
+        logo: merchantData.logo || '',
+        address: merchantData.address || '',
+        contactNumber: merchantData.contactNumber || '',
+        socialMedia: {
+          facebook: merchantData.socialMedia?.facebook || '',
+          instagram: merchantData.socialMedia?.instagram || '',
+          twitter: merchantData.socialMedia?.twitter || '',
+          tiktok: merchantData.socialMedia?.tiktok || ''
+        }
+      });
+      setLogoPreview(merchantData.logo || null);
+    }
+  }, [merchantData, isEditProfileModalOpen]);
+
 
   // Fetch clicks for a selected promotion
   useEffect(() => {
@@ -319,7 +379,69 @@ function MerchantDashboard() {
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
-  if (!user) {
+  const handleProfileInputChange = (e) => {
+    const { name, value } = e.target;
+    if (name.startsWith("socialMedia.")) {
+      const field = name.split(".")[1];
+      setProfileFormData(prev => ({
+        ...prev,
+        socialMedia: { ...prev.socialMedia, [field]: value }
+      }));
+    } else {
+      setProfileFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleLogoFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const optimizedImage = await window.optimizeImage(reader.result, 400, 0.8); // Optimize logo
+          setProfileFormData(prev => ({ ...prev, logo: optimizedImage }));
+          setLogoPreview(optimizedImage);
+        } catch (error) {
+          console.error('Error optimizing logo:', error);
+          setProfileFormData(prev => ({ ...prev, logo: reader.result }));
+          setLogoPreview(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleProfileFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!user || !user.merchantId) {
+      alert("Merchant ID not found. Cannot update profile.");
+      return;
+    }
+    try {
+      setLoading(true);
+      const updatedMerchant = await window.API.Merchants.update(user.merchantId, profileFormData);
+      setMerchantData(updatedMerchant); // Update local state
+
+      // Also update user.businessName in localStorage if it changed
+      if (user.businessName !== updatedMerchant.name) {
+        const storedUser = JSON.parse(localStorage.getItem('dealFinderUser'));
+        storedUser.businessName = updatedMerchant.name;
+        localStorage.setItem('dealFinderUser', JSON.stringify(storedUser));
+        setUser(storedUser); // Update user state in dashboard
+      }
+
+      setIsEditProfileModalOpen(false);
+      alert("Profile updated successfully!");
+    } catch (err) {
+      console.error("Error updating merchant profile:", err);
+      alert("Failed to update profile. " + (err.message || "Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  if (!user || !merchantData) { // Ensure merchantData is also loaded
     return (
       <div className="page-container">
         <div className="container py-8 text-center">
@@ -362,16 +484,23 @@ function MerchantDashboard() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold flex items-center">
               <i className="fas fa-store text-primary-color mr-2"></i>
-              {user.businessName || 'Merchant Dashboard'}
+              {merchantData?.name || user?.businessName || 'Merchant Dashboard'}
             </h1>
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setEditingPromotion(null);
-                setIsAddModalOpen(true);
-              }}>
-              <i className="fas fa-plus mr-2"></i> Add New Promotion
-            </button>
+            <div className="space-x-2">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setIsEditProfileModalOpen(true)}>
+                <i className="fas fa-user-edit mr-2"></i> Edit Profile
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setEditingPromotion(null);
+                  setIsAddModalOpen(true);
+                }}>
+                <i className="fas fa-plus mr-2"></i> Add New Promotion
+              </button>
+            </div>
           </div>
           
           <div className="mb-6">
@@ -580,12 +709,90 @@ function MerchantDashboard() {
         </div>
       </div>
       
+      {/* Edit Merchant Profile Modal */}
+      {isEditProfileModalOpen && merchantData && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-auto">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-full overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Edit Merchant Profile</h2>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setIsEditProfileModalOpen(false)}>
+                <i className="fas fa-times text-xl"></i>
+              </button>
+            </div>
+            <form onSubmit={handleProfileFormSubmit}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                {/* Business Name */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileName">Business Name</label>
+                  <input type="text" name="name" id="profileName" value={profileFormData.name} onChange={handleProfileInputChange} className="form-input" required />
+                </div>
+                {/* Profile Description */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileDescription">Profile Description</label>
+                  <textarea name="profile" id="profileDescription" value={profileFormData.profile} onChange={handleProfileInputChange} className="form-textarea" rows="3"></textarea>
+                </div>
+                {/* Contact Info (Email/Phone) */}
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileContactInfo">Contact Info (Email/Phone)</label>
+                  <input type="text" name="contactInfo" id="profileContactInfo" value={profileFormData.contactInfo} onChange={handleProfileInputChange} className="form-input" />
+                </div>
+                {/* Contact Number */}
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileContactNumber">Contact Number</label>
+                  <input type="tel" name="contactNumber" id="profileContactNumber" value={profileFormData.contactNumber} onChange={handleProfileInputChange} className="form-input" />
+                </div>
+                {/* Address */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileAddress">Address</label>
+                  <input type="text" name="address" id="profileAddress" value={profileFormData.address} onChange={handleProfileInputChange} className="form-input" />
+                </div>
+                {/* Logo */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-1">Logo</label>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex-1">
+                      <input type="file" name="logoFile" accept="image/*" onChange={handleLogoFileChange} className="form-input-file" />
+                    </div>
+                    <div className="flex-1">
+                      <input type="text" name="logo" value={profileFormData.logo} onChange={handleProfileInputChange} placeholder="Or enter image URL" className="form-input" />
+                    </div>
+                  </div>
+                  {(logoPreview || profileFormData.logo) && (
+                    <div className="mt-2">
+                      <img src={logoPreview || profileFormData.logo} alt="Logo Preview" className="h-24 w-auto rounded-md object-cover" />
+                    </div>
+                  )}
+                </div>
+                {/* Social Media Links */}
+                <h3 className="md:col-span-2 text-lg font-semibold mt-4 mb-2">Social Media</h3>
+                {Object.keys(profileFormData.socialMedia).map(key => (
+                  <div key={key}>
+                    <label className="block text-sm font-medium mb-1 capitalize" htmlFor={`social${key}`}>{key}</label>
+                    <input type="url" name={`socialMedia.${key}`} id={`social${key}`} value={profileFormData.socialMedia[key]} onChange={handleProfileInputChange} placeholder={`https://www.${key}.com/yourpage`} className="form-input" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-end mt-8">
+                <button type="button" className="btn btn-secondary mr-3" onClick={() => setIsEditProfileModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? <><i className="fas fa-spinner fa-spin mr-2"></i> Saving...</> : 'Save Profile'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      )}
+
       {/* Add/Edit Promotion Modal */}
       {isAddModalOpen &&
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-full overflow-y-auto">
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold">
                   {editingPromotion ? 'Edit Promotion' : 'Add New Promotion'}
                 </h2>
