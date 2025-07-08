@@ -110,13 +110,21 @@ router.post('/', authenticateJWT, [
   body('url').optional().isString(),
   body('merchantId').trim().notEmpty().withMessage('Merchant ID is required'),
   body('featured').optional().isBoolean(),
+  body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
+  body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number.')
+    .custom((value, { req }) => {
+      if (value && req.body.originalPrice && parseFloat(value) >= parseFloat(req.body.originalPrice)) {
+        throw new Error('Discounted price must be less than original price.');
+      }
+      return true;
+    }),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    let { title, description, discount, code, category, startDate, endDate, image, url, merchantId, featured } = req.body;
+    let { title, description, discount, code, category, startDate, endDate, image, url, merchantId, featured, originalPrice, discountedPrice } = req.body;
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
@@ -153,6 +161,8 @@ router.post('/', authenticateJWT, [
       url,
       merchant: merchantId,
       featured: featured === true || featured === 'true', // ensure boolean
+      originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
+      discountedPrice: discountedPrice ? parseFloat(discountedPrice) : undefined,
       status: new Date(endDate) > new Date() ? 'active' : 'expired'
     });
     
@@ -181,31 +191,66 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
   body('image').optional().isString(),
   body('url').optional().isString(),
   body('featured').optional().isBoolean(),
+  body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
+  body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number.')
+    .custom((value, { req }) => {
+      // Ensure originalPrice is considered if it's not being updated but exists on the promotion
+      // This validation might be better handled by fetching the promotion first if not all price fields are sent
+      if (value && req.body.originalPrice && parseFloat(value) >= parseFloat(req.body.originalPrice)) {
+        throw new Error('Discounted price must be less than original price.');
+      }
+      // If only discountedPrice is sent, and originalPrice exists on doc, this check might be insufficient without fetching doc.
+      // For now, assuming if prices are sent, they are sent together or this check is sufficient.
+      return true;
+    }),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { title, description, discount, code, category, startDate, endDate, image, url, featured } = req.body;
+    const { title, description, discount, code, category, startDate, endDate, image, url, featured, originalPrice, discountedPrice } = req.body;
     
-    // Calculate status based on end date
-    const status = new Date(endDate) > new Date() ? 'active' : 'expired';
+    const updateData = {
+      title, description, discount, code, category, startDate, endDate, image, url,
+      featured: featured === true || featured === 'true'
+    };
+
+    if (startDate && endDate) {
+      updateData.status = new Date(endDate) > new Date() ? 'active' : 'expired';
+    } else if (endDate) { // If only endDate is provided, we might need to fetch startDate from DB to determine status
+        const existingPromo = await Promotion.findById(req.params.id);
+        if (existingPromo) {
+            updateData.status = new Date(endDate) > new Date(existingPromo.startDate) && new Date(endDate) > new Date() ? 'active' : 'expired';
+        }
+    }
+
+
+    if (originalPrice !== undefined) updateData.originalPrice = parseFloat(originalPrice);
+    if (discountedPrice !== undefined) updateData.discountedPrice = parseFloat(discountedPrice);
+
+    // Additional validation if both prices are present in the update
+    if (updateData.originalPrice !== undefined && updateData.discountedPrice !== undefined && updateData.discountedPrice >= updateData.originalPrice) {
+        return res.status(400).json({ errors: [{ msg: 'Discounted price must be less than original price.' }] });
+    }
+    // If only one price is updated, ensure it's still valid with the existing other price
+    if (updateData.originalPrice === undefined && updateData.discountedPrice !== undefined) {
+        const existingPromo = await Promotion.findById(req.params.id);
+        if (existingPromo && existingPromo.originalPrice !== undefined && updateData.discountedPrice >= existingPromo.originalPrice) {
+            return res.status(400).json({ errors: [{ msg: 'Discounted price must be less than the existing original price.' }] });
+        }
+    }
+    if (updateData.discountedPrice === undefined && updateData.originalPrice !== undefined) {
+        const existingPromo = await Promotion.findById(req.params.id);
+        if (existingPromo && existingPromo.discountedPrice !== undefined && existingPromo.discountedPrice >= updateData.originalPrice) {
+            return res.status(400).json({ errors: [{ msg: 'The new original price makes the existing discounted price invalid.' }] });
+        }
+    }
+
+
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       req.params.id,
-      {
-        title,
-        description,
-        discount,
-        code,
-        category,
-        startDate,
-        endDate,
-        image,
-        url,
-        featured: featured === true || featured === 'true', // ensure boolean
-        status
-      },
+      updateData,
       { new: true }
     );
     
