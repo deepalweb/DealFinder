@@ -25,7 +25,9 @@ function MerchantDashboard() {
     endDate: '',
     image: '',
     url: '',
-    featured: false // Add featured field to form state
+    featured: false, // Add featured field to form state
+    originalPrice: '',
+    discountedPrice: ''
   });
 
   // For image upload preview
@@ -140,7 +142,9 @@ function MerchantDashboard() {
         endDate: nextMonth.toISOString().split('T')[0],
         image: '',
         url: '',
-        featured: false // Reset featured
+        featured: false, // Reset featured
+        originalPrice: '',
+        discountedPrice: ''
       });
       setImagePreview(null);
     }
@@ -165,7 +169,9 @@ function MerchantDashboard() {
         endDate: formatDateForInput(editingPromotion.endDate),
         image: editingPromotion.image || '',
         url: editingPromotion.url || '',
-        featured: !!editingPromotion.featured // Set featured from editing promotion
+        featured: !!editingPromotion.featured, // Set featured from editing promotion
+        originalPrice: editingPromotion.originalPrice || '',
+        discountedPrice: editingPromotion.discountedPrice || ''
       });
       setImagePreview(editingPromotion.image || null);
       setIsAddModalOpen(true);
@@ -278,6 +284,25 @@ function MerchantDashboard() {
       alert('Please enter a valid URL starting with http:// or https://');
       return;
     }
+
+    // Validate prices if both are entered
+    const originalPrice = parseFloat(formData.originalPrice);
+    const discountedPrice = parseFloat(formData.discountedPrice);
+
+    if (!isNaN(originalPrice) && !isNaN(discountedPrice) && discountedPrice >= originalPrice) {
+      alert('Discounted price must be less than original price.');
+      return;
+    }
+
+    if ((isNaN(originalPrice) && !isNaN(discountedPrice)) || (!isNaN(originalPrice) && isNaN(discountedPrice) && formData.discountedPrice !== '')) {
+        // This condition means one is a number and the other is not (and not empty string for discounted)
+        // Or if discountedPrice is an empty string but originalPrice is a number, that's fine.
+        // We primarily care if one is filled and the other is not in a way that implies an incomplete pair.
+        // However, the backend treats them as optional, so this might be overly strict here if they can be independent.
+        // For now, let's allow them to be optional independently.
+        // If they are both filled, the discountedPrice >= originalPrice check is the main one.
+    }
+
 
     // Ensure merchantId is present before attempting to save
     if (!user || !user.merchantId) {
@@ -852,6 +877,30 @@ function MerchantDashboard() {
                     onChange={handleChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
                     required />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Original Price (Optional)</label>
+                    <input
+                    type="number"
+                    name="originalPrice"
+                    value={formData.originalPrice}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                    placeholder="e.g. 100.00"
+                    step="0.01" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Discounted Price (Optional)</label>
+                    <input
+                    type="number"
+                    name="discountedPrice"
+                    value={formData.discountedPrice}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
+                    placeholder="e.g. 80.00"
+                    step="0.01" />
                   </div>
                   
                   <div>

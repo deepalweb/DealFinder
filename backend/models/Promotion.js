@@ -12,6 +12,8 @@ const promotionSchema = new mongoose.Schema({
   image: { type: String },
   url: { type: String },
   featured: { type: Boolean, default: false },
+  originalPrice: { type: Number },
+  discountedPrice: { type: Number },
   status: { 
     type: String, 
     enum: ['active', 'expired'],
