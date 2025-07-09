@@ -34,7 +34,7 @@ function generateRefreshToken(user) {
 // Middleware to protect routes
 function protectRoute(req, res, next) {
   const openRoutes = [
-    { path: '/register', method: 'POST' },
+    // { path: '/register', method: 'POST' }, // Will be handled by gentleAuthenticateJWT
     { path: '/login', method: 'POST' },
     { path: '/refresh-token', method: 'POST' },
     { path: '/reset-password', method: 'POST' },
@@ -56,6 +56,37 @@ router.get('/', authorizeAdmin, async (req, res) => {
     const users = await User.find().select('-password');
     res.status(200).json(users);
   } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Delete a user (Admin only)
+router.delete('/:id', authorizeAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Optional: Add checks here to prevent deletion of sole admin, etc.
+    // For example:
+    // if (user.role === 'admin') {
+    //   const adminCount = await User.countDocuments({ role: 'admin' });
+    //   if (adminCount <= 1 && user.id === req.user.id) { // Comparing authenticated admin with user to be deleted
+    //     return res.status(400).json({ message: 'Cannot delete the only admin account.' });
+    //   }
+    // }
+
+    // TODO: Consider implications of deleting a user.
+    // - What happens to their merchant profile if they are a merchant?
+    // - What happens to promotions they created?
+    // - For now, we will just delete the user document.
+    // - In a real application, this might involve cascading deletes or anonymization.
+
+    await User.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
     res.status(500).json(safeError(error));
   }
 });
@@ -109,11 +140,21 @@ router.get('/:id', authorizeSelfOrAdmin, async (req, res) => {
 });
 
 // Register a new user
-router.post('/register', [
+// Uses gentleAuthenticateJWT to check if an admin is making the request
+router.post('/register', gentleAuthenticateJWT, [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
-  body('role').optional().isIn(['user', 'merchant']).withMessage('Role must be user or merchant'),
+  body('role').optional().custom((value, { req }) => {
+    const allowedRoles = ['user', 'merchant'];
+    if (req.user && req.user.role === 'admin') {
+      allowedRoles.push('admin');
+    }
+    if (value && !allowedRoles.includes(value)) {
+      throw new Error(`Role must be one of: ${allowedRoles.join(', ')}`);
+    }
+    return true;
+  }),
   body('businessName').optional().isString(),
   body('profilePicture').optional().isString(),
 ], async (req, res) => {
@@ -122,7 +163,21 @@ router.post('/register', [
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, email, password, role, businessName, profilePicture } = req.body;
+    let { name, email, password, role, businessName, profilePicture } = req.body; // Use let for role
+
+    // If an admin is creating a user, they can specify the role.
+    // Otherwise, role defaults to 'user' or can be 'merchant'.
+    if (req.user && req.user.role === 'admin') {
+      // Admin can set role to 'user', 'merchant', or 'admin'
+      role = role || 'user'; // Default to user if admin doesn't specify
+    } else {
+      // Non-admin registration
+      if (role && role === 'admin') {
+        // Prevent non-admins from setting role to 'admin'
+        return res.status(403).json({ message: "Forbidden: Cannot set role to admin." });
+      }
+      role = role || 'user'; // Default to 'user'
+    }
     
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -236,21 +291,43 @@ router.put('/:id', authorizeSelfOrAdmin, [
   body('logo').optional().isString(),
   body('profilePicture').optional().isString(),
   body('preferences').optional().isObject(), // For notification preferences
+  body('role').optional().isIn(['user', 'merchant', 'admin']).withMessage('Invalid role specified'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, email, businessName, logo, profilePicture, preferences } = req.body;
-    const updateData = { name, email, businessName, logo, profilePicture };
-    if (preferences) {
-      updateData.preferences = preferences;
+    const { name, email, businessName, logo, profilePicture, preferences, role } = req.body;
+
+    // Build updateData carefully to avoid unintentionally clearing fields
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (businessName !== undefined) updateData.businessName = businessName;
+    if (logo !== undefined) updateData.logo = logo;
+    if (profilePicture !== undefined) updateData.profilePicture = profilePicture;
+    if (preferences !== undefined) updateData.preferences = preferences;
+
+    // Only allow admin to change role
+    if (role !== undefined && req.user.role === 'admin') {
+      // Prevent admin from accidentally changing their own role to non-admin if they are the sole admin?
+      // For now, allowing it. Could add more checks if needed.
+      // Also ensure the target user is not themselves if they are demoting, unless there are other admins.
+      // This logic can get complex, for now, trusting admin user.
+      updateData.role = role;
+    } else if (role !== undefined && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Forbidden: Only admins can change user roles.' });
+    }
+
+    // Prevent password from being updated here
+    if (req.body.password) {
+      return res.status(400).json({ message: 'Password cannot be updated through this endpoint. Use /change-password instead.' });
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      { $set: updateData }, // Use $set to only update provided fields
       { new: true }
     ).select('-password');
     if (!updatedUser) {

@@ -60,12 +60,20 @@ const userRoutes = require('./routes/userRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');
 const merchantRoutes = require('./routes/merchantRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes');
+const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes');
 
 // Use API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/notifications', notificationRoutes);
+
+// Group admin routes under /api/admin
+const adminRouter = express.Router();
+adminRouter.use('/', adminPromotionRoutes); // Mounted at /api/admin/promotions (due to internal routing)
+adminRouter.use('/', adminDashboardRoutes); // Mounted at /api/admin/dashboard/stats (due to internal routing)
+app.use('/api/admin', adminRouter);
 
 // Serve static files - IMPORTANT: These must come BEFORE the catch-all routes
 app.use('/backend/public/libs', express.static(path.join(__dirname, 'public/libs')));

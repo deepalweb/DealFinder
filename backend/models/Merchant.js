@@ -15,6 +15,13 @@ const merchantSchema = new mongoose.Schema({
     twitter: { type: String },
     tiktok: { type: String }
   },
+  status: {
+    type: String,
+    enum: ['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'],
+    default: 'active' // Default for admin-created merchants
+  },
+  // Field to store who created the merchant, if needed for workflows
+  // createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 });
 
 module.exports = mongoose.model('Merchant', merchantSchema);

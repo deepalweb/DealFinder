@@ -118,6 +118,8 @@ router.post('/', authenticateJWT, [
       }
       return true;
     }),
+  body('status').optional().isIn(['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
+    .withMessage('Invalid status value provided for creation.'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -148,8 +150,14 @@ router.post('/', authenticateJWT, [
     if (!merchant) {
       return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
     }
+
+    let initialStatus = 'pending_approval'; // Default for merchant submissions
+    if (req.user.role === 'admin') {
+      // Admin can specify a status, or it defaults to 'approved' if not 'pending_approval'
+      initialStatus = req.body.status && ['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft'].includes(req.body.status) ? req.body.status : 'approved';
+    }
     
-    const promotion = new Promotion({
+    const promotionData = {
       title,
       description,
       discount,
@@ -160,12 +168,27 @@ router.post('/', authenticateJWT, [
       image,
       url,
       merchant: merchantId,
-      featured: featured === true || featured === 'true', // ensure boolean
+      featured: featured === true || featured === 'true',
       originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
       discountedPrice: discountedPrice ? parseFloat(discountedPrice) : undefined,
-      status: new Date(endDate) > new Date() ? 'active' : 'expired'
-    });
+      status: initialStatus
+    };
+
+    // If status is 'approved', then determine if 'active', 'scheduled', or 'expired' based on dates
+    if (promotionData.status === 'approved') {
+      const now = new Date();
+      const sDate = new Date(startDate);
+      const eDate = new Date(endDate);
+      if (eDate < now) {
+        promotionData.status = 'expired';
+      } else if (sDate > now) {
+        promotionData.status = 'scheduled';
+      } else {
+        promotionData.status = 'active';
+      }
+    }
     
+    const promotion = new Promotion(promotionData);
     const savedPromotion = await promotion.save();
     
     // Add promotion to merchant's promotions array
@@ -203,6 +226,8 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       // For now, assuming if prices are sent, they are sent together or this check is sufficient.
       return true;
     }),
+  body('status').optional().isIn(['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
+    .withMessage('Invalid status value provided for update.'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -247,10 +272,34 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
         }
     }
 
+    // Handle status update by admin
+    if (req.body.status && req.user.role === 'admin') {
+        const allowedAdminStatuses = ['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'];
+        if (allowedAdminStatuses.includes(req.body.status)) {
+            updateData.status = req.body.status;
+
+            // If admin sets to 'approved', re-evaluate active/scheduled/expired based on dates
+            if (updateData.status === 'approved') {
+                const sDate = new Date(updateData.startDate || (await Promotion.findById(req.params.id)).startDate);
+                const eDate = new Date(updateData.endDate || (await Promotion.findById(req.params.id)).endDate);
+                const now = new Date();
+                if (eDate < now) updateData.status = 'expired';
+                else if (sDate > now) updateData.status = 'scheduled';
+                else updateData.status = 'active';
+            }
+        } else {
+            return res.status(400).json({ message: 'Invalid status value for admin update.' });
+        }
+    } else if (req.body.status && req.user.role !== 'admin') {
+        // Merchants cannot directly change status through this general update endpoint after creation.
+        // They might have specific actions like "submit for approval" or "withdraw" later.
+        return res.status(403).json({ message: 'Forbidden: Merchants cannot directly change promotion status.' });
+    }
+
 
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      { $set: updateData }, // Use $set to only update provided fields
       { new: true }
     );
     
