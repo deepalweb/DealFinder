@@ -464,9 +464,25 @@ function MerchantDashboard() {
       alert("Merchant ID not found. Cannot update profile.");
       return;
     }
+
+    const dataToSubmit = { ...profileFormData };
+    if (dataToSubmit.location && Array.isArray(dataToSubmit.location.coordinates)) {
+      const [lon, lat] = dataToSubmit.location.coordinates;
+      if (lon === null && lat === null) {
+        // Both fields cleared, so remove/nullify location
+        dataToSubmit.location = null;
+      } else if (lon === null || lat === null) {
+        // One field filled, the other cleared - invalid state for a Point
+        alert("To save location, both Latitude and Longitude must be provided. To clear location, leave both fields empty.");
+        return; // Stop submission
+      }
+      // If both are numbers, dataToSubmit.location is already structured correctly.
+    }
+
+
     try {
       setLoading(true);
-      const updatedMerchant = await window.API.Merchants.update(user.merchantId, profileFormData);
+      const updatedMerchant = await window.API.Merchants.update(user.merchantId, dataToSubmit);
       setMerchantData(updatedMerchant); // Update local state
 
       // Also update user.businessName in localStorage if it changed
