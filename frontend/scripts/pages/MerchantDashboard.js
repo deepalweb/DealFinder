@@ -422,13 +422,15 @@ function MerchantDashboard() {
       }));
     } else if (name === "latitude" || name === "longitude") {
       const coordIndex = name === "longitude" ? 0 : 1;
-      const newCoordinates = [...prev.location.coordinates];
-      // Allow empty string to clear the field, parse to float if not empty
-      newCoordinates[coordIndex] = value === '' ? null : parseFloat(value);
-      setProfileFormData(prev => ({
-        ...prev,
+      const newCoordinates = [...profileFormData.location.coordinates]; // Use current state, not prev from updater
+      const stringValue = String(value); // Ensure value is a string before parsing
+
+      newCoordinates[coordIndex] = stringValue === '' ? null : parseFloat(stringValue);
+
+      setProfileFormData(currentFormData => ({ // Use functional update form
+        ...currentFormData,
         location: {
-          ...prev.location,
+          ...currentFormData.location,
           coordinates: newCoordinates
         }
       }));
