@@ -64,21 +64,23 @@ router.post('/', authenticateJWT, authorizeAdmin, [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('profile').optional().isString(),
   body('contactInfo').optional().isString(),
-  // userId in body is used by admin to link this new merchant profile to an existing user
-  body('userId').optional().isString(),
+  body('userId').optional().isString(), // For admin to link to existing user
   body('address').optional().isString(),
   body('contactNumber').optional().isString(),
-  body('socialMedia').optional().isObject(), // Accepts facebook, instagram, twitter, tiktok
+  body('socialMedia').optional().isObject(),
+  body('location').optional().isObject().withMessage('Location must be an object'),
+  body('location.type').optional().isIn(['Point']).withMessage('Location type must be "Point"'),
+  body('location.coordinates').optional().isArray({ min: 2, max: 2 }).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
+  body('location.coordinates.*').optional().isNumeric().withMessage('Coordinates must contain numbers')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, userId, address, contactNumber, socialMedia } = req.body;
+    const { name, profile, contactInfo, userId, address, contactNumber, socialMedia, location } = req.body;
     
-    // Create the merchant
-    const merchant = new Merchant({
+    const merchantData = {
       name,
       profile,
       contactInfo,
@@ -86,8 +88,16 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       address,
       contactNumber,
       socialMedia
-    });
+    };
+
+    if (location && location.coordinates && location.coordinates.length === 2) {
+      merchantData.location = {
+        type: 'Point',
+        coordinates: [parseFloat(location.coordinates[0]), parseFloat(location.coordinates[1])]
+      };
+    }
     
+    const merchant = new Merchant(merchantData);
     const savedMerchant = await merchant.save();
     
     // If userId is provided, associate this merchant with a user
@@ -115,13 +125,17 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('socialMedia').optional().isObject(),
   body('status').optional().isIn(['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'])
     .withMessage('Invalid status value'),
+  body('location').optional().isObject().withMessage('Location must be an object'),
+  body('location.type').optional().isIn(['Point']).withMessage('Location type must be "Point"'),
+  body('location.coordinates').optional().isArray({ min: 2, max: 2 }).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
+  body('location.coordinates.*').optional().isNumeric().withMessage('Coordinates must contain numbers')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, logo, address, contactNumber, socialMedia, status } = req.body;
+    const { name, profile, contactInfo, logo, address, contactNumber, socialMedia, status, location } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -131,6 +145,20 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     if (address !== undefined) updateData.address = address;
     if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
     if (socialMedia !== undefined) updateData.socialMedia = socialMedia;
+
+    if (location !== undefined) {
+      if (location === null || (location.coordinates && location.coordinates.length === 0)) {
+        // Allow unsetting location
+        updateData.location = undefined; // Or null, depending on how you want to clear it
+      } else if (location.coordinates && location.coordinates.length === 2 && location.type === 'Point') {
+        updateData.location = {
+          type: 'Point',
+          coordinates: [parseFloat(location.coordinates[0]), parseFloat(location.coordinates[1])]
+        };
+      }
+      // If location is provided but malformed, validation should catch it.
+      // If it's an empty object {} or some other invalid structure, we might choose to ignore it or rely on validation.
+    }
 
     // Only admins can change the status
     if (status !== undefined && req.user.role === 'admin') {

@@ -347,8 +347,16 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
           <p className="promo-merchant flex items-center gap-1">
             <i className="fas fa-store-alt mr-1 text-primary-color"></i>{getMerchantName(promotion.merchant)}
           </p>
-          <div className="expiry-tag flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
-            <i className="far fa-clock"></i> {daysText}
+          <div className="flex items-center space-x-2">
+            {promotion.merchant && typeof promotion.merchant.distance === 'number' && (
+              <div className="distance-tag flex items-center gap-1 bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+                <i className="fas fa-map-marker-alt"></i>
+                {(promotion.merchant.distance / 1000).toFixed(1)} km
+              </div>
+            )}
+            <div className="expiry-tag flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
+              <i className="far fa-clock"></i> {daysText}
+            </div>
           </div>
         </div>
         <h3 className="promo-title flex items-center gap-2 text-lg font-semibold">

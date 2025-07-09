@@ -152,6 +152,21 @@ const PromotionAPI = {
     }
   },
 
+  // Get nearby promotions
+  getNearby: async (latitude, longitude, radius) => {
+    try {
+      let endpoint = `promotions/nearby?latitude=${latitude}&longitude=${longitude}`;
+      if (radius) {
+        endpoint += `&radius=${radius}`;
+      }
+      return await fetchAPI(endpoint);
+    } catch (error) {
+      console.warn(`Failed to fetch nearby promotions for lat: ${latitude}, lon: ${longitude}`);
+      // Decide on fallback behavior, e.g., return empty array or rethrow
+      return []; // Or throw error;
+    }
+  },
+
   // Get all promotions for Admin view (includes filters, all statuses)
   adminGetAll: (filters = {}) => {
     // Construct query string from filters object

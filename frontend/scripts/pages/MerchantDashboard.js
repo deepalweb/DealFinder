@@ -47,6 +47,10 @@ function MerchantDashboard() {
       instagram: '',
       twitter: '',
       tiktok: ''
+    },
+    location: { // For GeoJSON Point
+      type: 'Point',
+      coordinates: [null, null] // [longitude, latitude]
     }
   });
 
@@ -193,6 +197,10 @@ function MerchantDashboard() {
           instagram: merchantData.socialMedia?.instagram || '',
           twitter: merchantData.socialMedia?.twitter || '',
           tiktok: merchantData.socialMedia?.tiktok || ''
+        },
+        location: {
+          type: 'Point',
+          coordinates: merchantData.location?.coordinates || [null, null]
         }
       });
       setLogoPreview(merchantData.logo || null);
@@ -411,6 +419,18 @@ function MerchantDashboard() {
       setProfileFormData(prev => ({
         ...prev,
         socialMedia: { ...prev.socialMedia, [field]: value }
+      }));
+    } else if (name === "latitude" || name === "longitude") {
+      const coordIndex = name === "longitude" ? 0 : 1;
+      const newCoordinates = [...prev.location.coordinates];
+      // Allow empty string to clear the field, parse to float if not empty
+      newCoordinates[coordIndex] = value === '' ? null : parseFloat(value);
+      setProfileFormData(prev => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          coordinates: newCoordinates
+        }
       }));
     } else {
       setProfileFormData(prev => ({ ...prev, [name]: value }));
@@ -773,6 +793,38 @@ function MerchantDashboard() {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-1" htmlFor="profileAddress">Address</label>
                   <input type="text" name="address" id="profileAddress" value={profileFormData.address} onChange={handleProfileInputChange} className="form-input" />
+                </div>
+                {/* Location Coordinates */}
+                <div className="md:col-span-2">
+                  <p className="text-sm text-gray-600 mb-2">
+                    You can find coordinates by right-clicking on a location in Google Maps. Longitude is the first value, Latitude is the second.
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileLongitude">Longitude</label>
+                  <input
+                    type="number"
+                    name="longitude"
+                    id="profileLongitude"
+                    value={profileFormData.location.coordinates[0] === null ? '' : profileFormData.location.coordinates[0]}
+                    onChange={handleProfileInputChange}
+                    className="form-input"
+                    placeholder="e.g. -73.985130"
+                    step="any"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1" htmlFor="profileLatitude">Latitude</label>
+                  <input
+                    type="number"
+                    name="latitude"
+                    id="profileLatitude"
+                    value={profileFormData.location.coordinates[1] === null ? '' : profileFormData.location.coordinates[1]}
+                    onChange={handleProfileInputChange}
+                    className="form-input"
+                    placeholder="e.g. 40.758896"
+                    step="any"
+                  />
                 </div>
                 {/* Logo */}
                 <div className="md:col-span-2">
