@@ -179,10 +179,34 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       return res.status(403).json({ message: 'Forbidden: Only admins can change merchant status.' });
     }
 
+    const updateOperation = {};
+    if (Object.keys(updateData).length > 0) {
+      updateOperation.$set = updateData;
+    }
+
+    if (location === null) { // Frontend explicitly wants to clear location
+      if (!updateOperation.$unset) {
+        updateOperation.$unset = {};
+      }
+      updateOperation.$unset.location = 1; // Value '1' or '' typically used for $unset
+      // Ensure location is not also in $set if it was processed before this check
+      if (updateOperation.$set && updateOperation.$set.hasOwnProperty('location')) {
+        delete updateOperation.$set.location;
+      }
+    }
+
+    // Ensure there's something to update
+    if (Object.keys(updateOperation).length === 0) {
+      // No actual changes, just return the merchant found by ID or error if not found
+      const merchant = await Merchant.findById(req.params.id);
+      if (!merchant) return res.status(404).json({ message: 'Merchant not found (and no update data provided)' });
+      return res.status(200).json(merchant); // Or a 304 Not Modified, but 200 with data is fine
+    }
+
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       req.params.id,
-      { $set: updateData }, // Use $set to only update provided fields
-      { new: true }
+      updateOperation,
+      { new: true, runValidators: true } // Added runValidators
     );
     if (!updatedMerchant) {
       return res.status(404).json({ message: 'Merchant not found' });
