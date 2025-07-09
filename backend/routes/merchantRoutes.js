@@ -146,19 +146,29 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
     if (socialMedia !== undefined) updateData.socialMedia = socialMedia;
 
-    if (location !== undefined) {
-      if (location === null || (location.coordinates && location.coordinates.length === 0)) {
-        // Allow unsetting location
-        updateData.location = undefined; // Or null, depending on how you want to clear it
-      } else if (location.coordinates && location.coordinates.length === 2 && location.type === 'Point') {
-        updateData.location = {
-          type: 'Point',
-          coordinates: [parseFloat(location.coordinates[0]), parseFloat(location.coordinates[1])]
-        };
-      }
-      // If location is provided but malformed, validation should catch it.
-      // If it's an empty object {} or some other invalid structure, we might choose to ignore it or rely on validation.
+    if (location === null) {
+      // Frontend sends null to explicitly clear the location.
+      // $set: { location: null } or $unset: { location: "" } might be needed depending on Mongoose behavior with 'undefined'.
+      // Using 'undefined' with $set should lead to $unset if the schema path isn't explicitly set to allow null.
+      // Let's be explicit with $unset for clarity if location is null.
+      // However, findByIdAndUpdate with { $set: { location: undefined } } usually works as $unset.
+      // For now, setting to undefined is fine, Mongoose should handle it. If not, use $unset.
+      updateData.location = undefined;
+    } else if (location && location.type === 'Point' &&
+               Array.isArray(location.coordinates) && location.coordinates.length === 2 &&
+               typeof location.coordinates[0] === 'number' &&
+               typeof location.coordinates[1] === 'number' &&
+               !isNaN(location.coordinates[0]) && // Ensure they are not NaN
+               !isNaN(location.coordinates[1])) {
+      // Location data is valid and complete
+      updateData.location = {
+        type: 'Point',
+        coordinates: [location.coordinates[0], location.coordinates[1]] // Already numbers
+      };
     }
+    // If 'location' is present in req.body but doesn't match above (e.g., malformed),
+    // the express-validator rules should have caught it and returned a 400.
+    // If 'location' is not in req.body at all (undefined), it means no update to location was intended.
 
     // Only admins can change the status
     if (status !== undefined && req.user.role === 'admin') {
