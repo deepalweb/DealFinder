@@ -61,6 +61,8 @@ const merchants = [
   }
 ];
 
+const bcrypt = require('bcryptjs'); // Ensure bcryptjs is imported
+
 // Function to seed the database
 async function seedDatabase() {
   try {
@@ -79,17 +81,23 @@ async function seedDatabase() {
     // Create users and link merchants
     const createdUsers = [];
     
-    for (const user of users) {
-      if (user.role === 'merchant') {
+    for (const userData of users) { // Renamed to userData
+      // Explicitly hash the password before creating the user
+      if (userData.password) {
+        const salt = await bcrypt.genSalt(10); // Use await for async version
+        userData.password = await bcrypt.hash(userData.password, salt);
+      }
+
+      if (userData.role === 'merchant') {
         // Find the merchant with the matching name
-        const merchant = createdMerchants.find(m => m.name === user.businessName);
+        const merchant = createdMerchants.find(m => m.name === userData.businessName);
         
         if (merchant) {
-          user.merchantId = merchant._id;
+          userData.merchantId = merchant._id;
         }
       }
       
-      const newUser = await User.create(user);
+      const newUser = await User.create(userData); // userData now contains hashed password
       createdUsers.push(newUser);
     }
     
