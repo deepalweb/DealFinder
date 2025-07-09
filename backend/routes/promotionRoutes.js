@@ -45,6 +45,90 @@ router.get('/:id/analytics', authenticateJWT, authorizePromotionOwnerOrAdmin, as
   }
 });
 
+// Get nearby promotions
+router.get('/nearby', async (req, res) => {
+  try {
+    const { latitude, longitude, radius } = req.query;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ message: 'Latitude and longitude are required query parameters.' });
+    }
+
+    const lat = parseFloat(latitude);
+    const lon = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ message: 'Latitude and longitude must be valid numbers.' });
+    }
+
+    // Radius in kilometers, default to 10km. Convert to meters for MongoDB.
+    const searchRadiusKm = parseFloat(radius) || 10;
+    const radiusInMeters = searchRadiusKm * 1000;
+
+    // Use aggregation pipeline with $geoNear to find merchants and their distances
+    const merchantsWithDistance = await Merchant.aggregate([
+      {
+        $geoNear: {
+          near: { type: "Point", coordinates: [lon, lat] },
+          distanceField: "distance", // Output field with distance
+          maxDistance: radiusInMeters,
+          spherical: true // Calculate distances using spherical geometry
+        }
+      },
+      {
+        $project: { // Select only necessary fields from merchant
+          _id: 1,
+          name: 1, // Keep name for potential debugging or if needed by PromotionCard directly
+          location: 1, // Keep location for potential debugging
+          // Add other merchant fields if PromotionCard needs them directly and they aren't populated via Promotion model
+          distance: 1 // Keep the calculated distance
+        }
+      }
+    ]);
+
+    if (!merchantsWithDistance.length) {
+      return res.status(200).json([]); // No merchants found nearby
+    }
+
+    const merchantIds = merchantsWithDistance.map(m => m._id);
+
+    // Find active promotions for these merchants
+    const now = new Date();
+    let promotions = await Promotion.find({
+      merchant: { $in: merchantIds },
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }).populate({
+      path: 'merchant',
+      select: 'name logo location address contactInfo' // Select fields you need for the merchant
+    }).lean(); // Use .lean() for plain JS objects to make it easier to add distance
+
+    // Add distance to each promotion object based on its merchant
+    promotions = promotions.map(promo => {
+      const merchantInfo = merchantsWithDistance.find(m => m._id.equals(promo.merchant._id));
+      if (merchantInfo) {
+        // It's good practice to attach distance to the merchant object within the promotion
+        // Ensure promo.merchant is an object
+        if (typeof promo.merchant === 'object' && promo.merchant !== null) {
+            promo.merchant.distance = merchantInfo.distance; // distance in meters
+        } else {
+            // Handle case where merchant might not be fully populated or is just an ID (shouldn't happen with .populate)
+            // Or create a new merchant object if promo.merchant is just an ID (less ideal here)
+             promo.merchant = { _id: promo.merchant, distance: merchantInfo.distance };
+        }
+      }
+      return promo;
+    });
+
+    res.status(200).json(promotions);
+
+  } catch (error) {
+    console.error('Error fetching nearby promotions:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+
 // Get all promotions
 router.get('/', async (req, res) => {
   try {
