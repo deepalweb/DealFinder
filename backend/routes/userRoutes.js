@@ -6,7 +6,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
-const { authenticateJWT, authorizeAdmin, authorizeSelfOrAdmin } = require('../middleware/auth');
+// Import gentleAuthenticateJWT
+const { authenticateJWT, authorizeAdmin, authorizeSelfOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 
 // In-memory store for refresh tokens
 const refreshTokens = new Set();
