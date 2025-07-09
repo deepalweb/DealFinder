@@ -132,9 +132,11 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.error("Validation errors in PUT /api/merchants/:id :", errors.array());
     return res.status(400).json({ errors: errors.array() });
   }
   try {
+    console.log(`PUT /api/merchants/${req.params.id} - Request Body:`, JSON.stringify(req.body, null, 2));
     const { name, profile, contactInfo, logo, address, contactNumber, socialMedia, status, location } = req.body;
 
     const updateData = {};
@@ -200,19 +202,27 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       // No actual changes, just return the merchant found by ID or error if not found
       const merchant = await Merchant.findById(req.params.id);
       if (!merchant) return res.status(404).json({ message: 'Merchant not found (and no update data provided)' });
+      console.log(`PUT /api/merchants/${req.params.id} - No update operation needed. Returning existing merchant.`);
       return res.status(200).json(merchant); // Or a 304 Not Modified, but 200 with data is fine
     }
+
+    console.log(`PUT /api/merchants/${req.params.id} - Update Operation:`, JSON.stringify(updateOperation, null, 2));
 
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       req.params.id,
       updateOperation,
       { new: true, runValidators: true } // Added runValidators
     );
+
     if (!updatedMerchant) {
+      console.log(`PUT /api/merchants/${req.params.id} - Merchant not found after update attempt.`);
       return res.status(404).json({ message: 'Merchant not found' });
     }
+    console.log(`PUT /api/merchants/${req.params.id} - Update successful.`);
     res.status(200).json(updatedMerchant);
   } catch (error) {
+    console.error(`ERROR in PUT /api/merchants/${req.params.id}:`, error);
+    console.error(`ERROR Stack for PUT /api/merchants/${req.params.id}:`, error.stack);
     res.status(500).json(safeError(error));
   }
 });
