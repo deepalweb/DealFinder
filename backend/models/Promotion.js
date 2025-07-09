@@ -14,11 +14,22 @@ const promotionSchema = new mongoose.Schema({
   featured: { type: Boolean, default: false },
   originalPrice: { type: Number },
   discountedPrice: { type: Number },
-  status: { 
-    type: String, 
-    enum: ['active', 'expired'],
-    default: 'active'
+  status: {
+    type: String,
+    enum: [
+      'pending_approval', // Newly submitted by merchant, awaiting admin review
+      'approved',         // Approved by admin, will become active based on dates
+      'active',           // Approved and currently within startDate and endDate
+      'scheduled',        // Approved but startDate is in the future
+      'expired',          // Approved but endDate has passed
+      'rejected',         // Rejected by admin
+      'admin_paused',     // Paused by admin (overrides date-based active status)
+      'draft'             // Saved by merchant but not yet submitted for approval
+    ],
+    default: 'pending_approval' // Default for new promotions, admin can override
   },
+  // Note: 'active' and 'expired' can still be determined by dates for 'approved' promotions.
+  // The 'status' field gives admins more direct control.
   createdAt: { type: Date, default: Date.now },
   // Add comments and ratings for social features
   comments: [{

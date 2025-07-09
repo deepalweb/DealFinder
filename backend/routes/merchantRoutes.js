@@ -113,16 +113,37 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('address').optional().isString(),
   body('contactNumber').optional().isString(),
   body('socialMedia').optional().isObject(),
+  body('status').optional().isIn(['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'])
+    .withMessage('Invalid status value'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, logo, address, contactNumber, socialMedia } = req.body;
+    const { name, profile, contactInfo, logo, address, contactNumber, socialMedia, status } = req.body;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (profile !== undefined) updateData.profile = profile;
+    if (contactInfo !== undefined) updateData.contactInfo = contactInfo;
+    if (logo !== undefined) updateData.logo = logo;
+    if (address !== undefined) updateData.address = address;
+    if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
+    if (socialMedia !== undefined) updateData.socialMedia = socialMedia;
+
+    // Only admins can change the status
+    if (status !== undefined && req.user.role === 'admin') {
+      updateData.status = status;
+    } else if (status !== undefined && req.user.role !== 'admin') {
+      // Merchants trying to change their own status - forbidden for now
+      // Or, you might allow certain status changes by merchants, e.g., request deactivation
+      return res.status(403).json({ message: 'Forbidden: Only admins can change merchant status.' });
+    }
+
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       req.params.id,
-      { name, profile, contactInfo, logo, address, contactNumber, socialMedia },
+      { $set: updateData }, // Use $set to only update provided fields
       { new: true }
     );
     if (!updatedMerchant) {

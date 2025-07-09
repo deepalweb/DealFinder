@@ -151,6 +151,13 @@ const PromotionAPI = {
       return [];
     }
   },
+
+  // Get all promotions for Admin view (includes filters, all statuses)
+  adminGetAll: (filters = {}) => {
+    // Construct query string from filters object
+    const queryParams = new URLSearchParams(filters).toString();
+    return fetchAPI(`admin/promotions${queryParams ? `?${queryParams}` : ''}`);
+  },
   
   // Create a new promotion
   create: (promotionData) => fetchAPI('promotions', {
@@ -205,6 +212,17 @@ const MerchantAPI = {
   update: (id, merchantData) => fetchAPI(`merchants/${id}`, {
     method: 'PUT',
     body: JSON.stringify(merchantData)
+  }),
+
+  // Create a new merchant (admin only)
+  create: (merchantData) => fetchAPI('merchants', {
+    method: 'POST',
+    body: JSON.stringify(merchantData)
+  }),
+
+  // Delete a merchant (admin only based on backend route protection)
+  delete: (id) => fetchAPI(`merchants/${id}`, {
+    method: 'DELETE'
   })
 };
 
@@ -221,14 +239,28 @@ const UserAPI = {
     method: 'POST',
     body: JSON.stringify(credentials)
   }),
+
+  // Get all users (for admin)
+  getAll: () => fetchAPI('users'),
   
   // Get user profile
   getProfile: (id) => fetchAPI(`users/${id}`),
   
-  // Update user profile
+  // Update user profile (for general users updating their own profile)
   updateProfile: (id, userData) => fetchAPI(`users/${id}`, {
     method: 'PUT',
     body: JSON.stringify(userData)
+  }),
+
+  // Admin update user (can include role changes)
+  adminUpdate: (id, userData) => fetchAPI(`users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(userData) // Backend validates if admin is making the role change
+  }),
+
+  // Delete a user (for admin)
+  delete: (id) => fetchAPI(`users/${id}`, {
+    method: 'DELETE'
   }),
 
   // Change user password
@@ -258,9 +290,20 @@ const UserAPI = {
   })
 };
 
+// Admin specific API functions
+const AdminAPI = {
+  getDashboardStats: () => fetchAPI('admin/dashboard/stats'),
+  // adminGetAllPromotions was already added to PromotionAPI, but could be here too
+  // getAllPromotions: (filters = {}) => {
+  //   const queryParams = new URLSearchParams(filters).toString();
+  //   return fetchAPI(`admin/promotions${queryParams ? `?${queryParams}` : ''}`);
+  // },
+};
+
 // Export all API helpers
 window.API = {
   Promotions: PromotionAPI,
   Merchants: MerchantAPI,
-  Users: UserAPI
+  Users: UserAPI,
+  Admin: AdminAPI, // Add Admin API group
 };
