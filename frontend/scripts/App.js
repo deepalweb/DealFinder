@@ -15,20 +15,37 @@ const AdminPromotionsPage = window.AdminPromotionsPage;
 
 // Helper for admin routes
 const AdminRoute = ({ children }) => {
-  const { isAdmin, loading } = useAuth(); // Assuming a useAuth hook that checks admin role
+  // Directly use window.Auth.isAdmin()
+  // For a more reactive UI, a proper context/hook for auth state would be better,
+  // but this will work for basic role checking on route load.
+  // The concept of 'loading' for auth state is simplified here.
+  // If Auth.isLoggedIn() is false, and we are trying to access admin, it should redirect.
+  // If Auth.isLoggedIn() is true, then Auth.isAdmin() is the deciding factor.
 
-  if (loading) {
-    return React.createElement('div', null, 'Loading...'); // Or some loading spinner
+  const { useState, useEffect } = React;
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    // Check admin status once when component mounts or auth state might change
+    // This simple effect doesn't react to login/logout events automatically
+    // A full solution would involve an event system or context.
+    setIsAdminUser(window.Auth.isAdmin());
+    setAuthChecked(true);
+  }, []); // Re-check if location changes, implying potential state change (though not ideal)
+
+  if (!authChecked) {
+    // Haven't checked auth status yet, can show loading or null
+    return React.createElement('div', null, 'Checking authentication...');
   }
 
-  if (!isAdmin()) {
-    // If not admin, redirect to home or login page
-    // For now, let's assume Navigate is available in this scope
-    // and redirecting to home.
-    // You might want to redirect to a login page or show an unauthorized message.
-    return React.createElement(ReactRouterDOM.Navigate, { to: "/", replace: true });
+  if (!isAdminUser) {
+    // Not an admin, or not logged in as one
+    console.warn("AdminRoute: Access denied. User is not an admin or not logged in appropriately.");
+    return React.createElement(ReactRouterDOM.Navigate, { to: "/login?message=admin_required", replace: true });
   }
 
+  // If admin, render the layout and children
   return React.createElement(AdminLayout, null, children);
 };
 
