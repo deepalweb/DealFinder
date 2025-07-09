@@ -35,7 +35,7 @@ function generateRefreshToken(user) {
 // Middleware to protect routes
 function protectRoute(req, res, next) {
   const openRoutes = [
-    // { path: '/register', method: 'POST' }, // Will be handled by gentleAuthenticateJWT
+    { path: '/register', method: 'POST' }, // Will be handled by gentleAuthenticateJWT
     { path: '/login', method: 'POST' },
     { path: '/refresh-token', method: 'POST' },
     { path: '/reset-password', method: 'POST' },
