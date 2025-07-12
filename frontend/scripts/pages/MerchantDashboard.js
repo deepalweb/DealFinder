@@ -420,23 +420,16 @@ function MerchantDashboard() {
         ...prev,
         socialMedia: { ...prev.socialMedia, [field]: value }
       }));
-    } else if (name === "latitude" || name === "longitude") {
-      const coordIndex = name === "longitude" ? 0 : 1;
-      const newCoordinates = [...profileFormData.location.coordinates]; // Use current state, not prev from updater
-      const stringValue = String(value); // Ensure value is a string before parsing
-
-      newCoordinates[coordIndex] = stringValue === '' ? null : parseFloat(stringValue);
-
-      setProfileFormData(currentFormData => ({ // Use functional update form
-        ...currentFormData,
-        location: {
-          ...currentFormData.location,
-          coordinates: newCoordinates
-        }
-      }));
     } else {
       setProfileFormData(prev => ({ ...prev, [name]: value }));
     }
+  };
+
+  const handleLocationChange = (newLocation) => {
+    setProfileFormData(prev => ({
+      ...prev,
+      location: newLocation
+    }));
   };
 
   const handleLogoFileChange = async (e) => {
@@ -468,17 +461,14 @@ function MerchantDashboard() {
     const dataToSubmit = { ...profileFormData };
     if (dataToSubmit.location && Array.isArray(dataToSubmit.location.coordinates)) {
       const [lon, lat] = dataToSubmit.location.coordinates;
-      if (lon === null && lat === null) {
-        // Both fields cleared, so remove/nullify location
-        dataToSubmit.location = null;
-      } else if (lon === null || lat === null) {
+      if ((lon === null || lat === null) && !(lon === null && lat === null)) {
         // One field filled, the other cleared - invalid state for a Point
-        alert("To save location, both Latitude and Longitude must be provided. To clear location, leave both fields empty.");
+        alert("A location must have both Latitude and Longitude.");
         return; // Stop submission
       }
-      // If both are numbers, dataToSubmit.location is already structured correctly.
+      // If both are null, we can let it be sent as null to unset it.
+      // If both are numbers, it's a valid update.
     }
-
 
     try {
       setLoading(true);
@@ -812,38 +802,13 @@ function MerchantDashboard() {
                   <label className="block text-sm font-medium mb-1" htmlFor="profileAddress">Address</label>
                   <input type="text" name="address" id="profileAddress" value={profileFormData.address} onChange={handleProfileInputChange} className="form-input" />
                 </div>
-                {/* Location Coordinates */}
-                <div className="md:col-span-2">
-                  <p className="text-sm text-gray-600 mb-2">
-                    You can find coordinates by right-clicking on a location in Google Maps. Longitude is the first value, Latitude is the second.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileLongitude">Longitude</label>
-                  <input
-                    type="number"
-                    name="longitude"
-                    id="profileLongitude"
-                    value={profileFormData.location.coordinates[0] === null ? '' : profileFormData.location.coordinates[0]}
-                    onChange={handleProfileInputChange}
-                    className="form-input"
-                    placeholder="e.g. -73.985130"
-                    step="any"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileLatitude">Latitude</label>
-                  <input
-                    type="number"
-                    name="latitude"
-                    id="profileLatitude"
-                    value={profileFormData.location.coordinates[1] === null ? '' : profileFormData.location.coordinates[1]}
-                    onChange={handleProfileInputChange}
-                    className="form-input"
-                    placeholder="e.g. 40.758896"
-                    step="any"
-                  />
-                </div>
+
+                {/* Location Picker */}
+                <LocationPicker
+                  location={profileFormData.location}
+                  onLocationChange={handleLocationChange}
+                />
+
                 {/* Logo */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-1">Logo</label>
