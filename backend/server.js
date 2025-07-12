@@ -60,12 +60,14 @@ const userRoutes = require('./routes/userRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');
 const merchantRoutes = require('./routes/merchantRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const googleMapsRoutes = require('./routes/googleMapsRoutes'); // Import the new routes
 const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes');
 const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes');
 
 // Use API Routes
 app.use('/api/users', userRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/maps', googleMapsRoutes); // Use the new maps routes
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/notifications', notificationRoutes);
 
