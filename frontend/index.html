@@ -12,6 +12,17 @@
 	
 		<!-- Google Maps API -->
 		<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8G22_65M5eM6l0oOHDstdzDZYu6rkmJQ&libraries=places&callback=initMap" async defer></script>
+		<script>
+			// Define a simple initMap function on the window object.
+			// This function must be in the global scope and defined before the API script is loaded if using a callback.
+			function initMap() {
+				// Google Maps script has loaded.
+				// We can set a flag here if we need to wait for it before rendering the app.
+				window.googleMapsScriptLoaded = true;
+				// If there's a component waiting for this, we could trigger an event
+				// window.dispatchEvent(new Event('google-maps-loaded'));
+			}
+		</script>
 
 		<!-- Google Analytics -->
 		<script async src="https://www.googletagmanager.com/gtag/js?id=G-BS71Z957BR"></script>
@@ -90,16 +101,5 @@
 		<script type="text/babel" src="/scripts/pages/admin/AdminPromotionsPage.js"></script>
 
 		<script type="text/babel" src="/scripts/App.js"></script>
-		<script>
-			// Define a simple initMap function on the window object.
-			// This function can be empty. The script tag needs a callback, but React will handle map initialization.
-			function initMap() {
-				// Google Maps script has loaded.
-				// We can set a flag here if we need to wait for it before rendering the app.
-				window.googleMapsScriptLoaded = true;
-				// If there's a component waiting for this, we could trigger an event
-				// window.dispatchEvent(new Event('google-maps-loaded'));
-			}
-		</script>
 	</body>
 </html>
