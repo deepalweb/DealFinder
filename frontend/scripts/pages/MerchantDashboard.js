@@ -459,15 +459,15 @@ function MerchantDashboard() {
     }
 
     const dataToSubmit = { ...profileFormData };
+    // Process location data before submission
     if (dataToSubmit.location && Array.isArray(dataToSubmit.location.coordinates)) {
       const [lon, lat] = dataToSubmit.location.coordinates;
-      if ((lon === null || lat === null) && !(lon === null && lat === null)) {
-        // One field filled, the other cleared - invalid state for a Point
-        alert("A location must have both Latitude and Longitude.");
-        return; // Stop submission
+      if (lon === null || lat === null) {
+        // If either coordinate is null, treat it as "no location" to avoid validation errors.
+        // The backend will not receive a 'location' field and will not attempt to update it.
+        delete dataToSubmit.location;
       }
-      // If both are null, we can let it be sent as null to unset it.
-      // If both are numbers, it's a valid update.
+      // If both are valid numbers, the location object will be sent as is, which is correct.
     }
 
     try {
