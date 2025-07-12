@@ -1,95 +1,57 @@
 function LocationPicker({ location, onLocationChange }) {
   const { useState, useEffect, useRef } = React;
 
-  // Refs for the map and search input elements
+  // Refs for the map and its core components
   const mapRef = useRef(null);
-  const searchInputRef = useRef(null);
-
-  // Refs for Google Maps objects to avoid re-creation on re-renders
   const googleMap = useRef(null);
   const marker = useRef(null);
-  const autocomplete = useRef(null);
+
+  // State for the search input and autocomplete predictions
+  const [inputValue, setInputValue] = useState("");
+  const [predictions, setPredictions] = useState([]);
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
 
   // Default location (e.g., center of a country or a major city) if no location is set
   const defaultCenter = { lat: 40.7128, lng: -74.0060 }; // New York City
 
-  const [currentLocation, setCurrentLocation] = useState(
+  // The component's internal state for the current location on the map
+  const [currentMapCenter, setCurrentMapCenter] = useState(
     location && location.coordinates && location.coordinates[1] != null && location.coordinates[0] != null
       ? { lat: location.coordinates[1], lng: location.coordinates[0] }
       : defaultCenter
   );
 
+  // --- Map Initialization and Marker Logic ---
   useEffect(() => {
-    // Function to initialize the map
     const initMap = () => {
-      // Check if the google object is available
       if (!window.google || !window.google.maps) {
         console.error("Google Maps script not loaded yet.");
-        // Optionally, wait for the script to load. This assumes the callback `initMap` in index.html works.
-        // A more robust solution might use a listener for a custom event fired by the global initMap.
         return;
       }
 
-      // Create the map instance
       googleMap.current = new window.google.maps.Map(mapRef.current, {
-        center: currentLocation,
-        zoom: location ? 15 : 8,
+        center: currentMapCenter,
+        zoom: location && location.coordinates[0] != null ? 15 : 8,
         mapTypeControl: false,
         streetViewControl: false,
       });
 
-      // Create the marker
       marker.current = new window.google.maps.Marker({
-        position: currentLocation,
+        position: currentMapCenter,
         map: googleMap.current,
         draggable: true,
         title: "Drag me to set the location!",
       });
 
-      // Add listener for marker drag end
       marker.current.addListener('dragend', () => {
         const newPos = marker.current.getPosition();
-        const newLocation = { lat: newPos.lat(), lng: newPos.lng() };
-        setCurrentLocation(newLocation);
-        onLocationChange({
-          type: 'Point',
-          coordinates: [newPos.lng(), newPos.lat()], // [longitude, latitude]
-        });
-      });
-
-      // Initialize the Places Autocomplete search box
-      autocomplete.current = new window.google.maps.places.Autocomplete(
-        searchInputRef.current,
-        {
-          types: ['address'], // You can restrict to 'address', 'establishment', etc.
-          fields: ['geometry.location', 'name', 'formatted_address'],
-        }
-      );
-
-      // Add listener for when the user selects a place from the dropdown
-      autocomplete.current.addListener('place_changed', () => {
-        const place = autocomplete.current.getPlace();
-        if (place.geometry && place.geometry.location) {
-          const newPos = place.geometry.location;
-          googleMap.current.setCenter(newPos);
-          googleMap.current.setZoom(17);
-          marker.current.setPosition(newPos);
-
-          const newLocation = { lat: newPos.lat(), lng: newPos.lng() };
-          setCurrentLocation(newLocation);
-          onLocationChange({
-            type: 'Point',
-            coordinates: [newPos.lng(), newPos.lat()],
-          });
-        }
+        updateLocation({ lat: newPos.lat(), lng: newPos.lng() });
       });
     };
 
-    // Check if the Google script has loaded, if not, wait.
     if (window.googleMapsScriptLoaded) {
       initMap();
     } else {
-      // Fallback if component loads before script. A listener would be better.
       const interval = setInterval(() => {
         if (window.googleMapsScriptLoaded) {
           initMap();
@@ -97,38 +59,104 @@ function LocationPicker({ location, onLocationChange }) {
         }
       }, 100);
     }
+  }, []); // Run only on mount
 
-  }, []); // Run this effect only once on mount
-
-  // Effect to update marker position if the location prop changes from outside
+  // --- Autocomplete Search Logic ---
   useEffect(() => {
-    const newLocation = location && location.coordinates && location.coordinates[1] != null && location.coordinates[0] != null
-      ? { lat: location.coordinates[1], lng: location.coordinates[0] }
-      : null;
+    // Debounce the API call
+    const handler = setTimeout(() => {
+      if (inputValue && isDropdownVisible) {
+        window.API.Maps.getAutocomplete(inputValue)
+          .then(data => {
+            if (data && data.predictions) {
+              setPredictions(data.predictions);
+            }
+          })
+          .catch(error => console.error("Autocomplete fetch error:", error));
+      } else {
+        setPredictions([]);
+      }
+    }, 300); // 300ms debounce delay
 
-    if (newLocation && googleMap.current && marker.current) {
-        if (newLocation.lat !== currentLocation.lat || newLocation.lng !== currentLocation.lng) {
-            setCurrentLocation(newLocation);
-            googleMap.current.setCenter(newLocation);
-            marker.current.setPosition(newLocation);
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [inputValue, isDropdownVisible]);
+
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+    setIsDropdownVisible(true);
+  };
+
+  const handlePredictionClick = (placeId) => {
+    setInputValue(""); // Clear input after selection
+    setPredictions([]);
+    setIsDropdownVisible(false);
+
+    window.API.Maps.getPlaceDetails(placeId)
+      .then(data => {
+        if (data && data.result && data.result.geometry) {
+          const newPos = data.result.geometry.location;
+          updateLocation({ lat: newPos.lat, lng: newPos.lng() }, true);
         }
-    }
-  }, [location]);
+      })
+      .catch(error => console.error("Place Details fetch error:", error));
+  };
 
+  // --- Helper function to update location state and map ---
+  const updateLocation = (newPos, shouldZoom = true) => {
+    setCurrentMapCenter(newPos);
+
+    if (googleMap.current && marker.current) {
+        googleMap.current.setCenter(newPos);
+        if (shouldZoom) {
+            googleMap.current.setZoom(17);
+        }
+        marker.current.setPosition(newPos);
+    }
+
+    // Call the parent component's callback
+    onLocationChange({
+      type: 'Point',
+      coordinates: [newPos.lng, newPos.lat], // [longitude, latitude]
+    });
+  };
 
   return (
     <div className="location-picker-container md:col-span-2">
       <label className="block text-sm font-medium mb-1">Store Location</label>
       <p className="text-xs text-gray-500 mb-2">Search for an address or drag the pin to set the exact location.</p>
-      <input
-        ref={searchInputRef}
-        type="text"
-        placeholder="Search for an address..."
-        className="form-input mb-2"
-      />
+
+      <div className="relative">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onFocus={() => setIsDropdownVisible(true)}
+          onBlur={() => setTimeout(() => setIsDropdownVisible(false), 200)} // Delay to allow click on dropdown
+          placeholder="Search for an address..."
+          className="form-input"
+          autoComplete="off"
+        />
+        {isDropdownVisible && predictions.length > 0 && (
+          <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
+            {predictions.map(p => (
+              <div
+                key={p.place_id}
+                className="px-4 py-2 cursor-pointer hover:bg-gray-100"
+                onClick={() => handlePredictionClick(p.place_id)}
+              >
+                <p className="text-sm font-medium">{p.structured_formatting.main_text}</p>
+                <p className="text-xs text-gray-500">{p.structured_formatting.secondary_text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div
         ref={mapRef}
-        style={{ height: '300px', width: '100%', borderRadius: '8px' }}
+        style={{ height: '300px', width: '100%', borderRadius: '8px', marginTop: '8px' }}
         className="bg-gray-200"
       >
         {/* The map will be rendered here */}

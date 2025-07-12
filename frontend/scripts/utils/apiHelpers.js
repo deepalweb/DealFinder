@@ -315,10 +315,23 @@ const AdminAPI = {
   // },
 };
 
+// Google Maps API proxy functions
+const MapsAPI = {
+  getAutocomplete: (input) => {
+    if (!input) return Promise.resolve({ predictions: [] });
+    return fetchAPI(`maps/autocomplete?input=${encodeURIComponent(input)}`);
+  },
+  getPlaceDetails: (placeId) => {
+    if (!placeId) return Promise.reject(new Error("placeId is required"));
+    return fetchAPI(`maps/place-details?place_id=${placeId}`);
+  }
+};
+
 // Export all API helpers
 window.API = {
   Promotions: PromotionAPI,
   Merchants: MerchantAPI,
   Users: UserAPI,
   Admin: AdminAPI, // Add Admin API group
+  Maps: MapsAPI, // Add Maps API group
 };
