@@ -10,20 +10,6 @@
 		<link rel="stylesheet" href="/styles/components.css">
 	<meta name="description" content="Explore the latest discounts and promotions on your favorite products and services. Save big with our curated deals."><meta property="og:title" content="Find Amazing Discounts and Promotions Today!"><meta property="og:description" content="Access exclusive discounts and promotions online. Save money on top brands and services with our easy-to-use platform."><meta name="twitter:title" content="💸 Exclusive Discounts Await!"><meta name="twitter:description" content="Save big with our curated promotions. No sign-up required, mobile-friendly deals!">
 	
-		<!-- Google Maps API -->
-		<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD8G22_65M5eM6l0oOHDstdzDZYu6rkmJQ&libraries=places&callback=initMap" async defer></script>
-		<script>
-			// Define a simple initMap function on the window object.
-			// This function must be in the global scope and defined before the API script is loaded if using a callback.
-			function initMap() {
-				// Google Maps script has loaded.
-				// We can set a flag here if we need to wait for it before rendering the app.
-				window.googleMapsScriptLoaded = true;
-				// If there's a component waiting for this, we could trigger an event
-				// window.dispatchEvent(new Event('google-maps-loaded'));
-			}
-		</script>
-
 		<!-- Google Analytics -->
 		<script async src="https://www.googletagmanager.com/gtag/js?id=G-BS71Z957BR"></script>
 		<script>
@@ -59,6 +45,7 @@
 		
 		<!-- API and Utility Scripts -->
 		<script type="text/babel" src="/scripts/utils/apiHelpers.js"></script>
+		<script type="text/babel" src="/scripts/utils/mapsLoader.js"></script>
 		<script type="text/babel" src="/scripts/utils/validateHelpers.js"></script>
 		<script type="text/babel" src="/scripts/utils/helpers.js"></script>
 		<script type="text/babel" src="/scripts/utils/authHelpers.js"></script>

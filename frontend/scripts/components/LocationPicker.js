@@ -23,42 +23,44 @@ function LocationPicker({ location, onLocationChange }) {
 
   // --- Map Initialization and Marker Logic ---
   useEffect(() => {
-    const initMap = () => {
-      if (!window.google || !window.google.maps) {
-        console.error("Google Maps script not loaded yet.");
-        return;
-      }
+    window.loadGoogleMaps()
+      .then(google => {
+        // --- Map Initialization ---
+        googleMap.current = new google.maps.Map(mapRef.current, {
+          center: currentMapCenter,
+          zoom: location && location.coordinates[0] != null ? 15 : 8,
+          mapTypeControl: false,
+          streetViewControl: false,
+        });
 
-      googleMap.current = new window.google.maps.Map(mapRef.current, {
-        center: currentMapCenter,
-        zoom: location && location.coordinates[0] != null ? 15 : 8,
-        mapTypeControl: false,
-        streetViewControl: false,
+        // --- Marker Initialization ---
+        marker.current = new google.maps.Marker({
+          position: currentMapCenter,
+          map: googleMap.current,
+          draggable: true,
+          title: "Drag me to set the location!",
+        });
+
+        // --- Event Listeners ---
+        marker.current.addListener('dragend', () => {
+          const newPos = marker.current.getPosition();
+          // When dragging, also update the address input if possible
+          const geocoder = new google.maps.Geocoder();
+          geocoder.geocode({ location: newPos }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+              setInputValue(results[0].formatted_address);
+            } else {
+              setInputValue(""); // Clear if reverse geocode fails
+            }
+          });
+          updateLocation({ lat: newPos.lat(), lng: newPos.lng() });
+        });
+      })
+      .catch(error => {
+        console.error("Could not load Google Maps.", error);
+        // Optionally, display an error message in the UI
+        mapRef.current.innerHTML = '<p class="text-red-500 text-center">Could not load map.</p>';
       });
-
-      marker.current = new window.google.maps.Marker({
-        position: currentMapCenter,
-        map: googleMap.current,
-        draggable: true,
-        title: "Drag me to set the location!",
-      });
-
-      marker.current.addListener('dragend', () => {
-        const newPos = marker.current.getPosition();
-        updateLocation({ lat: newPos.lat(), lng: newPos.lng() });
-      });
-    };
-
-    if (window.googleMapsScriptLoaded) {
-      initMap();
-    } else {
-      const interval = setInterval(() => {
-        if (window.googleMapsScriptLoaded) {
-          initMap();
-          clearInterval(interval);
-        }
-      }, 100);
-    }
   }, []); // Run only on mount
 
   // --- Autocomplete Search Logic ---
