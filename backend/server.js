@@ -1,5 +1,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+
+fs.readdir(__dirname + '/node_modules', (err, files) => {
+  if (err) {
+    console.error('Error reading node_modules directory:', err);
+  } else {
+    console.log('node_modules directory contents:', files);
+  }
+});
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') }); // Ensure dotenv is loading the .env file from the correct path

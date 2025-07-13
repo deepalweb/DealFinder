@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const fetch = require('node-fetch'); // Use node-fetch for making requests from the backend
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 // IMPORTANT: For production, use an environment variable.
 // The key is temporarily hardcoded here for development and debugging.
