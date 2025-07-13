@@ -58,4 +58,12 @@ router.get('/place-details', async (req, res) => {
   }
 });
 
+// Endpoint to provide the API key to the frontend
+router.get('/get-key', (req, res) => {
+  if (!API_KEY) {
+    return res.status(500).json({ message: "Google Maps API key is not configured on the server." });
+  }
+  res.json({ apiKey: API_KEY });
+});
+
 module.exports = router;

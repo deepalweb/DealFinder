@@ -324,7 +324,8 @@ const MapsAPI = {
   getPlaceDetails: (placeId) => {
     if (!placeId) return Promise.reject(new Error("placeId is required"));
     return fetchAPI(`maps/place-details?place_id=${placeId}`);
-  }
+  },
+  getKey: () => fetchAPI('maps/get-key')
 };
 
 // Export all API helpers
