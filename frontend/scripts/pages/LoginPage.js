@@ -108,25 +108,33 @@ function LoginPage() {
     }
   };
 
+  const [googleClientId, setGoogleClientId] = useState(null);
+
   React.useEffect(() => {
     const fetchConfig = async () => {
       try {
         const response = await fetch('/api/config');
         const config = await response.json();
-        google.accounts.id.initialize({
-          client_id: config.GOOGLE_CLIENT_ID,
-          callback: handleGoogleSignIn
-        });
-        google.accounts.id.renderButton(
-          document.getElementById("google-signin-button"),
-          { theme: "outline", size: "large" }
-        );
+        setGoogleClientId(config.GOOGLE_CLIENT_ID);
       } catch (error) {
         console.error('Error fetching config:', error);
       }
     };
     fetchConfig();
   }, []);
+
+  React.useEffect(() => {
+    if (googleClientId) {
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleSignIn
+      });
+      google.accounts.id.renderButton(
+        document.getElementById("google-signin-button"),
+        { theme: "outline", size: "large" }
+      );
+    }
+  }, [googleClientId]);
 
   return (
     <div className="page-container">
