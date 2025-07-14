@@ -13,6 +13,7 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') }); // Ensure dotenv is loading the .env file from the correct path
 const mongoose = require('mongoose');
+const webpush = require('web-push');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -72,6 +73,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const googleMapsRoutes = require('./routes/googleMapsRoutes'); // Import the new routes
 const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes');
 const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes');
+const pushRoutes = require('./routes/pushRoutes');
 
 // Use API Routes
 app.use('/api/users', userRoutes);
@@ -79,6 +81,7 @@ app.use('/api/promotions', promotionRoutes);
 app.use('/api/maps', googleMapsRoutes); // Use the new maps routes
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/push', pushRoutes);
 
 // Group admin routes under /api/admin
 const adminRouter = express.Router();
@@ -145,5 +148,20 @@ if (!process.env.JWT_REFRESH_SECRET) {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// Setup web-push
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
+
+if (vapidPublicKey && vapidPrivateKey) {
+    webpush.setVapidDetails(
+        'mailto:your-email@example.com',
+        vapidPublicKey,
+        vapidPrivateKey
+    );
+    console.log('Web Push VAPID details set.');
+} else {
+    console.warn('VAPID keys not found. Push notifications will not work.');
+}
 
 module.exports = mongoose;

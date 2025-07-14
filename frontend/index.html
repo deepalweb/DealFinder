@@ -88,5 +88,85 @@
 		<script type="text/babel" src="/scripts/pages/admin/AdminPromotionsPage.js"></script>
 
 		<script type="text/babel" src="/scripts/App.js"></script>
+
+		<!-- Firebase -->
+		<script type="module">
+			// Import the functions you need from the SDKs you need
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+			import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging.js";
+
+			// Your web app's Firebase configuration
+			const firebaseConfig = {
+				apiKey: "AIzaSyCIRMRjpSOtT8DzYW6EKmsdo4f2x14RR0k",
+				authDomain: "dealfinder-d1a11.firebaseapp.com",
+				projectId: "dealfinder-d1a11",
+				storageBucket: "dealfinder-d1a11.firebasestorage.app",
+				messagingSenderId: "735960530246",
+				appId: "1:735960530246:web:443fde3bf85c0789ff3947",
+				measurementId: "G-705W72GCRR"
+			};
+
+			// Initialize Firebase
+			const app = initializeApp(firebaseConfig);
+			const messaging = getMessaging(app);
+
+			// Get registration token. Initially this asks the user for permission to receive push notifications.
+			function requestPermission() {
+				console.log('Requesting permission...');
+				Notification.requestPermission().then((permission) => {
+					if (permission === 'granted') {
+						console.log('Notification permission granted.');
+						// Get the token
+						getToken(messaging, { vapidKey: 'BKttZ8Pqu2kvsWsPj8zpSWcleni4b8mmEFUQl2cH9I7AtJh6fwoDwcGaU9Foc0W1p-fAICPUA7dJoDopPbgN3gQ' }).then((currentToken) => {
+							if (currentToken) {
+								// Send the token to your server and update the UI if necessary
+								console.log('FCM Token:', currentToken);
+								const user = JSON.parse(localStorage.getItem('dealFinderUser'));
+								if (user) {
+                                    navigator.serviceWorker.ready.then(function(registration) {
+                                        registration.pushManager.subscribe({
+                                            userVisibleOnly: true,
+                                            applicationServerKey: 'BKttZ8Pqu2kvsWsPj8zpSWcleni4b8mmEFUQl2cH9I7AtJh6fwoDwcGaU9Foc0W1p-fAICPUA7dJoDopPbgN3gQ'
+                                        }).then(function(subscription) {
+                                            fetch('/api/push/subscribe', {
+                                                method: 'POST',
+                                                body: JSON.stringify({ subscription: subscription, userId: user.id }),
+                                                headers: {
+                                                    'Content-Type': 'application/json'
+                                                }
+                                            });
+                                        });
+                                    });
+								}
+							} else {
+								// Show permission request UI
+								console.log('No registration token available. Request permission to generate one.');
+							}
+						}).catch((err) => {
+							console.log('An error occurred while retrieving token. ', err);
+						});
+					} else {
+						console.log('Unable to get permission to notify.');
+					}
+				});
+			}
+
+			// Handle incoming messages. Called when a message is received while the app has focus.
+			onMessage(messaging, (payload) => {
+				console.log('Message received. ', payload);
+				// Customize notification here
+				const notificationTitle = payload.notification.title;
+				const notificationOptions = {
+					body: payload.notification.body,
+					icon: '/firebase-logo.png'
+				};
+
+				new Notification(notificationTitle, notificationOptions);
+			});
+
+			// Expose the requestPermission function to the global scope so it can be called from other scripts
+			window.requestPermission = requestPermission;
+
+		</script>
 	</body>
 </html>

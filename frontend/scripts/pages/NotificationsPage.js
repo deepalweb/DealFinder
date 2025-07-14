@@ -171,6 +171,7 @@ function NotificationSettingsForm({ user, onSave }) {
 
   const [preferences, setPreferences] = useState({
     email: true,
+    push: false,
     expiringDeals: true,
     favoriteStores: true,
     recommendations: true
@@ -213,6 +214,23 @@ function NotificationSettingsForm({ user, onSave }) {
             <label htmlFor="email" className="font-medium text-gray-700" data-id="7ed80kgm5" data-path="scripts/pages/NotificationsPage.js">Email Notifications</label>
             <p className="text-gray-500" data-id="amx0180hh" data-path="scripts/pages/NotificationsPage.js">Receive notifications via email</p>
           </div>
+        </div>
+
+        <div className="flex items-start" data-id="o274z0ljg" data-path="scripts/pages/NotificationsPage.js">
+            <div className="flex items-center h-5" data-id="phrthdfsl" data-path="scripts/pages/NotificationsPage.js">
+                <input
+                    id="push"
+                    name="push"
+                    type="checkbox"
+                    checked={preferences.push}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-primary-color focus:ring-primary-color border-gray-300 rounded" data-id="1buaqzen2" data-path="scripts/pages/NotificationsPage.js" />
+
+            </div>
+            <div className="ml-3 text-sm" data-id="ccshy5pj7" data-path="scripts/pages/NotificationsPage.js">
+                <label htmlFor="push" className="font-medium text-gray-700" data-id="7ed80kgm5" data-path="scripts/pages/NotificationsPage.js">Push Notifications</label>
+                <p className="text-gray-500" data-id="amx0180hh" data-path="scripts/pages/NotificationsPage.js">Receive push notifications on your devices</p>
+            </div>
         </div>
         
         <div className="flex items-start" data-id="rku47bw0a" data-path="scripts/pages/NotificationsPage.js">
@@ -275,15 +293,28 @@ function NotificationSettingsForm({ user, onSave }) {
         <button
           type="button"
           className="ml-4 text-sm text-primary-color hover:underline"
-          onClick={() => {
+          onClick={async () => {
             // Generate notifications for testing
-            sendRecommendationNotifications();
-            sendNewMerchantDealNotifications();
+            await sendRecommendationNotifications();
+            await sendNewMerchantDealNotifications();
+            // Also send a direct push notification for testing
+            const user = getCurrentUser();
+            if (user && user.pushSubscription) {
+                await sendPushNotification(user.pushSubscription, "Test Push Notification", "This is a test push notification from DealFinder.");
+            }
             // Force reload to show the new notifications
             window.location.reload();
           }} data-id="pbrvzwxhc" data-path="scripts/pages/NotificationsPage.js">
 
           Test Notifications
+        </button>
+
+        <button
+            type="button"
+            className="ml-4 btn btn-secondary"
+            onClick={window.requestPermission}
+        >
+            Enable Push Notifications
         </button>
       </div>
     </form>);

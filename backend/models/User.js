@@ -20,10 +20,14 @@ const userSchema = new mongoose.Schema({
   preferences: {
     notifications: {
       email: { type: Boolean, default: true },
+      push: { type: Boolean, default: false },
       expiringDeals: { type: Boolean, default: true },
       favoriteStores: { type: Boolean, default: true },
       recommendations: { type: Boolean, default: true },
     }
+  },
+  pushSubscription: {
+    type: Object
   }
 });
 
