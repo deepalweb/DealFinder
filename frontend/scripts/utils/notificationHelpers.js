@@ -1,7 +1,7 @@
 // Notification Helper Functions
 
 // Queue an email notification
-function queueEmailNotification(userEmail, subject, message, templateName = 'default') {
+async function queueEmailNotification(userEmail, subject, message, templateName = 'default') {
   // In a real app, this would send a request to the backend to queue an email
   // For now, we'll simulate by storing in localStorage
 
@@ -19,11 +19,36 @@ function queueEmailNotification(userEmail, subject, message, templateName = 'def
     });
 
     localStorage.setItem('dealFinderNotifications', JSON.stringify(notifications));
+
+    // Also send a push notification
+    const user = getCurrentUser();
+    if (user && user.pushSubscription) {
+      await sendPushNotification(user.pushSubscription, subject, message);
+    }
+
     return true;
   } catch (error) {
     console.error('Error queueing notification:', error);
     return false;
   }
+}
+
+// Send a push notification
+async function sendPushNotification(subscription, title, body) {
+    try {
+        const user = getCurrentUser();
+        if (user) {
+            await fetch('/api/push/notify', {
+                method: 'POST',
+                body: JSON.stringify({ subscription, title, body, userId: user.id }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error sending push notification:', error);
+    }
 }
 
 // Helper to get merchant name from string or object
