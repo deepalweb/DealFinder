@@ -302,6 +302,12 @@ const UserAPI = {
   initializeMerchantProfile: (merchantData) => fetchAPI('users/initialize-merchant-profile', {
     method: 'POST',
     body: JSON.stringify(merchantData)
+  }),
+
+  // Google Sign-In
+  googleSignIn: (data) => fetchAPI('users/google-signin', {
+    method: 'POST',
+    body: JSON.stringify(data)
   })
 };
 

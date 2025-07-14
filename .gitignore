@@ -26,5 +26,5 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
-backend/.env
 /backend/vapid-keys.json
+backend/config.js
