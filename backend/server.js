@@ -56,6 +56,13 @@ app.get('/api/status', (req, res) => {
   res.send('API is running...');
 });
 
+// Config endpoint
+app.get('/api/config', (req, res) => {
+  res.json({
+    GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID
+  });
+});
+
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');

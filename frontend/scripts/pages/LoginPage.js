@@ -109,14 +109,23 @@ function LoginPage() {
   };
 
   React.useEffect(() => {
-    google.accounts.id.initialize({
-      client_id: "485292738463-ogadj8l21hp39ep097l85hdk3gmdvfgh.apps.googleusercontent.com",
-      callback: handleGoogleSignIn
-    });
-    google.accounts.id.renderButton(
-      document.getElementById("google-signin-button"),
-      { theme: "outline", size: "large" }
-    );
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        google.accounts.id.initialize({
+          client_id: config.GOOGLE_CLIENT_ID,
+          callback: handleGoogleSignIn
+        });
+        google.accounts.id.renderButton(
+          document.getElementById("google-signin-button"),
+          { theme: "outline", size: "large" }
+        );
+      } catch (error) {
+        console.error('Error fetching config:', error);
+      }
+    };
+    fetchConfig();
   }, []);
 
   return (
