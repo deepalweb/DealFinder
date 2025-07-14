@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.env') }); // Ensure dotenv is loading the .env file from the correct path
+const config = require('./config');
 const mongoose = require('mongoose');
 const webpush = require('web-push');
 
@@ -141,14 +141,11 @@ app.listen(PORT, () => {
 });
 
 // Setup web-push
-const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
-const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-
-if (vapidPublicKey && vapidPrivateKey) {
+if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails(
         'mailto:your-email@example.com',
-        vapidPublicKey,
-        vapidPrivateKey
+        config.VAPID_PUBLIC_KEY,
+        config.VAPID_PRIVATE_KEY
     );
     console.log('Web Push VAPID details set.');
 } else {

@@ -93,6 +93,32 @@ function LoginPage() {
     }, 100);
   };
 
+  const handleGoogleSignIn = async (response) => {
+    try {
+        const res = await window.API.Users.googleSignIn({ token: response.credential });
+        localStorage.setItem('dealFinderUser', JSON.stringify(res));
+        if (res.role === 'merchant') {
+            navigate('/merchant/dashboard');
+        } else {
+            navigate('/');
+        }
+    } catch (err) {
+        console.error('Google Sign-In error:', err);
+        setError('Google Sign-In failed. Please try again.');
+    }
+  };
+
+  React.useEffect(() => {
+    google.accounts.id.initialize({
+      client_id: "485292738463-ogadj8l21hp39ep097l85hdk3gmdvfgh.apps.googleusercontent.com",
+      callback: handleGoogleSignIn
+    });
+    google.accounts.id.renderButton(
+      document.getElementById("google-signin-button"),
+      { theme: "outline", size: "large" }
+    );
+  }, []);
+
   return (
     <div className="page-container">
       <div className="container py-8">
@@ -146,6 +172,8 @@ function LoginPage() {
               >
                 Login as Demo Merchant
               </button>
+
+              <div id="google-signin-button"></div>
             </div>
           </form>
           

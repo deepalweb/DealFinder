@@ -474,6 +474,46 @@ function safeError(error) {
 //   res.json({ message: 'This is a protected route', user: req.user });
 // });
 
+// Google Sign-In
+const { OAuth2Client } = require('google-auth-library');
+const config = require('../config');
+const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
+
+router.post('/google-signin', async (req, res) => {
+    const { token } = req.body;
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: config.GOOGLE_CLIENT_ID,
+        });
+        const { name, email, picture } = ticket.getPayload();
+
+        let user = await User.findOne({ email });
+        if (!user) {
+            // Create a new user if they don't exist
+            const password = email + config.JWT_SECRET;
+            const hashedPassword = await bcrypt.hash(password, 10);
+            user = new User({
+                name,
+                email,
+                password: hashedPassword,
+                profilePicture: picture,
+            });
+            await user.save();
+        }
+
+        const userResponse = user.toObject();
+        delete userResponse.password;
+        const jwtToken = generateToken(user);
+        const refreshToken = generateRefreshToken(user);
+        refreshTokens.add(refreshToken);
+        res.status(200).json({ ...userResponse, token: jwtToken, refreshToken });
+
+    } catch (error) {
+        res.status(500).json(safeError(error));
+    }
+});
+
 module.exports = router;
 
 // Initialize Merchant Profile for an existing user with role 'merchant' but no merchantId
