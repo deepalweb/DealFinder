@@ -39,7 +39,8 @@ function protectRoute(req, res, next) {
     { path: '/login', method: 'POST' },
     { path: '/refresh-token', method: 'POST' },
     { path: '/reset-password', method: 'POST' },
-    { path: '/reset-password/confirm', method: 'POST' }
+    { path: '/reset-password/confirm', method: 'POST' },
+    { path: '/google-signin', method: 'POST' }
   ];
 
   if (openRoutes.some(r => r.path === req.path && r.method === req.method)) {
