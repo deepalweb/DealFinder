@@ -492,7 +492,7 @@ router.post('/google-signin', async (req, res) => {
         let user = await User.findOne({ email });
         if (!user) {
             // Create a new user if they don't exist
-            const password = email + config.JWT_SECRET;
+            const password = email + process.env.JWT_SECRET;
             const hashedPassword = await bcrypt.hash(password, 10);
             user = new User({
                 name,
