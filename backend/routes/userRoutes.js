@@ -478,9 +478,12 @@ function safeError(error) {
 const { OAuth2Client } = require('google-auth-library');
 const config = require('../config');
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
+
+router.post('/google-signin', gentleAuthenticateJWT, async (req, res) => {
+    const { token } = req.body;
     try {
         const ticket = await client.verifyIdToken({
-            idToken: idToken,
+            idToken: token,
             audience: config.GOOGLE_CLIENT_ID,
         });
         const { name, email, picture } = ticket.getPayload();
@@ -507,6 +510,7 @@ const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
         res.status(200).json({ ...userResponse, token: jwtToken, refreshToken });
 
     } catch (error) {
+        console.error('Google Sign-In Error:', error);
         res.status(500).json(safeError(error));
     }
 });
