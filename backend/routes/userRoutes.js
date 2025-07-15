@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Merchant = require('../models/Merchant');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
@@ -477,7 +477,7 @@ function safeError(error) {
 // Google Sign-In
 const { OAuth2Client } = require('google-auth-library');
 const config = require('../config');
-const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
+const client = new OAuth2Client(config.GOOGLE_CLIENT_ID, config.GOOGLE_CLIENT_SECRET);
 
 router.post('/google-signin', gentleAuthenticateJWT, async (req, res) => {
     const { token } = req.body;
