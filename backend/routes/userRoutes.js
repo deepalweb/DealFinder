@@ -478,12 +478,9 @@ function safeError(error) {
 const { OAuth2Client } = require('google-auth-library');
 const config = require('../config');
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
-
-router.post('/google-signin', gentleAuthenticateJWT, async (req, res) => {
-    const { token } = req.body;
     try {
         const ticket = await client.verifyIdToken({
-            idToken: token,
+            idToken: idToken,
             audience: config.GOOGLE_CLIENT_ID,
         });
         const { name, email, picture } = ticket.getPayload();
