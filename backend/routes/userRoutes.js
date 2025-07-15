@@ -40,7 +40,6 @@ function protectRoute(req, res, next) {
     { path: '/refresh-token', method: 'POST' },
     { path: '/reset-password', method: 'POST' },
     { path: '/reset-password/confirm', method: 'POST' },
-    { path: '/google-signin', method: 'POST' }
   ];
 
   if (openRoutes.some(r => r.path === req.path && r.method === req.method)) {
@@ -479,9 +478,6 @@ function safeError(error) {
 const { OAuth2Client } = require('google-auth-library');
 const config = require('../config');
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
-
-router.post('/google-signin', async (req, res) => {
-    const { idToken } = req.body;
     try {
         const ticket = await client.verifyIdToken({
             idToken: idToken,
