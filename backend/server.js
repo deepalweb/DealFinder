@@ -88,6 +88,7 @@ adminRouter.use('/', adminDashboardRoutes); // Mounted at /api/admin/dashboard/s
 app.use('/api/admin', adminRouter);
 
 // Serve static files - IMPORTANT: These must come BEFORE the catch-all routes
+app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/backend/public/libs', express.static(path.join(__dirname, 'public/libs')));
 app.use('/scripts', express.static(path.join(__dirname, '../frontend/scripts')));
 app.use('/styles', express.static(path.join(__dirname, '../frontend/styles')));
