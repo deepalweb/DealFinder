@@ -1,5 +1,22 @@
 // Notification Helper Functions
 
+// Get user's notification settings from the user object
+function getUserNotificationSettings() {
+  const currentUser = getCurrentUser();
+
+  // If there's a user and they have settings, return them
+  if (currentUser && currentUser.notificationSettings) {
+    return currentUser.notificationSettings;
+  }
+
+  // Default settings if user or settings are not found
+  return {
+    expiringDeals: true,
+    recommendations: true,
+    favoriteStores: true,
+  };
+}
+
 // Queue an email notification
 async function queueEmailNotification(userEmail, subject, message, templateName = 'default') {
   // In a real app, this would send a request to the backend to queue an email
@@ -216,6 +233,17 @@ function sendRecommendationNotifications() {
     return false;
   }
 }
+
+// Export notification functions to window object for global access
+window.Notifications = {
+  queueEmailNotification,
+  sendPushNotification,
+  checkExpiringDeals,
+  generateDealRecommendations,
+  sendRecommendationNotifications,
+  sendNewMerchantDealNotifications,
+  getUserNotificationSettings,
+};
 
 // Send notification about new deals from followed merchants
 function sendNewMerchantDealNotifications() {
