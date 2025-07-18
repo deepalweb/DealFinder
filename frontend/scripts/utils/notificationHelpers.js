@@ -77,7 +77,7 @@ function getMerchantName(merchant) {
 }
 
 // Check for deals about to expire and send notifications
-function checkExpiringDeals() {
+async function checkExpiringDeals() {
   try {
     // Get current user and their saved promotions
     const currentUser = getCurrentUser();
@@ -88,7 +88,7 @@ function checkExpiringDeals() {
     if (!notifSettings?.expiringDeals) return;
 
     // Get user's favorite promotions
-    const favorites = getFavoritePromotions();
+    const favorites = await window.API.Users.getFavorites(currentUser._id);
 
     // Find promotions expiring in the next 2 days
     const twoDaysFromNow = new Date();
@@ -120,7 +120,7 @@ function checkExpiringDeals() {
 }
 
 // Generate personalized deal recommendations
-function generateDealRecommendations() {
+async function generateDealRecommendations() {
   try {
     // Get current user
     const currentUser = getCurrentUser();
@@ -131,7 +131,7 @@ function generateDealRecommendations() {
     if (!notifSettings?.recommendations) return [];
 
     // Get user's favorites to analyze preferences
-    const favorites = getFavoritePromotions();
+    const favorites = await window.API.Users.getFavorites(currentUser._id);
     if (favorites.length === 0) return [];
 
     // Extract categories from favorites
