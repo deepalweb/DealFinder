@@ -26,19 +26,9 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: Copy frontend build to backend public directory
-        run: |
-          rm -rf backend/public
-          mkdir -p backend/public
-          cp -r frontend/build/* backend/public/
-
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: npm install
-
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: frontend/build
