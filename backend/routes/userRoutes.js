@@ -481,10 +481,10 @@ const config = require('../config');
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
 
 router.post('/google-signin', async (req, res) => {
-    const { idToken } = req.body;
+    const { token } = req.body;
     try {
         const ticket = await client.verifyIdToken({
-            idToken: idToken,
+            idToken: token,
             audience: config.GOOGLE_CLIENT_ID,
         });
         const { name, email, picture } = ticket.getPayload();
