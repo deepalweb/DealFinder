@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -98,12 +99,12 @@ app.get('/test-static', (req, res) => {
 });
 
 // Connect to MongoDB with better error handling
-mongoose.connect(process.env.MONGO_URI)
+mongoose.connect(process.env.MONGODB_URI)
 .then(() => console.log('Connected to MongoDB'))
 .catch((err) => {
   console.error('Error connecting to MongoDB:', err);
   // Log more details about the connection attempt
-  console.error('MongoDB URI (masked):', process.env.MONGO_URI ? '***' + process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@')) : 'Not provided');
+  console.error('MongoDB URI (masked):', process.env.MONGODB_URI ? '***' + process.env.MONGODB_URI.substring(process.env.MONGODB_URI.indexOf('@')) : 'Not provided');
   console.error('Environment:', process.env.NODE_ENV);
 });
 
