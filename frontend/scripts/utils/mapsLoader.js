@@ -17,6 +17,13 @@
         return;
       }
 
+      // Define the callback BEFORE fetching the key so it's always available
+      window.initMap = () => {
+        console.log("Google Maps script loaded successfully.");
+        resolve(window.google);
+        delete window.initMap;
+      };
+
       // Fetch the API key from our backend proxy
       window.API.Maps.getKey()
         .then(data => {
@@ -24,15 +31,6 @@
             throw new Error("API key not received from server.");
           }
 
-          // Create a callback function that will be called by the Google Maps script
-          window.initMap = () => {
-            console.log("Google Maps script loaded successfully via dynamic script.");
-            resolve(window.google);
-            // Clean up the global callback function
-            delete window.initMap;
-          };
-
-          // Create the script element
           const script = document.createElement('script');
           script.src = `https://maps.googleapis.com/maps/api/js?key=${data.apiKey}&libraries=places&callback=initMap`;
           script.async = true;
@@ -40,16 +38,15 @@
           script.onerror = (error) => {
             console.error("Failed to load Google Maps script.", error);
             reject(new Error("Failed to load Google Maps script."));
-            // Clean up the failed script and callback
             document.head.removeChild(script);
             delete window.initMap;
           };
 
-          // Append the script to the document head
           document.head.appendChild(script);
         })
         .catch(err => {
           console.error("Failed to fetch Google Maps API key:", err);
+          delete window.initMap;
           reject(err);
         });
     });

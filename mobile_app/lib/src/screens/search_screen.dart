@@ -33,7 +33,7 @@ class _SearchScreenState extends State<SearchScreen> {
             TextField(
               controller: _searchController,
               autofocus: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Enter product, category, or merchant...',
               ),
               onSubmitted: (value) {
@@ -135,13 +135,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               ),
             );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.search_off, size: 48, color: Colors.grey),
-                  const SizedBox(height: 12),
-                  const Text('No results found.', style: TextStyle(color: Colors.grey)),
+                  Icon(Icons.search_off, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text('No results found.', style: TextStyle(color: Colors.grey)),
                 ],
               ),
             );

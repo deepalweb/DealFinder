@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/api_service.dart';
-import 'home_screen.dart'; // For navigation after successful registration
-import 'login_screen.dart'; // For navigation to login
+import '../services/auth_service.dart';
+import 'login_screen.dart';
+import 'main_navigation_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,10 +19,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _businessNameController = TextEditingController();
-  final ApiService _apiService = ApiService();
 
   AccountRole _selectedRole = AccountRole.user;
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirm = true;
   String? _errorMessage;
 
   @override
@@ -37,112 +37,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _register() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      Map<String, dynamic> userData = {
-        'name': _nameController.text,
-        'email': _emailController.text,
-        'password': _passwordController.text,
-        'role': _selectedRole.name, // 'user' or 'merchant'
-      };
-
-      if (_selectedRole == AccountRole.merchant) {
-        userData['businessName'] = _businessNameController.text;
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _isLoading = true; _errorMessage = null; });
+    try {
+      final result = await AuthService.registerWithEmail(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        role: _selectedRole.name,
+        businessName: _selectedRole == AccountRole.merchant
+            ? _businessNameController.text.trim()
+            : null,
+      );
+      final userId = result['id'] as String? ?? result['_id'] as String?;
+      final token = result['token'] as String?;
+      if (mounted && userId != null && token != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registration Successful!'), backgroundColor: Colors.green),
+        );
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => MainNavigationScreen(userId: userId, token: token),
+          ),
+          (route) => false,
+        );
       }
-
-      try {
-        final response = await _apiService.registerUser(userData);
-
-        final String? token = response['token'] as String?;
-        // final Map<String, dynamic>? user = response['user'] as Map<String, dynamic>?; // Or however user data is structured
-
-        if (token != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userToken', token);
-
-          // Store additional user details from the registration response
-          // Assuming the registration response structure is similar to login for these fields
-          await prefs.setString('userName', response['name'] as String? ?? 'N/A');
-          await prefs.setString('userEmail', response['email'] as String? ?? 'N/A');
-          final userRole = response['role'] as String? ?? 'user';
-          await prefs.setString('userRole', userRole);
-          if (userRole == 'merchant' && response['businessName'] != null) {
-            await prefs.setString('userBusinessName', response['businessName'] as String);
-          } else {
-             await prefs.remove('userBusinessName');
-          }
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Registration Successful!'), backgroundColor: Colors.green),
-            );
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-              (Route<dynamic> route) => false, // Remove all previous routes
-            );
-          }
-        } else {
-          throw Exception('Token not found in registration response');
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _errorMessage = e.toString().replaceFirst('Exception: ', '');
-          });
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _errorMessage = _friendlyError(e.toString()); });
       }
+    } finally {
+      if (mounted) setState(() { _isLoading = false; });
     }
+  }
+
+  String _friendlyError(String raw) {
+    final msg = raw.replaceFirst('Exception: ', '');
+    if (msg.contains('email-already-in-use')) return 'An account with this email already exists.';
+    if (msg.contains('weak-password')) return 'Password is too weak. Use at least 8 characters.';
+    if (msg.contains('network-request-failed')) return 'No internet connection.';
+    return msg;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Create Account'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
+            children: [
               const SizedBox(height: 10),
-              Text(
-                'Join DealFinder Today!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              Text('Join DealFinder Today!',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 20),
 
-              // Full Name Field
+              // Full Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Full Name',
                   prefixIcon: Icon(Icons.person_outline),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your full name';
-                  }
-                  return null;
-                },
+                validator: (value) =>
+                    (value == null || value.isEmpty) ? 'Please enter your full name' : null,
               ),
               const SizedBox(height: 16),
 
-              // Email Field
+              // Email
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -151,10 +117,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!RegExp(r"^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value)) {
+                  if (value == null || value.isEmpty) return 'Please enter your email';
+                  if (!RegExp(r'^[\w.+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$').hasMatch(value.trim())) {
                     return 'Please enter a valid email';
                   }
                   return null;
@@ -162,115 +126,98 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Password Field
+              // Password
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
                   labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  // TODO: Add suffix icon for password visibility toggle
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() { _obscurePassword = !_obscurePassword; }),
+                  ),
                 ),
-                obscureText: true,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a password';
-                  }
-                  if (value.length < 8) {
-                    return 'Password must be at least 8 characters';
-                  }
+                  if (value == null || value.isEmpty) return 'Please enter a password';
+                  if (value.length < 8) return 'Password must be at least 8 characters';
                   return null;
                 },
               ),
               const SizedBox(height: 16),
 
-              // Confirm Password Field
+              // Confirm Password
               TextFormField(
                 controller: _confirmPasswordController,
-                decoration: const InputDecoration(
+                obscureText: _obscureConfirm,
+                decoration: InputDecoration(
                   labelText: 'Confirm Password',
-                  prefixIcon: Icon(Icons.lock_reset_outlined),
+                  prefixIcon: const Icon(Icons.lock_reset_outlined),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() { _obscureConfirm = !_obscureConfirm; }),
+                  ),
                 ),
-                obscureText: true,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please confirm your password';
-                  }
-                  if (value != _passwordController.text) {
-                    return 'Passwords do not match';
-                  }
+                  if (value == null || value.isEmpty) return 'Please confirm your password';
+                  if (value != _passwordController.text) return 'Passwords do not match';
                   return null;
                 },
               ),
               const SizedBox(height: 20),
 
-              // Account Type Selection
+              // Account Type
               Text('Account Type', style: Theme.of(context).textTheme.titleMedium),
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<AccountRole>(
-                      title: const Text('User'),
-                      value: AccountRole.user,
-                      groupValue: _selectedRole,
-                      onChanged: (AccountRole? value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedRole = value;
-                          });
-                        }
-                      },
-                    ),
+              Row(children: [
+                Expanded(
+                  child: RadioListTile<AccountRole>(
+                    title: const Text('User'),
+                    value: AccountRole.user,
+                    groupValue: _selectedRole,
+                    onChanged: (v) { if (v != null) setState(() { _selectedRole = v; }); },
                   ),
-                  Expanded(
-                    child: RadioListTile<AccountRole>(
-                      title: const Text('Merchant'),
-                      value: AccountRole.merchant,
-                      groupValue: _selectedRole,
-                      onChanged: (AccountRole? value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedRole = value;
-                          });
-                        }
-                      },
-                    ),
+                ),
+                Expanded(
+                  child: RadioListTile<AccountRole>(
+                    title: const Text('Merchant'),
+                    value: AccountRole.merchant,
+                    groupValue: _selectedRole,
+                    onChanged: (v) { if (v != null) setState(() { _selectedRole = v; }); },
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
+                ),
+              ]),
 
-              // Business Name Field (Conditional)
+              // Business Name (conditional)
               if (_selectedRole == AccountRole.merchant)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
                   child: TextFormField(
                     controller: _businessNameController,
                     decoration: const InputDecoration(
                       labelText: 'Business Name',
                       prefixIcon: Icon(Icons.store_mall_directory_outlined),
                     ),
-                    validator: (value) {
-                      if (_selectedRole == AccountRole.merchant && (value == null || value.isEmpty)) {
-                        return 'Please enter your business name';
-                      }
-                      return null;
-                    },
+                    validator: (value) =>
+                        (_selectedRole == AccountRole.merchant && (value == null || value.isEmpty))
+                            ? 'Please enter your business name'
+                            : null,
                   ),
                 ),
 
-              // Error Message Display
+              const SizedBox(height: 10),
+
+              // Error message
               if (_errorMessage != null)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                  padding: const EdgeInsets.only(bottom: 12.0),
                   child: Text(
                     _errorMessage!,
                     style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ),
-              const SizedBox(height: 10),
 
-              // Register Button
+              // Sign Up Button
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
@@ -279,17 +226,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
               const SizedBox(height: 16),
 
-              // Login Link
+              // Login link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  const Text("Already have an account?"),
+                children: [
+                  const Text('Already have an account?'),
                   TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (context) => const LoginScreen()),
-                      );
-                    },
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    ),
                     child: const Text('Log In'),
                   ),
                 ],

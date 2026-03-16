@@ -19,7 +19,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   bool _isLoading = false;
   String? _error;
   Position? _currentPosition;
-  double _selectedRadius = 10.0;
+  double _selectedRadius = 50.0;
   String _locationStatus = 'Tap "Find Nearby Deals" to discover promotions in your area';
 
   final ApiService _apiService = ApiService();
@@ -77,7 +77,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     }
   }
 
-  Future<void> _fetchNearbyDeals(Position position) async {
+  Future<void> _fetchNearbyDeals(Position position, {double? radius}) async {
+    final searchRadius = radius ?? _selectedRadius;
     try {
       setState(() {
         _locationStatus = 'Finding deals near you...';
@@ -86,14 +87,14 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       final nearbyDeals = await _apiService.fetchNearbyPromotions(
         position.latitude,
         position.longitude,
-        radiusKm: _selectedRadius,
+        radiusKm: searchRadius,
       );
 
       setState(() {
         _nearbyDeals = nearbyDeals;
         _locationStatus = nearbyDeals.isEmpty 
-          ? 'No deals found within ${_selectedRadius.round()}km'
-          : 'Found ${nearbyDeals.length} deals within ${_selectedRadius.round()}km';
+          ? 'No deals found within ${searchRadius.round()}km'
+          : 'Found ${nearbyDeals.length} deals within ${searchRadius.round()}km';
         _isLoading = false;
       });
     } catch (e) {
@@ -110,7 +111,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     });
     
     if (_currentPosition != null) {
-      _fetchNearbyDeals(_currentPosition!);
+      _fetchNearbyDeals(_currentPosition!, radius: newRadius);
     }
   }
 
@@ -191,7 +192,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       child: Slider(
                         value: _selectedRadius,
                         min: 1,
-                        max: 50,
+                        max: 500,
                         divisions: 49,
                         label: '${_selectedRadius.round()} km',
                         onChanged: _changeRadius,

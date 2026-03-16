@@ -75,6 +75,7 @@ function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/reset-password/confirm" element={<ResetPasswordConfirmPage />} />
             <Route path="/deal/:dealId" element={<window.DealPage />} />
+            <Route path="/nearby" element={<window.NearbyDealsPage />} />
 
             {/* Admin Routes */}
             <Route path="/admin/dashboard" element={React.createElement(AdminRoute, null, React.createElement(AdminDashboardPage))} />

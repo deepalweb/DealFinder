@@ -16,7 +16,7 @@ class FavoritesScreen extends StatefulWidget {
 class _FavoritesScreenState extends State<FavoritesScreen> {
   late Future<List<Promotion>> _favoritesFuture;
   String? _error;
-  bool _isLocalFallback = false;
+  final bool _isLocalFallback = false;
 
   @override
   void initState() {

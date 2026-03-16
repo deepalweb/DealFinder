@@ -4,11 +4,9 @@ import 'package:http/http.dart' as http;
 import '../models/promotion.dart';
 
 class ApiService {
-  // Using the production Azure URL as discussed.
-  static const String _baseUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/';
-  // For local development, you might use:
-  // static const String _baseUrl = 'http://10.0.2.2:3001/api/'; // Android emulator
-  // static const String _baseUrl = 'http://localhost:3001/api/'; // iOS simulator/desktop
+  static const String _baseUrl = 'http://192.168.1.163:8080/api/'; // Physical device -> local backend
+  // static const String _baseUrl = 'http://10.0.2.2:8080/api/'; // Android emulator -> local backend
+  // static const String _baseUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/'; // Production
 
   Future<List<Promotion>> fetchPromotions() async {
     final response = await http.get(Uri.parse('${_baseUrl}promotions'));
@@ -81,6 +79,18 @@ class ApiService {
     } else {
       throw Exception('Registration failed. Status code: ${response.statusCode}, Body: ${response.body}');
     }
+  }
+
+  // Fetch stats: deals and merchants count
+  Future<Map<String, int>> fetchStats() async {
+    final results = await Future.wait([
+      fetchPromotions(),
+      fetchMerchants(),
+    ]);
+    return {
+      'deals': (results[0] as List).length,
+      'merchants': (results[1] as List).length,
+    };
   }
 
   // Fetch user's favorite promotions
@@ -207,6 +217,40 @@ class ApiService {
       return data.cast<Map<String, dynamic>>();
     } else {
       throw Exception('Failed to load promotions for merchant');
+    }
+  }
+
+  // Firebase Auth sync — verify Firebase ID token and get backend JWT
+  Future<Map<String, dynamic>> firebaseAuthSync({
+    required String idToken,
+    String? name,
+    String? role,
+    String? businessName,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${_baseUrl}users/firebase-auth'),
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({
+          'idToken': idToken,
+          if (name != null) 'name': name,
+          if (role != null) 'role': role,
+          if (businessName != null) 'businessName': businessName,
+        }),
+      ).timeout(const Duration(seconds: 15));
+      print('firebaseAuthSync status: ${response.statusCode}');
+      print('firebaseAuthSync body: ${response.body}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['message'] ?? 'Authentication failed');
+      }
+    } on TimeoutException {
+      throw Exception('Connection timed out. Is the backend running?');
+    } catch (e) {
+      print('firebaseAuthSync error: $e');
+      rethrow;
     }
   }
 

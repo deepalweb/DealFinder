@@ -62,39 +62,18 @@ function MerchantProfilePage() {
     let parsedUser = userData ? JSON.parse(userData) : null;
 
     if (newFollowStatus) {
-      // Add to following
       if (!followedMerchants.some((m) => m.id === merchant.id)) {
         followedMerchants.push({
           id: merchant.id,
           name: merchant.name,
           logo: merchant.logo,
           category: merchant.category,
-          activeDeals: promotions.filter((p) => {
-            const endDate = new Date(p.endDate);
-            return endDate >= new Date();
-          }).length
+          activeDeals: promotions.filter(p => new Date(p.endDate) >= new Date()).length
         });
       }
-      // Update backend: set merchantId for user
-      if (parsedUser && parsedUser._id) {
-        await window.API.Users.updateProfile(parsedUser._id, { merchantId: merchant.id });
-        // Update local user data
-        parsedUser.merchantId = merchant.id;
-        localStorage.setItem('dealFinderUser', JSON.stringify(parsedUser));
-      }
     } else {
-      // Remove from following
       const index = followedMerchants.findIndex((m) => m.id === merchant.id);
-      if (index !== -1) {
-        followedMerchants.splice(index, 1);
-      }
-      // Update backend: remove merchantId for user
-      if (parsedUser && parsedUser._id) {
-        await window.API.Users.updateProfile(parsedUser._id, { merchantId: null });
-        // Update local user data
-        delete parsedUser.merchantId;
-        localStorage.setItem('dealFinderUser', JSON.stringify(parsedUser));
-      }
+      if (index !== -1) followedMerchants.splice(index, 1);
     }
     localStorage.setItem('dealFinderFollowing', JSON.stringify(followedMerchants));
   };

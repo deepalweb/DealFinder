@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/google_auth_service.dart';
-import 'register_screen.dart'; // Importing RegisterScreen
+import 'register_screen.dart';
 import 'main_navigation_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,8 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final ApiService _apiService = ApiService();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
@@ -27,139 +26,99 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _googleSignIn() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final result = await GoogleAuthService.signInWithGoogle();
-      if (result != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Google Sign-In Successful!'), backgroundColor: Colors.green),
-        );
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => MainNavigationScreen(
-              userId: result['id'] ?? result['_id'],
-              token: result['token'],
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
+  void _navigateToMain(Map<String, dynamic> result) {
+    final userId = result['id'] as String? ?? result['_id'] as String?;
+    final token = result['token'] as String?;
+    if (userId == null || token == null) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => MainNavigationScreen(userId: userId, token: token),
+      ),
+    );
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = null;
-      });
-
-      try {
-        final response = await _apiService.loginUser(
-          _emailController.text,
-          _passwordController.text,
-        );
-
-        // Assuming the token is returned in the response map under the key 'token'
-        // And user details are also in the response map.
-        final String? token = response['token'] as String?;
-        final String? userId = response['id'] as String? ?? response['_id'] as String? ?? response['user']?['id'] as String?;
-
-        if (token != null && userId != null) {
-          // Store the token
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userToken', token);
-          await prefs.setString('userId', userId);
-
-          // Store additional user details
-          await prefs.setString('userName', response['name'] as String? ?? 'N/A');
-          await prefs.setString('userEmail', response['email'] as String? ?? 'N/A');
-          final userRole = response['role'] as String? ?? 'user';
-          await prefs.setString('userRole', userRole);
-          if (userRole == 'merchant' && response['businessName'] != null) {
-            await prefs.setString('userBusinessName', response['businessName'] as String);
-          } else {
-            await prefs.remove('userBusinessName'); // Ensure it's clear if not a merchant or no business name
-          }
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Login Successful!'), backgroundColor: Colors.green),
-            );
-            // Navigate to MainNavigationScreen
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => MainNavigationScreen(
-                  userId: userId,
-                  token: token,
-                ),
-              ),
-            );
-          }
-        } else {
-          throw Exception('Token or user ID not found in response');
-        }
-      } catch (e) {
-        if (mounted) {
-          setState(() {
-            _errorMessage = e.toString().replaceFirst('Exception: ', '');
-          });
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+    if (!_formKey.currentState!.validate()) return;
+    setState(() { _isLoading = true; _errorMessage = null; });
+    try {
+      final result = await AuthService.loginWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      if (mounted) _navigateToMain(result);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = _friendlyError(e.toString());
+        });
       }
+    } finally {
+      if (mounted) setState(() { _isLoading = false; });
     }
+  }
+
+  Future<void> _googleSignIn() async {
+    setState(() { _isLoading = true; _errorMessage = null; });
+    try {
+      final result = await GoogleAuthService.signInWithGoogle();
+      if (result != null && mounted) _navigateToMain(result);
+    } catch (e) {
+      if (mounted) setState(() { _errorMessage = _friendlyError(e.toString()); });
+    } finally {
+      if (mounted) setState(() { _isLoading = false; });
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() { _errorMessage = 'Enter your email above, then tap Forgot Password.'; });
+      return;
+    }
+    try {
+      await AuthService.sendPasswordReset(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password reset email sent. Check your inbox.'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() { _errorMessage = _friendlyError(e.toString()); });
+    }
+  }
+
+  String _friendlyError(String raw) {
+    final msg = raw.replaceFirst('Exception: ', '');
+    if (msg.contains('user-not-found') || msg.contains('wrong-password') || msg.contains('invalid-credential')) {
+      return 'Invalid email or password.';
+    }
+    if (msg.contains('too-many-requests')) return 'Too many attempts. Try again later.';
+    if (msg.contains('network-request-failed')) return 'No internet connection.';
+    return msg;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Login'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
+            children: [
               const SizedBox(height: 20),
-              Text(
-                'Welcome Back!',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              Text('Welcome Back!',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text(
-                'Login to continue your deal hunting.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[700]),
-              ),
+              Text('Login to continue your deal hunting.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[700])),
               const SizedBox(height: 40),
 
-              // Email Field
+              // Email
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(
@@ -169,10 +128,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!RegExp(r"^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value)) {
+                  if (value == null || value.isEmpty) return 'Please enter your email';
+                  if (!RegExp(r'^[\w.+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$').hasMatch(value.trim())) {
                     return 'Please enter a valid email';
                   }
                   return null;
@@ -180,40 +137,46 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Password Field
+              // Password
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
                   labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
-                  // TODO: Add suffix icon for password visibility toggle
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                    onPressed: () => setState(() { _obscurePassword = !_obscurePassword; }),
+                  ),
                 ),
-                obscureText: true,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  // Optional: Add more password validation rules (length, etc.)
+                  if (value == null || value.isEmpty) return 'Please enter your password';
                   return null;
                 },
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
 
-              // Forgot Password Link
+              // Forgot Password
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    // TODO: Navigate to Forgot Password screen
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Forgot Password tapped. (Not implemented yet)')),
-                    );
-                  },
+                  onPressed: _forgotPassword,
                   child: const Text('Forgot Password?'),
                 ),
               ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 8),
+
+              // Error message (above login button)
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
 
               // Login Button
               _isLoading
@@ -228,20 +191,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
               const SizedBox(height: 20),
 
-              // OR Divider
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey[400])),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('OR', style: TextStyle(color: Colors.grey[600])),
-                  ),
-                  Expanded(child: Divider(color: Colors.grey[400])),
-                ],
-              ),
+              // OR divider
+              Row(children: [
+                Expanded(child: Divider(color: Colors.grey[400])),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text('OR', style: TextStyle(color: Colors.grey[600])),
+                ),
+                Expanded(child: Divider(color: Colors.grey[400])),
+              ]),
               const SizedBox(height: 20),
 
-              // Google Sign-In Button
+              // Google Sign-In
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -250,41 +211,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: _isLoading ? null : _googleSignIn,
                 icon: Image.network(
                   'https://developers.google.com/identity/images/g-logo.png',
-                  height: 20,
-                  width: 20,
+                  height: 20, width: 20,
                 ),
                 label: const Text('Continue with Google', style: TextStyle(color: Colors.black87)),
               ),
               const SizedBox(height: 20),
 
-              // Error Message Display
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 20.0),
-                  child: Text(
-                    _errorMessage!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-              // Register Link
+              // Register link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
+                children: [
                   const Text("Don't have an account?"),
                   TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement( // Or push, if you want Login to be easily accessible via back button
-                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                      );
-                    },
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    ),
                     child: const Text('Register here'),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-               // TODO: Add "Login as Demo" button if desired for mobile
             ],
           ),
         ),

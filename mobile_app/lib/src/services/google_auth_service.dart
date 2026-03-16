@@ -1,44 +1,43 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'auth_service.dart';
 
 class GoogleAuthService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    serverClientId: '434034339931-01174qocrg92p7f3dck1e46el25nfc56.apps.googleusercontent.com',
   );
-  
+
   static final ApiService _apiService = ApiService();
 
   static Future<Map<String, dynamic>?> signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+    // 1. Google Sign-In flow
+    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return null;
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
-      // Send Google token to your backend
-      final response = await _apiService.googleSignIn(googleAuth.idToken!);
-      
-      if (response['token'] != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userToken', response['token']);
-        await prefs.setString('userId', response['id'] ?? response['_id']);
-        await prefs.setString('userName', response['name'] ?? googleUser.displayName ?? '');
-        await prefs.setString('userEmail', response['email'] ?? googleUser.email);
-        await prefs.setString('userRole', response['role'] ?? 'user');
-        
-        return response;
-      }
-      
-      return null;
-    } catch (error) {
-      throw Exception('Google Sign-In failed: $error');
-    }
+    final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+    // 2. Sign in to Firebase with Google credential
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    final userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
+
+    // 3. Get Firebase ID token
+    final idToken = await userCredential.user!.getIdToken();
+
+    // 4. Sync with backend
+    final response = await _apiService.firebaseAuthSync(idToken: idToken!);
+
+    // 5. Save session
+    await AuthService.saveSession(response);
+    return response;
   }
 
   static Future<void> signOut() async {
     await _googleSignIn.signOut();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await AuthService.signOut();
   }
 }

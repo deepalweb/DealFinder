@@ -66,4 +66,34 @@ router.get('/get-key', (req, res) => {
   res.json({ apiKey: API_KEY });
 });
 
+// Proxy for Nominatim search (OpenStreetMap)
+router.get('/nominatim/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q) return res.status(400).json({ message: 'q parameter is required.' });
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&addressdetails=1`;
+    const response = await fetch(url, { headers: { 'User-Agent': 'DealFinder/1.0', 'Accept-Language': 'en' } });
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Nominatim search error:', error);
+    res.status(500).json({ message: 'Failed to fetch search results.' });
+  }
+});
+
+// Proxy for Nominatim reverse geocode (OpenStreetMap)
+router.get('/nominatim/reverse', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) return res.status(400).json({ message: 'lat and lon parameters are required.' });
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
+    const response = await fetch(url, { headers: { 'User-Agent': 'DealFinder/1.0', 'Accept-Language': 'en' } });
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Nominatim reverse geocode error:', error);
+    res.status(500).json({ message: 'Failed to fetch address.' });
+  }
+});
+
 module.exports = router;

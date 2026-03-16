@@ -36,6 +36,9 @@ function Header() {
             <Link to="/favorites" className={`nav-link ${isActive('/favorites')}`}>
               <i className="fas fa-heart mr-1" data-id="isegr597p" data-path="scripts/components/Header.js"></i> My Favorites
             </Link>
+            <Link to="/nearby" className={`nav-link ${isActive('/nearby')}`}>
+              <i className="fas fa-map-marker-alt mr-1"></i> Nearby
+            </Link>
           </nav>
           
           {/* User Menu */}
@@ -67,6 +70,9 @@ function Header() {
               </Link>
               <Link to="/favorites" className={`nav-link ${isActive('/favorites')}`} onClick={() => setIsMenuOpen(false)}>
                 <i className="fas fa-heart mr-1" data-id="tlcymhlrl" data-path="scripts/components/Header.js"></i> My Favorites
+              </Link>
+              <Link to="/nearby" className={`nav-link ${isActive('/nearby')}`} onClick={() => setIsMenuOpen(false)}>
+                <i className="fas fa-map-marker-alt mr-1"></i> Nearby Deals
               </Link>
               <Link to="/categories/fashion" className={`nav-link ${isActive('/categories/fashion')}`} onClick={() => setIsMenuOpen(false)}>
                 <i className="fas fa-shirt mr-1" data-id="57y1u0gf9" data-path="scripts/components/Header.js"></i> Fashion

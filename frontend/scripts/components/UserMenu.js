@@ -7,22 +7,26 @@ function UserMenu() {
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    // Check if user is logged in
+  const syncUser = () => {
     const userData = localStorage.getItem('dealFinderUser');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
+    setUser(userData ? JSON.parse(userData) : null);
+  };
 
-    // Close menu when clicking outside
+  useEffect(() => {
+    syncUser();
+
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setIsMenuOpen(false);
       }
     };
 
+    window.addEventListener('storage', syncUser);
+    window.addEventListener('authChange', syncUser);
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
+      window.removeEventListener('storage', syncUser);
+      window.removeEventListener('authChange', syncUser);
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
@@ -90,6 +94,11 @@ function UserMenu() {
                 Merchant Account
               </span>
             )}
+            {user.role === 'admin' && (
+              <span className="inline-block mt-1 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                <i className="fas fa-shield-alt mr-1"></i> Admin
+              </span>
+            )}
           </div>
           
           <Link
@@ -105,6 +114,15 @@ function UserMenu() {
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               onClick={() => setIsMenuOpen(false)}>
               <i className="fas fa-store mr-2"></i> Merchant Dashboard
+            </Link>
+          }
+
+          {user.role === 'admin' &&
+            <Link
+              to="/admin/dashboard"
+              className="block px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+              onClick={() => setIsMenuOpen(false)}>
+              <i className="fas fa-shield-alt mr-2"></i> Admin Dashboard
             </Link>
           }
           

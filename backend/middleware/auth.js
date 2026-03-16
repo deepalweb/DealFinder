@@ -55,15 +55,6 @@ function authorizeMerchantSelfOrAdmin(req, res, next) {
 }
 
 
-module.exports = {
-  authenticateJWT,
-  authorizeAdmin,
-  authorizeSelfOrAdmin,
-  authorizeMerchantSelfOrAdmin,
-  authorizePromotionOwnerOrAdmin,
-  gentleAuthenticateJWT,
-};
-
 // Optional JWT Middleware (sets req.user if token valid, but doesn't fail if not present/invalid)
 function gentleAuthenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -72,7 +63,7 @@ function gentleAuthenticateJWT(req, res, next) {
     jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
       if (!err) {
         req.user = user;
-      } // If error, just proceed without req.user
+      }
       next();
     });
   } else {
@@ -92,7 +83,7 @@ async function authorizePromotionOwnerOrAdmin(req, res, next) {
 
   if (req.user.role === 'merchant' && req.user.merchantId) {
     try {
-      const Promotion = require('../models/Promotion'); // Local require to avoid circular deps if any
+      const Promotion = require('../models/Promotion');
       const promotion = await Promotion.findById(req.params.id);
       if (!promotion) {
         return res.status(404).json({ message: 'Promotion not found' });
@@ -103,10 +94,18 @@ async function authorizePromotionOwnerOrAdmin(req, res, next) {
         return res.status(403).json({ message: 'Forbidden: You do not own this promotion' });
       }
     } catch (error) {
-      // console.error("Error in authorizePromotionOwnerOrAdmin:", error);
       return res.status(500).json({ message: 'Error authorizing promotion access' });
     }
   } else {
     return res.status(403).json({ message: 'Forbidden: Insufficient permissions' });
   }
 }
+
+module.exports = {
+  authenticateJWT,
+  authorizeAdmin,
+  authorizeSelfOrAdmin,
+  authorizeMerchantSelfOrAdmin,
+  authorizePromotionOwnerOrAdmin,
+  gentleAuthenticateJWT,
+};

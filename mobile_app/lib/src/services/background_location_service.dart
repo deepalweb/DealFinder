@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:geolocator/geolocator.dart';
 import 'push_notification_service.dart';
 
 class BackgroundLocationService {

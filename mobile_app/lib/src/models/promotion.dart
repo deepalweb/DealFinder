@@ -20,7 +20,8 @@ class Promotion {
   final double? originalPrice;
   final double? discountedPrice;
   final String? location; // Added for map/location support
-  final double? distance; // Distance from user location in meters
+  final double? distance;
+  final int ratingsCount; // Distance from user location in meters
 
   Promotion({
     required this.id,
@@ -43,6 +44,7 @@ class Promotion {
     this.discountedPrice,
     this.location,
     this.distance,
+    this.ratingsCount = 0,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
@@ -87,6 +89,7 @@ class Promotion {
       distance: json['merchant'] != null && json['merchant']['distance'] != null 
           ? (json['merchant']['distance'] as num?)?.toDouble()
           : null,
+      ratingsCount: (json['ratings'] as List?)?.length ?? 0,
     );
   }
 

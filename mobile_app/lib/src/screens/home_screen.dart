@@ -7,22 +7,18 @@ import '../models/category.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
-import '../services/recommendation_service.dart';
-import '../services/deal_history_service.dart';
 import '../services/notification_alert_service.dart';
-import 'package:geolocator/geolocator.dart';
 import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';
 import 'deals_list_screen.dart';
-import 'search_screen.dart';
 import 'advanced_search_screen.dart';
 import 'notifications_screen.dart';
 import 'qr_scanner_screen.dart';
-import 'debug_screen.dart';
 import 'nearby_deals_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final VoidCallback? onNavigateToFavorites;
+  const HomeScreen({super.key, this.onNavigateToFavorites});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -31,52 +27,77 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Promotion>> _featuredDealsFuture;
   late Future<List<Promotion>> _nearbyDealsPreviewFuture;
-  late Future<List<Promotion>> _recommendationsFuture;
+  late Future<List<Promotion>> _trendingDealsFuture;
   final ApiService _apiService = ApiService();
   String? _profilePicture;
   String _userName = 'User';
+  String _userId = '';
+  String _token = '';
+  int _notificationCount = 0;
+  int _dealsCount = 0;
+  int _merchantsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _featuredDealsFuture = _fetchFeaturedDeals();
     _nearbyDealsPreviewFuture = _fetchNearbyDealsPreview();
-    _recommendationsFuture = RecommendationService.getRecommendations();
+    _trendingDealsFuture = _fetchTrendingDeals();
     _loadUserData();
     _checkAlerts();
+    _loadStats();
   }
-  
+
   Future<void> _checkAlerts() async {
     await NotificationAlertService.checkAndSendAlerts();
   }
-  
+
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _profilePicture = prefs.getString('userProfilePicture');
       _userName = prefs.getString('userName') ?? 'User';
+      _userId = prefs.getString('userId') ?? '';
+      _token = prefs.getString('token') ?? '';
     });
+    _loadNotificationCount();
+  }
+
+  Future<void> _loadNotificationCount() async {
+    if (_userId.isEmpty || _token.isEmpty) return;
+    try {
+      final notifications = await ApiService().fetchNotifications(_userId, _token);
+      if (mounted) setState(() => _notificationCount = notifications.length);
+    } catch (_) {}
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final stats = await _apiService.fetchStats();
+      if (mounted) {
+        setState(() {
+          _dealsCount = stats['deals'] ?? 0;
+          _merchantsCount = stats['merchants'] ?? 0;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<List<Promotion>> _fetchTrendingDeals() async {
+    final allPromotions = await _apiService.fetchPromotions();
+    final sorted = [...allPromotions]
+      ..sort((a, b) => b.ratingsCount.compareTo(a.ratingsCount));
+    return sorted.take(5).toList();
   }
 
   Future<List<Promotion>> _fetchFeaturedDeals() async {
     try {
-      print('🔄 Fetching promotions from API...');
       final allPromotions = await _apiService.fetchPromotions();
-      print('✅ Successfully fetched ${allPromotions.length} promotions');
-      
       final featuredDeals = allPromotions.where((p) => p.featured == true).toList();
-      print('🌟 Found ${featuredDeals.length} featured deals');
-      
-      if (featuredDeals.isNotEmpty) {
-        return featuredDeals.take(5).toList();
-      }
-      // If no featured deals, return first 5 deals
-      final firstFive = allPromotions.take(5).toList();
-      print('📋 Returning first ${firstFive.length} deals as featured');
-      return firstFive;
+      if (featuredDeals.isNotEmpty) return featuredDeals.take(5).toList();
+      return allPromotions.take(5).toList();
     } catch (e) {
-      print('❌ Error fetching featured deals: $e');
-      rethrow; // Let the UI handle the error
+      rethrow;
     }
   }
 
@@ -85,18 +106,15 @@ class _HomeScreenState extends State<HomeScreen> {
       final position = await LocationService.getCurrentLocation();
       if (position != null) {
         final nearbyDeals = await _apiService.fetchNearbyPromotions(
-          position.latitude, 
+          position.latitude,
           position.longitude,
-          radiusKm: 5,
+          radiusKm: 50,
         );
         return nearbyDeals.take(3).toList();
       }
-      
-      // Fallback to regular promotions
       final allPromotions = await _apiService.fetchPromotions();
       return allPromotions.skip(5).take(3).toList();
     } catch (e) {
-      print('Error fetching nearby deals preview: $e');
       return [];
     }
   }
@@ -107,15 +125,6 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('DealFinder'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.bug_report),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DebugScreen()),
-              );
-            },
-          ),
           Stack(
             children: [
               IconButton(
@@ -124,46 +133,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const NotificationsScreen(userId: 'user123', token: 'token123')),
+                    MaterialPageRoute(
+                      builder: (context) => NotificationsScreen(userId: _userId, token: _token),
+                    ),
                   );
                 },
               ),
-              Positioned(
-                right: 10,
-                top: 10,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.red,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  constraints: const BoxConstraints(
-                    minWidth: 12,
-                    minHeight: 12,
-                  ),
-                  child: FutureBuilder<int>(
-                    future: _getNotificationCount(),
-                    builder: (context, snapshot) {
-                      final count = snapshot.data ?? 0;
-                      return Text(
-                        count.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      );
-                    },
+              if (_notificationCount > 0)
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
+                    child: Text(
+                      '$_notificationCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ],
       ),
       body: CustomScrollView(
         slivers: <Widget>[
+          // Welcome section
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
@@ -172,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   CircleAvatar(
                     radius: 22,
                     backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    backgroundImage: _profilePicture != null 
+                    backgroundImage: _profilePicture != null
                         ? MemoryImage(base64Decode(_profilePicture!.split(',')[1]))
                         : null,
                     child: _profilePicture == null
@@ -190,7 +194,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Text(
                           'Find the best deals for you',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ],
                     ),
@@ -200,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Search bar
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -225,6 +233,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Category chips
           SliverToBoxAdapter(
             child: Container(
               height: 48,
@@ -237,14 +246,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   final category = predefinedCategories[index];
                   return ActionChip(
                     avatar: Icon(_getIconForCategory(category.id), size: 18, color: Theme.of(context).colorScheme.primary),
-                    label: Text(category.name, style: TextStyle(fontSize: 13)),
-                    backgroundColor: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.7),
+                    label: Text(category.name, style: const TextStyle(fontSize: 13)),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.7),
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => DealsListScreen(categoryFilter: category),
-                        ),
+                        MaterialPageRoute(builder: (context) => DealsListScreen(categoryFilter: category)),
                       );
                     },
                   );
@@ -253,79 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.only(top: 10.0, bottom:10.0, left: 0, right: 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      'Categories',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    height: 90,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: predefinedCategories.length,
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                      itemBuilder: (context, index) {
-                        final category = predefinedCategories[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                          child: InkWell(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DealsListScreen(categoryFilter: category),
-                                ),
-                              );
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Tapped on ${category.name}. Filtered list TBD.')),
-                              );
-                            },
-                            borderRadius: BorderRadius.circular(12.0),
-                            child: Container(
-                              width: 80,
-                              padding: const EdgeInsets.all(8.0),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(12.0),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    _getIconForCategory(category.id),
-                                    size: 30,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    category.name,
-                                    textAlign: TextAlign.center,
-                                    style: Theme.of(context).textTheme.bodySmall,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
+          // Featured Deals
           SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -346,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer();
                       } else if (snapshot.hasError) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(
                             child: Column(
@@ -359,11 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text('${snapshot.error}', style: TextStyle(color: Colors.red[300], fontSize: 12), textAlign: TextAlign.center),
                                 const SizedBox(height: 8),
                                 ElevatedButton(
-                                  onPressed: () {
-                                    setState(() {
-                                      _featuredDealsFuture = _fetchFeaturedDeals();
-                                    });
-                                  },
+                                  onPressed: () => setState(() => _featuredDealsFuture = _fetchFeaturedDeals()),
                                   child: const Text('Retry'),
                                 ),
                               ],
@@ -371,13 +302,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         );
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Container(
+                        return SizedBox(
                           height: 220,
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
                       final featuredDeals = snapshot.data!;
-                      return Container(
+                      return SizedBox(
                         height: 270,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
@@ -409,14 +340,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                     onTap: () {
                                       Navigator.push(
                                         context,
-                                        MaterialPageRoute(
-                                          builder: (context) => DealDetailScreen(promotion: promotion),
-                                        ),
+                                        MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
                                       );
                                     },
-                                    child: DealCard(
-                                      promotion: promotion,
-                                    ),
+                                    child: DealCard(promotion: promotion),
                                   ),
                                   Positioned(
                                     left: 10,
@@ -425,11 +352,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       radius: 18,
                                       backgroundColor: Colors.white,
                                       backgroundImage: promotion.merchantLogoUrl != null
-                                        ? NetworkImage(promotion.merchantLogoUrl!)
-                                        : null,
+                                          ? NetworkImage(promotion.merchantLogoUrl!)
+                                          : null,
                                       child: promotion.merchantLogoUrl == null
-                                        ? Icon(Icons.storefront, color: Colors.grey[400], size: 22)
-                                        : null,
+                                          ? Icon(Icons.storefront, color: Colors.grey[400], size: 22)
+                                          : null,
                                     ),
                                   ),
                                   if (countdown != null && countdown != 'Expired')
@@ -448,11 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                             const SizedBox(width: 4),
                                             Text(
                                               countdown,
-                                              style: TextStyle(
-                                                color: Colors.red[700],
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12,
-                                              ),
+                                              style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.bold, fontSize: 12),
                                             ),
                                           ],
                                         ),
@@ -484,6 +407,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Nearby Deals header
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 10.0),
@@ -507,6 +431,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
+
+          // Nearby Deals list
           FutureBuilder<List<Promotion>>(
             future: _nearbyDealsPreviewFuture,
             builder: (context, snapshot) {
@@ -519,14 +445,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               } else if (snapshot.hasError) {
                 return SliverToBoxAdapter(
-                  child: Container(
+                  child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Center(child: Text('Could not load nearby deals.', style: TextStyle(color: Colors.red[400]))),
                   ),
                 );
               } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return SliverToBoxAdapter(
-                  child: Container(
+                  child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Center(child: Text('No other deals available currently.', style: TextStyle(color: Colors.grey[600]))),
                   ),
@@ -541,9 +467,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (context) => DealDetailScreen(promotion: promotion),
-                          ),
+                          MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
                         );
                       },
                       child: DealCard(promotion: promotion),
@@ -554,7 +478,8 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          
+
+          // Quick Actions
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -576,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'Coupons',
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Coupons (to be implemented)')),
+                        const SnackBar(content: Text('Coupons coming soon!')),
                       );
                     },
                   ),
@@ -593,17 +518,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   _QuickActionButton(
                     icon: Icons.favorite_border,
                     label: 'Favorites',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Favorites (to be implemented)')),
-                      );
-                    },
+                    onTap: () => widget.onNavigateToFavorites?.call(),
                   ),
                 ],
               ),
             ),
           ),
 
+          // Trending Now
           SliverToBoxAdapter(
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -628,17 +550,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   FutureBuilder<List<Promotion>>(
-                    future: _featuredDealsFuture,
+                    future: _trendingDealsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer();
                       } else if (snapshot.hasError) {
-                        return Container(
+                        return SizedBox(
                           height: 120,
                           child: Center(child: Text('Could not load trending deals.', style: TextStyle(color: Colors.red[400]))),
                         );
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return Container(
+                        return SizedBox(
                           height: 120,
                           child: Center(child: Text('No trending deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
@@ -659,9 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => DealDetailScreen(promotion: promotion),
-                                    ),
+                                    MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
                                   );
                                 },
                                 child: Card(
@@ -676,11 +596,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                           radius: 18,
                                           backgroundColor: Colors.white,
                                           backgroundImage: promotion.merchantLogoUrl != null
-                                            ? NetworkImage(promotion.merchantLogoUrl!)
-                                            : null,
+                                              ? NetworkImage(promotion.merchantLogoUrl!)
+                                              : null,
                                           child: promotion.merchantLogoUrl == null
-                                            ? Icon(Icons.storefront, color: Colors.grey[400], size: 22)
-                                            : null,
+                                              ? Icon(Icons.storefront, color: Colors.grey[400], size: 22)
+                                              : null,
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
@@ -727,6 +647,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Stats
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -739,9 +660,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _StatPreview(icon: Icons.local_offer, label: 'Deals', value: '120+'),
-                      _StatPreview(icon: Icons.store, label: 'Merchants', value: '30+'),
-                      _StatPreview(icon: Icons.people, label: 'Users', value: '2k+'),
+                      _StatPreview(icon: Icons.local_offer, label: 'Deals', value: '$_dealsCount+'),
+                      _StatPreview(icon: Icons.store, label: 'Merchants', value: '$_merchantsCount+'),
+                      const _StatPreview(icon: Icons.people, label: 'Users', value: '2k+'),
                     ],
                   ),
                 ),
@@ -749,6 +670,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
+          // Footer
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 18),
@@ -758,18 +680,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     alignment: WrapAlignment.center,
                     spacing: 18,
                     children: [
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('Privacy Policy'),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('About'),
-                      ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('Contact'),
-                      ),
+                      TextButton(onPressed: () {}, child: const Text('Privacy Policy')),
+                      TextButton(onPressed: () {}, child: const Text('About')),
+                      TextButton(onPressed: () {}, child: const Text('Contact')),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -782,9 +695,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 20),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
     );
@@ -792,36 +703,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   IconData _getIconForCategory(String categoryId) {
     switch (categoryId) {
-      case 'food_bev':
-        return Icons.fastfood_outlined;
-      case 'electronics':
-        return Icons.devices_other_outlined;
-      case 'fashion':
-        return Icons.checkroom_outlined;
-      case 'travel':
-        return Icons.flight_takeoff_outlined;
-      case 'home_garden':
-        return Icons.home_outlined;
-      case 'beauty_health':
-        return Icons.spa_outlined;
-      case 'entertainment':
-        return Icons.sports_esports_outlined;
-      case 'services':
-        return Icons.miscellaneous_services_outlined;
-      case 'other':
-        return Icons.category_outlined;
-      default:
-        return Icons.label_important_outline;
+      case 'food_bev': return Icons.fastfood_outlined;
+      case 'electronics': return Icons.devices_other_outlined;
+      case 'fashion': return Icons.checkroom_outlined;
+      case 'travel': return Icons.flight_takeoff_outlined;
+      case 'home_garden': return Icons.home_outlined;
+      case 'beauty_health': return Icons.spa_outlined;
+      case 'entertainment': return Icons.sports_esports_outlined;
+      case 'services': return Icons.miscellaneous_services_outlined;
+      case 'other': return Icons.category_outlined;
+      default: return Icons.label_important_outline;
     }
   }
 
-  Future<int> _getNotificationCount() async {
-    // In a real app, fetch from API or local storage
-    return 3; // Placeholder
-  }
-
   Widget _buildFeaturedDealsShimmer() {
-    return Container(
+    return SizedBox(
       height: 270,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -882,6 +778,7 @@ class _StatPreview extends StatelessWidget {
   final String label;
   final String value;
   const _StatPreview({required this.icon, required this.label, required this.value, Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Column(

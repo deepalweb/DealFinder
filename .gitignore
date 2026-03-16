@@ -27,6 +27,7 @@ yarn-error.log*
 .env.production.local
 
 /backend/vapid-keys.json
+/backend/serviceAccountKey.json
 
 # Mobile app (exclude from sync)
 /mobile_app/

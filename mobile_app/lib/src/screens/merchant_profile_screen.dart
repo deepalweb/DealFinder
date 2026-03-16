@@ -88,7 +88,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   }
 
   Widget _buildSocialLinks(Map? social) {
-    if (social == null) return SizedBox.shrink();
+    if (social == null) return const SizedBox.shrink();
     final List<Widget> links = [];
     if (social['facebook'] != null && social['facebook'].toString().isNotEmpty) {
       links.add(_socialIcon('facebook', 'https://facebook.com/${social['facebook']}', Colors.blue[800]!));
@@ -118,8 +118,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       onTap: () => launchUrl(Uri.parse(url)),
       child: CircleAvatar(
         backgroundColor: color,
-        child: Icon(icon, color: Colors.white, size: 18),
         radius: 16,
+        child: Icon(icon, color: Colors.white, size: 18),
       ),
     );
   }
@@ -299,7 +299,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                   ),
                                   markers: {
                                     Marker(
-                                      markerId: MarkerId('merchant'),
+                                      markerId: const MarkerId('merchant'),
                                       position: LatLng(_merchant!['latitude'], _merchant!['longitude']),
                                       infoWindow: InfoWindow(title: _merchant!['name']),
                                     ),
@@ -347,8 +347,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                             children: [
                                               Expanded(child: Text(deal['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
                                               if (deal['featured'] == true)
-                                                Padding(
-                                                  padding: const EdgeInsets.only(left: 6.0),
+                                                const Padding(
+                                                  padding: EdgeInsets.only(left: 6.0),
                                                   child: Icon(Icons.star, color: Colors.amber, size: 18),
                                                 ),
                                             ],

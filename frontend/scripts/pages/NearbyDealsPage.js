@@ -72,10 +72,11 @@ const NearbyDealsPage = () => {
     );
   };
 
-  const fetchNearbyDeals = async (location) => {
+  const fetchNearbyDeals = async (location, searchRadius) => {
+    const r = searchRadius || radius;
     try {
       const response = await fetch(
-        `/api/promotions/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radius=${radius}`
+        `/api/promotions/nearby?latitude=${location.latitude}&longitude=${location.longitude}&radius=${r}`
       );
       
       if (!response.ok) {
@@ -96,7 +97,7 @@ const NearbyDealsPage = () => {
     setRadius(newRadius);
     if (userLocation) {
       setLoading(true);
-      fetchNearbyDeals(userLocation);
+      fetchNearbyDeals(userLocation, newRadius);
     }
   };
 
@@ -237,7 +238,9 @@ const NearbyDealsPage = () => {
             React.createElement('option', { value: 5 }, '5 km'),
             React.createElement('option', { value: 10 }, '10 km'),
             React.createElement('option', { value: 20 }, '20 km'),
-            React.createElement('option', { value: 50 }, '50 km')
+            React.createElement('option', { value: 50 }, '50 km'),
+            React.createElement('option', { value: 100 }, '100 km'),
+            React.createElement('option', { value: 500 }, '500 km')
           )
         )
       ),

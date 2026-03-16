@@ -6,8 +6,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
-// Import gentleAuthenticateJWT
 const { authenticateJWT, authorizeAdmin, authorizeSelfOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
+
+function safeError(error) {
+  if (process.env.NODE_ENV === 'production') {
+    return { message: 'An error occurred' };
+  }
+  return { message: error.message, stack: error.stack };
+}
 
 // In-memory store for refresh tokens
 const refreshTokens = new Set();
@@ -40,7 +46,8 @@ function protectRoute(req, res, next) {
     { path: '/refresh-token', method: 'POST' },
     { path: '/reset-password', method: 'POST' },
     { path: '/reset-password/confirm', method: 'POST' },
-    { path: '/google-signin', method: 'POST' }
+    { path: '/google-signin', method: 'POST' },
+    { path: '/firebase-auth', method: 'POST' }
   ];
 
   if (openRoutes.some(r => r.path === req.path && r.method === req.method)) {
@@ -50,6 +57,61 @@ function protectRoute(req, res, next) {
 }
 
 router.use(protectRoute);
+
+// Firebase Auth sync — verify Firebase ID token, create/find user, return JWT
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+router.post('/firebase-auth', async (req, res) => {
+  const { idToken, name, role, businessName } = req.body;
+  if (!idToken) return res.status(400).json({ message: 'idToken is required' });
+
+  try {
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const { email, uid } = decoded;
+    const displayName = decoded.name || name || email.split('@')[0];
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      const hashedPassword = await bcrypt.hash(uid, 10);
+      user = new User({
+        name: displayName,
+        email,
+        password: hashedPassword,
+        role: role || 'user',
+        businessName,
+      });
+      const savedUser = await user.save();
+
+      if (role === 'merchant' && businessName) {
+        const merchant = new Merchant({ name: businessName, contactInfo: email });
+        const savedMerchant = await merchant.save();
+        savedUser.merchantId = savedMerchant._id;
+        await savedUser.save();
+        user = savedUser;
+      }
+    }
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+    const token = generateToken(user);
+    const refreshToken = generateRefreshToken(user);
+    refreshTokens.add(refreshToken);
+    res.status(200).json({ ...userResponse, token, refreshToken });
+  } catch (error) {
+    console.error('Firebase auth error:', error);
+    res.status(401).json({ message: 'Invalid Firebase token' });
+  }
+});
 
 // Get all users (Admin only)
 // Uses authorizeAdmin imported from ../middleware/auth
@@ -462,19 +524,6 @@ router.post('/reset-password/confirm', async (req, res) => {
   }
 });
 
-// Remove sensitive error details from all API responses in production
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
-
-// Example: Protect a route (uncomment and use as needed)
-// router.get('/protected', authenticateJWT, (req, res) => {
-//   res.json({ message: 'This is a protected route', user: req.user });
-// });
-
 // Google Sign-In
 const { OAuth2Client } = require('google-auth-library');
 const config = require('../config');
@@ -514,8 +563,6 @@ router.post('/google-signin', async (req, res) => {
         res.status(500).json(safeError(error));
     }
 });
-
-module.exports = router;
 
 // Initialize Merchant Profile for an existing user with role 'merchant' but no merchantId
 router.post('/initialize-merchant-profile', authenticateJWT, [
@@ -592,3 +639,5 @@ router.post('/initialize-merchant-profile', authenticateJWT, [
     res.status(500).json(safeError(error));
   }
 });
+
+module.exports = router;

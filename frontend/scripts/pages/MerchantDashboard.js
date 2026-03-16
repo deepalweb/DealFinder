@@ -382,9 +382,9 @@ function MerchantDashboard() {
 
   const filteredPromotions = promotions.filter((promo) => {
     if (activeTab === 'active') {
-      return promo.status === 'active';
+      return ['active', 'pending_approval', 'scheduled', 'approved'].includes(promo.status);
     } else if (activeTab === 'expired') {
-      return promo.status === 'expired';
+      return ['expired', 'rejected', 'admin_paused'].includes(promo.status);
     }
     return true;
   });
@@ -732,8 +732,16 @@ function MerchantDashboard() {
                       </td>
 
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${promotion.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          {promotion.status === 'active' ? 'Active' : 'Expired'}
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          promotion.status === 'active' ? 'bg-green-100 text-green-800' :
+                          promotion.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
+                          promotion.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
+                          promotion.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                          promotion.status === 'admin_paused' ? 'bg-orange-100 text-orange-800' :
+                          promotion.status === 'draft' ? 'bg-gray-100 text-gray-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {promotion.status ? promotion.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Expired'}
                         </span>
                         {promotion.featured && (
                           <span className="ml-2 px-2 py-1 bg-yellow-200 text-yellow-800 text-xs rounded-full font-semibold inline-flex items-center">

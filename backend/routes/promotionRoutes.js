@@ -235,9 +235,8 @@ router.post('/', authenticateJWT, [
       return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
     }
 
-    let initialStatus = 'pending_approval'; // Default for merchant submissions
+    let initialStatus = 'active'; // Default for merchant submissions
     if (req.user.role === 'admin') {
-      // Admin can specify a status, or it defaults to 'approved' if not 'pending_approval'
       initialStatus = req.body.status && ['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft'].includes(req.body.status) ? req.body.status : 'approved';
     }
     

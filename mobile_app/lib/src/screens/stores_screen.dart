@@ -152,10 +152,10 @@ class _StoresScreenState extends State<StoresScreen> {
                     ),
                     Expanded(
                       child: _filteredMerchants.isEmpty
-                          ? Center(
+                          ? const Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   Icon(Icons.store, size: 60, color: Colors.grey),
                                   SizedBox(height: 12),
                                   Text('No merchants found', style: TextStyle(color: Colors.grey)),

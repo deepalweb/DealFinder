@@ -1,168 +1,202 @@
 function LocationPicker({ location, onLocationChange }) {
   const { useState, useEffect, useRef } = React;
 
-  // Refs for the map and its core components
   const mapRef = useRef(null);
-  const googleMap = useRef(null);
-  const marker = useRef(null);
+  const leafletMap = useRef(null);
+  const markerRef = useRef(null);
 
-  // State for the search input and autocomplete predictions
-  const [inputValue, setInputValue] = useState("");
-  const [predictions, setPredictions] = useState([]);
-  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [noResults, setNoResults] = useState(false);
 
-  // Default location (e.g., center of a country or a major city) if no location is set
-  const defaultCenter = { lat: 40.7128, lng: -74.0060 }; // New York City
+  const hasCoords = location && location.coordinates &&
+    location.coordinates[0] != null && location.coordinates[1] != null;
 
-  // The component's internal state for the current location on the map
-  const [currentMapCenter, setCurrentMapCenter] = useState(
-    location && location.coordinates && location.coordinates[1] != null && location.coordinates[0] != null
-      ? { lat: location.coordinates[1], lng: location.coordinates[0] }
-      : defaultCenter
-  );
+  const defaultCenter = [7.8731, 80.7718]; // Sri Lanka
+  const initialCenter = hasCoords
+    ? [location.coordinates[1], location.coordinates[0]]
+    : defaultCenter;
 
-  // --- Map Initialization and Marker Logic ---
   useEffect(() => {
-    window.loadGoogleMaps()
-      .then(google => {
-        // --- Map Initialization ---
-        googleMap.current = new google.maps.Map(mapRef.current, {
-          center: currentMapCenter,
-          zoom: location && location.coordinates[0] != null ? 15 : 8,
-          mapTypeControl: false,
-          streetViewControl: false,
-        });
+    const initMap = () => {
+      if (leafletMap.current) return;
+      const L = window.L;
+      if (!L) return;
 
-        // --- Marker Initialization ---
-        marker.current = new google.maps.Marker({
-          position: currentMapCenter,
-          map: googleMap.current,
-          draggable: true,
-          title: "Drag me to set the location!",
-        });
+      leafletMap.current = L.map(mapRef.current).setView(initialCenter, hasCoords ? 15 : 8);
 
-        // --- Event Listeners ---
-        marker.current.addListener('dragend', () => {
-          const newPos = marker.current.getPosition();
-          // When dragging, also update the address input if possible
-          const geocoder = new google.maps.Geocoder();
-          geocoder.geocode({ location: newPos }, (results, status) => {
-            if (status === 'OK' && results[0]) {
-              setInputValue(results[0].formatted_address);
-            } else {
-              setInputValue(""); // Clear if reverse geocode fails
-            }
-          });
-          updateLocation({ lat: newPos.lat(), lng: newPos.lng() });
-        });
-      })
-      .catch(error => {
-        console.error("Could not load Google Maps.", error);
-        // Optionally, display an error message in the UI
-        mapRef.current.innerHTML = '<p class="text-red-500 text-center">Could not load map.</p>';
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(leafletMap.current);
+
+      markerRef.current = L.marker(initialCenter, { draggable: true }).addTo(leafletMap.current);
+
+      markerRef.current.on('dragend', () => {
+        const pos = markerRef.current.getLatLng();
+        reverseGeocode(pos.lat, pos.lng);
+        onLocationChange({ type: 'Point', coordinates: [pos.lng, pos.lat] });
       });
-  }, []); // Run only on mount
 
-  // --- Autocomplete Search Logic ---
-  useEffect(() => {
-    // Debounce the API call
-    const handler = setTimeout(() => {
-      if (inputValue && isDropdownVisible) {
-        window.API.Maps.getAutocomplete(inputValue)
-          .then(data => {
-            if (data && data.predictions) {
-              setPredictions(data.predictions);
-            }
-          })
-          .catch(error => console.error("Autocomplete fetch error:", error));
-      } else {
-        setPredictions([]);
-      }
-    }, 300); // 300ms debounce delay
-
-    return () => {
-      clearTimeout(handler);
+      leafletMap.current.on('click', (e) => {
+        const { lat, lng } = e.latlng;
+        markerRef.current.setLatLng([lat, lng]);
+        reverseGeocode(lat, lng);
+        onLocationChange({ type: 'Point', coordinates: [lng, lat] });
+      });
     };
-  }, [inputValue, isDropdownVisible]);
 
-  const handleInputChange = (e) => {
-    setInputValue(e.target.value);
-    setIsDropdownVisible(true);
-  };
-
-  const handlePredictionClick = (placeId) => {
-    setInputValue(""); // Clear input after selection
-    setPredictions([]);
-    setIsDropdownVisible(false);
-
-    window.API.Maps.getPlaceDetails(placeId)
-      .then(data => {
-        if (data && data.result && data.result.geometry) {
-          const newPos = data.result.geometry.location;
-          updateLocation({ lat: newPos.lat, lng: newPos.lng() }, true);
-        }
-      })
-      .catch(error => console.error("Place Details fetch error:", error));
-  };
-
-  // --- Helper function to update location state and map ---
-  const updateLocation = (newPos, shouldZoom = true) => {
-    setCurrentMapCenter(newPos);
-
-    if (googleMap.current && marker.current) {
-        googleMap.current.setCenter(newPos);
-        if (shouldZoom) {
-            googleMap.current.setZoom(17);
-        }
-        marker.current.setPosition(newPos);
+    if (window.L) {
+      initMap();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.onload = initMap;
+      document.head.appendChild(script);
     }
 
-    // Call the parent component's callback
-    onLocationChange({
-      type: 'Point',
-      coordinates: [newPos.lng, newPos.lat], // [longitude, latitude]
-    });
+    return () => {
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+      }
+    };
+  }, []);
+
+  const reverseGeocode = async (lat, lng) => {
+    try {
+      const res = await fetch(`/api/maps/nominatim/reverse?lat=${lat}&lon=${lng}`);
+      const data = await res.json();
+      if (data && data.display_name) setInputValue(data.display_name);
+    } catch (e) {}
+  };
+
+  const doSearch = async () => {
+    const q = inputValue.trim();
+    if (!q) return;
+    setSearching(true);
+    setNoResults(false);
+    setSuggestions([]);
+    setShowDropdown(false);
+    try {
+      const res = await fetch(`/api/maps/nominatim/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setSuggestions(data);
+      setNoResults(data.length === 0);
+      setShowDropdown(true);
+    } catch (e) {
+      setNoResults(true);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+  };
+
+  const handleSelect = (item) => {
+    const lat = parseFloat(item.lat);
+    const lng = parseFloat(item.lon);
+    setInputValue(item.display_name);
+    setSuggestions([]);
+    setShowDropdown(false);
+    setNoResults(false);
+
+    if (leafletMap.current && markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      leafletMap.current.setView([lat, lng], 16);
+    }
+    onLocationChange({ type: 'Point', coordinates: [lng, lat] });
   };
 
   return (
-    <div className="location-picker-container md:col-span-2">
-      <label className="block text-sm font-medium mb-1">Store Location</label>
-      <p className="text-xs text-gray-500 mb-2">Search for an address or drag the pin to set the exact location.</p>
+    <div className="md:col-span-2">
+      <label className="block text-sm font-medium mb-1">
+        <i className="fas fa-map-marker-alt text-primary-color mr-1"></i> Store Location
+      </label>
+      <p className="text-xs text-gray-500 mb-2">
+        Search for your store address, or click / drag the pin on the map.
+      </p>
 
-      <div className="relative">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onFocus={() => setIsDropdownVisible(true)}
-          onBlur={() => setTimeout(() => setIsDropdownVisible(false), 200)} // Delay to allow click on dropdown
-          placeholder="Search for an address..."
-          className="form-input"
-          autoComplete="off"
-        />
-        {isDropdownVisible && predictions.length > 0 && (
-          <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
-            {predictions.map(p => (
-              <div
-                key={p.place_id}
-                className="px-4 py-2 cursor-pointer hover:bg-gray-100"
-                onClick={() => handlePredictionClick(p.place_id)}
+      {/* Search Bar */}
+      <div className="relative mb-2">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={e => { setInputValue(e.target.value); setShowDropdown(false); setNoResults(false); }}
+              onKeyDown={handleKeyDown}
+              onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+              placeholder="e.g. 123 Main Street, Colombo"
+              className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color text-sm"
+              autoComplete="off"
+            />
+            {inputValue && (
+              <button
+                type="button"
+                onClick={() => { setInputValue(''); setSuggestions([]); setShowDropdown(false); setNoResults(false); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <p className="text-sm font-medium">{p.structured_formatting.main_text}</p>
-                <p className="text-xs text-gray-500">{p.structured_formatting.secondary_text}</p>
+                <i className="fas fa-times text-xs"></i>
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={doSearch}
+            disabled={searching || !inputValue.trim()}
+            className="px-4 py-2 bg-primary-color text-white rounded-md hover:bg-primary-dark disabled:opacity-50 flex items-center gap-2 text-sm whitespace-nowrap"
+          >
+            {searching
+              ? <><i className="fas fa-spinner fa-spin"></i> Searching...</>
+              : <><i className="fas fa-search"></i> Search</>
+            }
+          </button>
+        </div>
+
+        {/* Results dropdown */}
+        {showDropdown && suggestions.length > 0 && (
+          <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-xl max-h-56 overflow-y-auto">
+            {suggestions.map((s, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-indigo-50 border-b border-gray-100 last:border-0"
+                onMouseDown={() => handleSelect(s)}
+              >
+                <i className="fas fa-map-marker-alt text-primary-color mt-0.5 flex-shrink-0"></i>
+                <div>
+                  <p className="text-sm font-medium text-gray-800 leading-tight">
+                    {s.address?.road || s.address?.amenity || s.name || s.display_name.split(',')[0]}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">{s.display_name}</p>
+                </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* No results */}
+        {noResults && (
+          <div className="absolute z-50 w-full bg-white border border-gray-300 rounded-md mt-1 shadow-xl px-4 py-3 text-sm text-gray-500">
+            <i className="fas fa-exclamation-circle mr-2 text-yellow-500"></i>
+            No results found. Try a different search term.
+          </div>
+        )}
       </div>
 
+      {/* Map */}
       <div
         ref={mapRef}
-        style={{ height: '300px', width: '100%', borderRadius: '8px', marginTop: '8px' }}
-        className="bg-gray-200"
-      >
-        {/* The map will be rendered here */}
-      </div>
+        style={{ height: '320px', width: '100%', borderRadius: '8px', zIndex: 0, border: '1px solid #e5e7eb' }}
+      />
+      <p className="text-xs text-gray-400 mt-1">
+        <i className="fas fa-info-circle mr-1"></i>
+        You can also click anywhere on the map or drag the pin to set the location.
+      </p>
     </div>
   );
 }

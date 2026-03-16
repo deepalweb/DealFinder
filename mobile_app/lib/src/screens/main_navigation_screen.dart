@@ -4,7 +4,6 @@ import 'user_profile_screen.dart';
 import 'favorites_screen.dart';
 import 'deals_list_screen.dart';
 import 'stores_screen.dart';
-import 'nearby_deals_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String userId;
@@ -18,13 +17,19 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
-  late final List<Widget> _screens = [
-    const HomeScreen(),
-    const DealsListScreen(), // All Deals
-    const StoresScreen(), // Stores
-    FavoritesScreen(userId: widget.userId, token: widget.token),
-    const UserProfileScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      HomeScreen(onNavigateToFavorites: () => setState(() => _selectedIndex = 3)),
+      const DealsListScreen(),
+      const StoresScreen(),
+      FavoritesScreen(userId: widget.userId, token: widget.token),
+      const UserProfileScreen(),
+    ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {

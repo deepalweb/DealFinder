@@ -26,7 +26,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   String? _selectedCategory;
   String? _selectedMerchant;
   String _sortBy = 'relevance';
-  double _maxDistance = 50;
+  final double _maxDistance = 50;
   bool _hasDiscountOnly = false;
   DateTime? _expiresAfter;
   
@@ -246,7 +246,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: DropdownButtonFormField<String>(
-                  value: _selectedCategory,
+                  initialValue: _selectedCategory,
                   decoration: const InputDecoration(labelText: 'Category'),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('All Categories')),
@@ -305,7 +305,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: DropdownButtonFormField<String>(
-                  value: _sortBy,
+                  initialValue: _sortBy,
                   decoration: const InputDecoration(labelText: 'Sort By'),
                   items: const [
                     DropdownMenuItem(value: 'relevance', child: Text('Relevance')),

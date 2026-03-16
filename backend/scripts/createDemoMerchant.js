@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
@@ -59,8 +60,10 @@ async function createDemoMerchant() {
     console.log('Created demo merchant:', savedMerchant);
 
     // Create user and link to merchant
+    const hashedPassword = await bcrypt.hash(demoUserData.password, 10);
     const user = new User({
       ...demoUserData,
+      password: hashedPassword,
       merchantId: savedMerchant._id
     });
     const savedUser = await user.save();

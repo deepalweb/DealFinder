@@ -40,32 +40,13 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      // For demo purposes, allow direct login with demo credentials
-      if (formData.email === 'demo@merchant.com' && formData.password === 'demo123') {
-        // Create a demo merchant user object
-        const demoUser = {
-          _id: 'demo123',
-          name: 'Demo User',
-          email: 'demo@merchant.com',
-          role: 'merchant',
-          merchantId: 'demo456',
-          businessName: 'Demo Merchant Shop'
-        };
-        
-        // Store in localStorage
-        localStorage.setItem('dealFinderUser', JSON.stringify(demoUser));
-        
-        // Navigate to merchant dashboard
-        navigate('/merchant/dashboard');
-        return;
-      }
-
-      // For real authentication, use the API
+      // Use the API for authentication
       const response = await window.API.Users.login(formData);
       
       // Store user data in localStorage (including token)
       localStorage.setItem('dealFinderUser', JSON.stringify(response));
-      
+      window.dispatchEvent(new Event('authChange'));
+
       // Navigate based on user role
       if (response.role === 'merchant') {
         navigate('/merchant/dashboard');

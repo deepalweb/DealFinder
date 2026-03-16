@@ -142,7 +142,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Future<void> _submitReview(double rating, String review) async {
     if (_userToken == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to submit a review.')),
+        const SnackBar(content: Text('You must be logged in to submit a review.')),
       );
       return;
     }
@@ -150,7 +150,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       await _apiService.postPromotionComment(widget.promotion.id, review, _userToken!);
       await _apiService.postPromotionRating(widget.promotion.id, rating, _userToken!);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Review submitted!')),
+        const SnackBar(content: Text('Review submitted!')),
       );
       _fetchComments();
     } catch (e) {
@@ -176,7 +176,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             onPressed: () {
               // TODO: Navigate to notifications page
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Notifications (to be implemented)')),
+                const SnackBar(content: Text('Notifications (to be implemented)')),
               );
             },
           ),
@@ -221,7 +221,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       final link = 'https://dealfinder.app/deal/${promotion.id}';
                       await Clipboard.setData(ClipboardData(text: link));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Deal link copied!')),
+                        const SnackBar(content: Text('Deal link copied!')),
                       );
                     },
                     child: Row(
@@ -287,7 +287,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     decoration: BoxDecoration(
                       color: Colors.orange[100],
                       borderRadius: BorderRadius.circular(8.0),
-                      boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.1), blurRadius: 4, offset: Offset(0,2))],
+                      boxShadow: [BoxShadow(color: Colors.orange.withOpacity(0.1), blurRadius: 4, offset: const Offset(0,2))],
                     ),
                     child: Text('FEATURED', style: TextStyle(color: Colors.orange[900], fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
@@ -308,13 +308,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               GestureDetector(
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Navigate to merchant profile (to be implemented)')),
+                    const SnackBar(content: Text('Navigate to merchant profile (to be implemented)')),
                   );
                 },
                 child: Card(
                   elevation: 0.5,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  color: theme.colorScheme.surfaceVariant,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
                     child: Row(
@@ -326,7 +326,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                               ? NetworkImage(_merchantData!['logo'])
                               : null,
                             backgroundColor: Colors.grey[200],
-                            child: _merchantData!['logo'].toString().startsWith('http') ? null : Icon(Icons.storefront_outlined, color: Colors.grey),
+                            child: _merchantData!['logo'].toString().startsWith('http') ? null : const Icon(Icons.storefront_outlined, color: Colors.grey),
                           )
                         else
                           Icon(Icons.storefront_outlined, size: 20, color: theme.textTheme.bodyMedium?.color),
@@ -479,7 +479,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Divider(height: 24),
+                          const Divider(height: 24),
                           Text(
                             'Validity:',
                             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -495,7 +495,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Divider(height: 24),
+                          const Divider(height: 24),
                           GestureDetector(
                             onTap: () {
                               setState(() {
@@ -527,7 +527,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
             ),
             const SizedBox(height: 20.0),
-            Divider(height: 32, thickness: 1.2),
+            const Divider(height: 32, thickness: 1.2),
 
             // Action Buttons
             Center(
@@ -601,7 +601,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     ),
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Report submitted (to be implemented)')),
+                        const SnackBar(content: Text('Report submitted (to be implemented)')),
                       );
                     },
                   ),
@@ -611,7 +611,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       label: const Text('Add to Calendar'),
                       onPressed: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Add to calendar (to be implemented)')),
+                          const SnackBar(content: Text('Add to calendar (to be implemented)')),
                         );
                       },
                     ),
@@ -619,7 +619,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
             ),
             const SizedBox(height: 20.0),
-            Divider(height: 32, thickness: 1.2),
+            const Divider(height: 32, thickness: 1.2),
 
             // Recommendations/Similar Deals
             Card(
@@ -640,17 +640,17 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       future: _recommendedDealsFuture,
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return SizedBox(
+                          return const SizedBox(
                             height: 180,
                             child: Center(child: CircularProgressIndicator()),
                           );
                         } else if (snapshot.hasError) {
-                          return SizedBox(
+                          return const SizedBox(
                             height: 180,
                             child: Center(child: Text('Error loading recommendations')),
                           );
                         } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return SizedBox(
+                          return const SizedBox(
                             height: 180,
                             child: Center(child: Text('No recommendations available')),
                           );
@@ -669,7 +669,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0,2))],
+                                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0,2))],
                                   ),
                                   padding: const EdgeInsets.all(12),
                                   child: Column(
@@ -695,17 +695,17 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                             borderRadius: BorderRadius.circular(8),
                                             child: deal.imageDataString != null && deal.imageDataString!.isNotEmpty
                                               ? (deal.imageDataString!.startsWith('http')
-                                                  ? Image.network(deal.imageDataString!, fit: BoxFit.cover, width: double.infinity, height: 70, errorBuilder: (c, e, s) => Icon(Icons.broken_image))
+                                                  ? Image.network(deal.imageDataString!, fit: BoxFit.cover, width: double.infinity, height: 70, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
                                                   : (deal.imageDataString!.startsWith('data:image')
                                                       ? Image.memory(
                                                           base64Decode(deal.imageDataString!.substring(deal.imageDataString!.indexOf(',') + 1)),
                                                           fit: BoxFit.cover,
                                                           width: double.infinity,
                                                           height: 70,
-                                                          errorBuilder: (c, e, s) => Icon(Icons.broken_image),
+                                                          errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
                                                         )
-                                                      : Icon(Icons.broken_image)))
-                                              : Icon(Icons.broken_image),
+                                                      : const Icon(Icons.broken_image)))
+                                              : const Icon(Icons.broken_image),
                                           ),
                                         ),
                                       ),
@@ -737,7 +737,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
             ),
             const SizedBox(height: 20.0),
-            Divider(height: 32, thickness: 1.2),
+            const Divider(height: 32, thickness: 1.2),
 
             // Ratings & Reviews Section
             Card(
@@ -766,7 +766,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                 size: 24,
                               )),
                             )
-                          : Icon(Icons.star_border, color: Colors.grey, size: 24),
+                          : const Icon(Icons.star_border, color: Colors.grey, size: 24),
                         const SizedBox(width: 8),
                         Text(_averageRating.toStringAsFixed(1), style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
@@ -790,7 +790,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                   backgroundImage: NetworkImage(c['user']!['avatar']),
                                   backgroundColor: Colors.grey[200],
                                 )
-                              : Icon(Icons.account_circle, size: 32),
+                              : const Icon(Icons.account_circle, size: 32),
                             title: Text(c['user']?['name'] ?? 'User',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -800,7 +800,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             trailing: c['rating'] != null ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.star, color: Colors.amber, size: 18),
+                                const Icon(Icons.star, color: Colors.amber, size: 18),
                                 Text(c['rating'].toString()),
                               ],
                             ) : null,
@@ -875,7 +875,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
             ),
             const SizedBox(height: 20.0),
-            Divider(height: 32, thickness: 1.2),
+            const Divider(height: 32, thickness: 1.2),
 
             // Map/Location Section
             if (promotion.location != null && promotion.location!.isNotEmpty)
@@ -909,7 +909,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             errorBuilder: (context, error, stackTrace) => Container(
                               height: 120,
                               color: Colors.grey[200],
-                              child: Center(child: Icon(Icons.map, color: Colors.grey)),
+                              child: const Center(child: Icon(Icons.map, color: Colors.grey)),
                             ),
                           ),
                         ),
@@ -923,7 +923,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Could not open maps.')),
+                              const SnackBar(content: Text('Could not open maps.')),
                             );
                           }
                         },
@@ -1020,7 +1020,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   const SizedBox(width: 4),
                   Text('1.2k followers', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.secondary)),
                   const SizedBox(width: 16),
-                  Icon(Icons.star, size: 18, color: Colors.amber),
+                  const Icon(Icons.star, size: 18, color: Colors.amber),
                   const SizedBox(width: 4),
                   Text('4.8', style: theme.textTheme.bodySmall?.copyWith(color: Colors.amber)),
                   const SizedBox(width: 16),
@@ -1028,15 +1028,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     onPressed: () {
                       // TODO: Implement follow merchant logic
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Follow merchant (to be implemented)')),
+                        const SnackBar(content: Text('Follow merchant (to be implemented)')),
                       );
                     },
-                    child: Text('Follow'),
                     style: OutlinedButton.styleFrom(
-                      minimumSize: Size(60, 28),
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                      textStyle: TextStyle(fontSize: 12),
+                      minimumSize: const Size(60, 28),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                      textStyle: const TextStyle(fontSize: 12),
                     ),
+                    child: Text('Follow'),
                   ),
                 ],
               ),
@@ -1061,11 +1061,11 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _toggleFavorite,
         backgroundColor: Theme.of(context).colorScheme.primary,
+        tooltip: _isFavorite ? 'Remove from Favorites' : 'Save to Favorites',
         child: Icon(
           _isFavorite ? Icons.favorite : Icons.favorite_border,
           color: Colors.white,
         ),
-        tooltip: _isFavorite ? 'Remove from Favorites' : 'Save to Favorites',
       ),
     );
   }
