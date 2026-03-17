@@ -146,7 +146,6 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             color: Colors.blue[50],
             child: Column(
               children: [
-                // Location Status
                 Row(
                   children: [
                     Icon(
@@ -163,28 +162,6 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                
-                // Find Deals Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _getCurrentLocationAndFetchDeals,
-                    icon: _isLoading 
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.near_me),
-                    label: Text(_isLoading ? 'Finding Deals...' : 'Find Nearby Deals'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                
-                // Radius Selector
                 Row(
                   children: [
                     const Text('Search Radius: '),
