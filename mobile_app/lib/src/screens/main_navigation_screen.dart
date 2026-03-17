@@ -45,25 +45,25 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.local_offer),
+            icon: Icon(_selectedIndex == 1 ? Icons.local_offer : Icons.local_offer_outlined),
             label: 'All Deals',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.store),
+            icon: Icon(_selectedIndex == 2 ? Icons.store : Icons.store_outlined),
             label: 'Stores',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_border),
+            icon: Icon(_selectedIndex == 3 ? Icons.favorite : Icons.favorite_border),
             label: 'Favorites',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+            icon: Icon(_selectedIndex == 4 ? Icons.person : Icons.person_outline),
             label: 'Profile',
           ),
         ],
