@@ -391,76 +391,113 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Nearby Deals header
+          // Nearby Deals
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 20.0, 16.0, 10.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Nearby Deals',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 10.0, 16.0, 10.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Nearby Deals',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const NearbyDealsScreen()),
+                          ),
+                          child: const Text('View All'),
+                        ),
+                      ],
+                    ),
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const NearbyDealsScreen()),
+                  FutureBuilder<List<Promotion>>(
+                    future: _nearbyDealsPreviewFuture,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return _buildFeaturedDealsShimmer();
+                      } else if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                        return SizedBox(
+                          height: 220,
+                          child: Center(child: Text('No nearby deals available.', style: TextStyle(color: Colors.grey[600]))),
+                        );
+                      }
+                      final nearbyDeals = snapshot.data!;
+                      return SizedBox(
+                        height: 270,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: nearbyDeals.length,
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          itemBuilder: (context, index) {
+                            final promotion = nearbyDeals[index];
+                            return Container(
+                              width: MediaQuery.of(context).size.width * 0.75,
+                              margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                              child: Stack(
+                                children: [
+                                  InkWell(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
+                                    ),
+                                    child: DealCard(promotion: promotion),
+                                  ),
+                                  Positioned(
+                                    left: 10,
+                                    top: 10,
+                                    child: CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: Colors.white,
+                                      backgroundImage: promotion.merchantLogoUrl != null
+                                          ? NetworkImage(promotion.merchantLogoUrl!)
+                                          : null,
+                                      child: promotion.merchantLogoUrl == null
+                                          ? Icon(Icons.storefront, color: Colors.grey[400], size: 22)
+                                          : null,
+                                    ),
+                                  ),
+                                  if (promotion.distance != null)
+                                    Positioned(
+                                      top: 10,
+                                      right: 10,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green[600],
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.location_on, size: 12, color: Colors.white),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              promotion.distance! < 1000
+                                                  ? '${promotion.distance!.round()}m'
+                                                  : '${(promotion.distance! / 1000).toStringAsFixed(1)}km',
+                                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       );
                     },
-                    child: const Text('View All'),
                   ),
                 ],
               ),
             ),
-          ),
-
-          // Nearby Deals list
-          FutureBuilder<List<Promotion>>(
-            future: _nearbyDealsPreviewFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => const DealCardShimmer(),
-                    childCount: 2,
-                  ),
-                );
-              } else if (snapshot.hasError) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Center(child: Text('Could not load nearby deals.', style: TextStyle(color: Colors.red[400]))),
-                  ),
-                );
-              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Center(child: Text('No other deals available currently.', style: TextStyle(color: Colors.grey[600]))),
-                  ),
-                );
-              }
-              final nearbyDeals = snapshot.data!;
-              return SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final promotion = nearbyDeals[index];
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
-                        );
-                      },
-                      child: DealCard(promotion: promotion),
-                    );
-                  },
-                  childCount: nearbyDeals.length,
-                ),
-              );
-            },
           ),
 
           // Quick Actions
