@@ -99,12 +99,19 @@ app.get('/test-static', (req, res) => {
 });
 
 // Connect to MongoDB with better error handling
-mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('Connected to MongoDB'))
+mongoose.connect(process.env.MONGO_URI)
+.then(async () => {
+  console.log('Connected to MongoDB');
+  try {
+    await mongoose.connection.collection('merchants').createIndex({ location: '2dsphere' });
+    console.log('2dsphere index ensured on merchants.location');
+  } catch (err) {
+    console.warn('Could not create 2dsphere index:', err.message);
+  }
+})
 .catch((err) => {
   console.error('Error connecting to MongoDB:', err);
-  // Log more details about the connection attempt
-  console.error('MongoDB URI (masked):', process.env.MONGODB_URI ? '***' + process.env.MONGODB_URI.substring(process.env.MONGODB_URI.indexOf('@')) : 'Not provided');
+  console.error('MongoDB URI (masked):', process.env.MONGO_URI ? '***' + process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@')) : 'Not provided');
   console.error('Environment:', process.env.NODE_ENV);
 });
 
