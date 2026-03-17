@@ -171,16 +171,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         title: Text(promotion.title, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none),
-            tooltip: 'Notifications',
-            onPressed: () {
-              // TODO: Navigate to notifications page
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Notifications (to be implemented)')),
-              );
-            },
-          ),
-          IconButton(
             icon: Icon(
               _isFavorite ? Icons.favorite : Icons.favorite_border,
               color: _isFavorite ? Colors.red : null,
@@ -959,39 +949,22 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       ],
                     ),
                   ),
-                // Placeholder for tags/type (e.g., Online Only, Limited Time)
-                // Add more tags here if your backend provides them
-                Container(
-                  margin: const EdgeInsets.only(right: 8.0),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(16),
+                if (promotion.endDate != null && promotion.endDate!.difference(DateTime.now()).inDays <= 7 && promotion.endDate!.isAfter(DateTime.now()))
+                  Container(
+                    margin: const EdgeInsets.only(right: 8.0),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.flash_on, size: 16, color: Colors.blue[700]),
+                        const SizedBox(width: 4),
+                        Text('LIMITED TIME', style: TextStyle(color: Colors.blue[700], fontWeight: FontWeight.bold, fontSize: 12)),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.flash_on, size: 16, color: Colors.blue[700]),
-                      const SizedBox(width: 4),
-                      Text('LIMITED TIME', style: TextStyle(color: Colors.blue[700], fontWeight: FontWeight.bold, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                // Example: In-Store Only tag (uncomment if you have this info)
-                // Container(
-                //   margin: const EdgeInsets.only(right: 8.0),
-                //   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                //   decoration: BoxDecoration(
-                //     color: Colors.green[50],
-                //     borderRadius: BorderRadius.circular(16),
-                //   ),
-                //   child: Row(
-                //     children: [
-                //       Icon(Icons.store, size: 16, color: Colors.green[700]),
-                //       const SizedBox(width: 4),
-                //       Text('IN-STORE', style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 12)),
-                //     ],
-                //   ),
-                // ),
               ],
             ),
             const SizedBox(height: 10.0),
@@ -1012,48 +985,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
             const SizedBox(height: 10.0),
 
-            // Merchant Quick Info (Web-inspired, placeholder)
-            if (promotion.merchantName != null && promotion.merchantName!.isNotEmpty)
-              Row(
-                children: [
-                  Icon(Icons.people, size: 18, color: theme.colorScheme.secondary),
-                  const SizedBox(width: 4),
-                  Text('1.2k followers', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.secondary)),
-                  const SizedBox(width: 16),
-                  const Icon(Icons.star, size: 18, color: Colors.amber),
-                  const SizedBox(width: 4),
-                  Text('4.8', style: theme.textTheme.bodySmall?.copyWith(color: Colors.amber)),
-                  const SizedBox(width: 16),
-                  OutlinedButton(
-                    onPressed: () {
-                      // TODO: Implement follow merchant logic
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Follow merchant (to be implemented)')),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(60, 28),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    child: Text('Follow'),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 10.0),
-
-            // Deal Analytics (Web-inspired, placeholder)
-            Row(
-              children: [
-                Icon(Icons.visibility, size: 18, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text('2,345 views today', style: theme.textTheme.bodySmall),
-                const SizedBox(width: 16),
-                Icon(Icons.favorite, size: 18, color: Colors.red[400]),
-                const SizedBox(width: 4),
-                Text('512 saved', style: theme.textTheme.bodySmall),
-              ],
-            ),
             const SizedBox(height: 10.0),
           ],
         ),
