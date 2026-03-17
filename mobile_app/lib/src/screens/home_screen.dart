@@ -25,9 +25,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Future<List<Promotion>> _featuredDealsFuture;
+  late Future<List<Promotion>> _allPromotionsFuture;
   late Future<List<Promotion>> _nearbyDealsPreviewFuture;
-  late Future<List<Promotion>> _trendingDealsFuture;
   final ApiService _apiService = ApiService();
   String? _profilePicture;
   String _userName = 'User';
@@ -40,9 +39,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _featuredDealsFuture = _fetchFeaturedDeals();
+    _allPromotionsFuture = _apiService.fetchPromotions();
     _nearbyDealsPreviewFuture = _fetchNearbyDealsPreview();
-    _trendingDealsFuture = _fetchTrendingDeals();
     _loadUserData();
     _checkAlerts();
     _loadStats();
@@ -83,23 +81,6 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
-  Future<List<Promotion>> _fetchTrendingDeals() async {
-    final allPromotions = await _apiService.fetchPromotions();
-    final sorted = [...allPromotions]
-      ..sort((a, b) => b.ratingsCount.compareTo(a.ratingsCount));
-    return sorted.take(5).toList();
-  }
-
-  Future<List<Promotion>> _fetchFeaturedDeals() async {
-    try {
-      final allPromotions = await _apiService.fetchPromotions();
-      final featuredDeals = allPromotions.where((p) => p.featured == true).toList();
-      if (featuredDeals.isNotEmpty) return featuredDeals.take(5).toList();
-      return allPromotions.take(5).toList();
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   Future<List<Promotion>> _fetchNearbyDealsPreview() async {
     try {
@@ -112,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         return nearbyDeals.take(3).toList();
       }
-      final allPromotions = await _apiService.fetchPromotions();
+      final allPromotions = await _allPromotionsFuture;
       return allPromotions.skip(5).take(3).toList();
     } catch (e) {
       return [];
@@ -276,7 +257,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   FutureBuilder<List<Promotion>>(
-                    future: _featuredDealsFuture,
+                    future: _allPromotionsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer();
@@ -294,7 +275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text('${snapshot.error}', style: TextStyle(color: Colors.red[300], fontSize: 12), textAlign: TextAlign.center),
                                 const SizedBox(height: 8),
                                 ElevatedButton(
-                                  onPressed: () => setState(() => _featuredDealsFuture = _fetchFeaturedDeals()),
+                                  onPressed: () => setState(() => _allPromotionsFuture = _apiService.fetchPromotions()),
                                   child: const Text('Retry'),
                                 ),
                               ],
@@ -307,7 +288,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
-                      final featuredDeals = snapshot.data!;
+                      final all = snapshot.data!;
+                      final featuredDeals = all.where((p) => p.featured == true).isNotEmpty
+                          ? all.where((p) => p.featured == true).take(5).toList()
+                          : all.take(5).toList();
                       return SizedBox(
                         height: 270,
                         child: ListView.builder(
@@ -550,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 10),
                   FutureBuilder<List<Promotion>>(
-                    future: _trendingDealsFuture,
+                    future: _allPromotionsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return _buildFeaturedDealsShimmer();
@@ -565,7 +549,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Center(child: Text('No trending deals available.', style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
-                      final trendingDeals = snapshot.data!;
+                      final trendingDeals = ([...snapshot.data!]
+                        ..sort((a, b) => b.ratingsCount.compareTo(a.ratingsCount)))
+                        .take(5).toList();
                       return SizedBox(
                         height: 120,
                         child: ListView.builder(
