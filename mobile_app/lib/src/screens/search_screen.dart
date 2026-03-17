@@ -130,7 +130,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                 children: [
                   const Icon(Icons.error_outline, color: Colors.red, size: 48),
                   const SizedBox(height: 12),
-                  Text('Error: \\${snapshot.error}', style: const TextStyle(color: Colors.red)),
+                  Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red)),
                 ],
               ),
             );
