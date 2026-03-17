@@ -989,15 +989,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleFavorite,
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        tooltip: _isFavorite ? 'Remove from Favorites' : 'Save to Favorites',
-        child: Icon(
-          _isFavorite ? Icons.favorite : Icons.favorite_border,
-          color: Colors.white,
-        ),
-      ),
     );
   }
 
