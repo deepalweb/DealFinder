@@ -118,37 +118,29 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Serve the frontend
 if (process.env.NODE_ENV === 'production') {
-  // In production, Next.js standalone runs its own server
-  // Express serves only the API, Next.js handles all other routes
-  const nextStaticPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next/.next/static');
-  const nextPublicPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next/public');
-
-  // Serve Next.js static files
-  app.use('/_next/static', express.static(nextStaticPath));
-  app.use('/public', express.static(nextPublicPath));
-
-  // For all non-API routes, proxy to Next.js standalone server (port 3000)
-  const { createProxyMiddleware } = require('http-proxy-middleware');
-  app.use('/', createProxyMiddleware({
-    target: 'http://localhost:3000',
-    changeOrigin: true,
-    ws: true,
-    on: {
-      error: (err, req, res) => {
-        res.status(502).send('Next.js server not ready yet. Please try again.');
-      }
-    }
-  }));
-
-  // Start Next.js standalone server
   const { spawn } = require('child_process');
-  const nextServerPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next/server.js');
-  const nextProcess = spawn('node', [nextServerPath], {
-    env: { ...process.env, PORT: '3000', HOSTNAME: '0.0.0.0' },
-    stdio: 'inherit'
-  });
-  nextProcess.on('error', (err) => console.error('Next.js process error:', err));
-  console.log('Starting Next.js standalone server on port 3000...');
+  const fs = require('fs');
+  const nextServerPath = path.join(__dirname, '../frontend-next/server.js');
+
+  if (fs.existsSync(nextServerPath)) {
+    const nextProc = spawn('node', [nextServerPath], {
+      env: { ...process.env, PORT: '3000', HOSTNAME: '127.0.0.1' },
+      stdio: 'inherit'
+    });
+    nextProc.on('error', err => console.error('Next.js error:', err.message));
+    console.log('Next.js standalone starting on port 3000...');
+
+    // Proxy all non-API requests to Next.js
+    const proxy = require('http-proxy-middleware').createProxyMiddleware;
+    app.use('/', proxy({
+      target: 'http://127.0.0.1:3000',
+      changeOrigin: false,
+      on: { error: (_e, _r, res) => { res.status(502).send('Starting up...'); } }
+    }));
+  } else {
+    console.warn('Next.js not found at:', nextServerPath);
+    app.get('*', (_req, res) => res.send('App starting...'));
+  }
 } else {
   // Development: serve old frontend
   app.get('/', (req, res) => {

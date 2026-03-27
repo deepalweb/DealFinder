@@ -19,55 +19,54 @@ jobs:
         with:
           node-version: '20.x'
 
-      # Install and build Next.js
+      # Build Next.js
       - name: Install Next.js dependencies
         working-directory: ./frontend-next
         run: npm ci
 
-      - name: Build Next.js app
+      - name: Build Next.js
         working-directory: ./frontend-next
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api
           NODE_ENV: production
 
-      # Copy Next.js static assets into standalone output
-      - name: Copy Next.js static assets
-        run: |
-          cp -r frontend-next/.next/static frontend-next/.next/standalone/frontend-next/.next/static
-          cp -r frontend-next/public frontend-next/.next/standalone/frontend-next/public
-
       # Install backend dependencies
       - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci --omit=dev
 
-      # Create clean deployment package
-      - name: Create deployment package
+      # Build deployment package
+      - name: Build deployment package
         run: |
           mkdir -p deploy
 
-          # Copy backend (with node_modules)
+          # 1. Copy backend
           cp -r backend deploy/backend
 
-          # Copy Next.js standalone output under frontend-next path
-          mkdir -p deploy/frontend-next/.next
-          cp -r frontend-next/.next/standalone/. deploy/frontend-next/.next/standalone/
+          # 2. Flatten Next.js standalone output to deploy/frontend-next/
+          #    standalone output is at frontend-next/.next/standalone/
+          #    which contains: server.js, node_modules/, frontend-next/ subfolder
+          mkdir -p deploy/frontend-next
+          cp -r frontend-next/.next/standalone/. deploy/frontend-next/
+          # Copy static assets
           cp -r frontend-next/.next/static deploy/frontend-next/.next/static
           cp -r frontend-next/public deploy/frontend-next/public
 
-          # Copy root files
+          # 3. Root files
           cp package.json deploy/
           cp web.config deploy/
           cp .deployment deploy/
 
-      # Zip deployment package
-      - name: Zip deployment package
-        run: |
-          cd deploy
-          zip -r ../deploy.zip .
+          echo "=== Deploy structure ==="
+          ls deploy/
+          echo "=== frontend-next ==="
+          ls deploy/frontend-next/
 
-      # Deploy to Azure Web App
+      # Zip and deploy
+      - name: Zip deployment package
+        run: cd deploy && zip -r ../deploy.zip .
+
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
