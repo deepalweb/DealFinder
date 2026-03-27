@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
+
+declare global {
+  interface Window { google: any; }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,10 +17,73 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const googleClientIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (user) router.push(user.role === 'merchant' ? '/merchant/dashboard' : '/');
+    if (user) router.push(user.role === 'merchant' ? '/merchant/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/');
   }, [user]);
+
+  // Step 1: Fetch client ID
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then(c => { googleClientIdRef.current = c.GOOGLE_CLIENT_ID; tryInitGoogle(); })
+      .catch(() => {});
+  }, []);
+
+  // Step 2: Load GSI script dynamically
+  useEffect(() => {
+    if (document.getElementById('google-gsi-script')) { tryInitGoogle(); return; }
+    const script = document.createElement('script');
+    script.id = 'google-gsi-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => tryInitGoogle();
+    document.head.appendChild(script);
+  }, []);
+
+  // Step 3: Poll until google object, clientId, and ref are all ready
+  const tryInitGoogle = () => {
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (attempts > 20) { clearInterval(interval); return; }
+      if (window.google && googleClientIdRef.current && googleBtnRef.current) {
+        clearInterval(interval);
+        try {
+          window.google.accounts.id.initialize({
+            client_id: googleClientIdRef.current,
+            callback: handleGoogleCallback,
+            auto_select: false,
+          });
+          window.google.accounts.id.renderButton(googleBtnRef.current, {
+            theme: 'outline',
+            size: 'large',
+            width: 360,
+            text: 'signin_with',
+            shape: 'rectangular',
+          });
+          setGoogleReady(true);
+        } catch (e) {
+          console.warn('Google init error:', e);
+        }
+      }
+    }, 300);
+  };
+
+  const handleGoogleCallback = async (response: any) => {
+    try {
+      const res = await UserAPI.googleSignIn({ token: response.credential });
+      login(res);
+      toast.success(`Welcome, ${res.name}!`);
+      router.push(res.role === 'merchant' ? '/merchant/dashboard' : res.role === 'admin' ? '/admin/dashboard' : '/');
+    } catch (err: any) {
+      toast.error(err.message || 'Google Sign-In failed.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +92,7 @@ export default function LoginPage() {
       const res = await UserAPI.login(formData);
       login(res);
       toast.success(`Welcome back, ${res.name}!`);
-      router.push(res.role === 'merchant' ? '/merchant/dashboard' : '/');
+      router.push(res.role === 'merchant' ? '/merchant/dashboard' : res.role === 'admin' ? '/admin/dashboard' : '/');
     } catch (err: any) {
       toast.error(err.message || 'Invalid email or password.');
     } finally {
@@ -37,11 +104,14 @@ export default function LoginPage() {
     width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem', fontSize: '0.9rem',
     border: '1.5px solid var(--border-color)', background: 'var(--card-bg)',
     color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const,
+    transition: 'border-color 0.2s',
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 160px)', padding: '2rem 1rem' }}>
       <div className="fade-in" style={{ width: '100%', maxWidth: '420px' }}>
+
+        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginBottom: '1rem' }}>
             <span style={{ background: 'linear-gradient(135deg,#6366f1,#f43f5e)', borderRadius: '0.625rem', padding: '0.4rem 0.7rem', color: '#fff', fontSize: '1.1rem', fontWeight: 800 }}>%</span>
@@ -52,19 +122,53 @@ export default function LoginPage() {
         </div>
 
         <div className="promotion-card" style={{ padding: '1.5rem' }}>
+
+          {/* Google Sign-In */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            {/* Outer div managed by React - never modified */}
+            <div style={{ width: '100%', minHeight: '44px', position: 'relative' }}>
+              {/* Placeholder - hidden once Google renders */}
+              {!googleReady && (
+                <div style={{ width: '100%', height: '44px', borderRadius: '0.5rem', background: 'var(--light-gray)', border: '1.5px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                  <i className="fab fa-google" style={{ fontSize: '1rem' }}></i>
+                  Sign in with Google
+                </div>
+              )}
+              {/* Google renders into this div - kept empty by React */}
+              <div
+                ref={googleBtnRef}
+                style={{ position: googleReady ? 'static' : 'absolute', top: 0, left: 0, width: '100%', opacity: googleReady ? 1 : 0 }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div style={{ position: 'relative', textAlign: 'center', marginBottom: '1.25rem' }}>
+            <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'var(--border-color)' }}></div>
+            <span style={{ position: 'relative', background: 'var(--card-bg)', padding: '0 0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>or sign in with email</span>
+          </div>
+
+          {/* Email/Password Form */}
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>Email Address</label>
               <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
-                style={inputStyle} placeholder="you@example.com" required />
+                style={inputStyle} placeholder="you@example.com" required
+                onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')}
+                onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
             </div>
 
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>Password</label>
+              <div className="flex items-center justify-between" style={{ marginBottom: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>Password</label>
+                <Link href="/reset-password" style={{ fontSize: '0.8rem', color: 'var(--primary-color)', textDecoration: 'none' }}>Forgot password?</Link>
+              </div>
               <div style={{ position: 'relative' }}>
                 <input type={showPassword ? 'text' : 'password'} value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  style={{ ...inputStyle, paddingRight: '2.75rem' }} placeholder="••••••••" required />
+                  style={{ ...inputStyle, paddingRight: '2.75rem' }} placeholder="••••••••" required
+                  onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')}
+                  onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                   <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
@@ -72,30 +176,33 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={loading} className="btn btn-primary w-full"
-              style={{ justifyContent: 'center', padding: '0.75rem', fontSize: '0.95rem', width: '100%', marginBottom: '0.75rem' }}>
+            <button type="submit" disabled={loading} className="btn btn-primary"
+              style={{ justifyContent: 'center', padding: '0.75rem', fontSize: '0.95rem', width: '100%', marginBottom: '1rem' }}>
               {loading ? <><i className="fas fa-spinner fa-spin"></i> Signing in...</> : 'Sign In'}
             </button>
-
-            <button type="button" onClick={() => { setFormData({ email: 'demo@merchant.com', password: 'demo123' }); }}
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '0.625rem', border: '1.5px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.08)', color: '#059669', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              <i className="fas fa-play-circle mr-2"></i> Fill Demo Merchant Credentials
-            </button>
-
-            <div style={{ position: 'relative', textAlign: 'center', marginBottom: '1rem' }}>
-              <div style={{ position: 'absolute', top: '50%', left: 0, right: 0, height: '1px', background: 'var(--border-color)' }}></div>
-              <span style={{ position: 'relative', background: 'var(--card-bg)', padding: '0 0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>or</span>
-            </div>
-
-            <div id="google-signin-button" style={{ display: 'flex', justifyContent: 'center' }}></div>
           </form>
 
-          <div className="text-center mt-5" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-            <Link href="/reset-password" style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 500 }}>Forgot password?</Link>
-            <span style={{ margin: '0 0.5rem' }}>·</span>
-            <span>No account? </span>
-            <Link href="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}>Sign up</Link>
+          {/* Demo accounts */}
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quick Demo Access</p>
+            <div className="flex gap-2">
+              {[
+                { label: 'Merchant', icon: 'fa-store', email: 'jane@example.com', pass: 'password123', color: '#059669', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.3)' },
+                { label: 'Admin', icon: 'fa-shield-alt', email: 'admin@example.com', pass: 'admin123', color: '#ef4444', bg: 'rgba(239,68,68,0.06)', border: 'rgba(239,68,68,0.3)' },
+                { label: 'User', icon: 'fa-user', email: 'john@example.com', pass: 'password123', color: 'var(--primary-color)', bg: 'rgba(99,102,241,0.06)', border: 'rgba(99,102,241,0.3)' },
+              ].map(d => (
+                <button key={d.label} type="button"
+                  onClick={() => setFormData({ email: d.email, password: d.pass })}
+                  style={{ flex: 1, padding: '0.5rem 0.25rem', borderRadius: '0.625rem', border: `1.5px solid ${d.border}`, background: d.bg, color: d.color, fontWeight: 600, cursor: 'pointer', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                  <i className={`fas ${d.icon}`}></i> {d.label}
+                </button>
+              ))}
+            </div>
           </div>
+
+          <p className="text-center mt-4" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            No account? <Link href="/register" style={{ color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 600 }}>Sign up</Link>
+          </p>
         </div>
       </div>
     </div>
