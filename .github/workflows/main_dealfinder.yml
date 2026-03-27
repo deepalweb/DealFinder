@@ -19,11 +19,6 @@ jobs:
         with:
           node-version: '20.x'
 
-      # Install backend dependencies
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: npm ci --omit=dev
-
       # Install and build Next.js
       - name: Install Next.js dependencies
         working-directory: ./frontend-next
@@ -42,24 +37,35 @@ jobs:
           cp -r frontend-next/.next/static frontend-next/.next/standalone/frontend-next/.next/static
           cp -r frontend-next/public frontend-next/.next/standalone/frontend-next/public
 
+      # Install backend dependencies
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci --omit=dev
+
       # Create clean deployment package
       - name: Create deployment package
         run: |
           mkdir -p deploy
-          # Copy backend
+
+          # Copy backend (with node_modules)
           cp -r backend deploy/backend
-          # Copy Next.js standalone output
-          cp -r frontend-next/.next/standalone/. deploy/
-          # Copy root package.json and web.config
+
+          # Copy Next.js standalone output under frontend-next path
+          mkdir -p deploy/frontend-next/.next
+          cp -r frontend-next/.next/standalone/. deploy/frontend-next/.next/standalone/
+          cp -r frontend-next/.next/static deploy/frontend-next/.next/static
+          cp -r frontend-next/public deploy/frontend-next/public
+
+          # Copy root files
           cp package.json deploy/
           cp web.config deploy/
           cp .deployment deploy/
 
-      # Create zip package
+      # Zip deployment package
       - name: Zip deployment package
         run: |
           cd deploy
-          zip -r ../deploy.zip . -x "*.git*" -x "node_modules/.cache/*"
+          zip -r ../deploy.zip .
 
       # Deploy to Azure Web App
       - name: Deploy to Azure Web App

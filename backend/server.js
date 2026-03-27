@@ -118,27 +118,37 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Serve the frontend
 if (process.env.NODE_ENV === 'production') {
-  // Serve Next.js standalone build in production
-  const nextPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next');
-  const nextStaticPath = path.join(__dirname, '../frontend-next/.next/static');
-  const nextPublicPath = path.join(__dirname, '../frontend-next/public');
+  // In production, Next.js standalone runs its own server
+  // Express serves only the API, Next.js handles all other routes
+  const nextStaticPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next/.next/static');
+  const nextPublicPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next/public');
 
   // Serve Next.js static files
   app.use('/_next/static', express.static(nextStaticPath));
   app.use('/public', express.static(nextPublicPath));
 
-  // Serve Next.js app for all non-API routes
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) return res.status(404).json({ message: 'API route not found' });
-    try {
-      const { createServer } = require('http');
-      const nextServer = require(path.join(nextPath, 'server.js'));
-      nextServer(req, res);
-    } catch (err) {
-      console.error('Next.js serve error:', err);
-      res.status(500).send('Server error');
+  // For all non-API routes, proxy to Next.js standalone server (port 3000)
+  const { createProxyMiddleware } = require('http-proxy-middleware');
+  app.use('/', createProxyMiddleware({
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+    ws: true,
+    on: {
+      error: (err, req, res) => {
+        res.status(502).send('Next.js server not ready yet. Please try again.');
+      }
     }
+  }));
+
+  // Start Next.js standalone server
+  const { spawn } = require('child_process');
+  const nextServerPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next/server.js');
+  const nextProcess = spawn('node', [nextServerPath], {
+    env: { ...process.env, PORT: '3000', HOSTNAME: '0.0.0.0' },
+    stdio: 'inherit'
   });
+  nextProcess.on('error', (err) => console.error('Next.js process error:', err));
+  console.log('Starting Next.js standalone server on port 3000...');
 } else {
   // Development: serve old frontend
   app.get('/', (req, res) => {
