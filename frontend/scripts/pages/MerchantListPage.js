@@ -10,205 +10,182 @@ function MerchantListPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch merchants from API
     const fetchMerchants = async () => {
       try {
         setLoading(true);
-        // Only fetch merchants from API
         let merchantsData = await window.API.Merchants.getAll();
-        if (!Array.isArray(merchantsData)) {
-          console.warn('Expected array of merchants, got:', merchantsData);
-          merchantsData = [];
-        }
+        if (!Array.isArray(merchantsData)) merchantsData = [];
         merchantsData = merchantsData.map(m => ({ ...m, id: m._id }));
         setMerchants(merchantsData);
         setFilteredMerchants(merchantsData);
-      } catch (err) {
-        console.error("Error in merchant fetch:", err);
-        setError("Failed to load merchants. Please try again later.");
+      } catch {
+        setError('Failed to load merchants. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
-
     fetchMerchants();
   }, []);
 
   useEffect(() => {
-    // Filter merchants based on search term and category
     let results = [...merchants];
-
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      results = results.filter((merchant) =>
-      merchant.name.toLowerCase().includes(term) ||
-      (merchant.description && merchant.description.toLowerCase().includes(term))
+      results = results.filter(m =>
+        m.name.toLowerCase().includes(term) ||
+        (m.description && m.description.toLowerCase().includes(term))
       );
     }
-
     if (selectedCategory !== 'all') {
-      results = results.filter((merchant) => merchant.category === selectedCategory);
+      results = results.filter(m => m.category === selectedCategory);
     }
-
     setFilteredMerchants(results);
   }, [searchTerm, selectedCategory, merchants]);
 
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handleCategoryChange = (category) => {
-    setSelectedCategory(category);
-  };
-
-  // Utility to get a safe logo image (base64, URL, or fallback)
   function getSafeLogo(logo, name) {
     if (logo && typeof logo === 'string') {
-      if (logo.startsWith('data:image')) return logo;
-      if (logo.startsWith('http')) return logo;
+      if (logo.startsWith('data:image') || logo.startsWith('http')) return logo;
     }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=300`;
   }
 
-  if (loading) {
-    return (
-      <div className="page-container">
-        <div className="container py-8 text-center">
-          <i className="fas fa-spinner fa-spin text-3xl text-primary-color"></i>
-        </div>
-      </div>);
-  }
+  const categoryIcon = (cat) => ({
+    fashion: 'fa-tshirt', electronics: 'fa-laptop', travel: 'fa-plane',
+    health: 'fa-heart-pulse', entertainment: 'fa-gamepad', home: 'fa-home',
+    pets: 'fa-paw', food: 'fa-utensils'
+  }[cat] || 'fa-store');
 
-  if (error) {
-    return (
-      <div className="page-container">
-        <div className="container py-8 text-center">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            <p>{error}</p>
-            <button 
-              className="mt-4 btn btn-primary"
-              onClick={() => window.location.reload()}>
-              Try Again
-            </button>
-          </div>
+  const SkeletonCard = () => (
+    <div className="skeleton-card p-4">
+      <div className="flex items-center mb-4 gap-3">
+        <div className="skeleton rounded-full flex-shrink-0" style={{width:'64px',height:'64px'}}></div>
+        <div className="flex-1">
+          <div className="skeleton mb-2" style={{height:'16px',width:'60%'}}></div>
+          <div className="skeleton" style={{height:'12px',width:'40%'}}></div>
         </div>
       </div>
-    );
-  }
-
-  // Defensive: ensure all merchants have an 'id' property for React keys
-  const safeFilteredMerchants = filteredMerchants.map(m => ({ ...m, id: m.id || m._id }));
+      <div className="skeleton mb-2" style={{height:'12px',width:'100%'}}></div>
+      <div className="skeleton mb-4" style={{height:'12px',width:'75%'}}></div>
+      <div className="skeleton" style={{height:'36px'}}></div>
+    </div>
+  );
 
   return (
     <div className="page-container">
-      <div className="bg-primary-color py-12 mb-8">
+      {/* Hero */}
+      <div style={{background:'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%)'}} className="py-16 mb-8">
         <div className="container">
           <div className="text-center text-white mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              Discover Your Favorite Stores
+            <div className="inline-flex items-center gap-2 bg-white bg-opacity-20 rounded-full px-4 py-1.5 text-sm font-medium mb-4">
+              <i className="fas fa-store"></i> {merchants.length} stores available
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4" style={{letterSpacing:'-0.03em',lineHeight:1.1}}>
+              Discover Your<br/>Favorite Stores
             </h1>
-            <p className="text-lg max-w-2xl mx-auto">
-              Follow your favorite merchants to get personalized deal recommendations and notifications about their latest promotions.
+            <p className="text-lg max-w-xl mx-auto mb-8" style={{opacity:0.9}}>
+              Follow merchants to get personalized deal recommendations and notifications.
             </p>
-          </div>
-          
-          <div className="max-w-md mx-auto">
-            <div className="relative">
+            {/* Search */}
+            <div style={{position:'relative',maxWidth:'520px',margin:'0 auto'}}>
+              <i className="fas fa-search" style={{position:'absolute',left:'1.1rem',top:'50%',transform:'translateY(-50%)',color:'rgba(255,255,255,0.7)',pointerEvents:'none'}}></i>
               <input
                 type="text"
-                placeholder="Search for stores..."
-                className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-dark"
+                placeholder="Search stores..."
                 value={searchTerm}
-                onChange={handleSearch} />
-              <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{width:'100%',padding:'0.875rem 3rem',border:'2px solid rgba(255,255,255,0.3)',borderRadius:'9999px',fontSize:'1rem',background:'rgba(255,255,255,0.15)',color:'#fff',backdropFilter:'blur(8px)',boxSizing:'border-box'}}
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} style={{position:'absolute',right:'1.1rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:'0.9rem'}}>
+                  <i className="fas fa-times"></i>
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
-      
-      <div className="container pb-8">
-        <div className="mb-6 overflow-x-auto">
-          <div className="flex space-x-2">
-            <button
-              className={`px-4 py-2 rounded-full ${
-              selectedCategory === 'all' ?
-              'bg-primary-color text-white' :
-              'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`
-              }
-              onClick={() => handleCategoryChange('all')}>
-              All Categories
-            </button>
-            
-            {categories.slice(1).map((category) =>
-            <button
-              key={category.id}
-              className={`px-4 py-2 rounded-full flex items-center ${
-              selectedCategory === category.id ?
-              'bg-primary-color text-white' :
-              'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'}`
-              }
-              onClick={() => handleCategoryChange(category.id)}>
-                <i className={`fas ${category.icon} mr-2`}></i>
-                {category.name}
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {filteredMerchants.length === 0 ?
-        <div className="text-center py-10">
-            <i className="fas fa-store text-gray-300 text-5xl mb-4"></i>
-            <h2 className="text-xl font-semibold mb-2">No merchants found</h2>
-            <p className="text-gray-500">Try a different search term or category</p>
-          </div> :
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {safeFilteredMerchants.map((merchant) =>
-          <div key={merchant.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-4">
-                  <div className="flex items-center mb-4">
-                    <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden mr-4 flex-shrink-0">
-                      <img
-                        src={getSafeLogo(merchant.logo, merchant.name)}
-                        alt={merchant.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(merchant.name)}&background=random&size=300`;
-                        }} 
-                      />
-                    </div>
+      <div className="container pb-8">
+        {/* Category Filter */}
+        <div className="category-list mb-8">
+          <button
+            className={`category-item ${selectedCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setSelectedCategory('all')}>
+            <i className="fas fa-th-large"></i> All
+          </button>
+          {categories.slice(1).map(cat => (
+            <button
+              key={cat.id}
+              className={`category-item ${selectedCategory === cat.id ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat.id)}>
+              <i className={`fas ${cat.icon}`}></i> {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-3 p-4 rounded-xl mb-6" style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)'}}>
+            <i className="fas fa-exclamation-triangle" style={{color:'#ef4444'}}></i>
+            <p style={{color:'#ef4444',margin:0,fontSize:'0.875rem'}}>{error}</p>
+            <button className="btn btn-primary ml-auto" style={{fontSize:'0.8rem',padding:'0.3rem 0.75rem'}} onClick={() => window.location.reload()}>Retry</button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : filteredMerchants.length === 0 ? (
+          <div className="text-center py-16">
+            <div style={{fontSize:'3rem',marginBottom:'1rem'}}>🏪</div>
+            <h2 className="text-xl font-bold mb-2">No stores found</h2>
+            <p style={{color:'var(--text-secondary)'}}>Try a different search term or category</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMerchants.map(merchant => (
+              <div key={merchant.id} className="promotion-card fade-in">
+                <div className="p-5">
+                  <div className="flex items-center mb-4 gap-3">
+                    <img
+                      src={getSafeLogo(merchant.logo, merchant.name)}
+                      alt={merchant.name}
+                      className="rounded-full object-cover flex-shrink-0"
+                      style={{width:'60px',height:'60px',border:'2px solid var(--border-color)'}}
+                      onError={e => { e.target.onerror=null; e.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(merchant.name)}&background=random&size=300`; }}
+                    />
                     <div>
-                      <h2 className="text-xl font-semibold">{merchant.name}</h2>
-                      <div className="flex items-center text-sm text-gray-600">
-                        <i className={`fas fa-${merchant.category === 'fashion' ? 'tshirt' : merchant.category === 'electronics' ? 'laptop' : merchant.category === 'travel' ? 'plane' : merchant.category === 'health' ? 'heart-pulse' : merchant.category === 'entertainment' ? 'gamepad' : merchant.category === 'home' ? 'home' : merchant.category === 'pets' ? 'paw' : merchant.category === 'food' ? 'utensils' : 'store'} mr-1`}></i>
-                        {merchant.category ? (merchant.category.charAt(0).toUpperCase() + merchant.category.slice(1)) : 'Other'}
-                        <span className="mx-2">•</span>
+                      <h2 className="font-bold" style={{fontSize:'1.05rem',color:'var(--text-primary)'}}>{merchant.name}</h2>
+                      <div className="flex items-center gap-1" style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>
+                        <i className={`fas ${categoryIcon(merchant.category)}`}></i>
+                        <span>{merchant.category ? merchant.category.charAt(0).toUpperCase() + merchant.category.slice(1) : 'Other'}</span>
+                        <span style={{margin:'0 0.25rem'}}>•</span>
                         <span>{typeof merchant.followers === 'number' ? merchant.followers.toLocaleString() : '0'} followers</span>
                       </div>
                     </div>
                   </div>
-                  
-                  <p className="text-gray-600 text-sm mb-4">
+
+                  <p style={{fontSize:'0.85rem',color:'var(--text-secondary)',marginBottom:'1rem',lineHeight:1.5}}>
                     {merchant.description || `${merchant.name} offers great deals and promotions.`}
                   </p>
-                  
+
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-primary-color">
+                    <span style={{fontSize:'0.8rem',fontWeight:600,color:'var(--primary-color)'}}>
+                      <i className="fas fa-tag mr-1"></i>
                       {typeof merchant.activeDeals === 'number' ? merchant.activeDeals : 0} active deals
                     </span>
-                    
-                    <Link
-                      to={`/merchants/${merchant.id}`}
-                      className="btn btn-primary text-sm py-1">
+                    <Link to={`/merchants/${merchant.id}`} className="btn btn-primary" style={{fontSize:'0.8rem',padding:'0.4rem 1rem'}}>
                       Visit Store
                     </Link>
                   </div>
                 </div>
               </div>
-          )}
+            ))}
           </div>
-        }
+        )}
       </div>
-    </div>);
+    </div>
+  );
 }
+
+window.MerchantListPage = MerchantListPage;

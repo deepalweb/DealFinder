@@ -21,8 +21,9 @@ app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
 const allowedOrigins_DEV = [
   'http://127.0.0.1:5001',
   'http://localhost:5001',
-  'http://127.0.0.1:5500', // VS Code Live Server
-  // Include Azure URL if it's used for development/staging branches accessible during dev
+  'http://127.0.0.1:5500',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
   'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
 ];
 const allowedOrigins_PROD = [
@@ -115,19 +116,41 @@ mongoose.connect(process.env.MONGO_URI)
   console.error('Environment:', process.env.NODE_ENV);
 });
 
-// Serve the frontend at the root URL - This should come AFTER all API and static routes
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
+// Serve the frontend
+if (process.env.NODE_ENV === 'production') {
+  // Serve Next.js standalone build in production
+  const nextPath = path.join(__dirname, '../frontend-next/.next/standalone/frontend-next');
+  const nextStaticPath = path.join(__dirname, '../frontend-next/.next/static');
+  const nextPublicPath = path.join(__dirname, '../frontend-next/public');
 
-// Fallback route for SPA - This should be the LAST route
-app.get('*', (req, res) => {
-  // Exclude .js files from the catch-all route to prevent serving HTML for JS requests
-  if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.png') || req.path.endsWith('.jpg') || req.path.endsWith('.svg')) {
-    return res.status(404).send('File not found');
-  }
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
+  // Serve Next.js static files
+  app.use('/_next/static', express.static(nextStaticPath));
+  app.use('/public', express.static(nextPublicPath));
+
+  // Serve Next.js app for all non-API routes
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ message: 'API route not found' });
+    try {
+      const { createServer } = require('http');
+      const nextServer = require(path.join(nextPath, 'server.js'));
+      nextServer(req, res);
+    } catch (err) {
+      console.error('Next.js serve error:', err);
+      res.status(500).send('Server error');
+    }
+  });
+} else {
+  // Development: serve old frontend
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  });
+  app.get('*', (req, res) => {
+    if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.png') || req.path.endsWith('.jpg') || req.path.endsWith('.svg')) {
+      return res.status(404).send('File not found');
+    }
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  });
+}
 
 // Global error handling middleware
 app.use((err, req, res, next) => {

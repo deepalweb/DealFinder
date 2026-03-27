@@ -1,95 +1,76 @@
 function Header() {
-  const { useState } = React;
+  const { useState, useEffect } = React;
   const { Link, useLocation } = ReactRouterDOM;
   const location = useLocation();
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  useEffect(() => {
+    const saved = localStorage.getItem('df-theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      setIsDark(true);
+    }
+  }, []);
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    localStorage.setItem('df-theme', next ? 'dark' : 'light');
   };
 
-  const isActive = (path) => {
-    return location.pathname === path ? 'active' : '';
-  };
+  const isActive = (path) => location.pathname === path ? 'active' : '';
 
   return (
-    <header className="header py-4" data-id="cn9iaj0zb" data-path="scripts/components/Header.js">
-      <div className="container" data-id="br3iir1rf" data-path="scripts/components/Header.js">
-        <div className="flex items-center justify-between" data-id="73oarsdto" data-path="scripts/components/Header.js">
-          <Link to="/" className="logo flex items-center">
-            <i className="fas fa-percent mr-2" data-id="edew4gie3" data-path="scripts/components/Header.js"></i>
-            <span data-id="dq1j7431j" data-path="scripts/components/Header.js">DealFinder</span>
+    <header className="header py-3">
+      <div className="container">
+        <div className="flex items-center justify-between">
+          <Link to="/" className="logo flex items-center gap-2">
+            <span style={{background:'linear-gradient(135deg,#6366f1,#f43f5e)',borderRadius:'0.5rem',padding:'0.25rem 0.5rem',color:'#fff',fontSize:'1rem'}}>%</span>
+            DealFinder
           </Link>
-          
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-4" data-id="cqq4el10w" data-path="scripts/components/Header.js">
-            <Link to="/" className={`nav-link ${isActive('/')}`}>
-              <i className="fas fa-home mr-1" data-id="w48099ykw" data-path="scripts/components/Header.js"></i> Home
-            </Link>
-            <Link to="/categories/all" className={`nav-link ${isActive('/categories/all')}`}>
-              <i className="fas fa-tags mr-1" data-id="yidrhg00s" data-path="scripts/components/Header.js"></i> All Deals
-            </Link>
-            <Link to="/merchants" className={`nav-link ${isActive('/merchants')}`}>
-              <i className="fas fa-store mr-1" data-id="9a3ef2ihd" data-path="scripts/components/Header.js"></i> Stores
-            </Link>
-            <Link to="/favorites" className={`nav-link ${isActive('/favorites')}`}>
-              <i className="fas fa-heart mr-1" data-id="isegr597p" data-path="scripts/components/Header.js"></i> My Favorites
-            </Link>
-            <Link to="/nearby" className={`nav-link ${isActive('/nearby')}`}>
-              <i className="fas fa-map-marker-alt mr-1"></i> Nearby
-            </Link>
+
+          <nav className="hidden md:flex items-center space-x-1">
+            <Link to="/" className={`nav-link ${isActive('/')}`}><i className="fas fa-home mr-1"></i>Home</Link>
+            <Link to="/categories/all" className={`nav-link ${isActive('/categories/all')}`}><i className="fas fa-tags mr-1"></i>All Deals</Link>
+            <Link to="/merchants" className={`nav-link ${isActive('/merchants')}`}><i className="fas fa-store mr-1"></i>Stores</Link>
+            <Link to="/favorites" className={`nav-link ${isActive('/favorites')}`}><i className="fas fa-heart mr-1"></i>Favorites</Link>
+            <Link to="/nearby" className={`nav-link ${isActive('/nearby')}`}><i className="fas fa-map-marker-alt mr-1"></i>Nearby</Link>
           </nav>
-          
-          {/* User Menu */}
-          <div className="hidden md:block ml-4" data-id="rtyedyxvg" data-path="scripts/components/Header.js">
+
+          <div className="hidden md:flex items-center gap-3">
+            <button className="dark-toggle" onClick={toggleDark} title={isDark ? 'Light mode' : 'Dark mode'}>
+              <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
+            </button>
             <UserMenu />
           </div>
-          
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden text-dark-gray focus:outline-none"
-            onClick={toggleMenu} data-id="ugeodb546" data-path="scripts/components/Header.js">
 
-            <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'} text-xl`} data-id="kulkvo57h" data-path="scripts/components/Header.js"></i>
-          </button>
+          <div className="flex items-center gap-2 md:hidden">
+            <button className="dark-toggle" onClick={toggleDark}>
+              <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
+            </button>
+            <button className="dark-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+            </button>
+          </div>
         </div>
-        
-        {/* Mobile Menu */}
-        {isMenuOpen &&
-        <div className="mt-4 md:hidden" data-id="ymgkxkz08" data-path="scripts/components/Header.js">
-            <nav className="flex flex-col space-y-2" data-id="7kyb92ait" data-path="scripts/components/Header.js">
-              <Link to="/" className={`nav-link ${isActive('/')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-home mr-1" data-id="693d7nucb" data-path="scripts/components/Header.js"></i> Home
-              </Link>
-              <Link to="/categories/all" className={`nav-link ${isActive('/categories/all')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-tags mr-1" data-id="eh8lt52a1" data-path="scripts/components/Header.js"></i> All Deals
-              </Link>
-              <Link to="/merchants" className={`nav-link ${isActive('/merchants')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-store mr-1" data-id="hm9fk8u1y" data-path="scripts/components/Header.js"></i> Stores
-              </Link>
-              <Link to="/favorites" className={`nav-link ${isActive('/favorites')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-heart mr-1" data-id="tlcymhlrl" data-path="scripts/components/Header.js"></i> My Favorites
-              </Link>
-              <Link to="/nearby" className={`nav-link ${isActive('/nearby')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-map-marker-alt mr-1"></i> Nearby Deals
-              </Link>
-              <Link to="/categories/fashion" className={`nav-link ${isActive('/categories/fashion')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-shirt mr-1" data-id="57y1u0gf9" data-path="scripts/components/Header.js"></i> Fashion
-              </Link>
-              <Link to="/categories/electronics" className={`nav-link ${isActive('/categories/electronics')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-laptop mr-1" data-id="4fcbp2tq2" data-path="scripts/components/Header.js"></i> Electronics
-              </Link>
-              <Link to="/categories/food" className={`nav-link ${isActive('/categories/food')}`} onClick={() => setIsMenuOpen(false)}>
-                <i className="fas fa-utensils mr-1" data-id="9m4lfy8jk" data-path="scripts/components/Header.js"></i> Food
-              </Link>
-              <div className="pt-2 mt-2 border-t border-gray-200" data-id="1r1o83nec" data-path="scripts/components/Header.js">
+
+        {isMenuOpen && (
+          <div className="mt-3 md:hidden pb-3 border-t" style={{borderColor:'var(--border-color)'}}>
+            <nav className="flex flex-col space-y-1 pt-3">
+              {[['/',  'fa-home', 'Home'], ['/categories/all', 'fa-tags', 'All Deals'], ['/merchants', 'fa-store', 'Stores'], ['/favorites', 'fa-heart', 'Favorites'], ['/nearby', 'fa-map-marker-alt', 'Nearby']].map(([path, icon, label]) => (
+                <Link key={path} to={path} className={`nav-link ${isActive(path)}`} onClick={() => setIsMenuOpen(false)}>
+                  <i className={`fas ${icon} mr-2`}></i>{label}
+                </Link>
+              ))}
+              <div className="pt-2 mt-2 border-t" style={{borderColor:'var(--border-color)'}}>
                 <UserMenu />
               </div>
             </nav>
           </div>
-        }
+        )}
       </div>
-    </header>);
-
+    </header>
+  );
 }

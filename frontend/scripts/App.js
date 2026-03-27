@@ -1,5 +1,16 @@
-// Import static pages so they are available in this scope
-// prettier-ignore
+// Import all pages from window scope
+const HomePage = window.HomePage;
+const CategoryPage = window.CategoryPage;
+const FavoritesPage = window.FavoritesPage;
+const LoginPage = window.LoginPage;
+const RegisterPage = window.RegisterPage;
+const UserProfile = window.UserProfile;
+const MerchantListPage = window.MerchantListPage;
+const MerchantProfilePage = window.MerchantProfilePage;
+const MerchantDashboard = window.MerchantDashboard;
+const NotificationsPage = window.NotificationsPage;
+const DealPage = window.DealPage;
+const NearbyDealsPage = window.NearbyDealsPage;
 const AboutPage = window.AboutPage;
 const ContactPage = window.ContactPage;
 const PrivacyPolicyPage = window.PrivacyPolicyPage;
@@ -59,23 +70,23 @@ function App() {
         <Header />
         <main data-id="mbwshduxb" data-path="scripts/App.js">
           <Routes>
-            <Route path="/" element={<window.HomePage />} />
-            <Route path="/categories/:categoryId" element={<window.CategoryPage />} />
-            <Route path="/favorites" element={<window.FavoritesPage />} />
-            <Route path="/login" element={<window.LoginPage />} />
-            <Route path="/register" element={<window.RegisterPage />} />
-            <Route path="/profile" element={<window.UserProfile />} />
-            <Route path="/merchants" element={<window.MerchantListPage />} />
-            <Route path="/merchants/:merchantId" element={<window.MerchantProfilePage />} />
-            <Route path="/merchant/dashboard" element={<window.MerchantDashboard />} />
-            <Route path="/notification-settings" element={<window.NotificationsPage />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/categories/:categoryId" element={<CategoryPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/profile" element={<UserProfile />} />
+            <Route path="/merchants" element={<MerchantListPage />} />
+            <Route path="/merchants/:merchantId" element={<MerchantProfilePage />} />
+            <Route path="/merchant/dashboard" element={<MerchantDashboard />} />
+            <Route path="/notification-settings" element={<NotificationsPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/reset-password/confirm" element={<ResetPasswordConfirmPage />} />
-            <Route path="/deal/:dealId" element={<window.DealPage />} />
-            <Route path="/nearby" element={<window.NearbyDealsPage />} />
+            <Route path="/deal/:dealId" element={<DealPage />} />
+            <Route path="/nearby" element={<NearbyDealsPage />} />
 
             {/* Admin Routes */}
             <Route path="/admin/dashboard" element={React.createElement(AdminRoute, null, React.createElement(AdminDashboardPage))} />

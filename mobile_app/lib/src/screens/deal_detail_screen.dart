@@ -102,6 +102,41 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   // Helper to launch URL - requires url_launcher package
+  Future<void> _openDirections() async {
+    String? url;
+    final merchant = _merchantData;
+
+    if (merchant != null) {
+      final coords = merchant['location']?['coordinates'];
+      if (coords != null && coords.length == 2) {
+        final lng = coords[0];
+        final lat = coords[1];
+        url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
+      } else if (merchant['address'] != null && merchant['address'].toString().isNotEmpty) {
+        final query = Uri.encodeComponent(merchant['address'].toString());
+        url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
+      }
+    }
+
+    if (url == null && widget.promotion.location != null && widget.promotion.location!.isNotEmpty) {
+      final query = Uri.encodeComponent(widget.promotion.location!);
+      url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
+    }
+
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No location available for this deal.')),
+      );
+      return;
+    }
+
+    if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps.')),
+      );
+    }
+  }
+
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -526,6 +561,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 runSpacing: 8.0,
                 alignment: WrapAlignment.center,
                 children: [
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.directions),
+                    label: const Text('Get Directions'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4285F4),
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _openDirections,
+                  ),
                   if (promotion.url != null && promotion.url!.isNotEmpty)
                     ElevatedButton.icon(
                       icon: const Icon(Icons.launch),

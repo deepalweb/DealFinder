@@ -4,242 +4,155 @@ function RegisterPage() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'user', // Default role is 'user'
-    businessName: '', // Only required for merchants
-    notifications: true
+    name: '', email: '', password: '', confirmPassword: '',
+    role: 'user', businessName: '', notifications: true
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors({
-        ...errors,
-        [name]: ''
-      });
-    }
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+    if (errors[name]) setErrors({ ...errors, [name]: '' });
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Name is required';
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    // Validate business name for merchants
-    if (formData.role === 'merchant' && !formData.businessName.trim()) {
-      newErrors.businessName = 'Business name is required for merchant accounts';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const validate = () => {
+    const e = {};
+    if (!formData.name.trim()) e.name = 'Name is required';
+    if (!formData.email.trim()) e.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) e.email = 'Invalid email';
+    if (!formData.password) e.password = 'Password is required';
+    else if (formData.password.length < 8) e.password = 'Minimum 8 characters';
+    if (formData.password !== formData.confirmPassword) e.confirmPassword = 'Passwords do not match';
+    if (formData.role === 'merchant' && !formData.businessName.trim()) e.businessName = 'Business name is required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) return;
-
+    if (!validate()) return;
     setLoading(true);
-
     try {
-      // Register user via API
-      const userData = { 
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        businessName: formData.role === 'merchant' ? formData.businessName : undefined
-      };
-      
-      // Call the API to register the user
-      const response = await window.API.Users.register(userData);
-      
-      // Save user to localStorage (including token)
-      localStorage.setItem('dealFinderUser', JSON.stringify(response));
-
-      // Redirect based on user role
-      if (response.role === 'merchant') {
-        navigate('/merchant/dashboard');
-      } else {
-        navigate('/');
-      }
-
-    } catch (error) {
-      console.error('Registration error:', error);
-      setErrors({
-        form: 'Registration failed. This email may already be in use.'
+      const response = await window.API.Users.register({
+        name: formData.name, email: formData.email, password: formData.password,
+        role: formData.role, businessName: formData.role === 'merchant' ? formData.businessName : undefined
       });
+      localStorage.setItem('dealFinderUser', JSON.stringify(response));
+      navigate(response.role === 'merchant' ? '/merchant/dashboard' : '/');
+    } catch {
+      setErrors({ form: 'Registration failed. This email may already be in use.' });
     } finally {
       setLoading(false);
     }
   };
 
+  const inputStyle = (hasError) => ({
+    width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem', fontSize: '0.9rem',
+    border: `1.5px solid ${hasError ? '#ef4444' : 'var(--border-color)'}`,
+    background: 'var(--card-bg)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box'
+  });
+
   return (
-    <div className="page-container">
-      <div className="container py-8">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold mb-6 text-center">Create an Account</h1>
-          
-          {errors.form &&
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              {errors.form}
+    <div className="page-container" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'calc(100vh - 160px)',padding:'2rem 1rem'}}>
+      <div className="fade-in" style={{width:'100%',maxWidth:'460px'}}>
+        {/* Logo */}
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 mb-2">
+            <span style={{background:'linear-gradient(135deg,#6366f1,#f43f5e)',borderRadius:'0.625rem',padding:'0.4rem 0.7rem',color:'#fff',fontSize:'1.1rem',fontWeight:800}}>%</span>
+            <span style={{fontSize:'1.4rem',fontWeight:800,color:'var(--text-primary)',letterSpacing:'-0.02em'}}>DealFinder</span>
+          </div>
+          <h1 style={{fontSize:'1.6rem',fontWeight:800,color:'var(--text-primary)',letterSpacing:'-0.02em',margin:'0.5rem 0 0.25rem'}}>Create your account</h1>
+          <p style={{color:'var(--text-secondary)',fontSize:'0.9rem'}}>Join thousands of deal hunters</p>
+        </div>
+
+        <div className="promotion-card p-6">
+          {errors.form && (
+            <div className="flex items-center gap-2 p-3 rounded-lg mb-4" style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)'}}>
+              <i className="fas fa-exclamation-circle" style={{color:'#ef4444'}}></i>
+              <p style={{color:'#ef4444',margin:0,fontSize:'0.875rem'}}>{errors.form}</p>
             </div>
-          }
-          
+          )}
+
           <form onSubmit={handleSubmit}>
+            {/* Account Type */}
             <div className="mb-4">
-              <label htmlFor="name" className="block text-sm font-medium mb-1">Full Name</label>
-              <input
-                type="text"
-                id="name"
-                name="name"
-                className={`w-full px-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color`}
-                value={formData.name}
-                onChange={handleChange} />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="email" className="block text-sm font-medium mb-1">Email</label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                className={`w-full px-3 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color`}
-                value={formData.email}
-                onChange={handleChange} />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="password" className="block text-sm font-medium mb-1">Password</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                className={`w-full px-3 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color`}
-                value={formData.password}
-                onChange={handleChange} />
-              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-            </div>
-            
-            <div className="mb-4">
-              <label htmlFor="confirmPassword" className="block text-sm font-medium mb-1">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                className={`w-full px-3 py-2 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color`}
-                value={formData.confirmPassword}
-                onChange={handleChange} />
-              {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Account Type</label>
-              <div className="flex space-x-4 mt-1">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="user"
-                    checked={formData.role === 'user'}
-                    onChange={handleChange}
-                    className="mr-2"
-                  />
-                  Regular User
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="merchant"
-                    checked={formData.role === 'merchant'}
-                    onChange={handleChange}
-                    className="mr-2"
-                  />
-                  Merchant
-                </label>
+              <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.5rem',color:'var(--text-primary)'}}>Account Type</label>
+              <div className="flex gap-3">
+                {[['user','fa-user','Regular User'],['merchant','fa-store','Merchant']].map(([val, icon, label]) => (
+                  <button key={val} type="button" onClick={() => setFormData({...formData, role: val})}
+                    style={{
+                      flex:1, padding:'0.625rem', borderRadius:'0.625rem', cursor:'pointer',
+                      border: `1.5px solid ${formData.role === val ? 'var(--primary-color)' : 'var(--border-color)'}`,
+                      background: formData.role === val ? 'rgba(99,102,241,0.08)' : 'var(--card-bg)',
+                      color: formData.role === val ? 'var(--primary-color)' : 'var(--text-secondary)',
+                      fontWeight: 600, fontSize:'0.85rem', display:'flex', alignItems:'center', justifyContent:'center', gap:'0.4rem'
+                    }}>
+                    <i className={`fas ${icon}`}></i> {label}
+                  </button>
+                ))}
               </div>
             </div>
-            
+
+            <div className="mb-3">
+              <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Full Name</label>
+              <input type="text" name="name" value={formData.name} onChange={handleChange} style={inputStyle(errors.name)} placeholder="John Doe" />
+              {errors.name && <p style={{color:'#ef4444',fontSize:'0.75rem',marginTop:'0.25rem'}}>{errors.name}</p>}
+            </div>
+
+            <div className="mb-3">
+              <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Email Address</label>
+              <input type="email" name="email" value={formData.email} onChange={handleChange} style={inputStyle(errors.email)} placeholder="you@example.com" />
+              {errors.email && <p style={{color:'#ef4444',fontSize:'0.75rem',marginTop:'0.25rem'}}>{errors.email}</p>}
+            </div>
+
+            <div className="mb-3">
+              <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Password</label>
+              <div style={{position:'relative'}}>
+                <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange} style={{...inputStyle(errors.password),paddingRight:'2.75rem'}} placeholder="Min. 8 characters" />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{position:'absolute',right:'0.875rem',top:'50%',transform:'translateY(-50%)',background:'none',border:'none',color:'var(--text-secondary)',cursor:'pointer'}}>
+                  <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                </button>
+              </div>
+              {errors.password && <p style={{color:'#ef4444',fontSize:'0.75rem',marginTop:'0.25rem'}}>{errors.password}</p>}
+            </div>
+
+            <div className="mb-3">
+              <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Confirm Password</label>
+              <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} style={inputStyle(errors.confirmPassword)} placeholder="••••••••" />
+              {errors.confirmPassword && <p style={{color:'#ef4444',fontSize:'0.75rem',marginTop:'0.25rem'}}>{errors.confirmPassword}</p>}
+            </div>
+
             {formData.role === 'merchant' && (
-              <div className="mb-4">
-                <label htmlFor="businessName" className="block text-sm font-medium mb-1">Business Name</label>
-                <input
-                  type="text"
-                  id="businessName"
-                  name="businessName"
-                  className={`w-full px-3 py-2 border ${errors.businessName ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color`}
-                  value={formData.businessName}
-                  onChange={handleChange}
-                />
-                {errors.businessName && <p className="text-red-500 text-xs mt-1">{errors.businessName}</p>}
+              <div className="mb-3 fade-in">
+                <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Business Name</label>
+                <input type="text" name="businessName" value={formData.businessName} onChange={handleChange} style={inputStyle(errors.businessName)} placeholder="Your Store Name" />
+                {errors.businessName && <p style={{color:'#ef4444',fontSize:'0.75rem',marginTop:'0.25rem'}}>{errors.businessName}</p>}
               </div>
             )}
-            
-            <div className="mb-6">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="notifications"
-                  name="notifications"
-                  className="h-4 w-4 text-primary-color focus:ring-primary-color border-gray-300 rounded"
-                  checked={formData.notifications}
-                  onChange={handleChange} />
-                <label htmlFor="notifications" className="ml-2 block text-sm text-gray-700">
-                  I want to receive notifications about deals and promotions
-                </label>
-              </div>
+
+            <div className="flex items-center gap-2 mb-5 mt-2">
+              <input type="checkbox" id="notifications" name="notifications" checked={formData.notifications} onChange={handleChange}
+                style={{width:'16px',height:'16px',accentColor:'var(--primary-color)',cursor:'pointer'}} />
+              <label htmlFor="notifications" style={{fontSize:'0.825rem',color:'var(--text-secondary)',cursor:'pointer'}}>
+                Receive deal notifications and updates
+              </label>
             </div>
-            
-            <button
-              type="submit"
-              className="w-full btn btn-primary py-2"
-              disabled={loading}>
-              {loading ?
-              <span className="flex items-center justify-center">
-                  <i className="fas fa-spinner fa-spin mr-2"></i> Creating Account...
-                </span> :
-              'Sign Up'}
+
+            <button type="submit" disabled={loading} className="btn w-full"
+              style={{background:'linear-gradient(135deg,#6366f1,#4f46e5)',color:'#fff',justifyContent:'center',padding:'0.75rem',fontSize:'0.95rem',fontWeight:600,gap:'0.5rem'}}>
+              {loading ? <><i className="fas fa-spinner fa-spin"></i> Creating account...</> : 'Create Account'}
             </button>
           </form>
-          
-          <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">
-              Already have an account? <Link to="/login" className="text-primary-color hover:underline">Log in</Link>
-            </p>
-          </div>
+
+          <p className="text-center mt-4" style={{fontSize:'0.875rem',color:'var(--text-secondary)'}}>
+            Already have an account? <Link to="/login" style={{color:'var(--primary-color)',fontWeight:600,textDecoration:'none'}}>Sign in</Link>
+          </p>
         </div>
       </div>
     </div>
   );
 }
+
+window.RegisterPage = RegisterPage;

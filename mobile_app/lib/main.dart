@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'src/screens/login_screen.dart';
 import 'src/screens/main_navigation_screen.dart';
+import 'src/screens/deal_detail_screen.dart';
+import 'src/models/promotion.dart';
 import 'src/services/push_notification_service.dart';
 import 'firebase_options.dart';
+
+final _navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    await PushNotificationService.initialize();
-  } catch (e) {
-    print('Firebase initialization failed: $e');
-  }
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await PushNotificationService.initialize(navKey: _navigatorKey);
+  } catch (_) {}
   runApp(const MyApp());
 }
 
@@ -43,6 +45,26 @@ class MyApp extends StatelessWidget {
         return MaterialApp(
           title: 'Deal Finder',
           debugShowCheckedModeBanner: false,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale('si'),
+            Locale('ta'),
+          ],
+          navigatorKey: _navigatorKey,
+          onGenerateRoute: (settings) {
+            if (settings.name == '/deal' && settings.arguments is Promotion) {
+              return MaterialPageRoute(
+                builder: (_) => DealDetailScreen(promotion: settings.arguments as Promotion),
+              );
+            }
+            return null;
+          },
           theme: ThemeData(
             useMaterial3: true,
             colorScheme: ColorScheme.fromSeed(

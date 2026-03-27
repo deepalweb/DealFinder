@@ -11,223 +11,193 @@ function HomePage() {
   const [userLocation, setUserLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [loadingNearby, setLoadingNearby] = useState(false);
+  const [loadingDeals, setLoadingDeals] = useState(true);
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = (message, type = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.map(t => t.id === id ? { ...t, removing: true } : t));
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
+    }, 3000);
+  };
 
   useEffect(() => {
-    // Load standard promotions (featured, latest)
     const loadStandardPromotions = async () => {
       try {
-        const allPromotions = await window.getPromotionsData(); // This function might need adjustment if it's purely local
-        window.promotionsData = allPromotions; // Assuming this is used by search
-        
-        const featured = allPromotions.filter((promo) => promo.featured);
-        setFeaturedPromotions(featured);
-    
-        const latest = [...allPromotions]
-          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 8);
-        setLatestPromotions(latest);
-      } catch (error) {
-        console.error('Error loading standard promotions:', error);
+        const allPromotions = await window.getPromotionsData();
+        window.promotionsData = allPromotions;
+        setFeaturedPromotions(allPromotions.filter(p => p.featured));
+        setLatestPromotions([...allPromotions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 8));
+      } catch {
+        showToast('Failed to load deals. Please refresh.', 'error');
+      } finally {
+        setLoadingDeals(false);
       }
     };
 
-    // Fetch user location and then nearby deals
-    const fetchUserLocationAndNearbyDeals = async () => {
+    const fetchNearbyDeals = async () => {
       setLoadingNearby(true);
-      setLocationError(null);
       if (!navigator.geolocation) {
-        setLocationError('Geolocation is not supported by your browser.');
+        setLocationError('Geolocation not supported.');
         setLoadingNearby(false);
         return;
       }
-
       navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
+        async ({ coords: { latitude, longitude } }) => {
           setUserLocation({ latitude, longitude });
           try {
-            // Default radius 10km, can be adjusted
             const deals = await window.API.Promotions.getNearby(latitude, longitude, 10);
             setNearbyDeals(deals);
-          } catch (error) {
-            console.error('Error fetching nearby deals:', error);
+            if (deals.length > 0) showToast(`Found ${deals.length} deals near you!`, 'success');
+          } catch {
             setLocationError('Could not fetch nearby deals.');
           } finally {
             setLoadingNearby(false);
           }
         },
-        (error) => {
-          console.error('Error getting user location:', error);
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              setLocationError('Location permission denied. Nearby deals cannot be shown.');
-              break;
-            case error.POSITION_UNAVAILABLE:
-              setLocationError('Location information is unavailable.');
-              break;
-            case error.TIMEOUT:
-              setLocationError('The request to get user location timed out.');
-              break;
-            default:
-              setLocationError('An unknown error occurred while fetching location.');
-              break;
-          }
+        (err) => {
+          const msgs = { 1: 'Location permission denied.', 2: 'Location unavailable.', 3: 'Location request timed out.' };
+          setLocationError(msgs[err.code] || 'Could not get location.');
           setLoadingNearby(false);
         }
       );
     };
-    
+
     loadStandardPromotions();
-    fetchUserLocationAndNearbyDeals();
+    fetchNearbyDeals();
   }, []);
 
   const handleSearch = (searchTerm) => {
-    if (!searchTerm.trim()) {
-      setIsSearching(false);
-      return;
-    }
-
+    if (!searchTerm.trim()) { setIsSearching(false); return; }
     setIsSearching(true);
-    const filtered = filterPromotions(promotionsData, { searchTerm });
-    setSearchResults(filtered);
+    setSearchResults(filterPromotions(promotionsData, { searchTerm }));
   };
 
-  const handleCategorySelect = (categoryId) => {
-    navigate(`/categories/${categoryId}`);
-  };
+  const SkeletonCard = () => (
+    <div className="skeleton-card">
+      <div className="skeleton" style={{height:'180px'}}></div>
+      <div className="p-4">
+        <div className="skeleton mb-2" style={{height:'12px',width:'40%'}}></div>
+        <div className="skeleton mb-2" style={{height:'16px',width:'80%'}}></div>
+        <div className="skeleton mb-3" style={{height:'12px',width:'60%'}}></div>
+        <div className="skeleton" style={{height:'36px'}}></div>
+      </div>
+    </div>
+  );
+
+  const DealGrid = ({ deals }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {deals.map(p => (
+        <div key={p.id || p._id} className="cursor-pointer fade-in" onClick={() => navigate(`/deal/${p.id || p._id}`)}>
+          <PromotionCard promotion={p} />
+        </div>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="page-container" data-id="qr1isgxv2" data-path="scripts/pages/HomePage.js">
-      <div className="bg-primary-color py-12 mb-8" data-id="lcqp3eg1n" data-path="scripts/pages/HomePage.js">
-        <div className="container" data-id="xbo5chikh" data-path="scripts/pages/HomePage.js">
-          <div className="text-center text-white mb-8" data-id="8np7h59n8" data-path="scripts/pages/HomePage.js">
-            <h1 className="text-3xl md:text-4xl font-bold mb-4" data-id="dd76akxua" data-path="scripts/pages/HomePage.js">
-              Discover Amazing Discounts & Promotions
-            </h1>
-            <p className="text-lg max-w-2xl mx-auto" data-id="xm59tdm3e" data-path="scripts/pages/HomePage.js">
-              Find the best deals from your favorite stores all in one place. Save big with exclusive coupons and offers.
-            </p>
+    <div className="page-container">
+      {/* Toast Container */}
+      <div className="toast-container">
+        {toasts.map(t => (
+          <div key={t.id} className={`toast toast-${t.type} ${t.removing ? 'removing' : ''}`}>
+            <i className={`fas ${t.type === 'success' ? 'fa-check-circle' : t.type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}`}></i>
+            {t.message}
           </div>
-          
-          <SearchBar onSearch={handleSearch} />
+        ))}
+      </div>
+
+      {/* Hero */}
+      <div style={{background:'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%)'}} className="py-16 mb-8">
+        <div className="container">
+          <div className="text-center text-white mb-8">
+            <div className="inline-flex items-center gap-2 bg-white bg-opacity-20 rounded-full px-4 py-1.5 text-sm font-medium mb-4">
+              <i className="fas fa-bolt"></i> New deals added daily
+            </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4" style={{letterSpacing:'-0.03em',lineHeight:1.1}}>
+              Discover Amazing<br/>Discounts & Deals
+            </h1>
+            <p className="text-lg max-w-xl mx-auto mb-8" style={{opacity:0.9}}>
+              Find the best offers from your favorite stores, all in one place.
+            </p>
+            <SearchBar onSearch={handleSearch} />
+          </div>
         </div>
       </div>
-      
-      <div className="container" data-id="zi6w10sj5" data-path="scripts/pages/HomePage.js">
-        <CategoryList
-          selectedCategory="all"
-          onCategoryChange={handleCategorySelect} />
 
-        
-        {isSearching ?
-        <div className="mb-8" data-id="e8v7d46gn" data-path="scripts/pages/HomePage.js">
-            <h2 className="section-title" data-id="atxgtlgx2" data-path="scripts/pages/HomePage.js">
-              <i className="fas fa-search" data-id="fru1knv79" data-path="scripts/pages/HomePage.js"></i> Search Results
+      <div className="container">
+        <CategoryList selectedCategory="all" onCategoryChange={(id) => navigate(`/categories/${id}`)} />
+
+        {isSearching ? (
+          <div className="mb-8">
+            <h2 className="section-title">
+              <i className="fas fa-search"></i> Search Results
+              <span className="ml-2 text-sm font-normal" style={{color:'var(--text-secondary)'}}>({searchResults.length} found)</span>
             </h2>
-            
-            {searchResults.length > 0 ?
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="6gw38lo3e" data-path="scripts/pages/HomePage.js">
-                {searchResults.map((promotion) =>
-                  <div key={promotion.id}>
-                    <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
-                      className="cursor-pointer">
-                      <PromotionCard promotion={promotion} />
-                    </div>
-                  </div>
-                )}
-              </div> :
-
-          <div className="text-center py-8" data-id="ckbgklt24" data-path="scripts/pages/HomePage.js">
-                <i className="fas fa-search text-4xl text-gray-300 mb-4" data-id="sxp6mldys" data-path="scripts/pages/HomePage.js"></i>
-                <h3 className="text-xl font-semibold mb-2" data-id="3dvuveqem" data-path="scripts/pages/HomePage.js">No results found</h3>
-                <p data-id="nbd8exw7g" data-path="scripts/pages/HomePage.js">Try different keywords or browse categories below</p>
+            {searchResults.length > 0 ? <DealGrid deals={searchResults} /> : (
+              <div className="text-center py-16">
+                <div style={{fontSize:'3rem',marginBottom:'1rem'}}>🔍</div>
+                <h3 className="text-xl font-bold mb-2">No results found</h3>
+                <p style={{color:'var(--text-secondary)'}}>Try different keywords or browse categories</p>
               </div>
-          }
-          </div> :
-
-        <>
-            {/* Featured Promotions */}
-            <div className="mb-12" data-id="3ok9i2rxg" data-path="scripts/pages/HomePage.js">
-              <h2 className="section-title" data-id="a3hqpzbo7" data-path="scripts/pages/HomePage.js">
-                <i className="fas fa-star" data-id="fg4syc1as" data-path="scripts/pages/HomePage.js"></i> Featured Deals
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="peyc4yr8a" data-path="scripts/pages/HomePage.js">
-                {featuredPromotions.map((promotion) =>
-                  <div key={promotion.id}>
-                    <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
-                      className="cursor-pointer">
-                      <PromotionCard promotion={promotion} />
-                    </div>
-                  </div>
-                )}
-              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Featured Deals */}
+            <div className="mb-12">
+              <h2 className="section-title"><i className="fas fa-star"></i> Featured Deals</h2>
+              {loadingDeals ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+                </div>
+              ) : <DealGrid deals={featuredPromotions} />}
             </div>
-            
-            {/* Nearby Deals Section */}
+
+            {/* Nearby Deals */}
             {(userLocation || locationError || loadingNearby) && (
-            <div className="mb-12" data-id="nearbyDealsSection">
-              <h2 className="section-title" data-id="nearbyTitle">
-                <i className="fas fa-map-marker-alt" data-id="nearbyIcon"></i> Nearby Deals
-                {userLocation && <span className="text-sm text-gray-500 ml-2">(Based on your location)</span>}
-              </h2>
-              {loadingNearby && (
-                <div className="text-center py-8" data-id="nearbyLoading">
-                  <i className="fas fa-spinner fa-spin text-3xl text-primary-color"></i>
-                  <p className="mt-2">Finding deals near you...</p>
-                </div>
-              )}
-              {locationError && !loadingNearby && (
-                <div className="text-center py-8 bg-red-50 border border-red-200 rounded-md p-4" data-id="nearbyError">
-                  <i className="fas fa-exclamation-triangle text-3xl text-red-500 mb-3"></i>
-                  <p className="text-red-700">{locationError}</p>
-                  {locationError.includes("permission denied") && (
-                     <p className="text-sm text-gray-600 mt-2">Please enable location services in your browser settings to see nearby deals.</p>
-                  )}
-                </div>
-              )}
-              {!loadingNearby && !locationError && userLocation && nearbyDeals.length === 0 && (
-                <div className="text-center py-8" data-id="noNearbyDeals">
-                  <i className="fas fa-store-slash text-4xl text-gray-300 mb-4"></i>
-                  <p>No deals found near your current location.</p>
-                  <p className="text-sm text-gray-500">Try expanding your search or check back later.</p>
-                </div>
-              )}
-              {!loadingNearby && !locationError && userLocation && nearbyDeals.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="nearbyGrid">
-                  {nearbyDeals.map((promotion) => (
-                    <div key={promotion._id || promotion.id}>
-                      <div onClick={() => window.location.href = `/deal/${promotion._id || promotion.id}`}
-                        className="cursor-pointer">
-                        <PromotionCard promotion={promotion} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              <div className="mb-12">
+                <h2 className="section-title">
+                  <i className="fas fa-map-marker-alt"></i> Nearby Deals
+                  {userLocation && <span className="ml-2 text-sm font-normal" style={{color:'var(--text-secondary)'}}>within 10km</span>}
+                </h2>
+                {loadingNearby && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+                  </div>
+                )}
+                {locationError && !loadingNearby && (
+                  <div className="flex items-center gap-3 p-4 rounded-xl" style={{background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)'}}>
+                    <i className="fas fa-exclamation-triangle" style={{color:'#ef4444'}}></i>
+                    <p style={{color:'#ef4444',margin:0,fontSize:'0.875rem'}}>{locationError}</p>
+                  </div>
+                )}
+                {!loadingNearby && !locationError && nearbyDeals.length === 0 && (
+                  <div className="text-center py-12">
+                    <div style={{fontSize:'2.5rem',marginBottom:'0.75rem'}}>📍</div>
+                    <p style={{color:'var(--text-secondary)'}}>No deals found near your location.</p>
+                  </div>
+                )}
+                {!loadingNearby && !locationError && nearbyDeals.length > 0 && <DealGrid deals={nearbyDeals} />}
+              </div>
             )}
 
-            {/* Latest Promotions */}
-            <div className="mb-12" data-id="behh4hrrs" data-path="scripts/pages/HomePage.js">
-              <h2 className="section-title" data-id="szx2k581z" data-path="scripts/pages/HomePage.js">
-                <i className="fas fa-clock" data-id="5ou8kaf2q" data-path="scripts/pages/HomePage.js"></i> Latest Deals
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-id="4bl781b6h" data-path="scripts/pages/HomePage.js">
-                {latestPromotions.map((promotion) =>
-                  <div key={promotion.id}>
-                    <div onClick={() => window.location.href = `/deal/${promotion.id || promotion._id}`}
-                      className="cursor-pointer">
-                      <PromotionCard promotion={promotion} />
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* Latest Deals */}
+            <div className="mb-12">
+              <h2 className="section-title"><i className="fas fa-clock"></i> Latest Deals</h2>
+              {loadingDeals ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {[...Array(8)].map((_, i) => <SkeletonCard key={i} />)}
+                </div>
+              ) : <DealGrid deals={latestPromotions} />}
             </div>
           </>
-        }
+        )}
       </div>
-    </div>);
-
+    </div>
+  );
 }
+
+window.HomePage = HomePage;

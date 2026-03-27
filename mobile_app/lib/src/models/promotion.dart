@@ -123,6 +123,7 @@ class Promotion {
       'discountedPrice': discountedPrice,
       'location': location,
       'distance': distance,
+      'ratings': List.generate(ratingsCount, (_) => {}),
     };
   }
 }

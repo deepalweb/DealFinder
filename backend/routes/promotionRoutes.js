@@ -61,33 +61,42 @@ router.get('/nearby', async (req, res) => {
       return res.status(400).json({ message: 'Latitude and longitude must be valid numbers.' });
     }
 
-    // Radius in kilometers, default to 10km. Convert to meters for MongoDB.
     const searchRadiusKm = parseFloat(radius) || 10;
     const radiusInMeters = searchRadiusKm * 1000;
 
-    // Use aggregation pipeline with $geoNear to find merchants and their distances
+    // Check if 2dsphere index exists, if not return empty gracefully
+    const indexes = await Merchant.collection.indexes();
+    const has2dsphere = indexes.some(idx => idx.key && idx.key.location === '2dsphere');
+    if (!has2dsphere) {
+      try {
+        await Merchant.collection.createIndex({ location: '2dsphere' });
+      } catch (indexErr) {
+        console.warn('Could not create 2dsphere index:', indexErr.message);
+        return res.status(200).json([]);
+      }
+    }
+
+    // Only aggregate merchants that have a valid location set
     const merchantsWithDistance = await Merchant.aggregate([
       {
         $geoNear: {
-          near: { type: "Point", coordinates: [lon, lat] },
-          distanceField: "distance", // Output field with distance
+          near: { type: 'Point', coordinates: [lon, lat] },
+          distanceField: 'distance',
           maxDistance: radiusInMeters,
-          spherical: true // Calculate distances using spherical geometry
+          spherical: true,
+          query: {
+            'location.type': 'Point',
+            'location.coordinates': { $exists: true, $ne: [] }
+          }
         }
       },
       {
-        $project: { // Select only necessary fields from merchant
-          _id: 1,
-          name: 1, // Keep name for potential debugging or if needed by PromotionCard directly
-          location: 1, // Keep location for potential debugging
-          // Add other merchant fields if PromotionCard needs them directly and they aren't populated via Promotion model
-          distance: 1 // Keep the calculated distance
-        }
+        $project: { _id: 1, name: 1, location: 1, distance: 1 }
       }
-    ]);
+    ]).option({ maxTimeMS: 8000 });
 
     if (!merchantsWithDistance.length) {
-      return res.status(200).json([]); // No merchants found nearby
+      return res.status(200).json([]);
     }
 
     const merchantIds = merchantsWithDistance.map(m => m._id);

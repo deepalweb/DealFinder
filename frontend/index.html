@@ -30,6 +30,16 @@
 		</script>
 	</head>
 	<body>
+		<!-- SPA redirect handler for Live Server -->
+		<script>
+		  (function() {
+		    var redirect = sessionStorage.getItem('redirect');
+		    if (redirect && redirect !== '/') {
+		      sessionStorage.removeItem('redirect');
+		      window.history.replaceState(null, null, redirect);
+		    }
+		  })();
+		</script>
 		<div id="root"></div>
 		
 		<!-- React and Required Libraries -->

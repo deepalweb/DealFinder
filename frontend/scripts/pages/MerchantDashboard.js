@@ -494,21 +494,12 @@ function MerchantDashboard() {
   };
 
 
-  if (!user || !merchantData) { // Ensure merchantData is also loaded
-    return (
-      <div className="page-container">
-        <div className="container py-8 text-center">
-          <i className="fas fa-spinner fa-spin text-3xl text-primary-color"></i>
-        </div>
-      </div>);
-  }
-
   if (loading) {
     return (
       <div className="page-container">
-        <div className="container py-8 text-center">
-          <i className="fas fa-spinner fa-spin text-3xl text-primary-color"></i>
-          <p className="mt-4 text-gray-600">Loading promotions...</p>
+        <div className="container py-8">
+          <div className="skeleton-card p-6 mb-4" style={{height:'80px'}}></div>
+          <div className="skeleton-card p-6" style={{height:'400px'}}></div>
         </div>
       </div>
     );
@@ -517,14 +508,24 @@ function MerchantDashboard() {
   if (error) {
     return (
       <div className="page-container">
-        <div className="container py-8 text-center">
-          <i className="fas fa-exclamation-circle text-3xl text-red-500"></i>
-          <p className="mt-4 text-gray-600">{error}</p>
-          <button 
-            className="mt-4 px-4 py-2 bg-primary-color text-white rounded-md"
-            onClick={() => window.location.reload()}>
-            Try Again
-          </button>
+        <div className="container py-16 text-center">
+          <div style={{fontSize:'3rem',marginBottom:'1rem'}}>😕</div>
+          <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
+          <p style={{color:'var(--text-secondary)',marginBottom:'1.5rem'}}>{error}</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>Try Again</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !merchantData) {
+    return (
+      <div className="page-container">
+        <div className="container py-16 text-center">
+          <div style={{fontSize:'3rem',marginBottom:'1rem'}}>⚠️</div>
+          <h2 className="text-xl font-bold mb-2">Merchant profile not found</h2>
+          <p style={{color:'var(--text-secondary)',marginBottom:'1.5rem'}}>Please re-login or contact support.</p>
+          <button className="btn btn-primary" onClick={() => window.location.reload()}>Retry</button>
         </div>
       </div>
     );
@@ -532,57 +533,71 @@ function MerchantDashboard() {
 
   return (
     <div className="page-container">
-      <div className="container py-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold flex items-center">
-              <i className="fas fa-store text-primary-color mr-2"></i>
-              {merchantData?.name || user?.businessName || 'Merchant Dashboard'}
-            </h1>
-            <div className="space-x-2">
-              <button
-                className="btn btn-secondary"
-                onClick={() => setIsEditProfileModalOpen(true)}>
-                <i className="fas fa-user-edit mr-2"></i> Edit Profile
+      {/* Dashboard Header */}
+      <div style={{background:'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%)'}} className="py-10 mb-6">
+        <div className="container">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div style={{width:'56px',height:'56px',borderRadius:'1rem',background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'1.5rem'}}>
+                <i className="fas fa-store"></i>
+              </div>
+              <div>
+                <h1 style={{color:'#fff',fontSize:'1.5rem',fontWeight:800,margin:0,letterSpacing:'-0.02em'}}>
+                  {merchantData?.name || user?.businessName || 'Merchant Dashboard'}
+                </h1>
+                <p style={{color:'rgba(255,255,255,0.8)',fontSize:'0.875rem',margin:0}}>
+                  {promotions.filter(p => ['active','approved'].includes(p.status)).length} active deals
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button className="btn" onClick={() => setIsEditProfileModalOpen(true)}
+                style={{background:'rgba(255,255,255,0.15)',color:'#fff',border:'1.5px solid rgba(255,255,255,0.3)',gap:'0.5rem'}}>
+                <i className="fas fa-user-edit"></i> Edit Profile
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  setEditingPromotion(null);
-                  setIsAddModalOpen(true);
-                }}>
-                <i className="fas fa-plus mr-2"></i> Add New Promotion
+              <button className="btn" onClick={() => { setEditingPromotion(null); setIsAddModalOpen(true); }}
+                style={{background:'#fff',color:'var(--primary-color)',fontWeight:700,gap:'0.5rem'}}>
+                <i className="fas fa-plus"></i> Add Promotion
               </button>
             </div>
           </div>
-          
-          <div className="mb-6">
-            <div className="flex border-b">
-              <button
-                className={`py-2 px-4 font-medium ${activeTab === 'active' ? 'text-primary-color border-b-2 border-primary-color' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('active')}>
-                Active Promotions
-              </button>
-              <button
-                className={`py-2 px-4 font-medium ${activeTab === 'expired' ? 'text-primary-color border-b-2 border-primary-color' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('expired')}>
-                Expired Promotions
-              </button>
-              <button
-                className={`py-2 px-4 font-medium ${activeTab === 'all' ? 'text-primary-color border-b-2 border-primary-color' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('all')}>
-                All Promotions
-              </button>
-              <button
-                className={`py-2 px-4 font-medium ${activeTab === 'analytics' ? 'text-primary-color border-b-2 border-primary-color' : 'text-gray-500'}`}
-                onClick={() => setActiveTab('analytics')}>
-                Click Analytics
-              </button>
-            </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+            {[
+              { label:'Total Deals', value: promotions.length, icon:'fa-tag' },
+              { label:'Active', value: promotions.filter(p => ['active','approved'].includes(p.status)).length, icon:'fa-check-circle' },
+              { label:'Pending', value: promotions.filter(p => p.status === 'pending_approval').length, icon:'fa-clock' },
+              { label:'Total Clicks', value: filteredAnalyticsData.length, icon:'fa-mouse-pointer' }
+            ].map(s => (
+              <div key={s.label} style={{background:'rgba(255,255,255,0.15)',borderRadius:'0.875rem',padding:'0.875rem 1rem',backdropFilter:'blur(8px)'}}>
+                <div style={{color:'rgba(255,255,255,0.7)',fontSize:'0.75rem',fontWeight:600,marginBottom:'0.25rem',textTransform:'uppercase',letterSpacing:'0.04em'}}>
+                  <i className={`fas ${s.icon} mr-1`}></i>{s.label}
+                </div>
+                <div style={{color:'#fff',fontSize:'1.5rem',fontWeight:800}}>{s.value}</div>
+              </div>
+            ))}
           </div>
+        </div>
+      </div>
+
+      <div className="container pb-8">
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{background:'var(--light-gray)',width:'fit-content'}}>
+          {[['active','✅ Active'],['expired','⏰ Expired'],['all','📋 All'],['analytics','📊 Analytics']].map(([id, label]) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              style={{
+                padding:'0.4rem 1rem', borderRadius:'0.625rem', fontSize:'0.85rem', fontWeight:600,
+                border:'none', cursor:'pointer', transition:'all 0.2s',
+                background: activeTab === id ? 'var(--card-bg)' : 'transparent',
+                color: activeTab === id ? 'var(--primary-color)' : 'var(--text-secondary)',
+                boxShadow: activeTab === id ? 'var(--box-shadow)' : 'none'
+              }}>{label}</button>
+          ))}
+        </div>
           
-          {activeTab === 'analytics' ?
-            <div>
+        {activeTab === 'analytics' ?
+            <div className="promotion-card p-6">
               <div className="mb-6">
                 <h2 className="text-xl font-semibold mb-2">Promotion Click Analytics</h2>
                 <p className="text-gray-600">Track how users interact with your promotions</p>
@@ -671,182 +686,184 @@ function MerchantDashboard() {
               </div>
             </div> :
           filteredPromotions.length === 0 ?
-          <div className="text-center py-10">
-              <i className="fas fa-tag text-gray-300 text-5xl mb-4"></i>
-              <p className="text-gray-500 mb-4">No {activeTab !== 'all' ? activeTab : ''} promotions found</p>
-              <button
-              className="btn btn-primary"
-              onClick={() => {
-                setEditingPromotion(null);
-                setIsAddModalOpen(true);
-              }}>
-                Create Your First Promotion
+          <div className="text-center py-16">
+              <div style={{fontSize:'3rem',marginBottom:'1rem'}}>🏷️</div>
+              <h2 className="text-xl font-bold mb-2">No {activeTab !== 'all' ? activeTab : ''} promotions yet</h2>
+              <p style={{color:'var(--text-secondary)',marginBottom:'1.5rem'}}>Create your first promotion to start attracting customers</p>
+              <button className="btn btn-primary" style={{gap:'0.5rem'}}
+                onClick={() => { setEditingPromotion(null); setIsAddModalOpen(true); }}>
+                <i className="fas fa-plus"></i> Create Promotion
               </button>
             </div> :
 
-          <div className="overflow-x-auto">
-              <table className="w-full table-auto">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Promotion</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dates</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <div className="promotion-card overflow-hidden">
+              <div className="overflow-x-auto">
+              <table className="w-full" style={{borderCollapse:'collapse'}}>
+                <thead>
+                  <tr style={{background:'var(--light-gray)',borderBottom:'1.5px solid var(--border-color)'}}>
+                    <th className="px-5 py-3 text-left" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Promotion</th>
+                    <th className="px-5 py-3 text-left" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Discount</th>
+                    <th className="px-5 py-3 text-left" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Code</th>
+                    <th className="px-5 py-3 text-left" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Dates</th>
+                    <th className="px-5 py-3 text-left" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Status</th>
+                    <th className="px-5 py-3 text-right" style={{fontSize:'0.75rem',fontWeight:700,color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody>
                   {filteredPromotions.map((promotion) =>
-    <tr key={promotion.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {promotion.image &&
-                      <div className="flex-shrink-0 h-10 w-10 mr-4">
-                              <img className="h-10 w-10 rounded-md object-cover" src={promotion.image} alt={promotion.title} />
-                            </div>
-                      }
+                    <tr key={promotion.id} style={{borderBottom:'1px solid var(--border-color)',transition:'background 0.15s'}}
+                      onMouseEnter={e => e.currentTarget.style.background='var(--light-gray)'}
+                      onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          {promotion.image && (
+                            <img src={promotion.image} alt={promotion.title}
+                              style={{width:'40px',height:'40px',borderRadius:'0.5rem',objectFit:'cover',flexShrink:0,border:'1px solid var(--border-color)'}} />
+                          )}
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{promotion.title}</div>
-                            <div className="text-sm text-gray-500">{promotion.category}</div>
+                            <div style={{fontWeight:600,fontSize:'0.875rem',color:'var(--text-primary)'}}>{promotion.title}</div>
+                            <div style={{fontSize:'0.75rem',color:'var(--text-secondary)'}}>{promotion.category}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{promotion.discount}</div>
+                      <td className="px-5 py-3">
+                        <span className="discount-badge" style={{position:'static',fontSize:'0.75rem'}}>{promotion.discount} OFF</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <code className="promo-code">{promotion.code}</code>
+                      <td className="px-5 py-3">
+                        <code className="promo-code" style={{fontSize:'0.8rem'}}>{promotion.code}</code>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatDate(promotion.startDate)} - {formatDate(promotion.endDate)}
+                      <td className="px-5 py-3">
+                        <div style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>
+                          {formatDate(promotion.startDate)}<br/>{formatDate(promotion.endDate)}
                         </div>
-                        {promotion.url &&
-                    <div className="text-xs text-blue-500 mt-1">
-                            <a href={promotion.url} target="_blank" rel="noopener noreferrer">
-                              <i className="fas fa-external-link-alt mr-1"></i> View URL
-                            </a>
-                          </div>
-                    }
-                      </td>
-
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          promotion.status === 'active' ? 'bg-green-100 text-green-800' :
-                          promotion.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-                          promotion.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                          promotion.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                          promotion.status === 'admin_paused' ? 'bg-orange-100 text-orange-800' :
-                          promotion.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {promotion.status ? promotion.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Expired'}
-                        </span>
-                        {promotion.featured && (
-                          <span className="ml-2 px-2 py-1 bg-yellow-200 text-yellow-800 text-xs rounded-full font-semibold inline-flex items-center">
-                            <i className="fas fa-star mr-1"></i> Featured
-                          </span>
+                        {promotion.url && (
+                          <a href={promotion.url} target="_blank" rel="noopener noreferrer"
+                            style={{fontSize:'0.72rem',color:'var(--primary-color)',display:'flex',alignItems:'center',gap:'0.25rem',marginTop:'0.25rem'}}>
+                            <i className="fas fa-external-link-alt"></i> View URL
+                          </a>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                      className="text-primary-color hover:text-primary-dark mr-3"
-                      onClick={() => handleEdit(promotion)}>
-                          <i className="fas fa-edit"></i> Edit
-                        </button>
-                        <button
-                      className="text-red-500 hover:text-red-700"
-                      onClick={() => handleDelete(promotion.id)}>
-                          <i className="fas fa-trash-alt"></i> Delete
-                        </button>
+                      <td className="px-5 py-3">
+                        <span style={{
+                          padding:'0.2rem 0.6rem', borderRadius:'9999px', fontSize:'0.72rem', fontWeight:700,
+                          background: promotion.status === 'active' || promotion.status === 'approved' ? 'rgba(16,185,129,0.1)' :
+                            promotion.status === 'pending_approval' ? 'rgba(245,158,11,0.1)' :
+                            promotion.status === 'scheduled' ? 'rgba(99,102,241,0.1)' :
+                            promotion.status === 'rejected' ? 'rgba(239,68,68,0.1)' : 'rgba(100,116,139,0.1)',
+                          color: promotion.status === 'active' || promotion.status === 'approved' ? '#059669' :
+                            promotion.status === 'pending_approval' ? '#d97706' :
+                            promotion.status === 'scheduled' ? '#6366f1' :
+                            promotion.status === 'rejected' ? '#ef4444' : '#64748b'
+                        }}>
+                          {promotion.status ? promotion.status.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase()) : 'Expired'}
+                        </span>
+                        {promotion.featured && (
+                          <span style={{display:'block',marginTop:'0.25rem',fontSize:'0.7rem',fontWeight:700,color:'#d97706'}}>⭐ Featured</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => handleEdit(promotion)}
+                            style={{padding:'0.3rem 0.75rem',borderRadius:'0.5rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--primary-color)',fontSize:'0.8rem',fontWeight:600,cursor:'pointer',gap:'0.3rem',display:'flex',alignItems:'center'}}>
+                            <i className="fas fa-edit"></i> Edit
+                          </button>
+                          <button onClick={() => handleDelete(promotion.id)}
+                            style={{padding:'0.3rem 0.75rem',borderRadius:'0.5rem',border:'1.5px solid rgba(239,68,68,0.3)',background:'rgba(239,68,68,0.06)',color:'#ef4444',fontSize:'0.8rem',fontWeight:600,cursor:'pointer',gap:'0.3rem',display:'flex',alignItems:'center'}}>
+                            <i className="fas fa-trash-alt"></i>
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                )}
+                  )}
                 </tbody>
               </table>
             </div>
-          }
-        </div>
+            </div>
+        }
       </div>
+    </div>
       
       {/* Edit Merchant Profile Modal */}
       {isEditProfileModalOpen && merchantData && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-auto">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-full overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Edit Merchant Profile</h2>
-              <button
-                className="text-gray-500 hover:text-gray-700"
-                onClick={() => setIsEditProfileModalOpen(false)}>
-                <i className="fas fa-times text-xl"></i>
-              </button>
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem',overflowY:'auto',backdropFilter:'blur(4px)'}}>
+        <div style={{background:'var(--card-bg)',borderRadius:'1.25rem',width:'100%',maxWidth:'640px',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,0,0,0.3)'}}>
+          <div style={{padding:'1.5rem',borderBottom:'1px solid var(--border-color)',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,background:'var(--card-bg)',zIndex:1,borderRadius:'1.25rem 1.25rem 0 0'}}>
+            <div>
+              <h2 style={{fontSize:'1.25rem',fontWeight:800,color:'var(--text-primary)',margin:0}}>Edit Store Profile</h2>
+              <p style={{fontSize:'0.8rem',color:'var(--text-secondary)',margin:0}}>Update your store information</p>
             </div>
+            <button onClick={() => setIsEditProfileModalOpen(false)}
+              style={{width:'32px',height:'32px',borderRadius:'50%',border:'1.5px solid var(--border-color)',background:'var(--light-gray)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-secondary)'}}>
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+          <div style={{padding:'1.5rem'}}>
             <form onSubmit={handleProfileFormSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                {/* Business Name */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileName">Business Name</label>
-                  <input type="text" name="name" id="profileName" value={profileFormData.name} onChange={handleProfileInputChange} className="form-input" required />
+                  <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Business Name *</label>
+                  <input type="text" name="name" value={profileFormData.name} onChange={handleProfileInputChange} required
+                    style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
                 </div>
-                {/* Profile Description */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileDescription">Profile Description</label>
-                  <textarea name="profile" id="profileDescription" value={profileFormData.profile} onChange={handleProfileInputChange} className="form-textarea" rows="3"></textarea>
+                  <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Description</label>
+                  <textarea name="profile" value={profileFormData.profile} onChange={handleProfileInputChange} rows="3"
+                    style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',resize:'vertical',boxSizing:'border-box'}}></textarea>
                 </div>
-                {/* Contact Info (Email/Phone) */}
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileContactInfo">Contact Info (Email/Phone)</label>
-                  <input type="text" name="contactInfo" id="profileContactInfo" value={profileFormData.contactInfo} onChange={handleProfileInputChange} className="form-input" />
+                  <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Contact Email/Phone</label>
+                  <input type="text" name="contactInfo" value={profileFormData.contactInfo} onChange={handleProfileInputChange}
+                    style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
                 </div>
-                {/* Contact Number */}
                 <div>
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileContactNumber">Contact Number</label>
-                  <input type="tel" name="contactNumber" id="profileContactNumber" value={profileFormData.contactNumber} onChange={handleProfileInputChange} className="form-input" />
+                  <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Contact Number</label>
+                  <input type="tel" name="contactNumber" value={profileFormData.contactNumber} onChange={handleProfileInputChange}
+                    style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
                 </div>
-                {/* Address */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1" htmlFor="profileAddress">Address</label>
-                  <input type="text" name="address" id="profileAddress" value={profileFormData.address} onChange={handleProfileInputChange} className="form-input" />
+                  <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Address</label>
+                  <input type="text" name="address" value={profileFormData.address} onChange={handleProfileInputChange}
+                    style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
                 </div>
-
-                {/* Location Picker */}
-                <LocationPicker
-                  location={profileFormData.location}
-                  onLocationChange={handleLocationChange}
-                />
-
+                <LocationPicker location={profileFormData.location} onLocationChange={handleLocationChange} />
                 {/* Logo */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1">Logo</label>
-                  <div className="flex items-center space-x-4">
+                  <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.5rem',color:'var(--text-primary)'}}>Store Logo</label>
+                  <div style={{display:'flex',alignItems:'center',gap:'1rem',padding:'1rem',borderRadius:'0.875rem',border:'1.5px solid var(--border-color)',background:'var(--light-gray)'}}>
+                    {(logoPreview || profileFormData.logo) && (
+                      <img src={logoPreview || profileFormData.logo} alt="Logo" style={{width:'56px',height:'56px',borderRadius:'50%',objectFit:'cover',border:'2px solid var(--primary-color)',flexShrink:0}} />
+                    )}
                     <div className="flex-1">
-                      <input type="file" name="logoFile" accept="image/*" onChange={handleLogoFileChange} className="form-input-file" />
-                    </div>
-                    <div className="flex-1">
-                      <input type="text" name="logo" value={profileFormData.logo} onChange={handleProfileInputChange} placeholder="Or enter image URL" className="form-input" />
+                      <input type="file" accept="image/*" onChange={handleLogoFileChange} style={{fontSize:'0.8rem',color:'var(--text-secondary)',width:'100%'}} />
+                      <input type="text" name="logo" value={profileFormData.logo} onChange={handleProfileInputChange} placeholder="Or paste image URL"
+                        style={{width:'100%',padding:'0.5rem 0.75rem',borderRadius:'0.5rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.8rem',outline:'none',marginTop:'0.5rem',boxSizing:'border-box'}} />
                     </div>
                   </div>
-                  {(logoPreview || profileFormData.logo) && (
-                    <div className="mt-2">
-                      <img src={logoPreview || profileFormData.logo} alt="Logo Preview" className="h-24 w-auto rounded-md object-cover" />
-                    </div>
-                  )}
                 </div>
-                {/* Social Media Links */}
-                <h3 className="md:col-span-2 text-lg font-semibold mt-4 mb-2">Social Media</h3>
-                {Object.keys(profileFormData.socialMedia).map(key => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium mb-1 capitalize" htmlFor={`social${key}`}>{key}</label>
-                    <input type="url" name={`socialMedia.${key}`} id={`social${key}`} value={profileFormData.socialMedia[key]} onChange={handleProfileInputChange} placeholder={`https://www.${key}.com/yourpage`} className="form-input" />
+                {/* Social Media */}
+                <div className="md:col-span-2">
+                  <p style={{fontSize:'0.875rem',fontWeight:700,color:'var(--text-primary)',marginBottom:'0.75rem'}}>Social Media</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {Object.keys(profileFormData.socialMedia).map(key => (
+                      <div key={key}>
+                        <label style={{display:'block',fontSize:'0.8rem',fontWeight:600,marginBottom:'0.3rem',color:'var(--text-secondary)',textTransform:'capitalize'}}>
+                          <i className={`fab fa-${key} mr-1`}></i>{key}
+                        </label>
+                        <input type="text" name={`socialMedia.${key}`} value={profileFormData.socialMedia[key]} onChange={handleProfileInputChange}
+                          placeholder={`@your${key}`}
+                          style={{width:'100%',padding:'0.6rem 0.875rem',borderRadius:'0.5rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.85rem',outline:'none',boxSizing:'border-box'}} />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
               </div>
-              <div className="flex justify-end mt-8">
-                <button type="button" className="btn btn-secondary mr-3" onClick={() => setIsEditProfileModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? <><i className="fas fa-spinner fa-spin mr-2"></i> Saving...</> : 'Save Profile'}
+              <div className="flex justify-end gap-3 mt-2">
+                <button type="button" onClick={() => setIsEditProfileModalOpen(false)}
+                  style={{padding:'0.6rem 1.25rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-secondary)',fontWeight:600,cursor:'pointer',fontSize:'0.875rem'}}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={loading} className="btn btn-primary" style={{gap:'0.5rem'}}>
+                  {loading ? <><i className="fas fa-spinner fa-spin"></i> Saving...</> : <><i className="fas fa-save"></i> Save Profile</>}
                 </button>
               </div>
             </form>
@@ -857,205 +874,106 @@ function MerchantDashboard() {
 
       {/* Add/Edit Promotion Modal */}
       {isAddModalOpen &&
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-auto">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-full overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold">
-                  {editingPromotion ? 'Edit Promotion' : 'Add New Promotion'}
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:50,padding:'1rem',overflowY:'auto',backdropFilter:'blur(4px)'}}>
+          <div style={{background:'var(--card-bg)',borderRadius:'1.25rem',width:'100%',maxWidth:'640px',maxHeight:'90vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,0,0,0.3)'}}>
+            <div style={{padding:'1.5rem',borderBottom:'1px solid var(--border-color)',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,background:'var(--card-bg)',zIndex:1,borderRadius:'1.25rem 1.25rem 0 0'}}>
+              <div>
+                <h2 style={{fontSize:'1.25rem',fontWeight:800,color:'var(--text-primary)',margin:0}}>
+                  {editingPromotion ? 'Edit Promotion' : 'New Promotion'}
                 </h2>
-                <button
-                className="text-gray-500 hover:text-gray-700"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setEditingPromotion(null);
-                }}>
-                  <i className="fas fa-times text-xl"></i>
-                </button>
+                <p style={{fontSize:'0.8rem',color:'var(--text-secondary)',margin:0}}>
+                  {editingPromotion ? 'Update promotion details' : 'Fill in the details below'}
+                </p>
               </div>
-              
+              <button onClick={() => { setIsAddModalOpen(false); setEditingPromotion(null); }}
+                style={{width:'32px',height:'32px',borderRadius:'50%',border:'1.5px solid var(--border-color)',background:'var(--light-gray)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--text-secondary)'}}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div style={{padding:'1.5rem'}}>
               <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  {[['col-span-2','text','title','Promotion Title *','e.g. Summer Sale 20% Off',true],
+                    ['','text','discount','Discount *','e.g. 20%, $50, BOGO',true],
+                    ['','text','code','Promo Code *','e.g. SUMMER20',true],
+                    ['','number','originalPrice','Original Price','e.g. 100.00',false],
+                    ['','number','discountedPrice','Discounted Price','e.g. 80.00',false],
+                  ].map(([span, type, name, label, placeholder, required]) => (
+                    <div key={name} className={span}>
+                      <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>{label}</label>
+                      <input type={type} name={name} value={formData[name]} onChange={handleChange} placeholder={placeholder} required={required}
+                        step={type === 'number' ? '0.01' : undefined}
+                        style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
+                    </div>
+                  ))}
+
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">Promotion Title</label>
-                    <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    required />
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">Description</label>
-                    <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    rows="3"
-                    required>
-                  </textarea>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Discount</label>
-                    <input
-                    type="text"
-                    name="discount"
-                    value={formData.discount}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    placeholder="e.g. 20%, $50, BOGO"
-                    required />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Promotion Code</label>
-                    <input
-                    type="text"
-                    name="code"
-                    value={formData.code}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    required />
+                    <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Description *</label>
+                    <textarea name="description" value={formData.description} onChange={handleChange} rows="3" required
+                      style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',resize:'vertical',boxSizing:'border-box'}}></textarea>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium mb-1">Original Price (Optional)</label>
-                    <input
-                    type="number"
-                    name="originalPrice"
-                    value={formData.originalPrice}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    placeholder="e.g. 100.00"
-                    step="0.01" />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Discounted Price (Optional)</label>
-                    <input
-                    type="number"
-                    name="discountedPrice"
-                    value={formData.discountedPrice}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    placeholder="e.g. 80.00"
-                    step="0.01" />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Category</label>
-                    <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    required>
-                      <option value="fashion">Fashion</option>
-                      <option value="electronics">Electronics</option>
-                      <option value="travel">Travel</option>
-                      <option value="health">Health & Wellness</option>
-                      <option value="entertainment">Entertainment</option>
-                      <option value="home">Home & Garden</option>
-                      <option value="pets">Pets</option>
-                      <option value="food">Food & Dining</option>
-                      <option value="education">Education</option>
+                    <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Category *</label>
+                    <select name="category" value={formData.category} onChange={handleChange} required
+                      style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}}>
+                      {['fashion','electronics','travel','health','entertainment','home','pets','food','education'].map(c => (
+                        <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>
+                      ))}
                     </select>
                   </div>
-                  
+
+                  <div>
+                    <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Start Date *</label>
+                    <input type="date" name="startDate" value={formData.startDate} onChange={handleChange} required
+                      style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
+                  </div>
+
+                  <div>
+                    <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>End Date *</label>
+                    <input type="date" name="endDate" value={formData.endDate} onChange={handleChange} required
+                      style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
+                  </div>
+
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">Promotion Image</label>
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-1">
-                        <input
-                        type="file"
-                        name="imageFile"
-                        accept="image/*"
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color" />
+                    <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.5rem',color:'var(--text-primary)'}}>Promotion Image</label>
+                    <div style={{padding:'1rem',borderRadius:'0.875rem',border:'1.5px solid var(--border-color)',background:'var(--light-gray)'}}>
+                      <div className="flex gap-3 flex-wrap">
+                        <input type="file" name="imageFile" accept="image/*" onChange={handleChange} style={{fontSize:'0.8rem',color:'var(--text-secondary)',flex:1}} />
+                        <input type="text" name="image" value={formData.image} onChange={handleChange} placeholder="Or paste image URL"
+                          style={{flex:1,padding:'0.5rem 0.75rem',borderRadius:'0.5rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.8rem',outline:'none',minWidth:'160px'}} />
                       </div>
-                      <div className="flex-1">
-                        <input
-                        type="text"
-                        name="image"
-                        value={formData.image}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                        placeholder="https://example.com/image.jpg" />
-                      </div>
+                      {(imagePreview || formData.image) && (
+                        <img src={imagePreview || formData.image} alt="Preview" style={{height:'80px',borderRadius:'0.5rem',objectFit:'cover',marginTop:'0.75rem',border:'1px solid var(--border-color)'}} />
+                      )}
                     </div>
-                    {(imagePreview || formData.image) &&
-                  <div className="mt-2">
-                        <img src={imagePreview || formData.image} alt="Preview" className="h-24 w-auto rounded-md object-cover" />
-                      </div>
-                  }
                   </div>
-                  
+
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">Promotion URL (for redirect)</label>
-                    <input
-                    type="url"
-                    name="url"
-                    value={formData.url}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    placeholder="https://example.com/promotion" />
-                    <p className="text-xs text-gray-500 mt-1">Enter a valid URL starting with http:// or https://</p>
+                    <label style={{display:'block',fontSize:'0.85rem',fontWeight:600,marginBottom:'0.4rem',color:'var(--text-primary)'}}>Promotion URL</label>
+                    <input type="url" name="url" value={formData.url} onChange={handleChange} placeholder="https://yourstore.com/deal"
+                      style={{width:'100%',padding:'0.7rem 1rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-primary)',fontSize:'0.9rem',outline:'none',boxSizing:'border-box'}} />
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Start Date</label>
-                    <input
-                    type="date"
-                    name="startDate"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    required />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">End Date</label>
-                    <input
-                    type="date"
-                    name="endDate"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-color"
-                    required />
-                  </div>
-                </div>
-                
-                <div className="col-span-2 flex items-center mt-2">
-                    <input
-                      type="checkbox"
-                      id="featured"
-                      name="featured"
-                      checked={formData.featured}
-                      onChange={handleChange}
-                      className="mr-2 h-4 w-4 text-primary-color focus:ring-primary-color border-gray-300 rounded"
-                    />
-                    <label htmlFor="featured" className="text-sm font-medium select-none cursor-pointer">
-                      Mark as Featured Deal (showcase on Home page)
+
+                  <div className="col-span-2">
+                    <label style={{display:'flex',alignItems:'center',gap:'0.75rem',padding:'0.875rem',borderRadius:'0.75rem',border:'1.5px solid var(--border-color)',cursor:'pointer',background:'var(--card-bg)'}}>
+                      <input type="checkbox" name="featured" checked={formData.featured} onChange={handleChange}
+                        style={{width:'16px',height:'16px',accentColor:'var(--primary-color)',cursor:'pointer'}} />
+                      <div>
+                        <span style={{fontSize:'0.875rem',fontWeight:600,color:'var(--text-primary)'}}>⭐ Mark as Featured Deal</span>
+                        <p style={{fontSize:'0.75rem',color:'var(--text-secondary)',margin:0}}>Featured deals appear on the homepage</p>
+                      </div>
                     </label>
                   </div>
-                
-                <div className="flex justify-end mt-4">
-                  <button
-                  type="button"
-                  className="mr-2 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setEditingPromotion(null);
-                  }}>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button type="button" onClick={() => { setIsAddModalOpen(false); setEditingPromotion(null); }}
+                    style={{padding:'0.6rem 1.25rem',borderRadius:'0.625rem',border:'1.5px solid var(--border-color)',background:'var(--card-bg)',color:'var(--text-secondary)',fontWeight:600,cursor:'pointer',fontSize:'0.875rem'}}>
                     Cancel
                   </button>
-                  <button
-                  type="submit"
-                  className="px-4 py-2 bg-primary-color text-white rounded-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-color">
+                  <button type="submit" className="btn btn-primary" style={{gap:'0.5rem'}}>
+                    <i className={`fas ${editingPromotion ? 'fa-save' : 'fa-plus'}`}></i>
                     {editingPromotion ? 'Update Promotion' : 'Create Promotion'}
                   </button>
                 </div>
@@ -1066,3 +984,5 @@ function MerchantDashboard() {
       }
     </div>);
 }
+
+window.MerchantDashboard = MerchantDashboard;

@@ -2,22 +2,26 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import '../models/promotion.dart';
+import '../config/app_config.dart';
+import 'cache_service.dart';
 
 class ApiService {
-  static const String _baseUrl = 'http://192.168.1.163:8080/api/'; // Physical device -> local backend
-  // static const String _baseUrl = 'http://10.0.2.2:8080/api/'; // Android emulator -> local backend
-  // static const String _baseUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/'; // Production
+  static String get _baseUrl => AppConfig.baseUrl;
 
   Future<List<Promotion>> fetchPromotions() async {
-    final response = await http.get(Uri.parse('${_baseUrl}promotions'));
-
-    if (response.statusCode == 200) {
-      List<dynamic> body = jsonDecode(response.body);
-      List<Promotion> promotions = body.map((dynamic item) => Promotion.fromJson(item)).toList();
-
-      return promotions;
-    } else {
-      throw Exception('Failed to load promotions. Status code: ${response.statusCode}, Body: ${response.body}');
+    try {
+      final response = await http.get(Uri.parse('${_baseUrl}promotions'));
+      if (response.statusCode == 200) {
+        final List<dynamic> body = jsonDecode(response.body);
+        final promotions = body.map((e) => Promotion.fromJson(e)).toList();
+        await CacheService.savePromotions(promotions);
+        return promotions;
+      }
+      throw Exception('Failed to load promotions. Status code: ${response.statusCode}');
+    } catch (e) {
+      final cached = await CacheService.loadPromotions();
+      if (cached != null) return cached;
+      rethrow;
     }
   }
   
@@ -51,9 +55,6 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> registerUser(Map<String, dynamic> userData) async {
-    print('Registering user with data: $userData'); // Debug log
-    print('API URL: ${_baseUrl}users/register'); // Debug log
-    
     final response = await http.post(
       Uri.parse('${_baseUrl}users/register'),
       headers: <String, String>{
@@ -61,10 +62,6 @@ class ApiService {
       },
       body: jsonEncode(userData),
     );
-    
-    print('Registration response status: ${response.statusCode}'); // Debug log
-    print('Registration response body: ${response.body}'); // Debug log
-
     if (response.statusCode == 201) { // Registration successful
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else if (response.statusCode == 400) { // Bad request (e.g., validation errors, email exists)
@@ -199,6 +196,15 @@ class ApiService {
     }
   }
 
+  // Fetch a single promotion by ID
+  Future<Promotion> fetchPromotionById(String id) async {
+    final response = await http.get(Uri.parse('${_baseUrl}promotions/$id'));
+    if (response.statusCode == 200) {
+      return Promotion.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    }
+    throw Exception('Failed to load promotion $id');
+  }
+
   // Fetch a single merchant by ID
   Future<Map<String, dynamic>> fetchMerchantById(String merchantId) async {
     final response = await http.get(Uri.parse('${_baseUrl}merchants/$merchantId'));
@@ -238,8 +244,6 @@ class ApiService {
           if (businessName != null) 'businessName': businessName,
         }),
       ).timeout(const Duration(seconds: 15));
-      print('firebaseAuthSync status: ${response.statusCode}');
-      print('firebaseAuthSync body: ${response.body}');
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
@@ -249,7 +253,6 @@ class ApiService {
     } on TimeoutException {
       throw Exception('Connection timed out. Is the backend running?');
     } catch (e) {
-      print('firebaseAuthSync error: $e');
       rethrow;
     }
   }
@@ -283,22 +286,17 @@ class ApiService {
       
       if (response.statusCode == 200) {
         List<dynamic> body = jsonDecode(response.body);
-        print('📍 Nearby API returned ${body.length} promotions');
         return body.map((dynamic item) => Promotion.fromJson(item)).toList();
       } else {
-        print('⚠️ Nearby API failed with status ${response.statusCode}: ${response.body}');
         // Fallback to all promotions if location-based API not available
         final allPromotions = await fetchPromotions();
         return allPromotions.take(10).toList(); // Limit to 10 for nearby simulation
       }
     } catch (e) {
-      print('❌ Nearby promotions error: $e');
-      // Fallback to all promotions
       try {
         final allPromotions = await fetchPromotions();
         return allPromotions.take(10).toList();
-      } catch (e2) {
-        print('❌ Fallback promotions also failed: $e2');
+      } catch (_) {
         return [];
       }
     }

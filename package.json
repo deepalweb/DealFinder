@@ -6,11 +6,12 @@
     "scripts": {
         "start": "node backend/server.js",
         "dev": "live-server frontend --port=5001 --proxy=/api:http://localhost:8080/api",
+        "build": "cd frontend-next && npm ci && npm run build",
         "test": "echo \"No tests specified\"",
         "postinstall": "cd backend && npm install"
     },
     "engines": {
-        "node": "18.x"
+        "node": "20.x"
     },
     "dependencies": {
         "express": "^5.1.0"

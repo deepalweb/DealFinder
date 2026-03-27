@@ -1,5 +1,7 @@
 function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
   const { useState, useEffect } = React;
+  const { useNavigate } = ReactRouterDOM;
+  const navigate = useNavigate();
   const daysRemaining = calculateDaysRemaining(promotion.endDate);
   const daysText = getDaysText(daysRemaining);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -62,13 +64,13 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
   }
 
   const handleCardClick = (event) => {
-    // Don't redirect if the click is on the favorite button or copy button
     if (event.target.closest('button')) return;
-    // If promotion has URL, navigate to it in the same tab
     if (promotion.url) {
       const promoId = promotion.id || promotion._id;
       trackPromotionClick(promoId, promotion.title, getMerchantName(promotion.merchant));
-      window.location.href = promotion.url;
+      window.open(promotion.url, '_blank', 'noopener');
+    } else {
+      navigate(`/deal/${promotion.id || promotion._id}`);
     }
   };
 
@@ -311,8 +313,8 @@ function PromotionCard({ promotion, onFavoriteToggle, singlePageMode }) {
 
   return (
     <div
-      className={`promotion-card fade-in relative transform transition-all duration-200 hover:scale-105 hover:shadow-2xl ${promotion.url ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
-      onClick={promotion.url ? handleCardClick : undefined} data-id="fvxy2i9nx" data-path="scripts/components/PromotionCard.js"
+      className={`promotion-card fade-in relative transform transition-all duration-200 hover:scale-105 hover:shadow-2xl cursor-pointer`}
+      onClick={handleCardClick} data-id="fvxy2i9nx" data-path="scripts/components/PromotionCard.js"
     >      {promotion.url && (
         <div className="absolute top-2 right-2 z-10">
           <button className="btn btn-accent btn-xs" onClick={e => {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../widgets/deal_card_shimmer.dart';
 import '../models/category.dart';
@@ -35,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _notificationCount = 0;
   int _dealsCount = 0;
   int _merchantsCount = 0;
+  int _usersCount = 0;
 
   @override
   void initState() {
@@ -44,6 +47,15 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserData();
     _checkAlerts();
     _loadStats();
+  }
+
+  Future<void> _launchUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open link.')));
+    }
   }
 
   Future<void> _checkAlerts() async {
@@ -64,7 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadNotificationCount() async {
     if (_userId.isEmpty || _token.isEmpty) return;
     try {
-      final notifications = await ApiService().fetchNotifications(_userId, _token);
+      final notifications = await _apiService.fetchNotifications(_userId, _token);
       if (mounted) setState(() => _notificationCount = notifications.length);
     } catch (_) {}
   }
@@ -76,11 +88,20 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _dealsCount = stats['deals'] ?? 0;
           _merchantsCount = stats['merchants'] ?? 0;
+          _usersCount = stats['users'] ?? 0;
         });
       }
     } catch (_) {}
   }
 
+
+  Future<void> _refresh() async {
+    setState(() {
+      _allPromotionsFuture = _apiService.fetchPromotions();
+      _nearbyDealsPreviewFuture = _fetchNearbyDealsPreview();
+    });
+    await Future.wait([_allPromotionsFuture, _nearbyDealsPreviewFuture, _loadStats()]);
+  }
 
   Future<List<Promotion>> _fetchNearbyDealsPreview() async {
     try {
@@ -93,8 +114,12 @@ class _HomeScreenState extends State<HomeScreen> {
         );
         return nearbyDeals.take(3).toList();
       }
-      final allPromotions = await _allPromotionsFuture;
-      return allPromotions.skip(5).take(3).toList();
+      try {
+        final allPromotions = await _allPromotionsFuture;
+        return allPromotions.skip(5).take(3).toList();
+      } catch (_) {
+        return [];
+      }
     } catch (e) {
       return [];
     }
@@ -104,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('DealFinder'),
+        title: Text(AppLocalizations.of(context)!.appTitle),
         actions: [
           Stack(
             children: [
@@ -132,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
                     child: Text(
-                      '$_notificationCount',
+                      _notificationCount > 99 ? '99+' : '$_notificationCount',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
@@ -146,7 +171,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: CustomScrollView(
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: CustomScrollView(
         slivers: <Widget>[
           // Welcome section
           SliverToBoxAdapter(
@@ -156,11 +183,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                    backgroundImage: _profilePicture != null
+                    backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    backgroundImage: _profilePicture != null && _profilePicture!.contains(',')
                         ? MemoryImage(base64Decode(_profilePicture!.split(',')[1]))
                         : null,
-                    child: _profilePicture == null
+                    child: (_profilePicture == null || !_profilePicture!.contains(','))
                         ? Icon(Icons.person, color: Theme.of(context).colorScheme.primary, size: 28)
                         : null,
                   ),
@@ -170,11 +197,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Welcome back, $_userName!',
+                          AppLocalizations.of(context)!.welcomeBack(_userName),
                           style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          'Find the best deals for you',
+                          AppLocalizations.of(context)!.findBestDeals,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.primary,
@@ -194,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16.0),
               child: TextField(
                 decoration: InputDecoration(
-                  hintText: 'Search deals, categories, merchants...',
+                  hintText: AppLocalizations.of(context)!.searchHint,
                   prefixIcon: const Icon(Icons.search),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(25.0),
@@ -228,7 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   return ActionChip(
                     avatar: Icon(_getIconForCategory(category.id), size: 18, color: Theme.of(context).colorScheme.primary),
                     label: Text(category.name, style: const TextStyle(fontSize: 13)),
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.7),
+                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -251,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
-                      'Featured Deals',
+                      AppLocalizations.of(context)!.featuredDeals,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -270,13 +297,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Icon(Icons.error_outline, color: Colors.red[400], size: 48),
                                 const SizedBox(height: 8),
-                                Text('API Connection Failed', style: TextStyle(color: Colors.red[400], fontWeight: FontWeight.bold)),
+                                Text(AppLocalizations.of(context)!.apiConnectionFailed, style: TextStyle(color: Colors.red[400], fontWeight: FontWeight.bold)),
                                 const SizedBox(height: 4),
                                 Text('${snapshot.error}', style: TextStyle(color: Colors.red[300], fontSize: 12), textAlign: TextAlign.center),
                                 const SizedBox(height: 8),
                                 ElevatedButton(
                                   onPressed: () => setState(() => _allPromotionsFuture = _apiService.fetchPromotions()),
-                                  child: const Text('Retry'),
+                                  child: Text(AppLocalizations.of(context)!.retry),
                                 ),
                               ],
                             ),
@@ -285,10 +312,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return SizedBox(
                           height: 220,
-                          child: Center(child: Text('No featured deals available.', style: TextStyle(color: Colors.grey[600]))),
+                          child: Center(child: Text(AppLocalizations.of(context)!.noFeaturedDeals, style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
-                      final all = snapshot.data!;
+                      final now = DateTime.now();
+                      final all = snapshot.data!
+                          .where((p) => p.endDate == null || p.endDate!.isAfter(now))
+                          .toList();
                       final featuredDeals = all.where((p) => p.featured == true).isNotEmpty
                           ? all.where((p) => p.featured == true).take(5).toList()
                           : all.take(5).toList();
@@ -404,7 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Nearby Deals',
+                          AppLocalizations.of(context)!.nearbyDeals,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         TextButton(
@@ -412,7 +442,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             context,
                             MaterialPageRoute(builder: (context) => const NearbyDealsScreen()),
                           ),
-                          child: const Text('View All'),
+                          child: Text(AppLocalizations.of(context)!.viewAll),
                         ),
                       ],
                     ),
@@ -425,7 +455,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       } else if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                         return SizedBox(
                           height: 220,
-                          child: Center(child: Text('No nearby deals available.', style: TextStyle(color: Colors.grey[600]))),
+                          child: Center(child: Text(AppLocalizations.of(context)!.noNearbyDeals, style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
                       final nearbyDeals = snapshot.data!;
@@ -509,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   _QuickActionButton(
                     icon: Icons.near_me,
-                    label: 'Nearby',
+                    label: AppLocalizations.of(context)!.nearby,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -519,16 +549,16 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _QuickActionButton(
                     icon: Icons.card_giftcard,
-                    label: 'Coupons',
+                    label: AppLocalizations.of(context)!.coupons,
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Coupons coming soon!')),
+                        SnackBar(content: Text(AppLocalizations.of(context)!.couponsComing)),
                       );
                     },
                   ),
                   _QuickActionButton(
                     icon: Icons.qr_code_scanner,
-                    label: 'Scan QR',
+                    label: AppLocalizations.of(context)!.scanQR,
                     onTap: () {
                       Navigator.push(
                         context,
@@ -538,7 +568,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _QuickActionButton(
                     icon: Icons.favorite_border,
-                    label: 'Favorites',
+                    label: AppLocalizations.of(context)!.favorites,
                     onTap: () => widget.onNavigateToFavorites?.call(),
                   ),
                 ],
@@ -557,13 +587,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
-                        Icon(Icons.whatshot, color: Colors.orange[700], size: 26),
+                        Icon(Icons.whatshot, color: Theme.of(context).colorScheme.primary, size: 26),
                         const SizedBox(width: 8),
                         Text(
-                          'Trending Now',
+                          AppLocalizations.of(context)!.trendingNow,
                           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
-                            color: Colors.orange[800],
                           ),
                         ),
                       ],
@@ -574,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     future: _allPromotionsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return _buildFeaturedDealsShimmer();
+                        return _buildFeaturedDealsShimmer(height: 120);
                       } else if (snapshot.hasError) {
                         return SizedBox(
                           height: 120,
@@ -583,10 +612,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                         return SizedBox(
                           height: 120,
-                          child: Center(child: Text('No trending deals available.', style: TextStyle(color: Colors.grey[600]))),
+                          child: Center(child: Text(AppLocalizations.of(context)!.noTrendingDeals, style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
+                      final now = DateTime.now();
                       final trendingDeals = ([...snapshot.data!]
+                          .where((p) => p.endDate == null || p.endDate!.isAfter(now))
+                          .toList()
                         ..sort((a, b) => b.ratingsCount.compareTo(a.ratingsCount)))
                         .take(5).toList();
                       return SizedBox(
@@ -608,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   );
                                 },
                                 child: Card(
-                                  color: Colors.orange[50],
+                                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   elevation: 2,
                                   child: Padding(
@@ -646,9 +678,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                               const Spacer(),
                                               Row(
                                                 children: [
-                                                  Icon(Icons.trending_up, color: Colors.orange[700], size: 16),
+                                                  Icon(Icons.trending_up, color: Theme.of(context).colorScheme.primary, size: 16),
                                                   const SizedBox(width: 4),
-                                                  Text('Hot', style: TextStyle(color: Colors.orange[700], fontWeight: FontWeight.bold, fontSize: 12)),
+                                                  Text(AppLocalizations.of(context)!.hot, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
                                                 ],
                                               ),
                                             ],
@@ -675,7 +707,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Card(
-                color: Colors.blueGrey[50],
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 elevation: 0,
                 child: Padding(
@@ -683,9 +715,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _StatPreview(icon: Icons.local_offer, label: 'Deals', value: '$_dealsCount+'),
-                      _StatPreview(icon: Icons.store, label: 'Merchants', value: '$_merchantsCount+'),
-                      const _StatPreview(icon: Icons.people, label: 'Users', value: '2k+'),
+                      _StatPreview(icon: Icons.local_offer, label: AppLocalizations.of(context)!.deals, value: '$_dealsCount+'),
+                      _StatPreview(icon: Icons.store, label: AppLocalizations.of(context)!.merchants, value: '$_merchantsCount+'),
+                      _StatPreview(icon: Icons.people, label: AppLocalizations.of(context)!.users, value: _usersCount > 0 ? '$_usersCount+' : '2k+'),
                     ],
                   ),
                 ),
@@ -703,14 +735,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     alignment: WrapAlignment.center,
                     spacing: 18,
                     children: [
-                      TextButton(onPressed: () {}, child: const Text('Privacy Policy')),
-                      TextButton(onPressed: () {}, child: const Text('About')),
-                      TextButton(onPressed: () {}, child: const Text('Contact')),
+                      TextButton(
+                        onPressed: () => _launchUrl('https://dealfinder.app/privacy'),
+                        child: Text(AppLocalizations.of(context)!.privacyPolicy),
+                      ),
+                      TextButton(
+                        onPressed: () => _launchUrl('https://dealfinder.app/about'),
+                        child: Text(AppLocalizations.of(context)!.about),
+                      ),
+                      TextButton(
+                        onPressed: () => _launchUrl('mailto:support@dealfinder.app'),
+                        child: Text(AppLocalizations.of(context)!.contact),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '© 2025 DealFinder. All rights reserved.',
+                    AppLocalizations.of(context)!.copyright,
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                 ],
@@ -720,6 +761,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
+      ),
       ),
     );
   }
@@ -739,9 +781,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildFeaturedDealsShimmer() {
+  Widget _buildFeaturedDealsShimmer({double height = 270}) {
     return SizedBox(
-      height: 270,
+      height: height,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: 3,
@@ -779,7 +821,7 @@ class _QuickActionButton extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.all(10),

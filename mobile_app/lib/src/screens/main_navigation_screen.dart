@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'home_screen.dart';
 import 'user_profile_screen.dart';
 import 'favorites_screen.dart';
@@ -48,23 +49,23 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         items: [
           BottomNavigationBarItem(
             icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
-            label: 'Home',
+            label: AppLocalizations.of(context)!.home,
           ),
           BottomNavigationBarItem(
             icon: Icon(_selectedIndex == 1 ? Icons.local_offer : Icons.local_offer_outlined),
-            label: 'All Deals',
+            label: AppLocalizations.of(context)!.allDeals,
           ),
           BottomNavigationBarItem(
             icon: Icon(_selectedIndex == 2 ? Icons.store : Icons.store_outlined),
-            label: 'Stores',
+            label: AppLocalizations.of(context)!.stores,
           ),
           BottomNavigationBarItem(
             icon: Icon(_selectedIndex == 3 ? Icons.favorite : Icons.favorite_border),
-            label: 'Favorites',
+            label: AppLocalizations.of(context)!.favorites,
           ),
           BottomNavigationBarItem(
             icon: Icon(_selectedIndex == 4 ? Icons.person : Icons.person_outline),
-            label: 'Profile',
+            label: AppLocalizations.of(context)!.profile,
           ),
         ],
       ),
