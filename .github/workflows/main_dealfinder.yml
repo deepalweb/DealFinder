@@ -22,7 +22,7 @@ jobs:
       # Install backend dependencies
       - name: Install backend dependencies
         working-directory: ./backend
-        run: npm ci
+        run: npm ci --omit=dev
 
       # Install and build Next.js
       - name: Install Next.js dependencies
@@ -39,8 +39,27 @@ jobs:
       # Copy Next.js static assets into standalone output
       - name: Copy Next.js static assets
         run: |
-          cp -r frontend-next/.next/static frontend-next/.next/standalone/frontend-next/.next/static || true
-          cp -r frontend-next/public frontend-next/.next/standalone/frontend-next/public || true
+          cp -r frontend-next/.next/static frontend-next/.next/standalone/frontend-next/.next/static
+          cp -r frontend-next/public frontend-next/.next/standalone/frontend-next/public
+
+      # Create clean deployment package
+      - name: Create deployment package
+        run: |
+          mkdir -p deploy
+          # Copy backend
+          cp -r backend deploy/backend
+          # Copy Next.js standalone output
+          cp -r frontend-next/.next/standalone/. deploy/
+          # Copy root package.json and web.config
+          cp package.json deploy/
+          cp web.config deploy/
+          cp .deployment deploy/
+
+      # Create zip package
+      - name: Zip deployment package
+        run: |
+          cd deploy
+          zip -r ../deploy.zip . -x "*.git*" -x "node_modules/.cache/*"
 
       # Deploy to Azure Web App
       - name: Deploy to Azure Web App
@@ -49,4 +68,4 @@ jobs:
           app-name: 'dealfinder'
           slot-name: 'Production'
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_DAE04F5DFEC143DDBD5202A1353AA7D8 }}
-          package: .
+          package: ./deploy.zip
