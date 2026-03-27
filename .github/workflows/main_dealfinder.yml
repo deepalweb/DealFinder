@@ -31,6 +31,14 @@ jobs:
           NEXT_PUBLIC_API_URL: https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api
           NODE_ENV: production
 
+      # Show standalone structure for debugging
+      - name: Show standalone structure
+        run: |
+          echo "=== Standalone root ==="
+          ls frontend-next/.next/standalone/
+          echo "=== Standalone subdirs ==="
+          ls frontend-next/.next/standalone/frontend-next/ || echo "No frontend-next subdir"
+
       # Install backend dependencies
       - name: Install backend dependencies
         working-directory: ./backend
@@ -39,21 +47,22 @@ jobs:
       # Build deployment package
       - name: Build deployment package
         run: |
-          mkdir -p deploy
+          mkdir -p deploy/frontend-next/.next
+          mkdir -p deploy/frontend-next/public
 
-          # 1. Copy backend
+          # Copy backend
           cp -r backend deploy/backend
 
-          # 2. Flatten Next.js standalone output to deploy/frontend-next/
-          #    standalone output is at frontend-next/.next/standalone/
-          #    which contains: server.js, node_modules/, frontend-next/ subfolder
-          mkdir -p deploy/frontend-next
+          # Copy Next.js standalone output
           cp -r frontend-next/.next/standalone/. deploy/frontend-next/
-          # Copy static assets
-          cp -r frontend-next/.next/static deploy/frontend-next/.next/static
-          cp -r frontend-next/public deploy/frontend-next/public
 
-          # 3. Root files
+          # Copy static assets into the right place
+          cp -r frontend-next/.next/static deploy/frontend-next/.next/static
+
+          # Copy public folder
+          cp -r frontend-next/public/. deploy/frontend-next/public/
+
+          # Root files
           cp package.json deploy/
           cp web.config deploy/
           cp .deployment deploy/
