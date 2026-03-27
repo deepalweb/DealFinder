@@ -19,7 +19,6 @@ jobs:
         with:
           node-version: '20.x'
 
-      # Build Next.js
       - name: Install Next.js dependencies
         working-directory: ./frontend-next
         run: npm ci
@@ -31,48 +30,42 @@ jobs:
           NEXT_PUBLIC_API_URL: https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api
           NODE_ENV: production
 
-      # Show standalone structure for debugging
-      - name: Show standalone structure
-        run: |
-          echo "=== Standalone root ==="
-          ls frontend-next/.next/standalone/
-          echo "=== Standalone subdirs ==="
-          ls frontend-next/.next/standalone/frontend-next/ || echo "No frontend-next subdir"
-
-      # Install backend dependencies
       - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci --omit=dev
 
-      # Build deployment package
       - name: Build deployment package
         run: |
-          mkdir -p deploy/frontend-next/.next
-          mkdir -p deploy/frontend-next/public
+          # standalone structure is: .next/standalone/frontend-next/{server.js, node_modules, .next/}
+          # We copy it to deploy/frontend-next/frontend-next/ to match server.js path
+
+          mkdir -p deploy/frontend-next
+          mkdir -p deploy/frontend-next/frontend-next/.next
 
           # Copy backend
           cp -r backend deploy/backend
 
-          # Copy Next.js standalone output
+          # Copy standalone output (contains frontend-next/ subfolder)
           cp -r frontend-next/.next/standalone/. deploy/frontend-next/
 
-          # Copy static assets into the right place
-          cp -r frontend-next/.next/static deploy/frontend-next/.next/static
+          # Copy static assets into the nested path
+          cp -r frontend-next/.next/static deploy/frontend-next/frontend-next/.next/static
 
           # Copy public folder
-          cp -r frontend-next/public/. deploy/frontend-next/public/
+          cp -r frontend-next/public deploy/frontend-next/frontend-next/public
 
           # Root files
           cp package.json deploy/
           cp web.config deploy/
           cp .deployment deploy/
 
-          echo "=== Deploy structure ==="
+          echo "=== Deploy root ==="
           ls deploy/
-          echo "=== frontend-next ==="
+          echo "=== frontend-next root ==="
           ls deploy/frontend-next/
+          echo "=== frontend-next/frontend-next ==="
+          ls deploy/frontend-next/frontend-next/
 
-      # Zip and deploy
       - name: Zip deployment package
         run: cd deploy && zip -r ../deploy.zip .
 

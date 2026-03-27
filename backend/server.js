@@ -120,7 +120,8 @@ mongoose.connect(process.env.MONGO_URI)
 if (process.env.NODE_ENV === 'production') {
   const { spawn } = require('child_process');
   const fs = require('fs');
-  const nextServerPath = path.join(__dirname, '../frontend-next/server.js');
+  // standalone output: deploy/frontend-next/frontend-next/server.js
+  const nextServerPath = path.join(__dirname, '../frontend-next/frontend-next/server.js');
 
   if (fs.existsSync(nextServerPath)) {
     const nextProc = spawn('node', [nextServerPath], {
@@ -139,7 +140,24 @@ if (process.env.NODE_ENV === 'production') {
     }));
   } else {
     console.warn('Next.js not found at:', nextServerPath);
-    app.get('*', (_req, res) => res.send('App starting...'));
+    // Try alternate path
+    const altPath = path.join(__dirname, '../frontend-next/server.js');
+    if (fs.existsSync(altPath)) {
+      console.log('Found Next.js at alternate path:', altPath);
+      const nextProc = spawn('node', [altPath], {
+        env: { ...process.env, PORT: '3000', HOSTNAME: '127.0.0.1' },
+        stdio: 'inherit'
+      });
+      nextProc.on('error', err => console.error('Next.js error:', err.message));
+      const proxy = require('http-proxy-middleware').createProxyMiddleware;
+      app.use('/', proxy({
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: false,
+        on: { error: (_e, _r, res) => { res.status(502).send('Starting up...'); } }
+      }));
+    } else {
+      app.get('*', (_req, res) => res.send('App starting... paths checked: ' + nextServerPath + ' | ' + altPath));
+    }
   }
 } else {
   // Development: serve old frontend
