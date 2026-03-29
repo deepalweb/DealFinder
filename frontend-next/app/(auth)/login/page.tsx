@@ -46,13 +46,17 @@ export default function LoginPage() {
   }, []);
 
   // Step 3: Poll until google object, clientId, and ref are all ready
+  const googleInitialized = useRef(false);
   const tryInitGoogle = () => {
+    if (googleInitialized.current) return;
     let attempts = 0;
     const interval = setInterval(() => {
       attempts++;
       if (attempts > 20) { clearInterval(interval); return; }
       if (window.google && googleClientIdRef.current && googleBtnRef.current) {
         clearInterval(interval);
+        if (googleInitialized.current) return;
+        googleInitialized.current = true;
         try {
           window.google.accounts.id.initialize({
             client_id: googleClientIdRef.current,
@@ -153,7 +157,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>Email Address</label>
               <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
-                style={inputStyle} placeholder="you@example.com" required
+                style={inputStyle} placeholder="you@example.com" required autoComplete="email"
                 onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
             </div>
@@ -166,7 +170,7 @@ export default function LoginPage() {
               <div style={{ position: 'relative' }}>
                 <input type={showPassword ? 'text' : 'password'} value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  style={{ ...inputStyle, paddingRight: '2.75rem' }} placeholder="••••••••" required
+                  style={{ ...inputStyle, paddingRight: '2.75rem' }} placeholder="••••••••" required autoComplete="current-password"
                   onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')}
                   onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}

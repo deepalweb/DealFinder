@@ -11,11 +11,8 @@ import '../services/favorites_manager.dart';
 import '../services/api_service.dart';
 import '../services/recommendation_service.dart';
 import '../services/deal_history_service.dart';
-import '../services/deal_comparison_service.dart';
-import '../services/review_service.dart';
-import '../widgets/rating_widget.dart';
-import '../screens/deal_comparison_screen.dart';
-import '../screens/review_screen.dart';
+import '../config/app_config.dart';
+import '../screens/merchant_profile_screen.dart';
 
 class DealDetailScreen extends StatefulWidget {
   final Promotion promotion;
@@ -332,9 +329,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             if (promotion.merchantName != null && promotion.merchantName!.isNotEmpty)
               GestureDetector(
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Navigate to merchant profile (to be implemented)')),
-                  );
+                  if (promotion.merchantId != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MerchantProfileScreen(merchantId: promotion.merchantId!),
+                      ),
+                    );
+                  }
                 },
                 child: Card(
                   elevation: 0.5,
@@ -555,100 +557,49 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             const Divider(height: 32, thickness: 1.2),
 
             // Action Buttons
-            Center(
-              child: Wrap(
-                spacing: 12.0,
-                runSpacing: 8.0,
-                alignment: WrapAlignment.center,
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: Row(
                 children: [
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.directions),
-                    label: const Text('Get Directions'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4285F4),
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: _openDirections,
-                  ),
-                  if (promotion.url != null && promotion.url!.isNotEmpty)
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.launch),
-                      label: const Text('Go to Promotion'),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.directions, size: 18),
+                      label: const Text('Directions'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        foregroundColor: theme.colorScheme.onPrimary,
+                        backgroundColor: const Color(0xFF4285F4),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                       ),
-                      onPressed: () => _launchURL(promotion.url!),
+                      onPressed: _openDirections,
                     ),
-                  if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty)
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.public),
-                      label: const Text('Visit Website'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.tertiary,
-                        foregroundColor: theme.colorScheme.onTertiary,
-                      ),
-                      onPressed: () => _launchURL(promotion.websiteUrl!),
-                    ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.share_outlined),
-                    label: const Text('Share Deal'),
-                    onPressed: _shareDeal,
                   ),
-                  OutlinedButton.icon(
-                    icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border_outlined, color: theme.colorScheme.primary),
-                    label: Text(_isFavorite ? 'Remove Favorite' : 'Save to Favorites'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.primary,
-                      side: BorderSide(color: theme.colorScheme.primary),
-                    ),
-                    onPressed: _toggleFavorite,
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.compare_arrows),
-                    label: const Text('Add to Compare'),
-                    onPressed: () async {
-                      await DealComparisonService.addToComparison(widget.promotion.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Added to comparison')),
-                      );
-                    },
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.rate_review),
-                    label: const Text('Write Review'),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ReviewScreen(promotion: widget.promotion),
+                  if (promotion.url != null && promotion.url!.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.launch, size: 18),
+                        label: const Text('Go to Deal'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
-                      );
-                    },
-                  ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.flag_outlined),
-                    label: const Text('Report Deal'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[100],
-                      foregroundColor: Colors.red[900],
+                        onPressed: () => _launchURL(promotion.url!),
+                      ),
                     ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Report submitted (to be implemented)')),
-                      );
-                    },
-                  ),
-                  if (promotion.endDate != null)
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.event),
-                      label: const Text('Add to Calendar'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Add to calendar (to be implemented)')),
-                        );
-                      },
+                  ],
+                  if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.public, size: 18),
+                        label: const Text('Website'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        onPressed: () => _launchURL(promotion.websiteUrl!),
+                      ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -936,7 +887,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12.0),
                           child: Image.network(
-                            'https://maps.googleapis.com/maps/api/staticmap?center=${_merchantData!['latitude']},${_merchantData!['longitude']}&zoom=15&size=600x200&markers=color:red%7C${_merchantData!['latitude']},${_merchantData!['longitude']}&key=YOUR_GOOGLE_MAPS_API_KEY',
+                            'https://maps.googleapis.com/maps/api/staticmap?center=${_merchantData!['latitude']},${_merchantData!['longitude']}&zoom=15&size=600x200&markers=color:red%7C${_merchantData!['latitude']},${_merchantData!['longitude']}&key=${AppConfig.googleMapsApiKey}',
                             height: 120,
                             width: double.infinity,
                             fit: BoxFit.cover,
@@ -967,67 +918,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 ),
               ),
             const SizedBox(height: 20.0),
-
-            // Deal Tags/Type (Web-inspired)
-            Row(
-              children: [
-                if (promotion.category != null && promotion.category!.isNotEmpty)
-                  Container(
-                    margin: const EdgeInsets.only(right: 8.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.label, size: 16, color: theme.colorScheme.primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          promotion.category!.toUpperCase(),
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                if (promotion.endDate != null && promotion.endDate!.difference(DateTime.now()).inDays <= 7 && promotion.endDate!.isAfter(DateTime.now()))
-                  Container(
-                    margin: const EdgeInsets.only(right: 8.0),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.flash_on, size: 16, color: Colors.blue[700]),
-                        const SizedBox(width: 4),
-                        Text('LIMITED TIME', style: TextStyle(color: Colors.blue[700], fontWeight: FontWeight.bold, fontSize: 12)),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10.0),
-
-            // Related Categories/Tags (Web-inspired)
-            if (promotion.category != null && promotion.category!.isNotEmpty)
-              Wrap(
-                spacing: 8.0,
-                children: [
-                  Chip(
-                    label: Text(promotion.category!),
-                    avatar: Icon(Icons.category, size: 18, color: theme.colorScheme.primary),
-                    backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                    labelStyle: TextStyle(color: theme.colorScheme.primary),
-                  ),
-                  // Add more chips for tags if available
-                ],
-              ),
-            const SizedBox(height: 10.0),
 
             const SizedBox(height: 10.0),
           ],

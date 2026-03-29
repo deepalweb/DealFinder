@@ -257,33 +257,42 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
       );
       return;
     }
-    
-    if (_newPasswordController.text.length < 6) {
+    if (_newPasswordController.text.length < 8) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
+        const SnackBar(content: Text('Password must be at least 8 characters')),
       );
       return;
     }
-    
+    if (_currentPasswordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your current password')),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
-    
     try {
-      // In a real app, call API to change password
-      await Future.delayed(const Duration(seconds: 1)); // Simulate API call
-      
+      await ApiService().changePassword(
+        userId: _userId!,
+        token: _token!,
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password changed successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password changed successfully!'), backgroundColor: Colors.green),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to change password: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

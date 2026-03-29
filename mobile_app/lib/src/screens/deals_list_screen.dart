@@ -9,9 +9,11 @@ import 'search_screen.dart'; // Import SearchScreen for navigation
 
 
 class DealsListScreen extends StatefulWidget {
-  final Category? categoryFilter; // Optional category to filter by
+  final Category? categoryFilter;
+  final List<Promotion>? promotions;
+  final String? title;
 
-  const DealsListScreen({super.key, this.categoryFilter});
+  const DealsListScreen({super.key, this.categoryFilter, this.promotions, this.title});
 
   @override
   State<DealsListScreen> createState() => _DealsListScreenState();
@@ -24,7 +26,7 @@ class _DealsListScreenState extends State<DealsListScreen> {
   @override
   void initState() {
     super.initState();
-    _refreshPromotions();
+    if (widget.promotions == null) _refreshPromotions();
   }
 
   Future<void> _refreshPromotions() async {
@@ -36,9 +38,9 @@ class _DealsListScreenState extends State<DealsListScreen> {
   @override
   Widget build(BuildContext context) {
     // Determine the AppBar title based on whether a category filter is active
-    final appBarTitle = widget.categoryFilter != null
+    final appBarTitle = widget.title ?? (widget.categoryFilter != null
         ? 'Deals: ${widget.categoryFilter!.name}'
-        : 'All Deals & Promotions';
+        : 'All Deals & Promotions');
 
     return Scaffold(
       appBar: AppBar(
@@ -66,17 +68,16 @@ class _DealsListScreenState extends State<DealsListScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: widget.promotions != null
+          ? _buildList(widget.promotions!)
+          : RefreshIndicator(
         onRefresh: _refreshPromotions,
         child: FutureBuilder<List<Promotion>>(
           future: _promotionsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-              // Initial loading state (before first data arrives)
-              // Use the shimmer effect
               return buildDealsListShimmer();
             } else if (snapshot.hasError) {
-              // Error state
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -105,7 +106,6 @@ class _DealsListScreenState extends State<DealsListScreen> {
                 ),
               );
             } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              // Empty state (no deals found)
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -128,36 +128,50 @@ class _DealsListScreenState extends State<DealsListScreen> {
                 ),
               );
             } else {
-              // Data loaded successfully
-              List<Promotion> promotions = snapshot.data!;
-              // Sort promotions by startDate descending (latest first)
-              promotions.sort((a, b) {
-                final aDate = a.startDate ?? DateTime(1970);
-                final bDate = b.startDate ?? DateTime(1970);
-                return bDate.compareTo(aDate);
-              });
-              return ListView.builder(
-                padding: const EdgeInsets.only(top: 8.0, bottom: 8.0), // Add some padding for the list
-                itemCount: promotions.length,
-                itemBuilder: (context, index) {
-                  Promotion promo = promotions[index];
-                  return InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => DealDetailScreen(promotion: promo),
-                        ),
-                      );
-                    },
-                    child: DealCard(promotion: promo),
-                  );
-                },
-              );
+              return _buildList(snapshot.data!);
             }
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildList(List<Promotion> promotions) {
+    if (promotions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.sentiment_dissatisfied, color: Colors.grey[600], size: 50),
+            const SizedBox(height: 10),
+            Text('No deals found.', style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+          ],
+        ),
+      );
+    }
+              // Sort promotions by startDate descending (latest first)
+    promotions.sort((a, b) {
+      final aDate = a.startDate ?? DateTime(1970);
+      final bDate = b.startDate ?? DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+      itemCount: promotions.length,
+      itemBuilder: (context, index) {
+        final promo = promotions[index];
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DealDetailScreen(promotion: promo),
+              ),
+            );
+          },
+          child: DealCard(promotion: promo),
+        );
+      },
     );
   }
 }

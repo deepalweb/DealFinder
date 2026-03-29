@@ -19,9 +19,10 @@ class Promotion {
   final double? price;
   final double? originalPrice;
   final double? discountedPrice;
-  final String? location; // Added for map/location support
+  final String? location;
   final double? distance;
-  final int ratingsCount; // Distance from user location in meters
+  final String? merchantLogoUrl;
+  final int ratingsCount;
 
   Promotion({
     required this.id,
@@ -44,6 +45,7 @@ class Promotion {
     this.discountedPrice,
     this.location,
     this.distance,
+    this.merchantLogoUrl,
     this.ratingsCount = 0,
   });
 
@@ -64,15 +66,13 @@ class Promotion {
     }
 
     return Promotion(
-      // Assuming the API uses '_id', but providing fallback for 'id'
       id: json['_id'] as String? ?? json['id'] as String? ?? 'unknown_id_${DateTime.now().millisecondsSinceEpoch}',
       title: json['title'] as String? ?? 'No Title',
       description: json['description'] as String? ?? 'No Description',
-      merchantId: json['merchantId'] as String?,
-      merchantName: json['merchantName'] as String?, // Or potentially json['merchant']['name'] if nested
-      // Assuming the API might send 'imageUrl' or 'image' for either Base64 or a URL.
-      // If it's specifically for Base64, the API field name might be different.
-      imageDataString: json['imageUrl'] as String? ?? json['image'] as String?,
+      merchantId: json['merchantId'] as String? ?? (json['merchant'] is Map ? json['merchant']['_id'] as String? : null),
+      merchantName: json['merchantName'] as String? ?? (json['merchant'] is Map ? json['merchant']['name'] as String? : null),
+      merchantLogoUrl: json['merchantLogoUrl'] as String? ?? (json['merchant'] is Map ? json['merchant']['logo'] as String? : null),
+      imageDataString: json['imageUrl'] as String? ?? json['image'] as String? ?? json['imageDataString'] as String?,
       code: json['code'] as String?,
       discount: json['discount'] as String?,
       startDate: parseDate(json['startDate'] as String?),
@@ -86,21 +86,13 @@ class Promotion {
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
       discountedPrice: (json['discountedPrice'] as num?)?.toDouble(),
       location: json['location'] as String?,
-      distance: json['merchant'] != null && json['merchant']['distance'] != null 
+      distance: json['merchant'] is Map && json['merchant']['distance'] != null
           ? (json['merchant']['distance'] as num?)?.toDouble()
           : null,
       ratingsCount: (json['ratings'] as List?)?.length ?? 0,
     );
   }
 
-  // Returns the merchant logo URL if available (placeholder for now)
-  String? get merchantLogoUrl {
-    // In a real app, this could fetch from a merchant object or API
-    // For now, return null or a placeholder image URL if you have one
-    return null;
-  }
-
-  // Optional: toJson method if you need to send this object back to an API
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -108,6 +100,8 @@ class Promotion {
       'description': description,
       'merchantId': merchantId,
       'merchantName': merchantName,
+      'merchantLogoUrl': merchantLogoUrl,
+      'imageUrl': imageDataString,
       'imageDataString': imageDataString,
       'code': code,
       'discount': discount,

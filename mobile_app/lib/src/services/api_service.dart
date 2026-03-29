@@ -10,7 +10,7 @@ class ApiService {
 
   Future<List<Promotion>> fetchPromotions() async {
     try {
-      final response = await http.get(Uri.parse('${_baseUrl}promotions'));
+      final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
@@ -19,7 +19,8 @@ class ApiService {
       }
       throw Exception('Failed to load promotions. Status code: ${response.statusCode}');
     } catch (e) {
-      final cached = await CacheService.loadPromotions();
+      // offline or error — return stale cache regardless of TTL
+      final cached = await CacheService.loadPromotions(forceStale: true);
       if (cached != null) return cached;
       rethrow;
     }
@@ -120,12 +121,19 @@ class ApiService {
 
   // Fetch all merchants/stores
   Future<List<Map<String, dynamic>>> fetchMerchants() async {
-    final response = await http.get(Uri.parse('${_baseUrl}merchants'));
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
-    } else {
+    try {
+      final response = await http.get(Uri.parse('${_baseUrl}merchants')).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        final merchants = data.cast<Map<String, dynamic>>();
+        await CacheService.saveMerchants(merchants);
+        return merchants;
+      }
       throw Exception('Failed to load merchants');
+    } catch (e) {
+      final cached = await CacheService.loadMerchants(forceStale: true);
+      if (cached != null) return cached;
+      rethrow;
     }
   }
 
@@ -273,32 +281,34 @@ class ApiService {
     }
   }
 
-  // Fetch nearby promotions based on location
+  Future<void> changePassword({
+    required String userId,
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}users/$userId/change-password'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'currentPassword': currentPassword, 'newPassword': newPassword}),
+    ).timeout(const Duration(seconds: 10));
+    if (response.statusCode == 200) return;
+    final body = jsonDecode(response.body);
+    throw Exception(body['message'] ?? 'Failed to change password');
+  }
+
   Future<List<Promotion>> fetchNearbyPromotions(double lat, double lng, {double radiusKm = 10}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
-      
-      if (response.statusCode == 200) {
-        List<dynamic> body = jsonDecode(response.body);
-        return body.map((dynamic item) => Promotion.fromJson(item)).toList();
-      } else {
-        // Fallback to all promotions if location-based API not available
-        final allPromotions = await fetchPromotions();
-        return allPromotions.take(10).toList(); // Limit to 10 for nearby simulation
-      }
-    } catch (e) {
-      try {
-        final allPromotions = await fetchPromotions();
-        return allPromotions.take(10).toList();
-      } catch (_) {
-        return [];
-      }
+    final response = await http.get(
+      Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
+      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+    ).timeout(const Duration(seconds: 15));
+    if (response.statusCode == 200) {
+      final List<dynamic> body = jsonDecode(response.body);
+      return body.map((item) => Promotion.fromJson(item)).toList();
     }
+    throw Exception('Nearby API returned ${response.statusCode}');
   }
 }
