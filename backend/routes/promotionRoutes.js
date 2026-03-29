@@ -64,36 +64,25 @@ router.get('/nearby', async (req, res) => {
     const searchRadiusKm = parseFloat(radius) || 10;
     const radiusInMeters = searchRadiusKm * 1000;
 
-    // Check if 2dsphere index exists, if not return empty gracefully
-    const indexes = await Merchant.collection.indexes();
-    const has2dsphere = indexes.some(idx => idx.key && idx.key.location === '2dsphere');
-    if (!has2dsphere) {
-      try {
-        await Merchant.collection.createIndex({ location: '2dsphere' });
-      } catch (indexErr) {
-        console.warn('Could not create 2dsphere index:', indexErr.message);
-        return res.status(200).json([]);
-      }
-    }
-
-    // Only aggregate merchants that have a valid location set
     const merchantsWithDistance = await Merchant.aggregate([
       {
         $geoNear: {
           near: { type: 'Point', coordinates: [lon, lat] },
           distanceField: 'distance',
           maxDistance: radiusInMeters,
-          spherical: true,
-          query: {
-            'location.type': 'Point',
-            'location.coordinates': { $exists: true, $ne: [] }
-          }
+          spherical: true
+        }
+      },
+      {
+        $match: {
+          'location.type': 'Point',
+          'location.coordinates.0': { $exists: true }
         }
       },
       {
         $project: { _id: 1, name: 1, location: 1, distance: 1 }
       }
-    ]).option({ maxTimeMS: 8000 });
+    ]);
 
     if (!merchantsWithDistance.length) {
       return res.status(200).json([]);
@@ -141,28 +130,15 @@ router.get('/nearby', async (req, res) => {
 // Get all promotions
 router.get('/', async (req, res) => {
   try {
-    console.log('GET /api/promotions - Fetching active promotions');
     const now = new Date();
-    console.log('Current date for promotion filtering:', now);
-    
-    // Find promotions that are currently active based on dates
     const promotions = await Promotion.find({
-      startDate: { $lte: now }, // Start date is less than or equal to now
-      endDate: { $gte: now }    // End date is greater than or equal to now
+      status: { $in: ['active', 'approved'] },
+      startDate: { $lte: now },
+      endDate: { $gte: now }
     }).populate('merchant');
-    
-    console.log(`Found ${promotions.length} active promotions`);
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
-    // Log more details about the error
-    if (error.name === 'MongoServerError') {
-      console.error('MongoDB server error details:', error.code, error.codeName);
-    }
-    if (error.name === 'ValidationError') {
-      console.error('Validation error details:', error.errors);
-    }
-    
     res.status(500).json(safeError(error));
   }
 });

@@ -99,8 +99,13 @@ app.get('/test-static', (req, res) => {
   res.send('Static file serving is working');
 });
 
-// Connect to MongoDB with better error handling
-mongoose.connect(process.env.MONGO_URI)
+// Connect to MongoDB
+mongoose.connect(process.env.MONGO_URI, {
+  tls: true,
+  retryWrites: false,
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+})
 .then(async () => {
   console.log('Connected to MongoDB');
   try {
@@ -111,9 +116,8 @@ mongoose.connect(process.env.MONGO_URI)
   }
 })
 .catch((err) => {
-  console.error('Error connecting to MongoDB:', err);
-  console.error('MongoDB URI (masked):', process.env.MONGO_URI ? '***' + process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@')) : 'Not provided');
-  console.error('Environment:', process.env.NODE_ENV);
+  console.error('Error connecting to MongoDB:', err.message);
+  console.error('MongoDB URI host:', process.env.MONGO_URI ? process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@') + 1, process.env.MONGO_URI.indexOf('?')) : 'Not provided');
 });
 
 // Serve the frontend

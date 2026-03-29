@@ -75,8 +75,12 @@ export default function HomePage() {
   }, [searchTerm, allPromotions]);
 
   const DealGrid = ({ deals }: { deals: any[] }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {deals.map(p => <PromotionCard key={p._id || p.id} promotion={p} />)}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
+      {deals.map(p => (
+        <div key={p._id || p.id} style={{ display: 'flex' }}>
+          <PromotionCard promotion={p} />
+        </div>
+      ))}
     </div>
   );
 

@@ -59,14 +59,14 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
   };
 
   return (
-    <div className="promotion-card fade-in cursor-pointer" onClick={handleClick} style={{ position: 'relative' }}>
+    <div className="promotion-card fade-in cursor-pointer" onClick={handleClick}>
       {/* Favorite button */}
       <button onClick={handleFavorite} style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 10, width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', transition: 'all 0.2s' }}>
         <i className={`${isFavorite ? 'fas text-red-500' : 'far'} fa-heart`} style={{ color: isFavorite ? '#ef4444' : '#64748b' }}></i>
       </button>
 
-      {/* Image */}
-      <div style={{ position: 'relative', overflow: 'hidden', height: '180px' }}>
+      {/* Image — fixed height */}
+      <div style={{ position: 'relative', overflow: 'hidden', height: '180px', flexShrink: 0 }}>
         <img src={promotion.image || 'https://via.placeholder.com/400x180?text=No+Image'} alt={promotion.title}
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
@@ -76,21 +76,27 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ padding: '1rem' }}>
-        <div className="flex items-center justify-between mb-2">
+      {/* Content — grows to fill remaining card height */}
+      <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+
+        {/* Merchant + expiry */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            <i className="fas fa-store-alt mr-1"></i>{merchantName}
+            <i className="fas fa-store-alt" style={{ marginRight: '0.25rem' }}></i>{merchantName}
           </span>
           <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '9999px', background: 'var(--light-gray)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <i className="far fa-clock"></i> {expiryText}
           </span>
         </div>
 
-        <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', margin: '0 0 0.4rem', lineHeight: 1.4 }}>{promotion.title}</h3>
+        {/* Title — fixed 2 lines */}
+        <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', margin: '0 0 0.4rem', lineHeight: '1.4', height: '2.66rem', overflow: 'hidden' }}>
+          {promotion.title}
+        </h3>
 
+        {/* Rating */}
         {avgRating && (
-          <div className="flex items-center gap-1 mb-2">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.5rem' }}>
             {[1,2,3,4,5].map(s => (
               <i key={s} className={`fa-star ${avgRating >= s ? 'fas' : 'far'}`} style={{ fontSize: '0.7rem', color: '#fbbf24' }}></i>
             ))}
@@ -98,11 +104,16 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
           </div>
         )}
 
-        <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginBottom: '0.875rem', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {/* Description — fixed 3 lines */}
+        <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: '1.5', height: '3.7rem', overflow: 'hidden', margin: 0 }}>
           {promotion.description}
         </p>
 
-        <div className="flex items-center justify-between">
+        {/* Spacer pushes bottom row down */}
+        <div style={{ flexGrow: 1 }} />
+
+        {/* Promo code + copy — always at bottom */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.875rem', borderTop: '1px solid var(--border-color)', marginTop: '0.875rem' }}>
           <code className="promo-code">{promotion.code}</code>
           <button onClick={handleCopy} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.875rem' }}>
             <i className={`fas ${copied ? 'fa-check' : 'fa-copy'}`}></i> {copied ? 'Copied!' : 'Copy'}
