@@ -6,9 +6,35 @@ const path = require('path');
 const config = require('./config');
 const mongoose = require('mongoose');
 const webpush = require('web-push');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Rate limiters
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // max 10 login attempts per 15 min per IP
+  message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // max 5 registrations per hour per IP
+  message: { message: 'Too many accounts created. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // max 200 requests per 15 min per IP
+  message: { message: 'Too many requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Middleware
 // Set a more reasonable default body limit. 10MB is still generous.
@@ -78,6 +104,9 @@ const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes'
 const pushRoutes = require('./routes/pushRoutes');
 
 // Use API Routes
+app.use('/api/users/login', loginLimiter);
+app.use('/api/users/register', registerLimiter);
+app.use('/api', apiLimiter);
 app.use('/api/users', userRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/maps', googleMapsRoutes); // Use the new maps routes
