@@ -7,6 +7,7 @@ const config = require('./config');
 const mongoose = require('mongoose');
 const webpush = require('web-push');
 const rateLimit = require('express-rate-limit');
+const sendExpiryNotifications = require('./jobs/expiryNotifications');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -231,6 +232,10 @@ if (!process.env.JWT_REFRESH_SECRET) {
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+
+  // Run expiry notifications daily at startup then every 24 hours
+  sendExpiryNotifications();
+  setInterval(sendExpiryNotifications, 24 * 60 * 60 * 1000);
 });
 
 // Setup web-push

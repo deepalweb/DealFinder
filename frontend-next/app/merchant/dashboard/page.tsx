@@ -98,6 +98,41 @@ export default function MerchantDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* Onboarding checklist for new merchants */}
+        {promotions.length === 0 && (
+          <div className="promotion-card fade-in mb-6" style={{ padding: '1.5rem', border: '2px solid rgba(99,102,241,0.2)', background: 'linear-gradient(135deg, rgba(99,102,241,0.04), rgba(139,92,246,0.04))' }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.1rem', flexShrink: 0 }}>
+                <i className="fas fa-rocket"></i>
+              </div>
+              <div>
+                <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>Welcome! Let's get your store ready 🎉</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Complete these steps to start attracting customers</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3">
+              {[
+                { done: !!(merchant.profile && merchant.contactInfo), icon: 'fa-user-edit', label: 'Complete your store profile', action: () => router.push('/merchant/dashboard/edit-profile'), btn: 'Set Up Profile' },
+                { done: !!(merchant.location?.coordinates), icon: 'fa-map-marker-alt', label: 'Add your store location so customers can find you', action: () => router.push('/merchant/dashboard/edit-profile'), btn: 'Add Location' },
+                { done: promotions.length > 0, icon: 'fa-tag', label: 'Create your first promotion', action: () => router.push('/merchant/dashboard/promotions/new'), btn: 'Create Deal' },
+              ].map((step, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', borderRadius: '0.75rem', background: step.done ? 'rgba(16,185,129,0.06)' : 'var(--card-bg)', border: `1px solid ${step.done ? 'rgba(16,185,129,0.2)' : 'var(--border-color)'}`, gap: '1rem', flexWrap: 'wrap' as const }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: step.done ? 'rgba(16,185,129,0.15)' : 'var(--light-gray)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <i className={`fas ${step.done ? 'fa-check' : step.icon}`} style={{ fontSize: '0.8rem', color: step.done ? '#059669' : 'var(--primary-color)' }}></i>
+                    </div>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600, color: step.done ? '#059669' : 'var(--text-primary)', textDecoration: step.done ? 'line-through' : 'none' }}>{step.label}</span>
+                  </div>
+                  {!step.done && (
+                    <button onClick={step.action} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.875rem', flexShrink: 0 }}>
+                      {step.btn} <i className="fas fa-arrow-right ml-1"></i>
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {/* Tabs */}
         <div className="flex gap-1 mb-6 p-1 rounded-xl" style={{ background:'var(--light-gray)', width:'fit-content' }}>
           {[['active','✅ Active'],['expired','⏰ Expired'],['all','📋 All']].map(([id,label]) => (
