@@ -1,460 +1,344 @@
-import 'dart:convert'; // For base64Decode
-import 'dart:typed_data'; // For Uint8List
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
-import '../services/review_service.dart';
-import '../widgets/rating_widget.dart';
 
 class DealCard extends StatefulWidget {
   final Promotion promotion;
   final double? width;
+  final bool compact; // compact = grid mode, false = list mode
 
-  const DealCard({super.key, required this.promotion, this.width});
-  
+  const DealCard({super.key, required this.promotion, this.width, this.compact = false});
+
   @override
   State<DealCard> createState() => _DealCardState();
 }
 
 class _DealCardState extends State<DealCard> {
   bool _isFavorite = false;
-  double _averageRating = 0.0;
-  int _reviewCount = 0;
-  
+
   @override
   void initState() {
     super.initState();
     _checkFavoriteStatus();
-    _loadRating();
   }
-  
-  Future<void> _loadRating() async {
-    final rating = await ReviewService.getAverageRating(widget.promotion.id);
-    final count = await ReviewService.getReviewCount(widget.promotion.id);
-    setState(() {
-      _averageRating = rating;
-      _reviewCount = count;
-    });
-  }
-  
+
   Future<void> _checkFavoriteStatus() async {
     final isFav = await FavoritesManager.isFavorite(widget.promotion.id);
-    setState(() {
-      _isFavorite = isFav;
-    });
+    if (mounted) setState(() => _isFavorite = isFav);
   }
-  
+
   Future<void> _toggleFavorite() async {
     if (_isFavorite) {
       await FavoritesManager.removeFavorite(widget.promotion.id);
     } else {
       await FavoritesManager.addFavorite(widget.promotion.id);
     }
-    setState(() {
-      _isFavorite = !_isFavorite;
-    });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_isFavorite ? 'Added to favorites' : 'Removed from favorites'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-  }
-  
-  void _shareDeal() {
-    final promo = widget.promotion;
-    final shareText = '🔥 ${promo.title}\n\n${promo.description}\n\n💰 ${promo.discount ?? "Great Deal"}\n\n📱 Get DealFinder app for more deals!';
-    Share.share(shareText);
+    if (mounted) setState(() => _isFavorite = !_isFavorite);
   }
 
-  Widget _buildImageWidget(BuildContext context, String imageUrl) {
-    Widget errorDisplayWidget = Container(
-      constraints: const BoxConstraints(
-        maxHeight: 220,
-        minWidth: 0,
-        maxWidth: double.infinity,
-      ),
+  Widget _buildImage({required double height}) {
+    final img = widget.promotion.imageDataString;
+
+    Widget placeholder = Container(
+      height: height,
       width: double.infinity,
-      color: Colors.grey[300],
-      child: Icon(Icons.broken_image, size: 50, color: Colors.grey[600]),
+      color: Colors.grey[200],
+      child: Icon(Icons.local_offer, size: height * 0.3, color: Colors.grey[400]),
     );
 
-    void showFullScreenImage(Widget imageWidget) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.black,
-          insetPadding: EdgeInsets.zero,
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: InteractiveViewer(
-              child: imageWidget,
-            ),
-          ),
-        ),
-      );
-    }
+    if (img == null || img.isEmpty) return placeholder;
 
-    Widget buildImage(Widget image) {
-      return GestureDetector(
-        onTap: () => showFullScreenImage(image),
-        child: image,
-      );
-    }
-
-    if (imageUrl.startsWith('data:image')) {
+    if (img.startsWith('data:image')) {
       try {
-        final base64Data = imageUrl.substring(imageUrl.indexOf(',') + 1);
-        final Uint8List bytes = base64Decode(base64Data);
-        return buildImage(
-          Image.memory(
-            bytes,
-            width: double.infinity,
-            height: 180,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
-          ),
-        );
-      } catch (e) {
-        return errorDisplayWidget;
+        final bytes = base64Decode(img.substring(img.indexOf(',') + 1));
+        return Image.memory(bytes, height: height, width: double.infinity, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => placeholder);
+      } catch (_) {
+        return placeholder;
       }
-    } else if (imageUrl.startsWith('http')) {
-      return buildImage(
-        Image.network(
-          imageUrl,
-          width: double.infinity,
-          height: 180,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => errorDisplayWidget,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return Container(
-              constraints: const BoxConstraints(maxHeight: 180),
-              width: double.infinity,
-              color: Colors.grey[200],
-              child: Center(
-                child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    } else {
-      return errorDisplayWidget;
     }
+
+    if (img.startsWith('http')) {
+      return Image.network(
+        img, height: height, width: double.infinity, fit: BoxFit.cover,
+        loadingBuilder: (_, child, progress) => progress == null ? child : Container(
+          height: height, color: Colors.grey[200],
+          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        errorBuilder: (_, __, ___) => placeholder,
+      );
+    }
+
+    return placeholder;
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final DateFormat dateFormat = DateFormat('MMM d, yyyy');
+    final theme = Theme.of(context);
+    final p = widget.promotion;
 
-    // Helper to build rich text for discount
-    InlineSpan buildDiscountText() {
-      if (widget.promotion.discount == null || widget.promotion.discount!.isEmpty) {
-        return const TextSpan(text: '');
-      }
-      if (widget.promotion.discount!.contains('%')) {
-        return TextSpan(
-          text: widget.promotion.discount,
-          style: TextStyle(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        );
-      } else if (widget.promotion.discount!.startsWith('\$') || widget.promotion.discount!.startsWith('USD')) {
-         return TextSpan(
-          text: widget.promotion.discount,
-          style: TextStyle(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        );
-      }
-      return TextSpan(text: widget.promotion.discount, style: const TextStyle(fontSize: 14));
-    }
+    return widget.compact ? _buildCompact(theme, p) : _buildList(theme, p);
+  }
 
-    return Container(
-      width: widget.width,
-      constraints: widget.width != null ? BoxConstraints(maxWidth: widget.width!) : const BoxConstraints(),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-        elevation: 3.0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // Promotion Image with Hero animation and favorite button
-              Stack(
-                children: [
-                  Hero(
-                    tag: 'dealImage_${widget.promotion.id}',
-                    child: _buildImageWidget(context, widget.promotion.imageDataString ?? ''),
-                  ),
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (widget.promotion.url != null && widget.promotion.url!.isNotEmpty)
-                          Container(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.9),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: TextButton.icon(
-                              icon: const Icon(Icons.launch, color: Colors.white, size: 16),
-                              label: const Text('Go', style: TextStyle(color: Colors.white, fontSize: 12)),
-                              onPressed: () async {
-                                final Uri url = Uri.parse(widget.promotion.url!);
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Could not launch ${widget.promotion.url}')),
-                                  );
-                                }
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                            ),
-                          ),
-                        if (widget.promotion.url != null && widget.promotion.url!.isNotEmpty)
-                          const SizedBox(width: 4),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.share, color: Colors.blue, size: 20),
-                            onPressed: _shareDeal,
-                            padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              _isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: _isFavorite ? Colors.red : Colors.grey[600],
-                              size: 20,
-                            ),
-                            onPressed: _toggleFavorite,
-                            padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                          ),
-                        ),
-                      ],
+  // ── Compact grid card ─────────────────────────────────────────────────────
+  Widget _buildCompact(ThemeData theme, Promotion p) {
+    return Card(
+      margin: const EdgeInsets.all(4),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image with badges overlay
+          Stack(
+            children: [
+              _buildImage(height: 120),
+              // Favorite button
+              Positioned(
+                top: 6, right: 6,
+                child: GestureDetector(
+                  onTap: _toggleFavorite,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isFavorite ? Icons.favorite : Icons.favorite_border,
+                      size: 16,
+                      color: _isFavorite ? Colors.red : Colors.grey[600],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12.0),
-
-              // Badges and Highlights (e.g., Featured, New, Popular)
-              Row(
-                children: [
-                  if (widget.promotion.featured == true)
-                    Container(
-                      margin: const EdgeInsets.only(right: 6.0),
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                      decoration: BoxDecoration(
-                        color: Colors.orange[100],
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: Text('FEATURED', style: TextStyle(color: Colors.orange[900], fontWeight: FontWeight.bold, fontSize: 12)),
-                    ),
-                  // Example: Add more badges as needed (e.g., New, Popular)
-                  // if (promotion.isNew == true)
-                  //   ...
-                ],
-              ),
-              if (widget.promotion.featured == true)
-                const SizedBox(height: 6.0),
-
-              // Title
-              Text(
-                widget.promotion.title,
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6.0),
-
-              // Merchant Name (if available)
-              if (widget.promotion.merchantName != null && widget.promotion.merchantName!.isNotEmpty)
-                Row(
-                  children: [
-                    Icon(Icons.storefront, size: 16, color: theme.textTheme.bodySmall?.color),
-                    const SizedBox(width: 4.0),
-                    Text(
-                      widget.promotion.merchantName!,
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
                 ),
-              if (widget.promotion.merchantName != null && widget.promotion.merchantName!.isNotEmpty)
-                const SizedBox(height: 8.0),
-
-              // Description (shortened)
-              Text(
-                widget.promotion.description,
-                style: theme.textTheme.bodySmall,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 10.0),
-
-              // Discount and Code Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Discount
-                  Flexible(
-                    flex: 2,
-                    child: RichText(
-                      text: buildDiscountText(),
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
+              // Discount badge
+              if (p.discount != null && p.discount!.isNotEmpty)
+                Positioned(
+                  top: 6, left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(6),
                     ),
+                    child: Text(p.discount!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                   ),
-                  // Promo Code (if available)
-                  if (widget.promotion.code != null && widget.promotion.code!.isNotEmpty)
-                    Flexible(
-                      flex: 3,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondaryContainer.withOpacity(0.7),
-                          borderRadius: BorderRadius.circular(6.0),
-                          border: Border.all(color: theme.colorScheme.secondaryContainer, width: 1)
-                        ),
-                        child: Text(
-                          'CODE: ${widget.promotion.code}',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSecondaryContainer,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    ),
+                ),
+            ],
+          ),
+          // Info
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 13)),
+                if (p.merchantName != null && p.merchantName!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(p.merchantName!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
                 ],
-              ),
-              const SizedBox(height: 10.0),
-
-              // Visual Price Section
-              if (widget.promotion.originalPrice != null || widget.promotion.discountedPrice != null || widget.promotion.price != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8.0),
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  child: Row(
+                if (p.discountedPrice != null || p.price != null) ...[
+                  const SizedBox(height: 4),
+                  Row(
                     children: [
-                      if (widget.promotion.originalPrice != null)
-                        Text(
-                          'Rs. ${widget.promotion.originalPrice!.toStringAsFixed(2)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            decoration: TextDecoration.lineThrough,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      if (widget.promotion.discountedPrice != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            'Rs. ${widget.promotion.discountedPrice!.toStringAsFixed(2)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.green[800],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                      if (widget.promotion.price != null && widget.promotion.discountedPrice == null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            'Rs. ${widget.promotion.price!.toStringAsFixed(2)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                      if (widget.promotion.discount != null && widget.promotion.discount!.contains('%'))
-                        Container(
-                          margin: const EdgeInsets.only(left: 12.0),
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
-                          decoration: BoxDecoration(
-                            color: Colors.red[100],
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Text(
-                            widget.promotion.discount!,
-                            style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
-                          ),
-                        ),
+                      if (p.originalPrice != null)
+                        Text('Rs.${p.originalPrice!.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 11, color: Colors.grey, decoration: TextDecoration.lineThrough)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Rs.${(p.discountedPrice ?? p.price)!.toStringAsFixed(0)}',
+                        style: TextStyle(fontSize: 13, color: Colors.green[700], fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
-                ),
-
-              // Divider
-              Divider(height: 1, color: Colors.grey[300]),
-              const SizedBox(height: 8.0),
-
-              // Rating and Expiry Date
-              Row(
-                children: [
-                  if (_reviewCount > 0) ...[
-                    RatingWidget(rating: _averageRating, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$_averageRating ($_reviewCount)',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  if (widget.promotion.endDate != null) ...[
-                    Icon(Icons.calendar_today, size: 14, color: theme.textTheme.bodySmall?.color),
-                    const SizedBox(width: 6.0),
-                    Text(
-                      'Expires: ${dateFormat.format(widget.promotion.endDate!)}',
-                      style: theme.textTheme.bodySmall?.copyWith(fontStyle: FontStyle.italic),
-                    ),
-                  ],
                 ],
+                if (p.endDate != null) ...[
+                  const SizedBox(height: 4),
+                  _ExpiryBadge(endDate: p.endDate!),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Full list card ────────────────────────────────────────────────────────
+  Widget _buildList(ThemeData theme, Promotion p) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image
+          Stack(
+            children: [
+              _buildImage(height: 160),
+              // Discount badge top-left
+              if (p.discount != null && p.discount!.isNotEmpty)
+                Positioned(
+                  top: 10, left: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(8)),
+                    child: Text(p.discount!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                ),
+              // Featured badge
+              if (p.featured == true)
+                Positioned(
+                  top: 10, right: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.orange[700], borderRadius: BorderRadius.circular(8)),
+                    child: const Text('FEATURED', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                  ),
+                ),
+              // Action buttons bottom-right
+              Positioned(
+                bottom: 8, right: 8,
+                child: Row(
+                  children: [
+                    _ImageActionButton(icon: Icons.share, onTap: () {
+                      Share.share('🔥 ${p.title}\n${p.description}\n💰 ${p.discount ?? "Great Deal"}');
+                    }),
+                    const SizedBox(width: 6),
+                    _ImageActionButton(
+                      icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: _isFavorite ? Colors.red : null,
+                      onTap: _toggleFavorite,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
+          // Info row
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Merchant + expiry row
+                Row(
+                  children: [
+                    if (p.merchantName != null && p.merchantName!.isNotEmpty) ...[
+                      Icon(Icons.storefront, size: 14, color: theme.colorScheme.primary),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(p.merchantName!, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
+                      ),
+                    ] else
+                      const Spacer(),
+                    if (p.endDate != null) _ExpiryBadge(endDate: p.endDate!),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Title
+                Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                // Description
+                Text(p.description, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall),
+                // Price row
+                if (p.discountedPrice != null || p.price != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      if (p.originalPrice != null) ...[
+                        Text('Rs.${p.originalPrice!.toStringAsFixed(2)}',
+                            style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey, fontSize: 13)),
+                        const SizedBox(width: 8),
+                      ],
+                      Text('Rs.${(p.discountedPrice ?? p.price)!.toStringAsFixed(2)}',
+                          style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 16)),
+                    ],
+                  ),
+                ],
+                // Code
+                if (p.code != null && p.code!.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.3)),
+                    ),
+                    child: Text('CODE: ${p.code}',
+                        style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExpiryBadge extends StatelessWidget {
+  final DateTime endDate;
+  const _ExpiryBadge({required this.endDate});
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = endDate.difference(DateTime.now());
+    if (diff.isNegative) return const SizedBox.shrink();
+    String label;
+    Color color;
+    if (diff.inDays >= 1) {
+      label = '${diff.inDays}d left';
+      color = diff.inDays <= 3 ? Colors.orange : Colors.grey;
+    } else if (diff.inHours > 0) {
+      label = '${diff.inHours}h left';
+      color = Colors.red;
+    } else {
+      label = '${diff.inMinutes}m left';
+      color = Colors.red;
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.timer, size: 12, color: color),
+        const SizedBox(width: 2),
+        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+}
+
+class _ImageActionButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color? color;
+  const _ImageActionButton({required this.icon, required this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          shape: BoxShape.circle,
         ),
+        child: Icon(icon, size: 18, color: color ?? Colors.grey[700]),
       ),
     );
   }

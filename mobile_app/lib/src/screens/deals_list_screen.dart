@@ -149,27 +149,28 @@ class _DealsListScreenState extends State<DealsListScreen> {
         ),
       );
     }
-              // Sort promotions by startDate descending (latest first)
     promotions.sort((a, b) {
       final aDate = a.startDate ?? DateTime(1970);
       final bDate = b.startDate ?? DateTime(1970);
       return bDate.compareTo(aDate);
     });
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.72,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+      ),
       itemCount: promotions.length,
       itemBuilder: (context, index) {
         final promo = promotions[index];
-        return InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DealDetailScreen(promotion: promo),
-              ),
-            );
-          },
-          child: DealCard(promotion: promo),
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promo)),
+          ),
+          child: DealCard(promotion: promo, compact: true),
         );
       },
     );

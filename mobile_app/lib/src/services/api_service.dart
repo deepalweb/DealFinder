@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../config/app_config.dart';
 import 'cache_service.dart';
@@ -8,18 +10,60 @@ import 'cache_service.dart';
 class ApiService {
   static String get _baseUrl => AppConfig.baseUrl;
 
+  // Makes an authenticated request, auto-refreshes token on 401
+  Future<http.Response> _authGet(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('userToken');
+    var response = await http.get(
+      Uri.parse(url),
+      headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+    ).timeout(const Duration(seconds: 10));
+    if (response.statusCode == 401) {
+      token = await _refreshToken();
+      if (token != null) {
+        response = await http.get(
+          Uri.parse(url),
+          headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+        ).timeout(const Duration(seconds: 10));
+      }
+    }
+    return response;
+  }
+
+  Future<String?> _refreshToken() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return null;
+      final idToken = await user.getIdToken(true); // force refresh
+      final response = await http.post(
+        Uri.parse('${_baseUrl}users/firebase-auth'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'idToken': idToken}),
+      ).timeout(const Duration(seconds: 10));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final newToken = data['token'] as String?;
+        if (newToken != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userToken', newToken);
+          return newToken;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<List<Promotion>> fetchPromotions() async {
     try {
       final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
-        await CacheService.savePromotions(promotions);
+        try { await CacheService.savePromotions(promotions); } catch (_) {}
         return promotions;
       }
       throw Exception('Failed to load promotions. Status code: ${response.statusCode}');
     } catch (e) {
-      // offline or error — return stale cache regardless of TTL
       final cached = await CacheService.loadPromotions(forceStale: true);
       if (cached != null) return cached;
       rethrow;
@@ -107,15 +151,15 @@ class ApiService {
 
   // Fetch notifications for the user (assumes /notifications?userId=...)
   Future<List<Map<String, dynamic>>> fetchNotifications(String userId, String token) async {
-    final response = await http.get(
-      Uri.parse('${_baseUrl}notifications?userId=$userId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
-    } else {
-      throw Exception('Failed to load notifications');
+    try {
+      final response = await _authGet('${_baseUrl}notifications?userId=$userId');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (_) {
+      return [];
     }
   }
 
@@ -126,7 +170,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         final merchants = data.cast<Map<String, dynamic>>();
-        await CacheService.saveMerchants(merchants);
+        try { await CacheService.saveMerchants(merchants); } catch (_) {}
         return merchants;
       }
       throw Exception('Failed to load merchants');
@@ -287,14 +331,23 @@ class ApiService {
     required String currentPassword,
     required String newPassword,
   }) async {
-    final response = await http.post(
+    final prefs = await SharedPreferences.getInstance();
+    final savedToken = prefs.getString('userToken') ?? token;
+    var response = await http.post(
       Uri.parse('${_baseUrl}users/$userId/change-password'),
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Content-Type': 'application/json; charset=UTF-8', 'Authorization': 'Bearer $savedToken'},
       body: jsonEncode({'currentPassword': currentPassword, 'newPassword': newPassword}),
     ).timeout(const Duration(seconds: 10));
+    if (response.statusCode == 401) {
+      final newToken = await _refreshToken();
+      if (newToken != null) {
+        response = await http.post(
+          Uri.parse('${_baseUrl}users/$userId/change-password'),
+          headers: {'Content-Type': 'application/json; charset=UTF-8', 'Authorization': 'Bearer $newToken'},
+          body: jsonEncode({'currentPassword': currentPassword, 'newPassword': newPassword}),
+        ).timeout(const Duration(seconds: 10));
+      }
+    }
     if (response.statusCode == 200) return;
     final body = jsonDecode(response.body);
     throw Exception(body['message'] ?? 'Failed to change password');
