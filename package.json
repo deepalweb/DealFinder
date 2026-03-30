@@ -6,7 +6,7 @@
     "scripts": {
         "start": "node backend/server.js",
         "dev": "live-server frontend --port=5001 --proxy=/api:http://localhost:8080/api",
-        "build": "cd frontend-next && npm ci && npm run build",
+        "build": "cd backend && npm install && cd ../frontend-next && npm ci && npm run build",
         "test": "echo \"No tests specified\"",
         "postinstall": "cd backend && npm install"
     },
