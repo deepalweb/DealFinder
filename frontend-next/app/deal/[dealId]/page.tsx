@@ -337,6 +337,15 @@ export default function DealPage() {
               <Link href={`/merchants/${merchantId}`} className="btn" style={{ width: '100%', justifyContent: 'center', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                 <i className="fas fa-store"></i> Visit Store
               </Link>
+              {/* Directions button if merchant has location */}
+              {deal.merchant?.location?.coordinates && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${deal.merchant.location.coordinates[1]},${deal.merchant.location.coordinates[0]}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem', border: '1.5px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.06)', color: '#059669', fontSize: '0.85rem' }}>
+                  <i className="fas fa-directions"></i> Get Directions
+                </a>
+              )}
             </div>
           )}
 

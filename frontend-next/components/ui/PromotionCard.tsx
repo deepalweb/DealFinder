@@ -15,7 +15,6 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [avgRating, setAvgRating] = useState<number | null>(null);
 
   const id = promotion._id || promotion.id;
@@ -45,18 +44,13 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
     } catch { setIsFavorite(!next); }
   };
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(promotion.code);
-    setCopied(true);
-    toast.success('Code copied!');
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleClick = () => {
     PromotionAPI.recordClick(id, { type: 'click' }).catch(() => {});
     router.push(`/deal/${id}`);
   };
+
+  const coords = promotion.merchant?.location?.coordinates;
+  const directionsUrl = coords ? `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}` : null;
 
   return (
     <div className="promotion-card fade-in cursor-pointer" onClick={handleClick}>
@@ -112,12 +106,31 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
         {/* Spacer pushes bottom row down */}
         <div style={{ flexGrow: 1 }} />
 
-        {/* Promo code + copy — always at bottom */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '0.875rem', borderTop: '1px solid var(--border-color)', marginTop: '0.875rem' }}>
-          <code className="promo-code">{promotion.code}</code>
-          <button onClick={handleCopy} className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.875rem' }}>
-            <i className={`fas ${copied ? 'fa-check' : 'fa-copy'}`}></i> {copied ? 'Copied!' : 'Copy'}
-          </button>
+        {/* Directions + View Deal — always at bottom */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '0.875rem', borderTop: '1px solid var(--border-color)', marginTop: '0.875rem' }}>
+          {directionsUrl ? (
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', border: '1.5px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.06)', color: '#059669' }}>
+              <i className="fas fa-directions"></i> Directions
+            </a>
+          ) : (
+            <button disabled style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', border: '1.5px solid var(--border-color)', background: 'var(--light-gray)', color: 'var(--text-secondary)', borderRadius: '0.625rem', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.3rem', opacity: 0.5 }}>
+              <i className="fas fa-directions"></i> Directions
+            </button>
+          )}
+          {promotion.url ? (
+            <a href={promotion.url} target="_blank" rel="noopener noreferrer"
+              onClick={e => { e.stopPropagation(); PromotionAPI.recordClick(id, { type: 'click' }).catch(() => {}); }}
+              className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem' }}>
+              <i className="fas fa-external-link-alt"></i> View Deal
+            </a>
+          ) : (
+            <button onClick={handleClick}
+              className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem' }}>
+              <i className="fas fa-eye"></i> View Deal
+            </button>
+          )}
         </div>
       </div>
     </div>

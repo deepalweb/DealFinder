@@ -227,16 +227,30 @@ export default function NearbyPage() {
             {/* List view */}
             {view === 'list' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {promotions.map(p => (
-                  <div key={p._id || p.id} style={{ position: 'relative' }}>
-                    {distanceLabel(p) && (
-                      <div style={{ position: 'absolute', top: '0.6rem', right: '0.6rem', zIndex: 20, background: 'rgba(16,185,129,0.9)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', backdropFilter: 'blur(4px)' }}>
-                        <i className="fas fa-map-marker-alt mr-1"></i>{distanceLabel(p)}
-                      </div>
-                    )}
-                    <PromotionCard promotion={p} />
-                  </div>
-                ))}
+                {promotions.map(p => {
+                  const coords = p.merchant?.location?.coordinates;
+                  const dist = distanceLabel(p);
+                  return (
+                    <div key={p._id || p.id} style={{ position: 'relative' }}>
+                      {dist && (
+                        <div style={{ position: 'absolute', top: '0.6rem', right: '0.6rem', zIndex: 20, display: 'flex', flexDirection: 'column', gap: '0.3rem', alignItems: 'flex-end' }}>
+                          <div style={{ background: 'rgba(16,185,129,0.9)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', backdropFilter: 'blur(4px)' }}>
+                            <i className="fas fa-map-marker-alt mr-1"></i>{dist}
+                          </div>
+                          {coords && (
+                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}`}
+                              target="_blank" rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
+                              style={{ background: 'rgba(99,102,241,0.9)', color: '#fff', fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.5rem', borderRadius: '9999px', backdropFilter: 'blur(4px)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <i className="fas fa-directions"></i> Directions
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      <PromotionCard promotion={p} />
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
