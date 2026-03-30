@@ -27,7 +27,8 @@ export default function LoginPage() {
 
   // Step 1: Fetch client ID
   useEffect(() => {
-    fetch('/api/config')
+    const configUrl = window.location.hostname === 'localhost' ? 'http://localhost:8080/api/config' : '/api/config';
+    fetch(configUrl)
       .then(r => r.json())
       .then(c => { googleClientIdRef.current = c.GOOGLE_CLIENT_ID; tryInitGoogle(); })
       .catch(() => {});

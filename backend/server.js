@@ -24,6 +24,8 @@ const allowedOrigins_DEV = [
   'http://127.0.0.1:5500',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
   'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
 ];
 const allowedOrigins_PROD = [

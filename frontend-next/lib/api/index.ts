@@ -1,6 +1,10 @@
+const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+
 const API_BASE = typeof window === 'undefined'
-  ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api')
-  : (process.env.NEXT_PUBLIC_API_URL || '/api');
+  ? (process.env.BACKEND_URL || 'http://localhost:8080') + '/api'
+  : isDev
+    ? 'http://localhost:8080/api'
+    : '/api';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;

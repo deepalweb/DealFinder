@@ -40,8 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (userData: User) => {
-    localStorage.setItem('dealFinderUser', JSON.stringify(userData));
-    setUser(userData);
+    const normalized = { ...userData, merchantId: userData.merchantId?.toString() };
+    localStorage.setItem('dealFinderUser', JSON.stringify(normalized));
+    setUser(normalized);
   };
 
   const logout = () => {

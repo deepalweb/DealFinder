@@ -64,7 +64,9 @@ function NewPromotionContent() {
     if (form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) >= parseFloat(form.originalPrice)) { toast.error('Discounted price must be less than original price'); setActiveTab('pricing'); return; }
     setSaving(true);
     try {
-      const data = { ...form, featured: Boolean(form.featured), merchantId: user!.merchantId };
+      const merchantId = user!.merchantId?.toString() || user!.merchantId;
+      if (!merchantId) { toast.error('Merchant profile not linked. Please contact support.'); return; }
+      const data = { ...form, featured: Boolean(form.featured), merchantId };
       if (editId) { await PromotionAPI.update(editId, data); toast.success('Promotion updated!'); }
       else { await PromotionAPI.create(data); toast.success('Promotion created!'); }
       router.push('/merchant/dashboard');
