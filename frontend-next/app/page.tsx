@@ -35,7 +35,7 @@ export default function HomePage() {
   useEffect(() => {
     PromotionAPI.getAll().then(data => {
       setAllPromotions(data);
-      setFeatured(data.filter((p: any) => p.featured));
+      setFeatured([...data].filter((p: any) => p.featured).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setLatest([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8));
     }).catch(() => toast.error('Failed to load deals.')).finally(() => setLoadingDeals(false));
 
