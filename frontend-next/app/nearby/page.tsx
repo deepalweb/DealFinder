@@ -24,7 +24,7 @@ export default function NearbyPage() {
     setLoading(true);
     try {
       const data = await PromotionAPI.getNearby(lat, lon, r);
-      setPromotions(data);
+      setPromotions([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       if (data.length > 0) toast.success(`Found ${data.length} deals within ${r}km!`);
     } catch { setError('Failed to load nearby deals.'); }
     finally { setLoading(false); }

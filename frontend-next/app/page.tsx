@@ -46,7 +46,7 @@ export default function HomePage() {
         ({ coords }) => {
           setUserLocation({ lat: coords.latitude, lon: coords.longitude });
           PromotionAPI.getNearby(coords.latitude, coords.longitude, 10).then(data => {
-            setNearby(data);
+            setNearby([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             if (data.length > 0) toast.success(`Found ${data.length} deals near you!`);
           }).catch(() => setLocationError('Could not fetch nearby deals.')).finally(() => setLoadingNearby(false));
         },
