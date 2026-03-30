@@ -207,7 +207,7 @@ app.listen(PORT, () => {
 // Setup web-push
 if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails(
-        'mailto:your-email@example.com',
+        `mailto:${process.env.CONTACT_EMAIL || 'admin@dealfinder.com'}`,
         config.VAPID_PUBLIC_KEY,
         config.VAPID_PRIVATE_KEY
     );

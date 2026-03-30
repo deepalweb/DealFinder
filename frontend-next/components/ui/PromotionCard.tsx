@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI, PromotionAPI } from '@/lib/api';
-import toast from 'react-hot-toast';
 
 interface Props {
   promotion: any;
