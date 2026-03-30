@@ -6,11 +6,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MerchantAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
+import MapPicker from '@/components/ui/MapPicker';
+
 const TABS = [
   { id: 'basic', icon: 'fa-store', label: 'Basic Info' },
   { id: 'contact', icon: 'fa-phone', label: 'Contact' },
   { id: 'social', icon: 'fa-share-alt', label: 'Social Media' },
   { id: 'branding', icon: 'fa-image', label: 'Branding' },
+  { id: 'location', icon: 'fa-map-marker-alt', label: 'Location' },
 ];
 
 const SOCIAL_PLATFORMS = [
@@ -45,6 +48,7 @@ export default function EditProfilePage() {
     logo: '',
     banner: '',
     socialMedia: { facebook: '', instagram: '', twitter: '', tiktok: '' },
+    location: null as { lat: number; lng: number } | null,
   });
 
   useEffect(() => {
@@ -62,6 +66,7 @@ export default function EditProfilePage() {
         logo: m.logo || '',
         banner: m.banner || '',
         socialMedia: { facebook: m.socialMedia?.facebook || '', instagram: m.socialMedia?.instagram || '', twitter: m.socialMedia?.twitter || '', tiktok: m.socialMedia?.tiktok || '' },
+        location: m.location?.coordinates ? { lat: m.location.coordinates[1], lng: m.location.coordinates[0] } : null,
       };
       setForm(data);
       setOriginalData(data);
@@ -89,7 +94,10 @@ export default function EditProfilePage() {
     if (!form.name.trim()) { toast.error('Business name is required'); setActiveTab('basic'); return; }
     setSaving(true);
     try {
-      await MerchantAPI.update(user!.merchantId!, form);
+      await MerchantAPI.update(user!.merchantId!, {
+        ...form,
+        location: form.location ? { type: 'Point', coordinates: [form.location.lng, form.location.lat] } : null,
+      });
       setOriginalData({ ...form });
       setHasChanges(false);
       toast.success('Profile updated successfully!');
@@ -348,6 +356,47 @@ export default function EditProfilePage() {
                       onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
                     <p style={hintStyle}>Recommended: 1200×400px. This appears at the top of your store page.</p>
                   </div>
+                </div>
+              )}
+
+              {/* Location */}
+              {activeTab === 'location' && (
+                <div className="fade-in">
+                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fas fa-map-marker-alt" style={{ color: 'var(--primary-color)' }}></i> Store Location
+                  </h2>
+                  <p style={{ ...hintStyle, marginBottom: '1.25rem' }}>Pin your store on the map so customers can find nearby deals. Click anywhere on the map or drag the marker to set your location.</p>
+
+                  {form.location && (
+                    <div style={{ padding: '0.75rem 1rem', borderRadius: '0.75rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 600 }}>
+                        <i className="fas fa-check-circle mr-2"></i>
+                        {form.location.lat.toFixed(6)}, {form.location.lng.toFixed(6)}
+                      </span>
+                      <button type="button" onClick={() => updateForm('location', null)}
+                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '0.375rem', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer' }}>
+                        <i className="fas fa-times mr-1"></i>Clear
+                      </button>
+                    </div>
+                  )}
+
+                  <button type="button" onClick={() => {
+                    if (!navigator.geolocation) { toast.error('Geolocation not supported'); return; }
+                    navigator.geolocation.getCurrentPosition(
+                      ({ coords }) => updateForm('location', { lat: coords.latitude, lng: coords.longitude }),
+                      () => toast.error('Could not get your location')
+                    );
+                  }} className="btn" style={{ marginBottom: '1rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                    <i className="fas fa-location-arrow" style={{ color: 'var(--primary-color)' }}></i> Use My Current Location
+                  </button>
+
+                  <MapPicker
+                    lat={form.location?.lat ?? null}
+                    lng={form.location?.lng ?? null}
+                    onChange={(lat, lng) => updateForm('location', { lat, lng })}
+                    height="360px"
+                  />
+                  <p style={{ ...hintStyle, marginTop: '0.5rem' }}>Click on the map to place your store marker, or drag it to adjust.</p>
                 </div>
               )}
             </div>
