@@ -94,10 +94,19 @@ export default function EditProfilePage() {
     if (!form.name.trim()) { toast.error('Business name is required'); setActiveTab('basic'); return; }
     setSaving(true);
     try {
-      await MerchantAPI.update(user!.merchantId!, {
-        ...form,
-        location: form.location ? { type: 'Point', coordinates: [form.location.lng, form.location.lat] } : null,
-      });
+      const payload: any = {
+        name: form.name,
+        profile: form.profile,
+        contactInfo: form.contactInfo,
+        contactNumber: form.contactNumber,
+        address: form.address,
+        logo: form.logo,
+        socialMedia: form.socialMedia,
+        location: form.location
+          ? { type: 'Point', coordinates: [form.location.lng, form.location.lat] }
+          : null,
+      };
+      await MerchantAPI.update(user!.merchantId!, payload);
       setOriginalData({ ...form });
       setHasChanges(false);
       toast.success('Profile updated successfully!');
