@@ -64,25 +64,36 @@ router.get('/nearby', async (req, res) => {
     const searchRadiusKm = parseFloat(radius) || 10;
     const radiusInMeters = searchRadiusKm * 1000;
 
-    const merchantsWithDistance = await Merchant.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lon, lat] },
-          distanceField: 'distance',
-          maxDistance: radiusInMeters,
-          spherical: true
+    // Check if any merchants have a valid location set — skip $geoNear if none
+    const merchantsWithLocation = await Merchant.countDocuments({
+      'location.type': 'Point',
+      'location.coordinates': { $exists: true, $ne: [] }
+    });
+
+    if (merchantsWithLocation === 0) {
+      return res.status(200).json([]);
+    }
+
+    let merchantsWithDistance = [];
+    try {
+      merchantsWithDistance = await Merchant.aggregate([
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lon, lat] },
+            distanceField: 'distance',
+            maxDistance: radiusInMeters,
+            spherical: true,
+            query: { 'location.type': 'Point' }
+          }
+        },
+        {
+          $project: { _id: 1, name: 1, location: 1, distance: 1 }
         }
-      },
-      {
-        $match: {
-          'location.type': 'Point',
-          'location.coordinates.0': { $exists: true }
-        }
-      },
-      {
-        $project: { _id: 1, name: 1, location: 1, distance: 1 }
-      }
-    ]);
+      ]);
+    } catch (geoErr) {
+      console.error('$geoNear error:', geoErr.message);
+      return res.status(200).json([]);
+    }
 
     if (!merchantsWithDistance.length) {
       return res.status(200).json([]);
@@ -90,30 +101,21 @@ router.get('/nearby', async (req, res) => {
 
     const merchantIds = merchantsWithDistance.map(m => m._id);
 
-    // Find active promotions for these merchants
     const now = new Date();
     let promotions = await Promotion.find({
       merchant: { $in: merchantIds },
+      status: { $in: ['active', 'approved'] },
       startDate: { $lte: now },
       endDate: { $gte: now },
     }).populate({
       path: 'merchant',
-      select: 'name logo location address contactInfo' // Select fields you need for the merchant
-    }).lean(); // Use .lean() for plain JS objects to make it easier to add distance
+      select: 'name logo location address contactInfo'
+    }).lean();
 
-    // Add distance to each promotion object based on its merchant
     promotions = promotions.map(promo => {
       const merchantInfo = merchantsWithDistance.find(m => m._id.equals(promo.merchant._id));
-      if (merchantInfo) {
-        // It's good practice to attach distance to the merchant object within the promotion
-        // Ensure promo.merchant is an object
-        if (typeof promo.merchant === 'object' && promo.merchant !== null) {
-            promo.merchant.distance = merchantInfo.distance; // distance in meters
-        } else {
-            // Handle case where merchant might not be fully populated or is just an ID (shouldn't happen with .populate)
-            // Or create a new merchant object if promo.merchant is just an ID (less ideal here)
-             promo.merchant = { _id: promo.merchant, distance: merchantInfo.distance };
-        }
+      if (merchantInfo && typeof promo.merchant === 'object' && promo.merchant !== null) {
+        promo.merchant.distance = merchantInfo.distance;
       }
       return promo;
     });
