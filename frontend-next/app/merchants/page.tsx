@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MerchantAPI } from '@/lib/api';
 import SkeletonCard from '@/components/ui/SkeletonCard';
+import HeroSection from '@/components/ui/HeroSection';
 
 const CATEGORIES = [
   { id: 'all', name: 'All', icon: 'fa-th-large' },
@@ -43,21 +44,20 @@ export default function MerchantsPage() {
 
   return (
     <div>
-      <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%)', padding: '4rem 0 3rem' }}>
-        <div className="max-w-7xl mx-auto px-4 text-center text-white">
-          <div className="inline-flex items-center gap-2 mb-4" style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '9999px', padding: '0.375rem 1rem', fontSize: '0.875rem', fontWeight: 500 }}>
-            <i className="fas fa-store"></i> {merchants.length} stores available
-          </div>
-          <h1 style={{ fontSize: 'clamp(2rem,5vw,3.5rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '1rem' }}>Discover Your<br />Favorite Stores</h1>
-          <p style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '480px', margin: '0 auto 2rem' }}>Follow merchants to get personalized deal recommendations.</p>
-          <div style={{ position: 'relative', maxWidth: '520px', margin: '0 auto' }}>
-            <i className="fas fa-search" style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.7)', pointerEvents: 'none' }}></i>
-            <input type="text" placeholder="Search stores..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '0.875rem 3rem', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '9999px', fontSize: '1rem', background: 'rgba(255,255,255,0.15)', color: '#fff', backdropFilter: 'blur(8px)', outline: 'none', boxSizing: 'border-box' }} />
-            {searchTerm && <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '1.1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}><i className="fas fa-times"></i></button>}
-          </div>
+      <HeroSection
+        icon="fa-store"
+        title="Discover Your"
+        titleAccent="Favorite Stores"
+        subtitle="Follow merchants to get personalized deal recommendations."
+        bgImage="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=60"
+      >
+        <div style={{ position: 'relative', maxWidth: '520px', margin: '0 auto' }}>
+          <i className="fas fa-search" style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.7)', pointerEvents: 'none' }}></i>
+          <input type="text" placeholder="Search stores..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            style={{ width: '100%', padding: '0.875rem 3rem', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '9999px', fontSize: '1rem', background: 'rgba(255,255,255,0.15)', color: '#fff', backdropFilter: 'blur(8px)', outline: 'none', boxSizing: 'border-box' }} />
+          {searchTerm && <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '1.1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}><i className="fas fa-times"></i></button>}
         </div>
-      </div>
+      </HeroSection>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex gap-2 overflow-x-auto pb-2 mb-8" style={{ scrollbarWidth: 'none' }}>

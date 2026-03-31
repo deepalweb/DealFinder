@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PromotionAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
+import HeroSection from '@/components/ui/HeroSection';
 import toast from 'react-hot-toast';
 
 export default function NearbyPage() {
@@ -158,44 +159,38 @@ export default function NearbyPage() {
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #0d9488 100%)', padding: '3.5rem 0 2.5rem' }}>
-        <div className="max-w-7xl mx-auto px-4 text-center text-white">
-          <div style={{ width: '56px', height: '56px', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', margin: '0 auto 0.75rem' }}>
-            <i className="fas fa-map-marker-alt"></i>
-          </div>
-          <h1 style={{ fontSize: 'clamp(1.75rem,5vw,3rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '0.75rem' }}>Nearby Deals</h1>
-          <p style={{ opacity: 0.9, marginBottom: '1.5rem' }}>Discover amazing promotions close to you</p>
-
-          {/* Radius pills */}
-          <div className="flex justify-center gap-2 flex-wrap mb-4">
-            {[5, 10, 20, 50, 100].map(r => (
-              <button key={r} onClick={() => handleRadiusChange(r)}
-                style={{ padding: '0.4rem 1rem', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, border: '2px solid rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.2s', background: radius === r ? '#fff' : 'rgba(255,255,255,0.15)', color: radius === r ? '#059669' : '#fff' }}>
-                {r} km
-              </button>
-            ))}
-          </div>
-
-          <div className="flex justify-center gap-3 flex-wrap">
-            <button onClick={getLocation} disabled={loading} className="btn"
-              style={{ background: '#fff', color: '#059669', fontWeight: 700, padding: '0.75rem 1.75rem', fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
-              {loading ? <><i className="fas fa-spinner fa-spin"></i> Searching...</> : <><i className="fas fa-location-arrow"></i> Find Deals Near Me</>}
+      <HeroSection
+        icon="fa-map-marker-alt"
+        title="Nearby Deals"
+        subtitle="Discover amazing promotions close to you"
+        gradient="linear-gradient(135deg, rgba(16,185,129,0.92) 0%, rgba(5,150,105,0.9) 50%, rgba(13,148,136,0.88) 100%)"
+        bgImage="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&auto=format&fit=crop&q=60"
+      >
+        <div className="flex justify-center gap-2 flex-wrap mb-4">
+          {[5, 10, 20, 50, 100].map(r => (
+            <button key={r} onClick={() => handleRadiusChange(r)}
+              style={{ padding: '0.4rem 1rem', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, border: '2px solid rgba(255,255,255,0.5)', cursor: 'pointer', transition: 'all 0.2s', background: radius === r ? '#fff' : 'rgba(255,255,255,0.15)', color: radius === r ? '#059669' : '#fff' }}>
+              {r} km
             </button>
-
-            {/* View toggle */}
-            {promotions.length > 0 && (
-              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.15)', borderRadius: '9999px', padding: '4px', border: '2px solid rgba(255,255,255,0.3)' }}>
-                {(['list', 'map'] as const).map(v => (
-                  <button key={v} onClick={() => setView(v)}
-                    style={{ padding: '0.4rem 1rem', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: view === v ? '#fff' : 'transparent', color: view === v ? '#059669' : '#fff' }}>
-                    <i className={`fas ${v === 'list' ? 'fa-list' : 'fa-map'} mr-1`}></i>{v === 'list' ? 'List' : 'Map'}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
-      </div>
+        <div className="flex justify-center gap-3 flex-wrap">
+          <button onClick={getLocation} disabled={loading} className="btn"
+            style={{ background: '#fff', color: '#059669', fontWeight: 700, padding: '0.75rem 1.75rem', fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
+            {loading ? <><i className="fas fa-spinner fa-spin"></i> Searching...</> : <><i className="fas fa-location-arrow"></i> Find Deals Near Me</>}
+          </button>
+          {promotions.length > 0 && (
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.15)', borderRadius: '9999px', padding: '4px', border: '2px solid rgba(255,255,255,0.3)' }}>
+              {(['list', 'map'] as const).map(v => (
+                <button key={v} onClick={() => setView(v)}
+                  style={{ padding: '0.4rem 1rem', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: view === v ? '#fff' : 'transparent', color: view === v ? '#059669' : '#fff' }}>
+                  <i className={`fas ${v === 'list' ? 'fa-list' : 'fa-map'} mr-1`}></i>{v === 'list' ? 'List' : 'Map'}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </HeroSection>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {error && (

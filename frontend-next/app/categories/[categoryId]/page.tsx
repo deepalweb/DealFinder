@@ -6,6 +6,8 @@ import { PromotionAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 
+import HeroSection from '@/components/ui/HeroSection';
+
 const CATEGORIES = [
   { id: 'all', name: 'All Deals', icon: 'fa-th-large' },
   { id: 'fashion', name: 'Fashion', icon: 'fa-tshirt' },
@@ -50,16 +52,11 @@ export default function CategoryPage() {
 
   return (
     <div>
-      {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%)', padding: '3rem 0' }}>
-        <div className="max-w-7xl mx-auto px-4 text-center text-white">
-          <div style={{ width: '56px', height: '56px', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', margin: '0 auto 0.75rem' }}>
-            <i className={`fas ${currentCat.icon}`}></i>
-          </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>{currentCat.name}</h1>
-          <p style={{ opacity: 0.85 }}>{loading ? '...' : `${filtered.length} deals found`}</p>
-        </div>
-      </div>
+      <HeroSection
+        icon={currentCat.icon}
+        title={currentCat.name}
+        subtitle={loading ? 'Loading...' : `${filtered.length} deals found`}
+      />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Category pills */}

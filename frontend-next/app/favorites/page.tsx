@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
+import HeroSection from '@/components/ui/HeroSection';
 
 export default function FavoritesPage() {
   const { user } = useAuth();
@@ -25,15 +26,13 @@ export default function FavoritesPage() {
 
   return (
     <div>
-      <div style={{ background: 'linear-gradient(135deg, #f43f5e 0%, #ec4899 50%, #8b5cf6 100%)', padding: '3rem 0' }}>
-        <div className="max-w-7xl mx-auto px-4 text-center text-white">
-          <div style={{ width: '56px', height: '56px', background: 'rgba(255,255,255,0.2)', borderRadius: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', margin: '0 auto 0.75rem' }}>
-            <i className="fas fa-heart"></i>
-          </div>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>My Favorites</h1>
-          <p style={{ opacity: 0.85 }}>{loading ? '...' : `${favorites.length} saved deal${favorites.length !== 1 ? 's' : ''}`}</p>
-        </div>
-      </div>
+      <HeroSection
+        icon="fa-heart"
+        title="My Favorites"
+        subtitle={loading ? 'Loading...' : `${favorites.length} saved deal${favorites.length !== 1 ? 's' : ''}`}
+        gradient="linear-gradient(135deg, rgba(244,63,94,0.92) 0%, rgba(236,72,153,0.88) 50%, rgba(139,92,246,0.85) 100%)"
+        bgImage="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&auto=format&fit=crop&q=60"
+      />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {loading ? (

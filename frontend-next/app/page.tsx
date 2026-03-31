@@ -107,27 +107,70 @@ export default function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #f43f5e 100%)', padding: '4rem 0 3rem' }}>
-        <div className="max-w-7xl mx-auto px-4 text-center text-white">
-          <div className="inline-flex items-center gap-2 mb-4" style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '9999px', padding: '0.375rem 1rem', fontSize: '0.875rem', fontWeight: 500 }}>
-            <i className="fas fa-bolt"></i> New deals added daily
+      <div style={{
+        position: 'relative',
+        padding: '5rem 0 4rem',
+        overflow: 'hidden',
+        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 70%, #7c3aed 100%)',
+      }}>
+        {/* Background image with overlay */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'url(https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&auto=format&fit=crop&q=60)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: 0.12,
+        }} />
+        {/* Gradient overlay */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.92) 0%, rgba(139,92,246,0.88) 50%, rgba(244,63,94,0.85) 100%)',
+        }} />
+        {/* Decorative blobs */}
+        <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '320px', height: '320px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-60px', left: '-60px', width: '240px', height: '240px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+        <div className="max-w-7xl mx-auto px-4 text-center text-white" style={{ position: 'relative', zIndex: 1 }}>
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 mb-5" style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '9999px', padding: '0.4rem 1.1rem', fontSize: '0.85rem', fontWeight: 600, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i> New deals added daily
           </div>
-          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: '1rem' }}>
-            Discover Amazing<br />Discounts & Deals
+
+          {/* Headline */}
+          <h1 style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: '1.25rem', textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}>
+            Discover Amazing<br />
+            <span style={{ background: 'linear-gradient(135deg, #fbbf24, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Discounts & Deals</span>
           </h1>
-          <p style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '480px', margin: '0 auto 2rem' }}>
+
+          <p style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '500px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
             Find the best offers from your favorite stores, all in one place.
           </p>
+
           {/* Search */}
-          <div style={{ position: 'relative', maxWidth: '560px', margin: '0 auto' }}>
-            <i className="fas fa-search" style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.7)', pointerEvents: 'none' }}></i>
+          <div style={{ position: 'relative', maxWidth: '580px', margin: '0 auto 2.5rem' }}>
+            <i className="fas fa-search" style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.6)', pointerEvents: 'none', fontSize: '1rem' }}></i>
             <input type="text" placeholder="Search deals, stores, categories..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '0.875rem 3rem', border: '2px solid rgba(255,255,255,0.3)', borderRadius: '9999px', fontSize: '1rem', background: 'rgba(255,255,255,0.15)', color: '#fff', backdropFilter: 'blur(8px)', outline: 'none', boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '1rem 3.5rem', border: '2px solid rgba(255,255,255,0.25)', borderRadius: '9999px', fontSize: '1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', backdropFilter: 'blur(12px)', outline: 'none', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }} />
             {searchTerm && (
-              <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '1.1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+              <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '1.25rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1rem' }}>
                 <i className="fas fa-times"></i>
               </button>
             )}
+          </div>
+
+          {/* Stats */}
+          <div className="flex justify-center gap-6 flex-wrap">
+            {[
+              { icon: 'fa-tag', value: `${allPromotions.length}+`, label: 'Active Deals' },
+              { icon: 'fa-store', value: 'Top', label: 'Merchants' },
+              { icon: 'fa-map-marker-alt', value: 'Near', label: 'You' },
+            ].map(s => (
+              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', borderRadius: '9999px', padding: '0.4rem 1rem', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <i className={`fas ${s.icon}`} style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.value}</span>
+                <span style={{ opacity: 0.75, fontSize: '0.8rem' }}>{s.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
