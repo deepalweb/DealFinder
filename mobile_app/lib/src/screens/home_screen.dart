@@ -716,7 +716,7 @@ Future<void> _checkAlerts() async {
             ),
           ),
 
-          // Quick Actions — hidden while searching
+          // Quick Actions
           if (!_isSearching) SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -729,48 +729,9 @@ Future<void> _checkAlerts() async {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _QuickActionButton(
-                        icon: Icons.near_me,
-                        label: AppLocalizations.of(context)!.nearby,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const NearbyDealsScreen()),
-                        ),
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.timer_outlined,
-                        label: 'Expiring Soon',
-                        onTap: () {
-                          final now = DateTime.now();
-                          final soon = now.add(const Duration(days: 3));
-                          _allPromotionsFuture.then((promos) {
-                            final expiring = promos.where((p) =>
-                              p.endDate != null &&
-                              p.endDate!.isAfter(now) &&
-                              p.endDate!.isBefore(soon)
-                            ).toList();
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DealsListScreen(promotions: expiring, title: 'Expiring Soon'),
-                              ),
-                            );
-                          });
-                        },
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.qr_code_scanner,
-                        label: AppLocalizations.of(context)!.scanQR,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const QRScannerScreen()),
-                        ),
-                      ),
-                      _QuickActionButton(
-                        icon: Icons.favorite_border,
-                        label: AppLocalizations.of(context)!.favorites,
-                        onTap: () => widget.onNavigateToFavorites?.call(),
-                      ),
+                      _QuickActionButton(icon: Icons.near_me, label: AppLocalizations.of(context)!.nearby, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NearbyDealsScreen()))),
+                      _QuickActionButton(icon: Icons.qr_code_scanner, label: AppLocalizations.of(context)!.scanQR, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScannerScreen()))),
+                      _QuickActionButton(icon: Icons.favorite_border, label: AppLocalizations.of(context)!.favorites, onTap: () => widget.onNavigateToFavorites?.call()),
                     ],
                   ),
                 ),
@@ -778,307 +739,61 @@ Future<void> _checkAlerts() async {
             ),
           ),
 
-          // Trending Now — hidden while searching
+          // Latest Deals - 2-column grid newest first
           if (!_isSearching) SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.whatshot, color: Theme.of(context).colorScheme.primary, size: 26),
-                            const SizedBox(width: 8),
-                            Text(
-                              AppLocalizations.of(context)!.trendingNow,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () => _allPromotionsFuture.then((promos) {
-                            final now = DateTime.now();
-                            final trending = ([...promos]
-                              .where((p) => p.endDate == null || p.endDate!.isAfter(now))
-                              .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
-                              .toList()
-                              ..sort((a, b) {
-                                final aRecency = a.startDate != null ? now.difference(a.startDate!).inDays : 999;
-                                final bRecency = b.startDate != null ? now.difference(b.startDate!).inDays : 999;
-                                return ((b.ratingsCount * 2) - bRecency).compareTo((a.ratingsCount * 2) - aRecency);
-                              }));
-                            Navigator.push(context, MaterialPageRoute(
-                              builder: (_) => DealsListScreen(promotions: trending, title: 'Trending Now'),
-                            ));
-                          }),
-                          child: Text(AppLocalizations.of(context)!.viewAll),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FutureBuilder<List<Promotion>>(
-                    future: _allPromotionsFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return _buildFeaturedDealsShimmer(height: 160);
-                      } else if (snapshot.hasError) {
-                        return SizedBox(
-                          height: 160,
-                          child: Center(child: Text('Could not load trending deals.', style: TextStyle(color: Colors.red[400]))),
-                        );
-                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return SizedBox(
-                          height: 160,
-                          child: Center(child: Text(AppLocalizations.of(context)!.noTrendingDeals, style: TextStyle(color: Colors.grey[600]))),
-                        );
-                      }
-                      final now = DateTime.now();
-                      final trendingDeals = ([...snapshot.data!]
-                          .where((p) => p.endDate == null || p.endDate!.isAfter(now))
-                          .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
-                          .toList()
-                        ..sort((a, b) {
-                          // Score = ratingsCount * 2 + recency bonus (newer = higher)
-                          final aRecency = a.startDate != null ? now.difference(a.startDate!).inDays : 999;
-                          final bRecency = b.startDate != null ? now.difference(b.startDate!).inDays : 999;
-                          final aScore = (a.ratingsCount * 2) - aRecency;
-                          final bScore = (b.ratingsCount * 2) - bRecency;
-                          return bScore.compareTo(aScore);
-                        }))
-                        .take(5).toList();
-                      return SizedBox(
-                        height: 160,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: trendingDeals.length,
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          itemBuilder: (context, index) {
-                            final promotion = trendingDeals[index];
-                            return Container(
-                              width: 240,
-                              margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                              child: InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
-                                  );
-                                },
-                                child: Card(
-                                  color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 18,
-                                          backgroundColor: Colors.white,
-                                          backgroundImage: promotion.merchantLogoUrl != null
-                                              ? NetworkImage(promotion.merchantLogoUrl!)
-                                              : null,
-                                          child: promotion.merchantLogoUrl == null
-                                              ? Icon(Icons.storefront, color: Colors.grey[400], size: 22)
-                                              : null,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                promotion.title,
-                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                promotion.description,
-                                                style: Theme.of(context).textTheme.bodySmall,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const Spacer(),
-                                              Row(
-                                                children: [
-                                                  Icon(Icons.trending_up, color: Theme.of(context).colorScheme.primary, size: 16),
-                                                  const SizedBox(width: 4),
-                                                  Text(AppLocalizations.of(context)!.hot, style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12)),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
+                  Row(children: [
+                    Icon(Icons.access_time, color: Theme.of(context).colorScheme.primary, size: 22),
+                    const SizedBox(width: 6),
+                    Text('Latest Deals', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  ]),
+                  TextButton(
+                    onPressed: () => _allPromotionsFuture.then((promos) {
+                      final sorted = [...promos]..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => DealsListScreen(promotions: sorted, title: 'Latest Deals')));
+                    }),
+                    child: Text(AppLocalizations.of(context)!.viewAll),
                   ),
                 ],
               ),
             ),
           ),
 
-          // New This Week — hidden while searching
-          if (!_isSearching) SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.fiber_new, color: Theme.of(context).colorScheme.primary, size: 26),
-                            const SizedBox(width: 8),
-                            Text(
-                              'New This Week',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        TextButton(
-                          onPressed: () => _allPromotionsFuture.then((promos) {
-                            final cutoff = DateTime.now().subtract(const Duration(days: 7));
-                            final newDeals = promos.where((p) =>
-                              p.startDate != null && p.startDate!.isAfter(cutoff) &&
-                              (_selectedCategoryId == null || p.category == _selectedCategoryId)
-                            ).toList()
-                              ..sort((a, b) => b.startDate!.compareTo(a.startDate!));
-                            Navigator.push(context, MaterialPageRoute(
-                              builder: (_) => DealsListScreen(promotions: newDeals, title: 'New This Week'),
-                            ));
-                          }),
-                          child: Text(AppLocalizations.of(context)!.viewAll),
-                        ),
-                      ],
+          if (!_isSearching) FutureBuilder<List<Promotion>>(
+            future: _allPromotionsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return SliverToBoxAdapter(child: _buildGridShimmer());
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+              final now = DateTime.now();
+              final latest = ([...snapshot.data!]
+                .where((p) => p.endDate == null || p.endDate!.isAfter(now))
+                .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
+                .toList()
+                ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0))))
+                .take(8).toList();
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2, childAspectRatio: 0.62, crossAxisSpacing: 2, mainAxisSpacing: 2,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: latest[index]))),
+                      child: DealCard(promotion: latest[index], compact: true),
                     ),
+                    childCount: latest.length,
                   ),
-                  const SizedBox(height: 10),
-                  FutureBuilder<List<Promotion>>(
-                    future: _allPromotionsFuture,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return _buildFeaturedDealsShimmer(height: 120);
-                      } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                        return SizedBox(
-                          height: 80,
-                          child: Center(child: Text('No new deals this week.', style: TextStyle(color: Colors.grey[600]))),
-                        );
-                      }
-                      final cutoff = DateTime.now().subtract(const Duration(days: 7));
-                      final newDeals = ([...snapshot.data!]
-                        .where((p) =>
-                          p.startDate != null && p.startDate!.isAfter(cutoff) &&
-                          (p.endDate == null || p.endDate!.isAfter(DateTime.now())) &&
-                          (_selectedCategoryId == null || p.category == _selectedCategoryId)
-                        ).toList()
-                        ..sort((a, b) => b.startDate!.compareTo(a.startDate!)))
-                        .take(5).toList();
-                      if (newDeals.isEmpty) {
-                        return SizedBox(
-                          height: 80,
-                          child: Center(child: Text('No new deals this week.', style: TextStyle(color: Colors.grey[600]))),
-                        );
-                      }
-                      return SizedBox(
-                        height: 120,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: newDeals.length,
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                          itemBuilder: (context, index) {
-                            final promotion = newDeals[index];
-                            return Container(
-                              width: 200,
-                              margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                              child: InkWell(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promotion)),
-                                ),
-                                child: Card(
-                                  color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.3),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  elevation: 2,
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(12.0),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 18,
-                                          backgroundColor: Colors.white,
-                                          child: Icon(Icons.storefront, color: Colors.grey[400], size: 22),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                decoration: BoxDecoration(
-                                                  color: Theme.of(context).colorScheme.primary,
-                                                  borderRadius: BorderRadius.circular(6),
-                                                ),
-                                                child: const Text('NEW', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                promotion.title,
-                                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                promotion.merchantName ?? promotion.category ?? '',
-                                                style: Theme.of(context).textTheme.bodySmall,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                              if (promotion.discount != null)
-                                                Text(
-                                                  promotion.discount!,
-                                                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.bold, fontSize: 12),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
-
           if (!_isSearching) const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
