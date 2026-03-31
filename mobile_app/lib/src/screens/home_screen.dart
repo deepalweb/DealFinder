@@ -609,73 +609,39 @@ Future<void> _checkAlerts() async {
                         return _buildFeaturedDealsShimmer();
                       }
                       if (!_locationAvailable) {
-                        // Show recent deals as fallback
-                        final fallback = (_allPromotionsCache..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)))).take(3).toList();
-                        if (fallback.isEmpty) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            child: Card(
-                              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              child: ListTile(
-                                leading: Icon(Icons.location_off, color: Colors.grey[500]),
-                                title: const Text('Enable location', style: TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('Allow location to see deals near you', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-                                trailing: TextButton(
-                                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const NearbyDealsScreen())),
-                                  child: const Text('Enable'),
-                                ),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Card(
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                children: [
+                                  Icon(Icons.location_off, size: 40, color: Colors.grey[500]),
+                                  const SizedBox(height: 10),
+                                  const Text('Location not available', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text('Enable location to see deals near you', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                                  const SizedBox(height: 12),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.location_on, size: 16),
+                                    label: const Text('Enable Location'),
+                                    onPressed: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const NearbyDealsScreen()),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          );
-                        }
-                        return SizedBox(
-                          height: 200,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: fallback.length,
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            itemBuilder: (context, index) {
-                              final promotion = fallback[index];
-                              return Container(
-                                width: MediaQuery.of(context).size.width * 0.75,
-                                margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                                child: InkWell(
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promotion))),
-                                  child: DealCard(promotion: promotion),
-                                ),
-                              );
-                            },
                           ),
                         );
                       }
                       if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                        // No nearby deals found - show recent deals as fallback
-                        final fallback = (_allPromotionsCache..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)))).take(3).toList();
-                        if (fallback.isEmpty) {
-                          return SizedBox(
-                            height: 80,
-                            child: Center(child: Text(AppLocalizations.of(context)!.noNearbyDeals, style: TextStyle(color: Colors.grey[600]))),
-                          );
-                        }
                         return SizedBox(
-                          height: 200,
-                          child: ListView.builder(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: fallback.length,
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                            itemBuilder: (context, index) {
-                              final promotion = fallback[index];
-                              return Container(
-                                width: MediaQuery.of(context).size.width * 0.75,
-                                margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                                child: InkWell(
-                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promotion))),
-                                  child: DealCard(promotion: promotion),
-                                ),
-                              );
-                            },
-                          ),
+                          height: 80,
+                          child: Center(child: Text(AppLocalizations.of(context)!.noNearbyDeals, style: TextStyle(color: Colors.grey[600]))),
                         );
                       }
                       final nearbyDeals = snapshot.data!;
