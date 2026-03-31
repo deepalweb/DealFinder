@@ -650,9 +650,32 @@ Future<void> _checkAlerts() async {
                         );
                       }
                       if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
+                        // No nearby deals found - show recent deals as fallback
+                        final fallback = (_allPromotionsCache..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)))).take(3).toList();
+                        if (fallback.isEmpty) {
+                          return SizedBox(
+                            height: 80,
+                            child: Center(child: Text(AppLocalizations.of(context)!.noNearbyDeals, style: TextStyle(color: Colors.grey[600]))),
+                          );
+                        }
                         return SizedBox(
-                          height: 80,
-                          child: Center(child: Text(AppLocalizations.of(context)!.noNearbyDeals, style: TextStyle(color: Colors.grey[600]))),
+                          height: 200,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: fallback.length,
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            itemBuilder: (context, index) {
+                              final promotion = fallback[index];
+                              return Container(
+                                width: MediaQuery.of(context).size.width * 0.75,
+                                margin: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: InkWell(
+                                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promotion))),
+                                  child: DealCard(promotion: promotion),
+                                ),
+                              );
+                            },
+                          ),
                         );
                       }
                       final nearbyDeals = snapshot.data!;
