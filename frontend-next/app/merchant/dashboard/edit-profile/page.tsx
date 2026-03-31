@@ -86,7 +86,7 @@ export default function EditProfilePage() {
   const updateSocial = (key: string, value: string) => setForm(prev => ({ ...prev, socialMedia: { ...prev.socialMedia, [key]: value } }));
 
   const handleImageFile = (file: File, field: 'logo' | 'banner') => {
-    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2MB'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
     const reader = new FileReader();
     reader.onloadend = () => updateForm(field, reader.result as string);
     reader.readAsDataURL(file);
@@ -341,7 +341,7 @@ export default function EditProfilePage() {
                         onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(form.name || 'M')}&background=random&size=300`; }} />
                       <div className="flex-1">
                         <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Upload a logo</p>
-                        <p style={hintStyle}>PNG, JPG up to 2MB. Recommended: 400×400px</p>
+                        <p style={hintStyle}>PNG, JPG up to 5MB. Recommended: 400×400px</p>
                         <div className="flex gap-2 mt-3">
                           <button type="button" onClick={() => logoInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)' }}>
                             <i className="fas fa-upload"></i> Upload File

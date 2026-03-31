@@ -135,17 +135,32 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
         <div className="md:col-span-2">
           <div className="promotion-card fade-in overflow-hidden">
             {deal.image ? (
-              <div style={{ position: 'relative', height: '300px', overflow: 'hidden' }}>
-                <img src={deal.image} alt={deal.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)' }}></div>
-                <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', gap: '0.5rem' }}>
-                  {deal.featured && <span style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '9999px' }}>⭐ Featured</span>}
-                  {isExpired && <span style={{ background: 'rgba(239,68,68,0.9)', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '9999px' }}>Expired</span>}
+              <div style={{ position: 'relative', overflow: 'hidden' }}>
+                {/* Main image */}
+                <div style={{ position: 'relative', height: '300px', overflow: 'hidden' }}>
+                  <img src={deal.image} alt={deal.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)' }}></div>
+                  <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', gap: '0.5rem' }}>
+                    {deal.featured && <span style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '9999px' }}>⭐ Featured</span>}
+                    {isExpired && <span style={{ background: 'rgba(239,68,68,0.9)', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '9999px' }}>Expired</span>}
+                  </div>
+                  <div className="discount-badge" style={{ position: 'absolute', top: '1rem', right: '1rem', fontSize: '1rem' }}>{deal.discount} OFF</div>
+                  <div style={{ position: 'absolute', bottom: '1rem', left: '1.25rem', right: '1.25rem' }}>
+                    <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>{deal.title}</h1>
+                  </div>
                 </div>
-                <div className="discount-badge" style={{ position: 'absolute', top: '1rem', right: '1rem', fontSize: '1rem' }}>{deal.discount} OFF</div>
-                <div style={{ position: 'absolute', bottom: '1rem', left: '1.25rem', right: '1.25rem' }}>
-                  <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>{deal.title}</h1>
-                </div>
+                {/* Thumbnail strip for multiple images */}
+                {deal.images?.length > 1 && (
+                  <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', overflowX: 'auto', background: 'var(--light-gray)', scrollbarWidth: 'none' }}>
+                    {deal.images.map((img: string, i: number) => (
+                      <img key={i} src={img} alt={`Image ${i+1}`}
+                        onClick={() => { const el = document.querySelector('.deal-main-img') as HTMLImageElement; if (el) el.src = img; }}
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '0.5rem', cursor: 'pointer', flexShrink: 0, border: i === 0 ? '2px solid var(--primary-color)' : '2px solid transparent', transition: 'border-color 0.2s' }}
+                        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
+                        onMouseLeave={e => (e.currentTarget.style.borderColor = i === 0 ? 'var(--primary-color)' : 'transparent')} />
+                    ))}
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ padding: '1.5rem 1.5rem 0' }}>

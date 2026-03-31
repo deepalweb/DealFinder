@@ -41,8 +41,8 @@ const apiLimiter = rateLimit({
 // Set a more reasonable default body limit. 10MB is still generous.
 // If specific routes need larger limits (e.g., for base64 image uploads),
 // they can have bodyParser middleware applied with a custom limit.
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+app.use(bodyParser.json({ limit: '15mb' }));
+app.use(bodyParser.urlencoded({ limit: '15mb', extended: true }));
 
 // CORS Configuration
 const allowedOrigins_DEV = [

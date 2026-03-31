@@ -9,6 +9,7 @@ const promotionSchema = new mongoose.Schema({
   merchant: { type: mongoose.Schema.Types.ObjectId, ref: 'Merchant', required: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
+  images: [{ type: String }],
   image: { type: String },
   url: { type: String },
   featured: { type: Boolean, default: false },

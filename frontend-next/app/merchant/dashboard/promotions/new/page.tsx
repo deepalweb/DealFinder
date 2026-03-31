@@ -18,14 +18,14 @@ function NewPromotionContent() {
 
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [imagePreview, setImagePreview] = useState('');
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('details');
   const [currencySymbol, setCurrencySymbol] = useState('$');
 
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-  const defaultForm = { title:'', description:'', discount:'', code:'', category:'electronics', startDate: today, endDate: nextMonth.toISOString().split('T')[0], image:'', url:'', featured: false, originalPrice:'', discountedPrice:'' };
+  const defaultForm = { title:'', description:'', discount:'', code:'', category:'electronics', startDate: today, endDate: nextMonth.toISOString().split('T')[0], image:'', images:[] as string[], url:'', featured: false, originalPrice:'', discountedPrice:'' };
   const [form, setForm] = useState(defaultForm);
   const [original, setOriginal] = useState(defaultForm);
 
@@ -41,22 +41,44 @@ function NewPromotionContent() {
     if (editId) {
       PromotionAPI.getById(editId).then(p => {
         const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
-        const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'' };
-        setForm(data); setOriginal(data); setImagePreview(p.image||'');
+        const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'' };
+        setForm(data); setOriginal(data); setImagePreviews(p.images?.length ? p.images : (p.image ? [p.image] : []));
       }).catch(() => toast.error('Failed to load promotion.'));
     }
   }, [user, editId]);
 
   useEffect(() => { setHasChanges(JSON.stringify(form) !== JSON.stringify(original)); }, [form, original]);
-  useEffect(() => { if (form.image && form.image.startsWith('http')) setImagePreview(form.image); }, [form.image]);
+  useEffect(() => { if (form.image && form.image.startsWith('http')) setImagePreviews(prev => prev.length ? prev : [form.image]); }, [form.image]);
 
   const update = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
 
-  const handleImageFile = (file: File) => {
-    if (file.size > 2 * 1024 * 1024) { toast.error('Image must be under 2MB'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => { const r = reader.result as string; update('image', r); setImagePreview(r); };
-    reader.readAsDataURL(file);
+  const handleImageFiles = (files: FileList) => {
+    const remaining = 5 - imagePreviews.length;
+    if (remaining <= 0) { toast.error('Maximum 5 images allowed'); return; }
+    const toProcess = Array.from(files).slice(0, remaining);
+    toProcess.forEach(file => {
+      if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} exceeds 5MB limit`); return; }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setImagePreviews(prev => {
+          const updated = [...prev, result];
+          update('images', updated);
+          if (updated.length === 1) update('image', result);
+          return updated;
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeImage = (index: number) => {
+    setImagePreviews(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      update('images', updated);
+      update('image', updated[0] || '');
+      return updated;
+    });
   };
 
   const generateCode = () => {
@@ -129,7 +151,7 @@ function NewPromotionContent() {
 
             {/* Live Preview */}
             <div className="promotion-card mt-4 overflow-hidden">
-              {imagePreview ? <img src={imagePreview} alt="Preview" style={{ width:'100%', height:'100px', objectFit:'cover' }} /> : <div style={{ height:'100px', background:'var(--light-gray)', display:'flex', alignItems:'center', justifyContent:'center' }}><i className="fas fa-image" style={{ fontSize:'1.5rem', color:'var(--text-secondary)' }}></i></div>}
+              {imagePreviews[0] ? <img src={imagePreviews[0]} alt="Preview" style={{ width:'100%', height:'100px', objectFit:'cover' }} /> : <div style={{ height:'100px', background:'var(--light-gray)', display:'flex', alignItems:'center', justifyContent:'center' }}><i className="fas fa-image" style={{ fontSize:'1.5rem', color:'var(--text-secondary)' }}></i></div>}
               <div style={{ padding:'0.75rem' }}>
                 <p style={{ fontWeight:700, fontSize:'0.8rem', color:'var(--text-primary)', margin:'0 0 0.25rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{form.title || 'Promotion Title'}</p>
                 <div className="flex items-center justify-between">
@@ -248,37 +270,67 @@ function NewPromotionContent() {
               {activeTab === 'media' && (
                 <div className="fade-in">
                   <h2 style={{ fontSize:'1.1rem', fontWeight:700, color:'var(--text-primary)', marginBottom:'0.5rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                    <i className="fas fa-image" style={{ color:'var(--primary-color)' }}></i> Promotion Image
+                    <i className="fas fa-images" style={{ color:'var(--primary-color)' }}></i> Promotion Images
                   </h2>
-                  <p style={{ ...hintStyle, marginBottom:'1.5rem' }}>Add an eye-catching image to make your deal stand out</p>
+                  <p style={{ ...hintStyle, marginBottom:'1.5rem' }}>Upload up to 5 images (max 5MB each). The first image is used as the main display image.</p>
 
-                  {/* Upload area */}
-                  <div onClick={() => imageInputRef.current?.click()}
-                    style={{ borderRadius:'1rem', overflow:'hidden', border:'2px dashed var(--border-color)', marginBottom:'1rem', position:'relative', minHeight:'200px', background: imagePreview ? `url(${imagePreview}) center/cover` : 'var(--light-gray)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', transition:'border-color 0.2s' }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}>
-                    {imagePreview && <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,0.4)' }}></div>}
-                    <div className="text-center" style={{ position:'relative', zIndex:1, padding:'2rem' }}>
-                      <i className="fas fa-cloud-upload-alt" style={{ fontSize:'2.5rem', color: imagePreview ? '#fff' : 'var(--text-secondary)', marginBottom:'0.75rem', display:'block' }}></i>
-                      <p style={{ fontWeight:600, fontSize:'0.9rem', color: imagePreview ? '#fff' : 'var(--text-primary)', margin:'0 0 0.25rem' }}>{imagePreview ? 'Click to change image' : 'Click to upload image'}</p>
-                      <p style={{ fontSize:'0.75rem', color: imagePreview ? 'rgba(255,255,255,0.8)' : 'var(--text-secondary)', margin:0 }}>PNG, JPG up to 2MB</p>
+                  {/* Image grid */}
+                  {imagePreviews.length > 0 && (
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:'0.75rem', marginBottom:'1rem' }}>
+                      {imagePreviews.map((src, i) => (
+                        <div key={i} style={{ position:'relative', borderRadius:'0.75rem', overflow:'hidden', aspectRatio:'1', border: i === 0 ? '2px solid var(--primary-color)' : '1.5px solid var(--border-color)' }}>
+                          <img src={src} alt={`Image ${i+1}`} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          {i === 0 && (
+                            <div style={{ position:'absolute', top:'0.3rem', left:'0.3rem', background:'var(--primary-color)', color:'#fff', fontSize:'0.6rem', fontWeight:700, padding:'0.15rem 0.4rem', borderRadius:'9999px' }}>MAIN</div>
+                          )}
+                          <button type="button" onClick={() => removeImage(i)}
+                            style={{ position:'absolute', top:'0.3rem', right:'0.3rem', width:'22px', height:'22px', borderRadius:'50%', background:'rgba(239,68,68,0.9)', border:'none', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem' }}>
+                            <i className="fas fa-times"></i>
+                          </button>
+                        </div>
+                      ))}
+                      {imagePreviews.length < 5 && (
+                        <div onClick={() => imageInputRef.current?.click()}
+                          style={{ borderRadius:'0.75rem', border:'2px dashed var(--border-color)', aspectRatio:'1', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', cursor:'pointer', background:'var(--light-gray)', gap:'0.4rem', transition:'border-color 0.2s' }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}>
+                          <i className="fas fa-plus" style={{ fontSize:'1.25rem', color:'var(--text-secondary)' }}></i>
+                          <span style={{ fontSize:'0.7rem', color:'var(--text-secondary)', fontWeight:600 }}>Add</span>
+                        </div>
+                      )}
                     </div>
-                    <input ref={imageInputRef} type="file" accept="image/*" style={{ display:'none' }} onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0])} />
-                  </div>
-
-                  <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.75rem' }}>
-                    <div style={{ flex:1, height:'1px', background:'var(--border-color)' }}></div>
-                    <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>or paste URL</span>
-                    <div style={{ flex:1, height:'1px', background:'var(--border-color)' }}></div>
-                  </div>
-
-                  <input style={inputStyle} value={form.image.startsWith('data:') ? '' : form.image} onChange={e => { update('image', e.target.value); setImagePreview(e.target.value); }} placeholder="https://example.com/image.jpg" onFocus={focus} onBlur={blur} />
-
-                  {imagePreview && (
-                    <button type="button" onClick={() => { update('image', ''); setImagePreview(''); }} style={{ marginTop:'0.75rem', fontSize:'0.8rem', padding:'0.4rem 0.875rem', borderRadius:'0.625rem', border:'1.5px solid rgba(239,68,68,0.3)', background:'rgba(239,68,68,0.06)', color:'#ef4444', cursor:'pointer' }}>
-                      <i className="fas fa-trash mr-1"></i> Remove Image
-                    </button>
                   )}
+
+                  {/* Upload area (shown when no images yet) */}
+                  {imagePreviews.length === 0 && (
+                    <div onClick={() => imageInputRef.current?.click()}
+                      style={{ borderRadius:'1rem', border:'2px dashed var(--border-color)', marginBottom:'1rem', minHeight:'180px', background:'var(--light-gray)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', transition:'border-color 0.2s' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}>
+                      <div className="text-center" style={{ padding:'2rem' }}>
+                        <i className="fas fa-cloud-upload-alt" style={{ fontSize:'2.5rem', color:'var(--text-secondary)', marginBottom:'0.75rem', display:'block' }}></i>
+                        <p style={{ fontWeight:600, fontSize:'0.9rem', color:'var(--text-primary)', margin:'0 0 0.25rem' }}>Click to upload images</p>
+                        <p style={{ fontSize:'0.75rem', color:'var(--text-secondary)', margin:0 }}>PNG, JPG up to 5MB each · Max 5 images</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <input ref={imageInputRef} type="file" accept="image/*" multiple style={{ display:'none' }}
+                    onChange={e => e.target.files && handleImageFiles(e.target.files)} />
+
+                  {imagePreviews.length > 0 && (
+                    <p style={hintStyle}>{imagePreviews.length}/5 images · Click × to remove · First image is the main image</p>
+                  )}
+
+                  <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', margin:'1rem 0 0.75rem' }}>
+                    <div style={{ flex:1, height:'1px', background:'var(--border-color)' }}></div>
+                    <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>or paste URL for main image</span>
+                    <div style={{ flex:1, height:'1px', background:'var(--border-color)' }}></div>
+                  </div>
+
+                  <input style={inputStyle} value={form.image.startsWith('data:') ? '' : form.image}
+                    onChange={e => { update('image', e.target.value); if (e.target.value) setImagePreviews(prev => prev.length ? [e.target.value, ...prev.slice(1)] : [e.target.value]); }}
+                    placeholder="https://example.com/image.jpg" onFocus={focus} onBlur={blur} />
                 </div>
               )}
 
