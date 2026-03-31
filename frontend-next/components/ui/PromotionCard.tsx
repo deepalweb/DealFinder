@@ -1,35 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI, PromotionAPI } from '@/lib/api';
 
 interface Props {
   promotion: any;
+  isFavorite?: boolean;
+  avgRating?: number | null;
   onFavoriteToggle?: (id: string, isFav: boolean) => void;
 }
 
-export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
+export default function PromotionCard({ promotion, isFavorite: initialFav = false, avgRating = null, onFavoriteToggle }: Props) {
   const router = useRouter();
   const { user } = useAuth();
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [avgRating, setAvgRating] = useState<number | null>(null);
+  const [isFavorite, setIsFavorite] = useState(initialFav);
 
   const id = promotion._id || promotion.id;
   const merchantName = typeof promotion.merchant === 'object' ? promotion.merchant?.name : promotion.merchant || '';
   const daysLeft = Math.ceil((new Date(promotion.endDate).getTime() - Date.now()) / 86400000);
   const expiryText = daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Ends today' : `${daysLeft}d left`;
-
-  useEffect(() => {
-    if (!user) return;
-    UserAPI.getFavorites(user._id).then(favs => {
-      setIsFavorite(favs.some((f: any) => (f._id || f.id) === id));
-    }).catch(() => {});
-    PromotionAPI.getRatings(id).then(ratings => {
-      if (ratings.length > 0) setAvgRating(ratings.reduce((s: number, r: any) => s + r.value, 0) / ratings.length);
-    }).catch(() => {});
-  }, [id, user]);
+  const coords = promotion.merchant?.location?.coordinates;
+  const directionsUrl = coords ? `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}` : null;
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -48,17 +41,14 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
     router.push(`/deal/${id}`);
   };
 
-  const coords = promotion.merchant?.location?.coordinates;
-  const directionsUrl = coords ? `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}` : null;
-
   return (
     <div className="promotion-card fade-in cursor-pointer" onClick={handleClick}>
       {/* Favorite button */}
       <button onClick={handleFavorite} style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 10, width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', transition: 'all 0.2s' }}>
-        <i className={`${isFavorite ? 'fas text-red-500' : 'far'} fa-heart`} style={{ color: isFavorite ? '#ef4444' : '#64748b' }}></i>
+        <i className={`${isFavorite ? 'fas' : 'far'} fa-heart`} style={{ color: isFavorite ? '#ef4444' : '#64748b' }}></i>
       </button>
 
-      {/* Image — fixed height */}
+      {/* Image */}
       <div style={{ position: 'relative', overflow: 'hidden', height: '180px', flexShrink: 0 }}>
         <img src={promotion.image || 'https://via.placeholder.com/400x180?text=No+Image'} alt={promotion.title}
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
@@ -69,10 +59,8 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
         </div>
       </div>
 
-      {/* Content — grows to fill remaining card height */}
+      {/* Content */}
       <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-
-        {/* Merchant + expiry */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             <i className="fas fa-store-alt" style={{ marginRight: '0.25rem' }}></i>{merchantName}
@@ -82,12 +70,10 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
           </span>
         </div>
 
-        {/* Title — fixed 2 lines */}
         <h3 style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', margin: '0 0 0.4rem', lineHeight: '1.4', height: '2.66rem', overflow: 'hidden' }}>
           {promotion.title}
         </h3>
 
-        {/* Rating */}
         {avgRating && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginBottom: '0.5rem' }}>
             {[1,2,3,4,5].map(s => (
@@ -97,15 +83,12 @@ export default function PromotionCard({ promotion, onFavoriteToggle }: Props) {
           </div>
         )}
 
-        {/* Description — fixed 3 lines */}
         <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: '1.5', height: '3.7rem', overflow: 'hidden', margin: 0 }}>
           {promotion.description}
         </p>
 
-        {/* Spacer pushes bottom row down */}
         <div style={{ flexGrow: 1 }} />
 
-        {/* Directions + View Deal — always at bottom */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '0.875rem', borderTop: '1px solid var(--border-color)', marginTop: '0.875rem' }}>
           {directionsUrl ? (
             <a href={directionsUrl} target="_blank" rel="noopener noreferrer"

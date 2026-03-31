@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { PromotionAPI } from '@/lib/api';
+import { PromotionAPI, UserAPI } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ const CATEGORIES = [
 
 export default function HomePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [featured, setFeatured] = useState<any[]>([]);
   const [latest, setLatest] = useState<any[]>([]);
   const [nearby, setNearby] = useState<any[]>([]);
@@ -31,6 +33,7 @@ export default function HomePage() {
   const [locationError, setLocationError] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     PromotionAPI.getAll().then(data => {
@@ -38,6 +41,13 @@ export default function HomePage() {
       setFeatured([...data].filter((p: any) => p.featured).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       setLatest([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8));
     }).catch(() => toast.error('Failed to load deals.')).finally(() => setLoadingDeals(false));
+
+    // Fetch user favorites once
+    if (user) {
+      UserAPI.getFavorites(user._id).then(favs => {
+        setFavoriteIds(new Set(favs.map((f: any) => f._id || f.id)));
+      }).catch(() => {});
+    }
 
     // Fetch nearby
     if (navigator.geolocation) {
@@ -78,7 +88,11 @@ export default function HomePage() {
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
       {deals.map(p => (
         <div key={p._id || p.id} style={{ display: 'flex' }}>
-          <PromotionCard promotion={p} />
+          <PromotionCard
+            promotion={p}
+            isFavorite={favoriteIds.has(p._id || p.id)}
+            onFavoriteToggle={(id, fav) => setFavoriteIds(prev => { const s = new Set(prev); fav ? s.add(id) : s.delete(id); return s; })}
+          />
         </div>
       ))}
     </div>

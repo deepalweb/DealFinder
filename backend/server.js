@@ -30,8 +30,8 @@ const registerLimiter = rateLimit({
 });
 
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // max 200 requests per 15 min per IP
+  windowMs: 15 * 60 * 1000,
+  max: 500, // increased from 200
   message: { message: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
