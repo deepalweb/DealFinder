@@ -1,7 +1,0 @@
-{
-  "name": "dealfinder-frontend",
-  "version": "1.0.0",
-  "scripts": {
-    "dev": "npx live-server --port=5001 --proxy=/api:http://localhost:8080/api --proxy=/backend:http://localhost:8080/backend --proxy=/scripts:http://localhost:8080/scripts --proxy=/styles:http://localhost:8080/styles"
-  }
-}
