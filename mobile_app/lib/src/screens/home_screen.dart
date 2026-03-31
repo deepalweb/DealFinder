@@ -828,6 +828,19 @@ Future<void> _checkAlerts() async {
     }
   }
 
+  Widget _buildGridShimmer() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, childAspectRatio: 0.62, crossAxisSpacing: 2, mainAxisSpacing: 2,
+      ),
+      itemCount: 4,
+      itemBuilder: (_, __) => const DealCardShimmer(),
+    );
+  }
+
   Widget _buildFeaturedDealsShimmer({double height = 200}) {
     return SizedBox(
       height: height,
