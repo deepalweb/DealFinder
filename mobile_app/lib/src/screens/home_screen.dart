@@ -45,19 +45,32 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _locationAvailable = false;
   bool _isOffline = false;
   static Position? _cachedPosition;
+  int _latestCount = 10;
+  List<Promotion> _latestDeals = [];
 
   @override
   void initState() {
     super.initState();
     _allPromotionsFuture = _apiService.fetchPromotions().then((promos) {
       _allPromotionsCache = promos;
-      if (mounted) setState(() => _isOffline = false);
+      final now = DateTime.now();
+      final sorted = ([...promos]
+        .where((p) => p.endDate == null || p.endDate!.isAfter(now))
+        .toList()
+        ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0))));
+      if (mounted) setState(() { _isOffline = false; _latestDeals = sorted; });
       return promos;
     }).catchError((e) async {
       if (mounted) setState(() => _isOffline = true);
       final cached = await CacheService.loadPromotions(forceStale: true);
       if (cached != null) {
         _allPromotionsCache = cached;
+        final now = DateTime.now();
+        final sorted = ([...cached]
+          .where((p) => p.endDate == null || p.endDate!.isAfter(now))
+          .toList()
+          ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0))));
+        if (mounted) setState(() => _latestDeals = sorted);
         return cached;
       }
       throw e;
@@ -161,6 +174,11 @@ Future<void> _checkAlerts() async {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.appTitle),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Scan QR',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QRScannerScreen())),
+          ),
           Stack(
             children: [
               IconButton(
@@ -287,6 +305,28 @@ Future<void> _checkAlerts() async {
                         ),
                       ],
                     ),
+                  ),
+                  FutureBuilder<List<Promotion>>(
+                    future: _allPromotionsFuture,
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const SizedBox.shrink();
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              '${snapshot.data!.length}',
+                              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const Text('Deals', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -480,7 +520,7 @@ Future<void> _checkAlerts() async {
                         ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
                       final featuredList = featuredDeals.take(5).toList();
                       return SizedBox(
-                        height: 200,
+                        height: 220,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: featuredList.length,
@@ -765,38 +805,58 @@ Future<void> _checkAlerts() async {
             ),
           ),
 
-          if (!_isSearching) FutureBuilder<List<Promotion>>(
-            future: _allPromotionsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return SliverToBoxAdapter(child: _buildGridShimmer());
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-              final now = DateTime.now();
-              final latest = ([...snapshot.data!]
-                .where((p) => p.endDate == null || p.endDate!.isAfter(now))
-                .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
-                .toList()
-                ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0))))
-                .take(8).toList();
-              return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, childAspectRatio: 0.62, crossAxisSpacing: 2, mainAxisSpacing: 2,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: latest[index]))),
-                      child: DealCard(promotion: latest[index], compact: true),
+          // Latest Deals - state-based SliverGrid (no FutureBuilder constraint)
+          if (!_isSearching && _latestDeals.isEmpty)
+            SliverToBoxAdapter(child: _buildGridShimmer()),
+
+          if (!_isSearching && _latestDeals.isNotEmpty) ...[
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              sliver: SliverGrid.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.62,
+                  crossAxisSpacing: 2,
+                  mainAxisSpacing: 2,
+                ),
+                itemCount: (() {
+                  final filtered = _latestDeals
+                    .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
+                    .take(_latestCount)
+                    .toList();
+                  return filtered.length;
+                })(),
+                itemBuilder: (context, index) {
+                  final filtered = _latestDeals
+                    .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
+                    .take(_latestCount)
+                    .toList();
+                  final promotion = filtered[index];
+                  return GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promotion))),
+                    child: DealCard(promotion: promotion, compact: true),
+                  );
+                },
+              ),
+            ),
+            if (_latestDeals.where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId).length > _latestCount)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.expand_more),
+                    label: Text('Load More'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    childCount: latest.length,
+                    onPressed: () => setState(() => _latestCount += 10),
                   ),
                 ),
-              );
-            },
-          ),
-          if (!_isSearching) const SliverToBoxAdapter(child: SizedBox(height: 20)),
+              ),
+          ],
+
+                    if (!_isSearching) const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
       ),
