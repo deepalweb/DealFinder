@@ -474,17 +474,19 @@ Future<void> _checkAlerts() async {
                           .where((p) => p.endDate == null || p.endDate!.isAfter(now))
                           .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
                           .toList();
-                      final featuredDeals = all.where((p) => p.featured == true).isNotEmpty
-                          ? all.where((p) => p.featured == true).take(5).toList()
-                          : all.take(5).toList();
+                      final featuredDeals = (all.where((p) => p.featured == true).isNotEmpty
+                          ? all.where((p) => p.featured == true).toList()
+                          : all.toList())
+                        ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
+                      final featuredList = featuredDeals.take(5).toList();
                       return SizedBox(
                         height: 200,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          itemCount: featuredDeals.length,
+                          itemCount: featuredList.length,
                           padding: const EdgeInsets.symmetric(horizontal: 12.0),
                           itemBuilder: (context, index) {
-                            final promotion = featuredDeals[index];
+                            final promotion = featuredList[index];
                             final now = DateTime.now();
                             final end = promotion.endDate;
                             String? countdown;
