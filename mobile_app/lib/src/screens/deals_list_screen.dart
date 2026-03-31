@@ -155,12 +155,12 @@ class _DealsListScreenState extends State<DealsListScreen> {
       return bDate.compareTo(aDate);
     });
     return GridView.builder(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.72,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
+        childAspectRatio: 0.62,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
       ),
       itemCount: promotions.length,
       itemBuilder: (context, index) {

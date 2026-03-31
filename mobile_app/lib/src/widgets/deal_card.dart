@@ -83,34 +83,35 @@ class _DealCardState extends State<DealCard> {
     return widget.compact ? _buildCompact(theme, p) : _buildList(theme, p);
   }
 
-  // ── Compact grid card ─────────────────────────────────────────────────────
+  // ── Compact grid card (Temu-style) ──────────────────────────────────────
   Widget _buildCompact(ThemeData theme, Promotion p) {
     return Card(
-      margin: const EdgeInsets.all(4),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.all(3),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image with badges overlay
+          // Image — tall, fills most of the card
           Stack(
             children: [
-              _buildImage(height: 120),
+              _buildImage(height: 160),
               // Favorite button
               Positioned(
                 top: 6, right: 6,
                 child: GestureDetector(
                   onTap: _toggleFavorite,
                   child: Container(
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: 0.92),
                       shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
                     ),
                     child: Icon(
                       _isFavorite ? Icons.favorite : Icons.favorite_border,
-                      size: 16,
+                      size: 15,
                       color: _isFavorite ? Colors.red : Colors.grey[600],
                     ),
                   ),
@@ -121,46 +122,74 @@ class _DealCardState extends State<DealCard> {
                 Positioned(
                   top: 6, left: 6,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(6),
+                      color: Colors.red[600],
+                      borderRadius: BorderRadius.circular(5),
                     ),
-                    child: Text(p.discount!, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    child: Text(p.discount!,
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              // Featured badge
+              if (p.featured == true)
+                Positioned(
+                  bottom: 6, left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[700],
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: const Text('HOT',
+                        style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
                   ),
                 ),
             ],
           ),
-          // Info
+          // Info — compact
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.fromLTRB(7, 6, 7, 7),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold, fontSize: 13)),
-                if (p.merchantName != null && p.merchantName!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(p.merchantName!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
-                ],
-                if (p.discountedPrice != null || p.price != null) ...[
-                  const SizedBox(height: 4),
+                Text(p.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
+                const SizedBox(height: 3),
+                if (p.merchantName != null && p.merchantName!.isNotEmpty)
+                  Text(p.merchantName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 10, color: theme.colorScheme.primary, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                // Price row
+                if (p.discountedPrice != null || p.originalPrice != null || p.price != null)
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
                     children: [
-                      if (p.originalPrice != null)
-                        Text('Rs.${p.originalPrice!.toStringAsFixed(0)}',
-                            style: const TextStyle(fontSize: 11, color: Colors.grey, decoration: TextDecoration.lineThrough)),
-                      const SizedBox(width: 4),
                       Text(
-                        'Rs.${(p.discountedPrice ?? p.price)!.toStringAsFixed(0)}',
-                        style: TextStyle(fontSize: 13, color: Colors.green[700], fontWeight: FontWeight.bold),
+                        'Rs.${(p.discountedPrice ?? p.price ?? p.originalPrice)!.toStringAsFixed(0)}',
+                        style: TextStyle(fontSize: 13, color: Colors.red[700], fontWeight: FontWeight.bold),
                       ),
+                      if (p.originalPrice != null && p.discountedPrice != null) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          'Rs.${p.originalPrice!.toStringAsFixed(0)}',
+                          style: const TextStyle(fontSize: 10, color: Colors.grey,
+                              decoration: TextDecoration.lineThrough),
+                        ),
+                      ],
                     ],
-                  ),
-                ],
+                  )
+                else
+                  Text(p.discount ?? '',
+                      style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.bold)),
+                // Expiry
                 if (p.endDate != null) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   _ExpiryBadge(endDate: p.endDate!),
                 ],
               ],
