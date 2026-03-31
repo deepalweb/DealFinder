@@ -298,11 +298,11 @@ class _DealCardState extends State<DealCard> {
                   Row(
                     children: [
                       if (p.originalPrice != null) ...[
-                        Text('Rs.${p.originalPrice!.toStringAsFixed(2)}',
+                        Text('${_getCurrencySymbol()}${p.originalPrice!.toStringAsFixed(2)}',
                             style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey, fontSize: 13)),
                         const SizedBox(width: 8),
                       ],
-                      Text('Rs.${(p.discountedPrice ?? p.price)!.toStringAsFixed(2)}',
+                      Text('${_getCurrencySymbol()}${(p.discountedPrice ?? p.price)!.toStringAsFixed(2)}',
                           style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 16)),
                     ],
                   ),
