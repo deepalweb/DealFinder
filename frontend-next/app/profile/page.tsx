@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 export default function ProfilePage() {
   const { user, logout, updateUser } = useAuth();
   const router = useRouter();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
   const [favorites, setFavorites] = useState<any[]>([]);
@@ -27,6 +28,13 @@ export default function ProfilePage() {
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try { const updated = await UserAPI.updateProfile(user!._id, { name: form.name, profilePicture: form.profilePicture }); updateUser(updated); toast.success('Profile updated!'); } catch { toast.error('Failed to update profile.'); } finally { setSaving(false); }
+  };
+
+  const handleAvatarFile = (file: File) => {
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => setForm(prev => ({ ...prev, profilePicture: reader.result as string }));
+    reader.readAsDataURL(file);
   };
 
   const handlePasswordSave = async (e: React.FormEvent) => {
@@ -79,11 +87,37 @@ export default function ProfilePage() {
               <div>
                 <h2 style={{ fontSize:'1.25rem', fontWeight:800, marginBottom:'1.5rem', color:'var(--text-primary)' }}>Profile Settings</h2>
                 <form onSubmit={handleProfileSave}>
-                  <div className="flex items-center gap-4 mb-5 p-4 rounded-xl" style={{ background:'var(--light-gray)', border:'1px solid var(--border-color)' }}>
-                    <img src={getSafeImage(form.profilePicture, user.name)} alt="Avatar" style={{ width:'56px', height:'56px', borderRadius:'50%', objectFit:'cover', border:'2px solid var(--primary-color)' }} />
+                  {/* Profile Picture Upload */}
+                  <div className="flex items-center gap-5 mb-5 p-4 rounded-xl" style={{ background:'var(--light-gray)', border:'1px solid var(--border-color)' }}>
+                    <div style={{ position:'relative', flexShrink:0 }}>
+                      <img src={getSafeImage(form.profilePicture, user.name)} alt="Avatar"
+                        style={{ width:'80px', height:'80px', borderRadius:'50%', objectFit:'cover', border:'3px solid var(--primary-color)' }} />
+                      <button type="button" onClick={() => avatarInputRef.current?.click()}
+                        style={{ position:'absolute', bottom:0, right:0, width:'26px', height:'26px', borderRadius:'50%', background:'var(--primary-color)', border:'2px solid var(--card-bg)', color:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.65rem' }}>
+                        <i className="fas fa-camera"></i>
+                      </button>
+                      <input ref={avatarInputRef} type="file" accept="image/*" style={{ display:'none' }}
+                        onChange={e => e.target.files?.[0] && handleAvatarFile(e.target.files[0])} />
+                    </div>
                     <div className="flex-1">
-                      <p style={{ fontSize:'0.85rem', fontWeight:600, marginBottom:'0.25rem', color:'var(--text-primary)' }}>Profile Picture URL</p>
-                      <input style={inputStyle} value={form.profilePicture} onChange={e=>setForm({...form,profilePicture:e.target.value})} placeholder="https://..." />
+                      <p style={{ fontSize:'0.875rem', fontWeight:700, color:'var(--text-primary)', margin:'0 0 0.25rem' }}>Profile Picture</p>
+                      <p style={{ fontSize:'0.75rem', color:'var(--text-secondary)', margin:'0 0 0.625rem' }}>JPG, PNG up to 5MB</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <button type="button" onClick={() => avatarInputRef.current?.click()}
+                          className="btn" style={{ fontSize:'0.78rem', padding:'0.35rem 0.75rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--text-primary)' }}>
+                          <i className="fas fa-upload"></i> Upload Photo
+                        </button>
+                        {form.profilePicture && (
+                          <button type="button" onClick={() => setForm(prev => ({ ...prev, profilePicture: '' }))}
+                            style={{ fontSize:'0.78rem', padding:'0.35rem 0.75rem', borderRadius:'0.625rem', border:'1.5px solid rgba(239,68,68,0.3)', background:'rgba(239,68,68,0.06)', color:'#ef4444', cursor:'pointer' }}>
+                            <i className="fas fa-trash"></i> Remove
+                          </button>
+                        )}
+                      </div>
+                      <input style={{ ...inputStyle, marginTop:'0.625rem', fontSize:'0.8rem' }}
+                        value={form.profilePicture.startsWith('data:') ? '' : form.profilePicture}
+                        onChange={e => setForm({ ...form, profilePicture: e.target.value })}
+                        placeholder="Or paste image URL: https://..." />
                     </div>
                   </div>
                   <div style={{ marginBottom:'1rem' }}><label style={{ display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'var(--text-primary)' }}>Full Name</label><input style={inputStyle} value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required /></div>
