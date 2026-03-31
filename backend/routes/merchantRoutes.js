@@ -125,6 +125,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('socialMedia').optional().isObject(),
   body('status').optional().isIn(['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'])
     .withMessage('Invalid status value'),
+  body('currency').optional().isString().withMessage('Currency must be a string'),
   body('location').optional().isObject().withMessage('Location must be an object'),
   body('location.type').optional().isIn(['Point']).withMessage('Location type must be "Point"'),
   body('location.coordinates').optional().isArray({ min: 2, max: 2 }).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
@@ -147,6 +148,8 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     if (address !== undefined) updateData.address = address;
     if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
     if (socialMedia !== undefined) updateData.socialMedia = socialMedia;
+    const { currency } = req.body;
+    if (currency !== undefined) updateData.currency = currency;
 
     if (location === null) {
       // Frontend sends null to explicitly clear the location.

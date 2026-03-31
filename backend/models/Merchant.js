@@ -32,6 +32,7 @@ const merchantSchema = new mongoose.Schema({
     enum: ['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'],
     default: 'active'
   },
+  currency: { type: String, default: 'USD' }, // e.g. USD, LKR, EUR, GBP, INR
   location: { // GeoJSON Point for location
     type: locationSchema,
     index: '2dsphere' // Create a geospatial index for location queries

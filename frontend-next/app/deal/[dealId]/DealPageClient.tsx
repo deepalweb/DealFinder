@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PromotionAPI, UserAPI } from '@/lib/api';
+import { getCurrencySymbol } from '@/lib/currency';
 import { useAuth } from '@/contexts/AuthContext';
 import PromotionCard from '@/components/ui/PromotionCard';
 import toast from 'react-hot-toast';
@@ -101,6 +102,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   const avgRating = ratings.length > 0 ? ratings.reduce((s: number, r: any) => s + r.value, 0) / ratings.length : null;
   const merchantName = deal ? (typeof deal.merchant === 'object' ? deal.merchant?.name : deal.merchant) : '';
   const merchantId = deal ? (typeof deal.merchant === 'object' ? deal.merchant?._id : deal.merchant) : null;
+  const currencySymbol = deal ? getCurrencySymbol(deal.merchant?.currency) : '$';
   const daysLeft = deal ? Math.ceil((new Date(deal.endDate).getTime() - Date.now()) / 86400000) : 0;
   const isExpired = daysLeft < 0;
 
@@ -183,10 +185,10 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                 </span>
                 {deal.originalPrice && deal.discountedPrice && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ textDecoration: 'line-through', color: 'var(--text-secondary)' }}>${deal.originalPrice}</span>
-                    <span style={{ fontWeight: 700, color: '#059669', fontSize: '1rem' }}>${deal.discountedPrice}</span>
+                    <span style={{ textDecoration: 'line-through', color: 'var(--text-secondary)' }}>{currencySymbol}{deal.originalPrice}</span>
+                    <span style={{ fontWeight: 700, color: '#059669', fontSize: '1rem' }}>{currencySymbol}{deal.discountedPrice}</span>
                     <span style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', padding: '0.1rem 0.4rem', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700 }}>
-                      Save ${(deal.originalPrice - deal.discountedPrice).toFixed(2)}
+                      Save {currencySymbol}{(deal.originalPrice - deal.discountedPrice).toFixed(2)}
                     </span>
                   </span>
                 )}

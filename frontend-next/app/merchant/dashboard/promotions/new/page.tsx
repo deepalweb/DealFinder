@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { PromotionAPI } from '@/lib/api';
+import { getCurrencySymbol } from '@/lib/currency';
 import toast from 'react-hot-toast';
 
 const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','education'];
@@ -19,6 +20,7 @@ function NewPromotionContent() {
   const [hasChanges, setHasChanges] = useState(false);
   const [imagePreview, setImagePreview] = useState('');
   const [activeTab, setActiveTab] = useState('details');
+  const [currencySymbol, setCurrencySymbol] = useState('$');
 
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
@@ -30,6 +32,12 @@ function NewPromotionContent() {
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
     if (user.role !== 'merchant') { router.push('/'); return; }
+    // Load merchant currency
+    import('@/lib/api').then(({ MerchantAPI }) => {
+      MerchantAPI.getById(user.merchantId!).then(m => {
+        setCurrencySymbol(getCurrencySymbol(m.currency));
+      }).catch(() => {});
+    });
     if (editId) {
       PromotionAPI.getById(editId).then(p => {
         const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
@@ -220,7 +228,7 @@ function NewPromotionContent() {
                       <div className="fade-in" style={{ padding:'1rem', borderRadius:'0.875rem', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)' }}>
                         <p style={{ margin:0, fontSize:'0.875rem', fontWeight:600, color:'#059669' }}>
                           <i className="fas fa-check-circle mr-2"></i>
-                          Customers save ${(parseFloat(form.originalPrice) - parseFloat(form.discountedPrice)).toFixed(2)} ({Math.round((1 - parseFloat(form.discountedPrice)/parseFloat(form.originalPrice))*100)}% off)
+                          Customers save `\${currencySymbol}\${(parseFloat(form.originalPrice) - parseFloat(form.discountedPrice)).toFixed(2)} ({Math.round((1 - parseFloat(form.discountedPrice)/parseFloat(form.originalPrice))*100)}% off)
                         </p>
                       </div>
                     )}

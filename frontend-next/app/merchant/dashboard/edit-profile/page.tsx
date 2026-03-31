@@ -7,6 +7,7 @@ import { MerchantAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 import MapPicker from '@/components/ui/MapPicker';
+import { CURRENCIES } from '@/lib/currency';
 
 const TABS = [
   { id: 'basic', icon: 'fa-store', label: 'Basic Info' },
@@ -47,6 +48,7 @@ export default function EditProfilePage() {
     address: '',
     logo: '',
     banner: '',
+    currency: 'USD',
     socialMedia: { facebook: '', instagram: '', twitter: '', tiktok: '' },
     location: null as { lat: number; lng: number } | null,
   });
@@ -67,6 +69,7 @@ export default function EditProfilePage() {
         banner: m.banner || '',
         socialMedia: { facebook: m.socialMedia?.facebook || '', instagram: m.socialMedia?.instagram || '', twitter: m.socialMedia?.twitter || '', tiktok: m.socialMedia?.tiktok || '' },
         location: m.location?.coordinates ? { lat: m.location.coordinates[1], lng: m.location.coordinates[0] } : null,
+        currency: m.currency || 'USD',
       };
       setForm(data);
       setOriginalData(data);
@@ -101,6 +104,7 @@ export default function EditProfilePage() {
         contactNumber: form.contactNumber,
         address: form.address,
         logo: form.logo,
+        currency: form.currency,
         socialMedia: form.socialMedia,
         location: form.location
           ? { type: 'Point', coordinates: [form.location.lng, form.location.lat] }
@@ -220,6 +224,16 @@ export default function EditProfilePage() {
                         <option value="">Select a category</option>
                         {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
                       </select>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Currency</label>
+                      <select style={inputStyle} value={form.currency} onChange={e => updateForm('currency', e.target.value)}
+                        onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')}>
+                        {CURRENCIES.map(c => (
+                          <option key={c.code} value={c.code}>{c.symbol} — {c.name} ({c.code})</option>
+                        ))}
+                      </select>
+                      <p style={hintStyle}>This currency will be shown on all your deal prices</p>
                     </div>
                     <div>
                       <label style={labelStyle}>Store Description</label>
