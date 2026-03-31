@@ -51,8 +51,10 @@ jobs:
           # Copy static assets into the nested path
           cp -r frontend-next/.next/static deploy/frontend-next/frontend-next/.next/static
 
-          # Copy public folder
-          cp -r frontend-next/public deploy/frontend-next/frontend-next/public
+          # Copy public folder (only if it exists and has files)
+          if [ -d "frontend-next/public" ] && [ "$(ls -A frontend-next/public 2>/dev/null)" ]; then
+            cp -r frontend-next/public deploy/frontend-next/frontend-next/public
+          fi
 
           # Root files
           cp package.json deploy/
