@@ -34,12 +34,13 @@ export default function HomePage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [latestCount, setLatestCount] = useState(8);
 
   useEffect(() => {
     PromotionAPI.getAll().then(data => {
       setAllPromotions(data);
       setFeatured([...data].filter((p: any) => p.featured).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-      setLatest([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8));
+      setLatest([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     }).catch(() => toast.error('Failed to load deals.')).finally(() => setLoadingDeals(false));
 
     // Fetch user favorites once
@@ -233,7 +234,18 @@ export default function HomePage() {
             {/* Latest */}
             <div className="mb-12">
               <h2 className="section-title"><i className="fas fa-clock" style={{ color: 'var(--primary-color)' }}></i> Latest Deals</h2>
-              {loadingDeals ? <SkeletonGrid count={8} /> : <DealGrid deals={latest} />}
+              {loadingDeals ? <SkeletonGrid count={8} /> : (
+                <>
+                  <DealGrid deals={latest.slice(0, latestCount)} />
+                  {latestCount < latest.length && (
+                    <div className="text-center mt-6">
+                      <button onClick={() => setLatestCount(c => c + 8)} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
+                        <i className="fas fa-chevron-down mr-2"></i>Load More ({latest.length - latestCount} remaining)
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </>
         )}

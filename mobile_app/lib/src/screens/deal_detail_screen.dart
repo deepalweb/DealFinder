@@ -240,7 +240,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () async {
-                      final link = 'https://dealfinder.app/deal/${promotion.id}';
+                      final link = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/deal/${promotion.id}';
                       await Clipboard.setData(ClipboardData(text: link));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Deal link copied!')),

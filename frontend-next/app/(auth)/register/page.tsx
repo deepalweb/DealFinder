@@ -16,6 +16,21 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const getPasswordStrength = (pwd: string) => {
+    if (!pwd) return null;
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (/[A-Z]/.test(pwd)) score++;
+    if (/[0-9]/.test(pwd)) score++;
+    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (score <= 1) return { label: 'Weak', color: '#ef4444', width: '25%' };
+    if (score <= 2) return { label: 'Fair', color: '#f97316', width: '50%' };
+    if (score <= 3) return { label: 'Good', color: '#eab308', width: '75%' };
+    return { label: 'Strong', color: '#22c55e', width: '100%' };
+  };
+  const strength = getPasswordStrength(formData.password);
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!formData.name.trim()) e.name = 'Name is required';
@@ -98,6 +113,14 @@ export default function RegisterPage() {
                 </button>
               </div>
               {errors.password && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.password}</p>}
+              {strength && !errors.password && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ height: '4px', borderRadius: '9999px', background: 'var(--border-color)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: strength.width, background: strength.color, borderRadius: '9999px', transition: 'all 0.3s' }} />
+                  </div>
+                  <p style={{ fontSize: '0.72rem', color: strength.color, marginTop: '0.25rem', fontWeight: 600 }}>{strength.label} password</p>
+                </div>
+              )}
             </div>
 
             <div style={{ marginBottom: '0.875rem' }}>

@@ -23,6 +23,7 @@ class Promotion {
   final double? distance;
   final String? merchantLogoUrl;
   final int ratingsCount;
+  final String? merchantCurrency;
 
   Promotion({
     required this.id,
@@ -47,6 +48,7 @@ class Promotion {
     this.distance,
     this.merchantLogoUrl,
     this.ratingsCount = 0,
+    this.merchantCurrency,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
@@ -72,6 +74,7 @@ class Promotion {
       merchantId: json['merchantId'] as String? ?? (json['merchant'] is Map ? json['merchant']['_id'] as String? : null),
       merchantName: json['merchantName'] as String? ?? (json['merchant'] is Map ? json['merchant']['name'] as String? : null),
       merchantLogoUrl: json['merchantLogoUrl'] as String? ?? (json['merchant'] is Map ? json['merchant']['logo'] as String? : null),
+      merchantCurrency: json['merchantCurrency'] as String? ?? (json['merchant'] is Map ? json['merchant']['currency'] as String? : null),
       imageDataString: json['imageUrl'] as String? ?? json['image'] as String? ?? json['imageDataString'] as String?,
       code: json['code'] as String?,
       discount: json['discount'] as String?,
