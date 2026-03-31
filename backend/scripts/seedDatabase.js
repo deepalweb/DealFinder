@@ -37,7 +37,7 @@ const users = [
   },
   {
     name: 'Admin User',
-    email: 'admin@example.com',
+    email: 'drstoreslk@gmail.com',
     password: 'admin123',
     role: 'admin'
   }

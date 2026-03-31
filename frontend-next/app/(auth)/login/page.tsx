@@ -193,7 +193,6 @@ export default function LoginPage() {
             <div className="flex gap-2">
               {[
                 { label: 'Merchant', icon: 'fa-store', email: 'jane@example.com', pass: 'password123', color: '#059669', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.3)' },
-                { label: 'Admin', icon: 'fa-shield-alt', email: 'admin@example.com', pass: 'admin123', color: '#ef4444', bg: 'rgba(239,68,68,0.06)', border: 'rgba(239,68,68,0.3)' },
                 { label: 'User', icon: 'fa-user', email: 'john@example.com', pass: 'password123', color: 'var(--primary-color)', bg: 'rgba(99,102,241,0.06)', border: 'rgba(99,102,241,0.3)' },
               ].map(d => (
                 <button key={d.label} type="button"
