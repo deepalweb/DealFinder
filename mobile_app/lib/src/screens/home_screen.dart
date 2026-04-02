@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Timer? _debounce;
   List<Promotion> _allPromotionsCache = [];
   bool _locationAvailable = false;
+  bool _locationChecked = false;
   bool _isOffline = false;
   static Position? _cachedPosition;
   int _latestCount = 10;
@@ -129,9 +130,21 @@ Future<void> _checkAlerts() async {
   }
 
   Future<void> _refresh() async {
+    final newFuture = _apiService.fetchPromotions().then((promos) {
+      _allPromotionsCache = promos;
+      final now = DateTime.now();
+      final sorted = ([...promos]
+        .where((p) => p.endDate == null || p.endDate!.isAfter(now))
+        .toList()
+        ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0))));
+      if (mounted) setState(() { _isOffline = false; _latestDeals = sorted; });
+      return promos;
+    }).catchError((e) async {
+      if (mounted) setState(() => _isOffline = true);
+      return <Promotion>[];
+    });
     setState(() {
-      _allPromotionsFuture = _apiService.fetchPromotions();
-      _allPromotionsFuture.then((promos) => _allPromotionsCache = promos).catchError((_) {});
+      _allPromotionsFuture = newFuture;
       _nearbyDealsPreviewFuture = _fetchNearbyDealsPreview(useCache: true);
     });
     await Future.wait([_allPromotionsFuture, _nearbyDealsPreviewFuture]);
@@ -147,10 +160,10 @@ Future<void> _checkAlerts() async {
         if (position != null) _cachedPosition = position;
       }
       if (position == null) {
-        if (mounted) setState(() => _locationAvailable = false);
+        if (mounted) setState(() { _locationAvailable = false; _locationChecked = true; });
         return [];
       }
-      if (mounted) setState(() => _locationAvailable = true);
+      if (mounted) setState(() { _locationAvailable = true; _locationChecked = true; });
       try {
         final nearbyDeals = await _apiService.fetchNearbyPromotions(
           position.latitude,
@@ -163,7 +176,7 @@ Future<void> _checkAlerts() async {
         return [];
       }
     } catch (e) {
-      if (mounted) setState(() => _locationAvailable = false);
+      if (mounted) setState(() { _locationAvailable = false; _locationChecked = true; });
       return [];
     }
   }
@@ -647,7 +660,7 @@ Future<void> _checkAlerts() async {
                   FutureBuilder<List<Promotion>>(
                     future: _nearbyDealsPreviewFuture,
                     builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
+                      if (snapshot.connectionState == ConnectionState.waiting || !_locationChecked) {
                         return _buildFeaturedDealsShimmer();
                       }
                       if (!_locationAvailable) {
@@ -891,15 +904,17 @@ Future<void> _checkAlerts() async {
   }
 
   Widget _buildGridShimmer() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, childAspectRatio: 0.62, crossAxisSpacing: 2, mainAxisSpacing: 2,
+    return SizedBox(
+      height: 400,
+      child: GridView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2, childAspectRatio: 0.62, crossAxisSpacing: 2, mainAxisSpacing: 2,
+        ),
+        itemCount: 4,
+        itemBuilder: (_, __) => const DealCardShimmer(),
       ),
-      itemCount: 4,
-      itemBuilder: (_, __) => const DealCardShimmer(),
     );
   }
 
