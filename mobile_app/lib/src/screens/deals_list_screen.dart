@@ -149,7 +149,8 @@ class _DealsListScreenState extends State<DealsListScreen> {
         ),
       );
     }
-    promotions.sort((a, b) {
+    // Create a copy to avoid mutating the original list
+    final sortedPromotions = [...promotions]..sort((a, b) {
       final aDate = a.startDate ?? DateTime(1970);
       final bDate = b.startDate ?? DateTime(1970);
       return bDate.compareTo(aDate);
@@ -162,9 +163,9 @@ class _DealsListScreenState extends State<DealsListScreen> {
         crossAxisSpacing: 2,
         mainAxisSpacing: 2,
       ),
-      itemCount: promotions.length,
+      itemCount: sortedPromotions.length,
       itemBuilder: (context, index) {
-        final promo = promotions[index];
+        final promo = sortedPromotions[index];
         return GestureDetector(
           onTap: () => Navigator.push(
             context,
