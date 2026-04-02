@@ -48,6 +48,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static Position? _cachedPosition;
   int _latestCount = 10;
   List<Promotion> _latestDeals = [];
+  static const int _homePageLatestDealsLimit = 6; // Show only 6 on home page
 
   @override
   void initState() {
@@ -794,7 +795,7 @@ Future<void> _checkAlerts() async {
             ),
           ),
 
-          // Latest Deals - 2-column grid newest first
+          // Latest Deals - show only 6 with View More button
           if (!_isSearching) SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -806,23 +807,16 @@ Future<void> _checkAlerts() async {
                     const SizedBox(width: 6),
                     Text('Latest Deals', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                   ]),
-                  TextButton(
-                    onPressed: () => _allPromotionsFuture.then((promos) {
-                      final sorted = [...promos]..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => DealsListScreen(promotions: sorted, title: 'Latest Deals')));
-                    }),
-                    child: Text(AppLocalizations.of(context)!.viewAll),
-                  ),
                 ],
               ),
             ),
           ),
 
-          // Latest Deals - state-based SliverGrid (no FutureBuilder constraint)
+          // Latest Deals Grid - show only 6 deals
           if (!_isSearching && _latestDeals.isEmpty)
             SliverToBoxAdapter(child: _buildGridShimmer()),
 
-          if (!_isSearching && _latestDeals.isNotEmpty) ...[
+          if (!_isSearching && _latestDeals.isNotEmpty)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               sliver: SliverGrid.builder(
@@ -835,14 +829,14 @@ Future<void> _checkAlerts() async {
                 itemCount: (() {
                   final filtered = _latestDeals
                     .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
-                    .take(_latestCount)
+                    .take(_homePageLatestDealsLimit)
                     .toList();
                   return filtered.length;
                 })(),
                 itemBuilder: (context, index) {
                   final filtered = _latestDeals
                     .where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId)
-                    .take(_latestCount)
+                    .take(_homePageLatestDealsLimit)
                     .toList();
                   final promotion = filtered[index];
                   return GestureDetector(
@@ -852,22 +846,31 @@ Future<void> _checkAlerts() async {
                 },
               ),
             ),
-            if (_latestDeals.where((p) => _selectedCategoryId == null || p.category == _selectedCategoryId).length > _latestCount)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.expand_more),
-                    label: Text('Load More'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () => setState(() => _latestCount += 10),
+
+          // View More button - always show if there are deals
+          if (!_isSearching && _latestDeals.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('View More Deals'),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
                   ),
+                  onPressed: () {
+                    // Navigate to DealsListScreen without passing promotions (dynamic mode)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const DealsListScreen()),
+                    );
+                  },
                 ),
               ),
-          ],
+            ),
 
                     if (!_isSearching) const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
