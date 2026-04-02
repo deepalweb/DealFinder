@@ -44,7 +44,17 @@ class _DealsListScreenState extends State<DealsListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(appBarTitle),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(appBarTitle),
+            if (widget.promotions != null)
+              Text(
+                '${widget.promotions!.length} deals',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -137,6 +147,9 @@ class _DealsListScreenState extends State<DealsListScreen> {
   }
 
   Widget _buildList(List<Promotion> promotions) {
+    // Debug: Print the count
+    debugPrint('DealsListScreen: Rendering ${promotions.length} deals');
+    
     if (promotions.isEmpty) {
       return Center(
         child: Column(
@@ -155,6 +168,9 @@ class _DealsListScreenState extends State<DealsListScreen> {
       final bDate = b.startDate ?? DateTime(1970);
       return bDate.compareTo(aDate);
     });
+    
+    debugPrint('DealsListScreen: After sorting, showing ${sortedPromotions.length} deals');
+    
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
