@@ -1,0 +1,195 @@
+{
+  "@@locale": "en",
+
+  "appTitle": "DealFinder",
+  "@appTitle": { "description": "App title" },
+
+  "welcomeBack": "Welcome back, {name}!",
+  "@welcomeBack": {
+    "description": "Welcome message on home screen",
+    "placeholders": { "name": { "type": "String" } }
+  },
+
+  "findBestDeals": "Find the best deals for you",
+  "@findBestDeals": { "description": "Home screen subtitle" },
+
+  "searchHint": "Search deals, categories, merchants...",
+  "@searchHint": { "description": "Search bar hint text" },
+
+  "featuredDeals": "Featured Deals",
+  "@featuredDeals": { "description": "Featured deals section title" },
+
+  "nearbyDeals": "Nearby Deals",
+  "@nearbyDeals": { "description": "Nearby deals section title" },
+
+  "trendingNow": "Trending Now",
+  "@trendingNow": { "description": "Trending section title" },
+
+  "viewAll": "View All",
+  "@viewAll": { "description": "View all button" },
+
+  "nearby": "Nearby",
+  "@nearby": { "description": "Quick action nearby label" },
+
+  "coupons": "Coupons",
+  "@coupons": { "description": "Quick action coupons label" },
+
+  "scanQR": "Scan QR",
+  "@scanQR": { "description": "Quick action scan QR label" },
+
+  "favorites": "Favorites",
+  "@favorites": { "description": "Quick action favorites label" },
+
+  "deals": "Deals",
+  "@deals": { "description": "Stats deals label" },
+
+  "merchants": "Merchants",
+  "@merchants": { "description": "Stats merchants label" },
+
+  "users": "Users",
+  "@users": { "description": "Stats users label" },
+
+  "privacyPolicy": "Privacy Policy",
+  "@privacyPolicy": { "description": "Footer privacy policy link" },
+
+  "about": "About",
+  "@about": { "description": "Footer about link" },
+
+  "contact": "Contact",
+  "@contact": { "description": "Footer contact link" },
+
+  "copyright": "© 2025 DealFinder. All rights reserved.",
+  "@copyright": { "description": "Footer copyright text" },
+
+  "noFeaturedDeals": "No featured deals available.",
+  "@noFeaturedDeals": { "description": "Empty state for featured deals" },
+
+  "noNearbyDeals": "No other deals available currently.",
+  "@noNearbyDeals": { "description": "Empty state for nearby deals" },
+
+  "noTrendingDeals": "No trending deals available.",
+  "@noTrendingDeals": { "description": "Empty state for trending deals" },
+
+  "apiConnectionFailed": "API Connection Failed",
+  "@apiConnectionFailed": { "description": "API error title" },
+
+  "retry": "Retry",
+  "@retry": { "description": "Retry button" },
+
+  "notifications": "Notifications",
+  "@notifications": { "description": "Notifications screen title" },
+
+  "couponsComing": "Coupons coming soon!",
+  "@couponsComing": { "description": "Coupons snackbar message" },
+
+  "daysLeft": "{days}d left",
+  "@daysLeft": {
+    "description": "Days left countdown",
+    "placeholders": { "days": { "type": "int" } }
+  },
+
+  "hoursLeft": "{hours}h left",
+  "@hoursLeft": {
+    "description": "Hours left countdown",
+    "placeholders": { "hours": { "type": "int" } }
+  },
+
+  "minutesLeft": "{minutes}m left",
+  "@minutesLeft": {
+    "description": "Minutes left countdown",
+    "placeholders": { "minutes": { "type": "int" } }
+  },
+
+  "expired": "Expired",
+  "@expired": { "description": "Expired label" },
+
+  "hot": "Hot",
+  "@hot": { "description": "Trending hot label" },
+
+  "loginTitle": "Welcome Back",
+  "@loginTitle": { "description": "Login screen title" },
+
+  "loginSubtitle": "Sign in to continue",
+  "@loginSubtitle": { "description": "Login screen subtitle" },
+
+  "email": "Email",
+  "@email": { "description": "Email field label" },
+
+  "password": "Password",
+  "@password": { "description": "Password field label" },
+
+  "forgotPassword": "Forgot Password?",
+  "@forgotPassword": { "description": "Forgot password link" },
+
+  "signIn": "Sign In",
+  "@signIn": { "description": "Sign in button" },
+
+  "orContinueWith": "Or continue with",
+  "@orContinueWith": { "description": "Social login divider text" },
+
+  "noAccount": "Don't have an account?",
+  "@noAccount": { "description": "No account prompt" },
+
+  "signUp": "Sign Up",
+  "@signUp": { "description": "Sign up link" },
+
+  "registerTitle": "Create Account",
+  "@registerTitle": { "description": "Register screen title" },
+
+  "registerSubtitle": "Join DealFinder today",
+  "@registerSubtitle": { "description": "Register screen subtitle" },
+
+  "fullName": "Full Name",
+  "@fullName": { "description": "Full name field label" },
+
+  "confirmPassword": "Confirm Password",
+  "@confirmPassword": { "description": "Confirm password field label" },
+
+  "alreadyHaveAccount": "Already have an account?",
+  "@alreadyHaveAccount": { "description": "Already have account prompt" },
+
+  "getDirections": "Get Directions",
+  "@getDirections": { "description": "Get directions button" },
+
+  "shareDeal": "Share Deal",
+  "@shareDeal": { "description": "Share deal button" },
+
+  "saveFavorites": "Save to Favorites",
+  "@saveFavorites": { "description": "Save to favorites button" },
+
+  "removeFavorite": "Remove Favorite",
+  "@removeFavorite": { "description": "Remove favorite button" },
+
+  "goToPromotion": "Go to Promotion",
+  "@goToPromotion": { "description": "Go to promotion button" },
+
+  "visitWebsite": "Visit Website",
+  "@visitWebsite": { "description": "Visit website button" },
+
+  "writeReview": "Write Review",
+  "@writeReview": { "description": "Write review button" },
+
+  "reportDeal": "Report Deal",
+  "@reportDeal": { "description": "Report deal button" },
+
+  "addToCalendar": "Add to Calendar",
+  "@addToCalendar": { "description": "Add to calendar button" },
+
+  "noLocationAvailable": "No location available for this deal.",
+  "@noLocationAvailable": { "description": "No location snackbar" },
+
+  "couldNotOpenMaps": "Could not open Google Maps.",
+  "@couldNotOpenMaps": { "description": "Maps error snackbar" },
+
+  "allDeals": "All Deals",
+  "@allDeals": { "description": "All deals tab label" },
+
+  "stores": "Stores",
+  "@stores": { "description": "Stores tab label" },
+
+  "home": "Home",
+  "@home": { "description": "Home tab label" },
+
+  "profile": "Profile",
+  "@profile": { "description": "Profile tab label" }
+}
