@@ -51,12 +51,31 @@ class _DealCardState extends State<DealCard> {
 
   Widget _buildImage({required double height}) {
     final img = widget.promotion.imageDataString;
-
+    
+    // Use a colorful gradient placeholder when no image
     Widget placeholder = Container(
       height: height,
       width: double.infinity,
-      color: Colors.grey[200],
-      child: Icon(Icons.local_offer, size: height * 0.3, color: Colors.grey[400]),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue[300]!, Colors.purple[300]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.local_offer, size: height * 0.25, color: Colors.white.withOpacity(0.8)),
+            const SizedBox(height: 8),
+            Text(
+              'Deal Image',
+              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
     );
 
     if (img == null || img.isEmpty) return placeholder;
