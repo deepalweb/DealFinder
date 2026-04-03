@@ -178,6 +178,7 @@ router.post('/', authenticateJWT, [
   body('startDate').isISO8601().withMessage('Start date must be a valid date'),
   body('endDate').isISO8601().withMessage('End date must be a valid date'),
   body('image').optional().isString(),
+  body('images').optional().isArray().withMessage('Images must be an array'),
   body('url').optional().isString(),
   body('merchantId').trim().notEmpty().withMessage('Merchant ID is required'),
   body('featured').optional().isBoolean(),
@@ -197,7 +198,7 @@ router.post('/', authenticateJWT, [
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    let { title, description, discount, code, category, startDate, endDate, image, url, merchantId, featured, originalPrice, discountedPrice } = req.body;
+    let { title, description, discount, code, category, startDate, endDate, image, images, url, merchantId, featured, originalPrice, discountedPrice } = req.body;
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
@@ -236,6 +237,7 @@ router.post('/', authenticateJWT, [
       startDate,
       endDate,
       image,
+      images: images || [],
       url,
       merchant: merchantId,
       featured: featured === true || featured === 'true',
@@ -282,6 +284,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
   body('startDate').optional().isISO8601().withMessage('Start date must be a valid date'),
   body('endDate').optional().isISO8601().withMessage('End date must be a valid date'),
   body('image').optional().isString(),
+  body('images').optional().isArray().withMessage('Images must be an array'),
   body('url').optional().isString(),
   body('featured').optional().isBoolean(),
   body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
@@ -304,12 +307,13 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { title, description, discount, code, category, startDate, endDate, image, url, featured, originalPrice, discountedPrice } = req.body;
+    const { title, description, discount, code, category, startDate, endDate, image, images, url, featured, originalPrice, discountedPrice } = req.body;
     
     const updateData = {
       title, description, discount, code, category, startDate, endDate, image, url,
       featured: featured === true || featured === 'true'
     };
+    if (images !== undefined) updateData.images = images;
 
     if (startDate && endDate) {
       updateData.status = new Date(endDate) > new Date() ? 'active' : 'expired';
