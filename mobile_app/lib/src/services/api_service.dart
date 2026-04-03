@@ -58,6 +58,11 @@ class ApiService {
       final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
+        print('=== API Response ===');
+        if (body.isNotEmpty) {
+          print('First deal: ${body.first}');
+          print('Image field: ${body.first['image']}');
+        }
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
         try { await CacheService.savePromotions(promotions); } catch (_) {}
         return promotions;
