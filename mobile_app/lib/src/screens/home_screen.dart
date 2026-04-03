@@ -188,6 +188,20 @@ Future<void> _checkAlerts() async {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.appTitle),
         actions: [
+          // Debug: Clear cache button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Force Refresh',
+            onPressed: () async {
+              await CacheService.clearAll();
+              _refresh();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Cache cleared, refreshing...')),
+                );
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: 'Scan QR',
