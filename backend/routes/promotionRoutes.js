@@ -195,7 +195,9 @@ router.post('/', authenticateJWT, [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    console.log('Promotion creation validation errors:', JSON.stringify(errors.array(), null, 2));
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
   }
   try {
     let { title, description, discount, code, category, startDate, endDate, image, images, url, merchantId, featured, originalPrice, discountedPrice } = req.body;

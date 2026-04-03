@@ -95,12 +95,19 @@ function NewPromotionContent() {
     setSaving(true);
     try {
       const merchantId = user!.merchantId?.toString() || user!.merchantId;
-      if (!merchantId) { toast.error('Merchant profile not linked. Please contact support.'); return; }
-      const data = { ...form, featured: Boolean(form.featured), merchantId };
+      if (!merchantId) { toast.error('Merchant profile not linked. Please contact support.'); setSaving(false); return; }
+      const data: any = { ...form, featured: Boolean(form.featured), merchantId };
+      if (!data.originalPrice || data.originalPrice === '') delete data.originalPrice;
+      if (!data.discountedPrice || data.discountedPrice === '') delete data.discountedPrice;
+      if (!data.url || data.url === '') delete data.url;
+      console.log('Submitting promotion data:', data);
       if (editId) { await PromotionAPI.update(editId, data); toast.success('Promotion updated!'); }
       else { await PromotionAPI.create(data); toast.success('Promotion created!'); }
       router.push('/merchant/dashboard');
-    } catch (err: any) { toast.error(err.message || 'Failed to save promotion.'); }
+    } catch (err: any) { 
+      console.error('Promotion creation error:', err);
+      toast.error(err.message || 'Failed to save promotion.'); 
+    }
     finally { setSaving(false); }
   };
 
