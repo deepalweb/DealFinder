@@ -1,0 +1,13 @@
+{
+  "title": "Test Deal",
+  "description": "Testing promotion creation",
+  "discount": "20%",
+  "code": "TEST20",
+  "category": "electronics",
+  "startDate": "2025-01-20",
+  "endDate": "2025-02-20",
+  "merchantId": "YOUR_MERCHANT_ID",
+  "featured": false,
+  "images": [],
+  "image": ""
+}
