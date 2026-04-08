@@ -21,7 +21,7 @@ jobs:
 
       - name: Install Next.js dependencies
         working-directory: ./frontend-next
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build Next.js
         working-directory: ./frontend-next
