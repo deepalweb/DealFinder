@@ -6,11 +6,21 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 export const metadata: Metadata = {
-  title: 'DealFinder - Discover Amazing Discounts & Promotions',
-  description: 'Find the best deals from your favorite stores all in one place.',
+  title: 'DealFinder - Sri Lanka\'s Smartest Way to Find Deals',
+  description: 'Discover exclusive discounts from top stores near you. Smart search, real-time updates, personalized recommendations. Find the best deals in Sri Lanka.',
+  keywords: 'deals, discounts, promotions, Sri Lanka, shopping, offers, coupons, sales',
   openGraph: {
-    title: 'Find Amazing Discounts and Promotions Today!',
-    description: 'Access exclusive discounts and promotions online.',
+    title: 'DealFinder - Sri Lanka\'s Smartest Way to Find Deals',
+    description: 'Discover exclusive discounts from top stores near you with smart search and real-time updates.',
+    url: 'https://dealfinderlk.com',
+    siteName: 'DealFinder',
+    locale: 'en_LK',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DealFinder - Find the Best Deals in Sri Lanka',
+    description: 'Smart deal discovery with location search, real-time updates, and personalized recommendations.',
   },
 };
 

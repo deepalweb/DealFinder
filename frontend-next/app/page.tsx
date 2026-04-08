@@ -139,12 +139,12 @@ export default function HomePage() {
 
           {/* Headline */}
           <h1 style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: '1.25rem', textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}>
-            Discover Amazing<br />
-            <span style={{ background: 'linear-gradient(135deg, #fbbf24, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Discounts & Deals</span>
+            Sri Lanka's Smartest Way<br />
+            <span style={{ background: 'linear-gradient(135deg, #fbbf24, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>to Find Deals</span>
           </h1>
 
-          <p style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '500px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
-            Find the best offers from your favorite stores, all in one place.
+          <p style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '580px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
+            Discover exclusive discounts from top stores near you. Smart search, real-time updates, personalized recommendations.
           </p>
 
           {/* Search */}
@@ -163,8 +163,8 @@ export default function HomePage() {
           <div className="flex justify-center gap-6 flex-wrap">
             {[
               { icon: 'fa-tag', value: `${allPromotions.length}+`, label: 'Active Deals' },
-              { icon: 'fa-store', value: 'Top', label: 'Merchants' },
-              { icon: 'fa-map-marker-alt', value: 'Near', label: 'You' },
+              { icon: 'fa-store', value: `${new Set(allPromotions.map((p: any) => typeof p.merchant === 'object' ? p.merchant?._id : p.merchant)).size}+`, label: 'Merchants' },
+              { icon: 'fa-map-marker-alt', value: nearby.length > 0 ? `${nearby.length}` : 'Find', label: nearby.length > 0 ? 'Nearby' : 'Near You' },
             ].map(s => (
               <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', borderRadius: '9999px', padding: '0.4rem 1rem', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)' }}>
                 <i className={`fas ${s.icon}`} style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
@@ -177,6 +177,29 @@ export default function HomePage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Why Choose DealFinder */}
+        {!isSearching && (
+          <div className="mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { icon: 'fa-search-location', title: 'Smart Location Search', desc: 'Find deals near you with intelligent geolocation', color: '#6366f1' },
+                { icon: 'fa-bolt', title: 'Real-Time Updates', desc: 'Get notified instantly when new deals are added', color: '#f59e0b' },
+                { icon: 'fa-heart', title: 'Personalized Favorites', desc: 'Save and track your favorite deals in one place', color: '#ec4899' },
+              ].map(feature => (
+                <div key={feature.title} style={{ background: 'var(--card-bg)', border: '1.5px solid var(--border-color)', borderRadius: '1rem', padding: '1.75rem', textAlign: 'center', transition: 'all 0.3s ease' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `${feature.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                    <i className={`fas ${feature.icon}`} style={{ fontSize: '1.5rem', color: feature.color }}></i>
+                  </div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{feature.title}</h3>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>{feature.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Categories */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-8" style={{ scrollbarWidth: 'none' }}>
           {CATEGORIES.map(cat => (
@@ -195,17 +218,20 @@ export default function HomePage() {
               <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text-secondary)' }}>({searchResults.length} found)</span>
             </h2>
             {searchResults.length > 0 ? <DealGrid deals={searchResults} /> : (
-              <div className="text-center py-16">
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔍</div>
-                <h3 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>No results found</h3>
-                <p style={{ color: 'var(--text-secondary)' }}>Try different keywords or browse categories</p>
+              <div className="text-center py-16" style={{ background: 'var(--card-bg)', borderRadius: '1.25rem', border: '1.5px solid var(--border-color)' }}>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🔍</div>
+                <h3 style={{ fontWeight: 700, fontSize: '1.3rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No deals found for "{searchTerm}"</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Try different keywords or browse our categories below</p>
+                <button onClick={() => setSearchTerm('')} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem' }}>
+                  <i className="fas fa-times-circle mr-2"></i>Clear Search
+                </button>
               </div>
             )}
           </div>
         ) : (
           <>
             {/* Featured */}
-            <div className="mb-12">
+            <div className="mb-12" id="featured-section">
               <h2 className="section-title"><i className="fas fa-star" style={{ color: 'var(--primary-color)' }}></i> Featured Deals</h2>
               {loadingDeals ? <SkeletonGrid count={4} /> : <DealGrid deals={featured} />}
             </div>
@@ -223,9 +249,13 @@ export default function HomePage() {
                     <p style={{ color: '#ef4444', margin: 0, fontSize: '0.875rem' }}>{locationError}</p>
                   </div>
                 ) : nearby.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📍</div>
-                    <p style={{ color: 'var(--text-secondary)' }}>No deals found near your location.</p>
+                  <div className="text-center py-12" style={{ background: 'var(--card-bg)', borderRadius: '1.25rem', border: '1.5px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📍</div>
+                    <h3 style={{ fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No deals found nearby</h3>
+                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>Check out our featured and latest deals instead</p>
+                    <button onClick={() => document.getElementById('featured-section')?.scrollIntoView({ behavior: 'smooth' })} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--primary-color)', padding: '0.6rem 1.25rem' }}>
+                      <i className="fas fa-star mr-2"></i>View Featured Deals
+                    </button>
                   </div>
                 ) : <DealGrid deals={nearby} />}
               </div>
@@ -248,6 +278,26 @@ export default function HomePage() {
               )}
             </div>
           </>
+        )}
+
+        {/* CTA Banner */}
+        {!isSearching && (
+          <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)', borderRadius: '1.5rem', padding: '3rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden', marginTop: '3rem' }}>
+            <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ position: 'absolute', bottom: '-30px', left: '-30px', width: '150px', height: '150px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)', fontWeight: 800, color: '#fff', marginBottom: '1rem', textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
+                {user ? 'Never Miss a Deal!' : 'Join DealFinder Today'}
+              </h2>
+              <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.9)', marginBottom: '1.75rem', maxWidth: '600px', margin: '0 auto 1.75rem' }}>
+                {user ? 'Enable notifications to get instant alerts when new deals match your interests' : 'Create a free account to save favorites, get personalized recommendations, and never miss exclusive deals'}
+              </p>
+              <button onClick={() => router.push(user ? '/profile' : '/register')} className="btn" style={{ background: '#fff', color: '#6366f1', padding: '0.875rem 2rem', fontSize: '1rem', fontWeight: 700, border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
+                <i className={`fas ${user ? 'fa-bell' : 'fa-user-plus'} mr-2`}></i>
+                {user ? 'Manage Notifications' : 'Sign Up Free'}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
