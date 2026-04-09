@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _locationChecked = false;
   bool _isOffline = false;
   static Position? _cachedPosition;
-  int _latestCount = 10;
+  final int _latestCount = 10;
   List<Promotion> _latestDeals = [];
   static const int _homePageLatestDealsLimit = 6; // Show only 6 on home page
 
@@ -188,20 +188,6 @@ Future<void> _checkAlerts() async {
       appBar: AppBar(
         title: Text(AppLocalizations.of(context)!.appTitle),
         actions: [
-          // Debug: Clear cache button
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Force Refresh',
-            onPressed: () async {
-              await CacheService.clearAll();
-              _refresh();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cache cleared, refreshing...')),
-                );
-              }
-            },
-          ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner),
             tooltip: 'Scan QR',

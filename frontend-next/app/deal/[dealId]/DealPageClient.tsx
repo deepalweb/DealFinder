@@ -24,6 +24,9 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   const [hoverRating, setHoverRating] = useState(0);
   const [relatedDeals, setRelatedDeals] = useState<any[]>([]);
   const [merchantDeals, setMerchantDeals] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [distance, setDistance] = useState<number | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -31,10 +34,12 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
       PromotionAPI.getById(dealId),
       PromotionAPI.getComments(dealId),
       PromotionAPI.getRatings(dealId),
-    ]).then(([d, c, r]) => {
+      PromotionAPI.getAnalyticsByPromotion(dealId).catch(() => null),
+    ]).then(([d, c, r, a]) => {
       setDeal(d);
       setComments(c);
       setRatings(r);
+      setAnalytics(a);
       if (user) {
         const found = r.find((x: any) => x.user?._id === user._id);
         if (found) setUserRating(found.value);
@@ -51,8 +56,49 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
       PromotionAPI.getAll().then((all: any[]) => {
         setRelatedDeals(all.filter((p: any) => p.category === d.category && (p._id || p.id) !== dealId).slice(0, 4));
       }).catch(() => {});
+      
+      // Calculate distance if merchant has location
+      if (d.merchant?.location?.coordinates && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const [lon, lat] = d.merchant.location.coordinates;
+            const R = 6371; // Earth radius in km
+            const dLat = (lat - pos.coords.latitude) * Math.PI / 180;
+            const dLon = (lon - pos.coords.longitude) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(pos.coords.latitude * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            setDistance(R * c);
+          },
+          () => {}
+        );
+      }
     }).catch(() => toast.error('Deal not found.')).finally(() => setLoading(false));
   }, [dealId, user]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (!deal) return;
+    const updateTimer = () => {
+      const now = Date.now();
+      const end = new Date(deal.endDate).getTime();
+      const diff = end - now;
+      if (diff <= 0) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      setTimeLeft({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((diff % (1000 * 60)) / 1000),
+      });
+    };
+    updateTimer();
+    const timer = setInterval(updateTimer, 1000);
+    return () => clearInterval(timer);
+  }, [deal]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(deal.code);
@@ -185,6 +231,11 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                       {deal.category}
                     </Link>
                   )}
+                  {distance && (
+                    <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', background: 'rgba(16,185,129,0.08)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <i className="fas fa-map-marker-alt"></i> {distance.toFixed(1)} km away
+                    </span>
+                  )}
                 </div>
                 <span style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '9999px', background: isExpired ? 'rgba(239,68,68,0.08)' : 'rgba(16,185,129,0.08)', color: isExpired ? '#ef4444' : '#059669', border: `1px solid ${isExpired ? 'rgba(239,68,68,0.2)' : 'rgba(16,185,129,0.2)'}`, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                   <i className="far fa-clock"></i>
@@ -193,6 +244,74 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
               </div>
 
               <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '1.25rem', fontSize: '0.95rem' }}>{deal.description}</p>
+
+              {/* Trust Signals */}
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem', padding: '1rem', borderRadius: '0.875rem', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                {analytics?.clicks > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fas fa-fire" style={{ color: '#f59e0b', fontSize: '0.9rem' }}></i>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {analytics.clicks} {analytics.clicks === 1 ? 'person' : 'people'} claimed this
+                    </span>
+                  </div>
+                )}
+                {ratings.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fas fa-star" style={{ color: '#fbbf24', fontSize: '0.9rem' }}></i>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {avgRating?.toFixed(1)} rating from {ratings.length} {ratings.length === 1 ? 'user' : 'users'}
+                    </span>
+                  </div>
+                )}
+                {!isExpired && daysLeft <= 3 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fas fa-bolt" style={{ color: '#ef4444', fontSize: '0.9rem' }}></i>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444' }}>
+                      Ending soon!
+                    </span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <i className="fas fa-shield-check" style={{ color: '#059669', fontSize: '0.9rem' }}></i>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669' }}>Verified Deal</span>
+                </div>
+              </div>
+
+              {/* Live Countdown Timer */}
+              {!isExpired && daysLeft <= 7 && (
+                <div style={{ marginBottom: '1.25rem', padding: '1rem', borderRadius: '0.875rem', background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(245,158,11,0.08))', border: '1.5px solid rgba(239,68,68,0.2)' }}>
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#ef4444', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <i className="fas fa-clock mr-1"></i> Deal Ends In
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {timeLeft.days > 0 && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{timeLeft.days}</div>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Days</div>
+                          </div>
+                        )}
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{String(timeLeft.hours).padStart(2, '0')}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Hours</div>
+                        </div>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444' }}>:</span>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{String(timeLeft.minutes).padStart(2, '0')}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Mins</div>
+                        </div>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444' }}>:</span>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ef4444', lineHeight: 1 }}>{String(timeLeft.seconds).padStart(2, '0')}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Secs</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '2rem' }}>⏰</div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center gap-4 mb-5 flex-wrap" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 <span><i className="far fa-calendar-alt mr-1" style={{ color: 'var(--primary-color)' }}></i>
@@ -225,8 +344,8 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                 {deal.url && (
                   <a href={deal.url} target="_blank" rel="noopener noreferrer"
                     onClick={() => PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {})}
-                    className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', minWidth: '160px', padding: '0.75rem', fontSize: '0.95rem' }}>
-                    <i className="fas fa-external-link-alt"></i> Get This Deal
+                    className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', minWidth: '160px', padding: '0.875rem', fontSize: '1rem', fontWeight: 700 }}>
+                    <i className="fas fa-bolt"></i> Claim Deal Now
                   </a>
                 )}
                 <button onClick={handleFavorite} className="btn" style={{ border: `1.5px solid ${isFavorite ? 'rgba(239,68,68,0.3)' : 'var(--border-color)'}`, background: isFavorite ? 'rgba(239,68,68,0.06)' : 'var(--card-bg)', color: isFavorite ? '#ef4444' : 'var(--text-secondary)', padding: '0.75rem 1.25rem' }}>
@@ -314,8 +433,8 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
             {deal.url && (
               <a href={deal.url} target="_blank" rel="noopener noreferrer"
                 onClick={() => PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {})}
-                className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '1rem', padding: '0.75rem' }}>
-                <i className="fas fa-external-link-alt"></i> Get This Deal
+                className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '1rem', padding: '0.875rem', fontWeight: 700 }}>
+                <i className="fas fa-bolt"></i> Claim Deal Now
               </a>
             )}
           </div>
@@ -375,6 +494,17 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {relatedDeals.map((p: any) => <PromotionCard key={p._id || p.id} promotion={p} />)}
           </div>
+        </div>
+      )}
+
+      {/* Sticky Mobile CTA */}
+      {deal.url && (
+        <div className="md:hidden" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '0.875rem', background: 'var(--card-bg)', borderTop: '1.5px solid var(--border-color)', boxShadow: '0 -4px 12px rgba(0,0,0,0.08)', zIndex: 50 }}>
+          <a href={deal.url} target="_blank" rel="noopener noreferrer"
+            onClick={() => PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {})}
+            className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.875rem', fontSize: '1rem', fontWeight: 700 }}>
+            <i className="fas fa-bolt"></i> Claim Deal Now
+          </a>
         </div>
       )}
     </div>

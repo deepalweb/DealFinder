@@ -133,16 +133,11 @@ router.get('/nearby', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const now = new Date();
-    console.log('Fetching promotions. Current time:', now.toISOString());
     const promotions = await Promotion.find({
       status: { $in: ['active', 'approved'] },
       startDate: { $lte: now },
       endDate: { $gte: now }
     }).populate('merchant');
-    console.log(`Found ${promotions.length} active promotions`);
-    if (promotions.length > 0) {
-      console.log('Sample promotion:', { id: promotions[0]._id, title: promotions[0].title, status: promotions[0].status, startDate: promotions[0].startDate, endDate: promotions[0].endDate });
-    }
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
@@ -200,8 +195,6 @@ router.post('/', authenticateJWT, [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    console.log('Promotion creation validation errors:', JSON.stringify(errors.array(), null, 2));
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
     return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
   }
   try {
@@ -269,7 +262,6 @@ router.post('/', authenticateJWT, [
     
     const promotion = new Promotion(promotionData);
     const savedPromotion = await promotion.save();
-    console.log('Created promotion:', { id: savedPromotion._id, title: savedPromotion.title, status: savedPromotion.status, startDate: savedPromotion.startDate, endDate: savedPromotion.endDate });
     
     // Add promotion to merchant's promotions array
     merchant.promotions.push(savedPromotion._id);

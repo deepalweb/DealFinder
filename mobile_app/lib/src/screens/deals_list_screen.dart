@@ -147,9 +147,6 @@ class _DealsListScreenState extends State<DealsListScreen> {
   }
 
   Widget _buildList(List<Promotion> promotions) {
-    // Debug: Print the count
-    debugPrint('DealsListScreen: Rendering ${promotions.length} deals');
-    
     if (promotions.isEmpty) {
       return Center(
         child: Column(
@@ -162,14 +159,12 @@ class _DealsListScreenState extends State<DealsListScreen> {
         ),
       );
     }
-    // Create a copy to avoid mutating the original list
+    
     final sortedPromotions = [...promotions]..sort((a, b) {
       final aDate = a.startDate ?? DateTime(1970);
       final bDate = b.startDate ?? DateTime(1970);
       return bDate.compareTo(aDate);
     });
-    
-    debugPrint('DealsListScreen: After sorting, showing ${sortedPromotions.length} deals');
     
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),

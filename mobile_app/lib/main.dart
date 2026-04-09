@@ -91,14 +91,14 @@ class MyApp extends StatelessWidget {
               ),
               iconTheme: IconThemeData(color: Colors.white),
             ),
-            cardTheme: CardThemeData(
+            cardTheme: const CardThemeData(
               elevation: 3,
               shadowColor: Color(0x331E88E5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(16)),
               ),
             ),
-            chipTheme: ChipThemeData(
+            chipTheme: const ChipThemeData(
               backgroundColor: Color(0xFFE3F2FD),
               selectedColor: Color(0xFF1E88E5),
               labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1E88E5)),
@@ -106,7 +106,7 @@ class MyApp extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               shape: StadiumBorder(side: BorderSide(color: Color(0xFF1E88E5), width: 1)),
             ),
-            inputDecorationTheme: InputDecorationTheme(
+            inputDecorationTheme: const InputDecorationTheme(
               filled: true,
               fillColor: Color(0xFFF5F5F5),
               border: OutlineInputBorder(
@@ -126,33 +126,33 @@ class MyApp extends StatelessWidget {
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF1E88E5),
+                backgroundColor: const Color(0xFF1E88E5),
                 foregroundColor: Colors.white,
                 elevation: 2,
-                shadowColor: Color(0x551E88E5),
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
+                shadowColor: const Color(0x551E88E5),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
             outlinedButtonTheme: OutlinedButtonThemeData(
               style: OutlinedButton.styleFrom(
-                foregroundColor: Color(0xFF1E88E5),
-                side: BorderSide(color: Color(0xFF1E88E5), width: 1.5),
-                shape: RoundedRectangleBorder(
+                foregroundColor: const Color(0xFF1E88E5),
+                side: const BorderSide(color: Color(0xFF1E88E5), width: 1.5),
+                shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
               ),
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: Color(0xFF1E88E5),
-                textStyle: TextStyle(fontWeight: FontWeight.w600),
+                foregroundColor: const Color(0xFF1E88E5),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
-            bottomNavigationBarTheme: BottomNavigationBarThemeData(
+            bottomNavigationBarTheme: const BottomNavigationBarThemeData(
               selectedItemColor: Color(0xFF1E88E5),
               unselectedItemColor: Color(0xFF9E9E9E),
               backgroundColor: Colors.white,
@@ -160,7 +160,7 @@ class MyApp extends StatelessWidget {
               selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               unselectedLabelStyle: TextStyle(fontSize: 11),
             ),
-            floatingActionButtonTheme: FloatingActionButtonThemeData(
+            floatingActionButtonTheme: const FloatingActionButtonThemeData(
               backgroundColor: Color(0xFF1E88E5),
               foregroundColor: Colors.white,
               elevation: 4,
@@ -168,7 +168,7 @@ class MyApp extends StatelessWidget {
                 borderRadius: BorderRadius.all(Radius.circular(16)),
               ),
             ),
-            snackBarTheme: SnackBarThemeData(
+            snackBarTheme: const SnackBarThemeData(
               backgroundColor: Color(0xFF323232),
               contentTextStyle: TextStyle(color: Colors.white),
               actionTextColor: Color(0xFF29B6F6),

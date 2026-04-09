@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../models/category.dart';
-import '../services/api_service.dart';
 import '../services/search_service.dart';
 import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';

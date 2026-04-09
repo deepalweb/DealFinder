@@ -100,12 +100,10 @@ function NewPromotionContent() {
       if (!data.originalPrice || data.originalPrice === '') delete data.originalPrice;
       if (!data.discountedPrice || data.discountedPrice === '') delete data.discountedPrice;
       if (!data.url || data.url === '') delete data.url;
-      console.log('Submitting promotion data:', data);
       if (editId) { await PromotionAPI.update(editId, data); toast.success('Promotion updated!'); }
       else { await PromotionAPI.create(data); toast.success('Promotion created!'); }
       router.push('/merchant/dashboard');
     } catch (err: any) { 
-      console.error('Promotion creation error:', err);
       toast.error(err.message || 'Failed to save promotion.'); 
     }
     finally { setSaving(false); }
