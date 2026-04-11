@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { Toaster } from 'react-hot-toast';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
+import ConditionalLayout from '@/components/layout/ConditionalLayout';
 
 export const metadata: Metadata = {
   title: 'DealFinder - Sri Lanka\'s Smartest Way to Find Deals',
@@ -32,9 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body suppressHydrationWarning>
         <AuthProvider>
-          <Header />
-          <main className="page-container">{children}</main>
-          <Footer />
+          <ConditionalLayout>{children}</ConditionalLayout>
           <Toaster position="bottom-right" toastOptions={{
             style: { borderRadius: '0.75rem', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem' },
             success: { style: { background: '#dcfce7', color: '#166534' } },

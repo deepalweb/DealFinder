@@ -28,7 +28,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', background:'var(--body-bg)' }}>
+    <div style={{ display:'flex', minHeight:'100vh', background:'var(--body-bg)', marginTop:'-1px' }}>
       {/* Sidebar */}
       <aside className="hidden md:flex" style={{ width:'240px', background:'linear-gradient(180deg,#0f172a 0%,#1e1b4b 100%)', flexShrink:0, position:'sticky', top:0, height:'100vh', flexDirection:'column' }}>
         <div style={{ padding:'1.5rem 1.25rem', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
@@ -49,6 +49,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {item.label}
             </Link>
           ))}
+          {/* Quick Add */}
+          <Link href="/admin/promotions/new" style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.75rem 1rem', borderRadius:'0.625rem', textDecoration:'none', fontSize:'0.875rem', fontWeight:700, marginTop:'0.5rem', background:'linear-gradient(135deg,#6366f1,#f43f5e)', color:'#fff', boxShadow:'0 4px 12px rgba(99,102,241,0.4)' }}>
+            <i className="fas fa-bolt" style={{ width:'16px', textAlign:'center' }}></i>
+            Quick Add Deal
+          </Link>
         </nav>
 
         <div style={{ padding:'1rem 1.25rem', borderTop:'1px solid rgba(255,255,255,0.08)' }}>

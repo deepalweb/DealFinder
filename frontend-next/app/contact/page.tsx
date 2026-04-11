@@ -9,7 +9,17 @@ export default function ContactPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-12">
       <h1 style={{ fontSize:'2rem', fontWeight:800, color:'var(--text-primary)', marginBottom:'0.5rem' }}>Contact Us</h1>
-      <p style={{ color:'var(--text-secondary)', marginBottom:'2rem' }}>Have a question or feedback? We&apos;d love to hear from you.</p>
+      <p style={{ color:'var(--text-secondary)', marginBottom:'1.5rem' }}>Have a question or feedback? We&apos;d love to hear from you.</p>
+      <div className="promotion-card" style={{ padding:'1.25rem', marginBottom:'1.5rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', color:'var(--text-primary)' }}>
+          <i className="fas fa-envelope" style={{ color:'var(--primary)', width:'1.25rem' }}></i>
+          <a href="mailto:support@dealfinder.com" style={{ color:'var(--text-primary)', textDecoration:'none' }}>support@dealfinder.com</a>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', color:'var(--text-primary)' }}>
+          <i className="fas fa-phone" style={{ color:'var(--primary)', width:'1.25rem' }}></i>
+          <a href="tel:+94760846996" style={{ color:'var(--text-primary)', textDecoration:'none' }}>+94 760 846 996</a>
+        </div>
+      </div>
       <div className="promotion-card" style={{ padding:'1.5rem' }}>
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom:'1rem' }}><label style={{ display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'var(--text-primary)' }}>Name</label><input style={inputStyle} value={form.name} onChange={e=>setForm({...form,name:e.target.value})} required /></div>

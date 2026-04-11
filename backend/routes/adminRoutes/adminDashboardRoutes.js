@@ -16,33 +16,67 @@ function safeError(error) {
 // GET /api/admin/dashboard/stats - Fetch summary statistics for admin dashboard
 router.get('/dashboard/stats', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {
+    const now = new Date();
+    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     const totalUsers = await User.countDocuments();
     const totalMerchants = await Merchant.countDocuments();
     const pendingMerchants = await Merchant.countDocuments({ status: 'pending_approval' });
-    // Add other merchant statuses if needed, e.g., active, suspended
-    // const activeMerchants = await Merchant.countDocuments({ status: 'active' });
+    const activeMerchants = await Merchant.countDocuments({ status: 'active' });
 
     const totalPromotions = await Promotion.countDocuments();
-    const pendingPromotions = await Promotion.countDocuments({ status: 'pending_approval' });
-    // Add other promotion statuses if needed
-    // const activePromotions = await Promotion.countDocuments({ status: 'active' });
-    // Note: 'active' for promotions also depends on date, so a simple count on 'active' status might be misleading
-    // if not also filtering by date. For a dashboard, 'approved' might be a better metric,
-    // or specific counts for 'currently_live_approved_promotions'.
-    // For simplicity, we'll stick to 'pending_approval' for now.
+
+    const [pending, active, scheduled, expired, rejected, paused, draft, activePromotions] = await Promise.all([
+      Promotion.countDocuments({ status: 'pending_approval' }),
+      Promotion.countDocuments({ status: 'active' }),
+      Promotion.countDocuments({ status: 'scheduled' }),
+      Promotion.countDocuments({ status: 'expired' }),
+      Promotion.countDocuments({ status: 'rejected' }),
+      Promotion.countDocuments({ status: 'admin_paused' }),
+      Promotion.countDocuments({ status: 'draft' }),
+      Promotion.countDocuments({
+        status: { $in: ['active', 'approved'] },
+        startDate: { $lte: now },
+        endDate: { $gte: now },
+      }),
+    ]);
+
+    const expiringSoon = await Promotion.find({
+      status: { $in: ['active', 'approved'] },
+      startDate: { $lte: now },
+      endDate: { $gte: now, $lte: in7Days },
+    }).populate('merchant', 'name').sort({ endDate: 1 }).limit(10).lean();
+
+    // Recent activity — last 10 events across users, merchants, promotions
+    const [recentUsers, recentMerchants, recentPromotions] = await Promise.all([
+      User.find().sort({ createdAt: -1 }).limit(5).select('name email role createdAt').lean(),
+      Merchant.find().sort({ createdAt: -1 }).limit(5).select('name status createdAt').lean(),
+      Promotion.find().sort({ createdAt: -1 }).limit(5).select('title status createdAt merchant').populate('merchant', 'name').lean(),
+    ]);
+
+    const activity = [
+      ...recentUsers.map(u => ({ type: 'user', label: `${u.name} registered`, sub: u.role, time: u.createdAt })),
+      ...recentMerchants.map(m => ({ type: 'merchant', label: `${m.name} joined`, sub: m.status, time: m.createdAt })),
+      ...recentPromotions.map(p => ({ type: 'promotion', label: p.title, sub: `${p.status} · ${typeof p.merchant === 'object' ? p.merchant?.name : ''}`, time: p.createdAt })),
+    ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
 
     res.status(200).json({
       totalUsers,
       totalMerchants,
-      merchantsByStatus: {
-        pending_approval: pendingMerchants,
-        // active: activeMerchants, // Example
-      },
+      merchantsByStatus: { pending_approval: pendingMerchants, active: activeMerchants },
       totalPromotions,
+      activePromotions,
       promotionsByStatus: {
-        pending_approval: pendingPromotions,
-        // active: activePromotions, // Example
-      }
+        active,
+        scheduled,
+        pending_approval: pending,
+        expired,
+        rejected,
+        admin_paused: paused,
+        draft,
+      },
+      expiringSoon,
+      activity,
     });
 
   } catch (error) {

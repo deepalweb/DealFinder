@@ -12,9 +12,17 @@ export default function Footer() {
               <span style={{ background: 'linear-gradient(135deg,#6366f1,#f43f5e)', borderRadius: '0.375rem', padding: '0.2rem 0.4rem', fontSize: '0.875rem' }}>%</span>
               DealFinder
             </h3>
-            <p style={{ fontSize: '0.875rem', color: '#94a3b8', lineHeight: 1.6, marginBottom: '1rem' }}>
+            <p style={{ fontSize: '0.875rem', color: '#94a3b8', lineHeight: 1.6, marginBottom: '0.75rem' }}>
               Your destination for the best discounts and promotions from your favorite brands.
             </p>
+            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              <a href="mailto:support@dealfinder.com" style={{ color: '#94a3b8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <i className="fas fa-envelope" style={{ width: '1rem' }}></i> support@dealfinder.com
+              </a>
+              <a href="tel:+94760846996" style={{ color: '#94a3b8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <i className="fas fa-phone" style={{ width: '1rem' }}></i> +94 760 846 996
+              </a>
+            </div>
             <div className="flex gap-2">
               {[['fab fa-facebook-f','#1877f2'],['fab fa-twitter','#1da1f2'],['fab fa-instagram','linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045)'],['fab fa-tiktok','#010101']].map(([icon, bg]) => (
                 <a key={icon} href="#" className="social-icon" style={{ background: bg as string, borderColor: 'transparent', color: '#fff' }}>
@@ -26,11 +34,11 @@ export default function Footer() {
 
           <div>
             <h3 style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff', marginBottom: '0.875rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Categories</h3>
-            {['fashion','electronics','travel','food','health'].map(cat => (
+            {['food','supermarkets'].map(cat => (
               <Link key={cat} href={`/categories/${cat}`} className="footer-link" style={{ display: 'block', color: '#94a3b8', fontSize: '0.875rem', marginBottom: '0.4rem', textDecoration: 'none', transition: 'color 0.2s' }}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = '#94a3b8')}>
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {cat === 'food' ? 'Food & Dining' : cat === 'supermarkets' ? 'Supermarkets' : cat.charAt(0).toUpperCase() + cat.slice(1)}
               </Link>
             ))}
           </div>

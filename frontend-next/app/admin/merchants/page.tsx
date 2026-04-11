@@ -19,6 +19,7 @@ export default function AdminMerchantsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dormantOnly, setDormantOnly] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -28,9 +29,10 @@ export default function AdminMerchantsPage() {
   useEffect(() => {
     let result = [...merchants];
     if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
+    if (dormantOnly) result = result.filter(m => !m.promotions || m.promotions.length === 0);
     if (search) { const t = search.toLowerCase(); result = result.filter(m => m.name?.toLowerCase().includes(t)); }
     setFiltered(result);
-  }, [merchants, search, statusFilter]);
+  }, [merchants, search, statusFilter, dormantOnly]);
 
   const updateStatus = async (id: string, status: string) => {
     setActionLoading(id + status);
@@ -86,6 +88,9 @@ export default function AdminMerchantsPage() {
           <option value="rejected">Rejected</option>
           <option value="suspended">Suspended</option>
         </select>
+        <button onClick={() => setDormantOnly(d => !d)} style={{ padding:'0.5rem 0.875rem', borderRadius:'0.625rem', border:`1.5px solid ${dormantOnly ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}`, background: dormantOnly ? 'rgba(239,68,68,0.08)' : 'var(--card-bg)', color: dormantOnly ? '#ef4444' : 'var(--text-secondary)', fontSize:'0.875rem', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+          <i className="fas fa-moon mr-1"></i> Dormant only {dormantOnly && `(${filtered.length})`}
+        </button>
       </div>
 
       {/* Table */}
@@ -94,7 +99,7 @@ export default function AdminMerchantsPage() {
           <table style={{ width:'100%', borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ background:'var(--light-gray)', borderBottom:'1.5px solid var(--border-color)' }}>
-                {['Merchant','Category','Status','Actions'].map(h => (
+                {['Merchant','Deals','Status','Actions'].map(h => (
                   <th key={h} style={{ padding:'0.75rem 1rem', textAlign:h==='Actions'?'right':'left', fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
                 ))}
               </tr>
@@ -118,7 +123,17 @@ export default function AdminMerchantsPage() {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding:'0.75rem 1rem', fontSize:'0.875rem', color:'var(--text-secondary)', textTransform:'capitalize' }}>{m.category || '—'}</td>
+                  <td style={{ padding:'0.75rem 1rem' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
+                      <span style={{ fontSize:'0.875rem', fontWeight:700, color: m.promotions?.length > 0 ? 'var(--text-primary)' : '#94a3b8' }}>
+                        {m.promotions?.length || 0}
+                      </span>
+                      <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>deal{m.promotions?.length !== 1 ? 's' : ''}</span>
+                      {(!m.promotions || m.promotions.length === 0) && (
+                        <span style={{ fontSize:'0.7rem', color:'#ef4444', fontWeight:600, background:'rgba(239,68,68,0.08)', padding:'0.15rem 0.4rem', borderRadius:'9999px' }}>dormant</span>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ padding:'0.75rem 1rem' }}>
                     <span style={{ padding:'0.2rem 0.6rem', borderRadius:'9999px', fontSize:'0.75rem', fontWeight:700, background: STATUS_STYLES[m.status]?.bg || 'var(--light-gray)', color: STATUS_STYLES[m.status]?.color || 'var(--text-secondary)' }}>
                       {m.status?.replace(/_/g,' ') || 'active'}

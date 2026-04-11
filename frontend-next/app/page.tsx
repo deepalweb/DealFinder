@@ -10,13 +10,8 @@ import toast from 'react-hot-toast';
 
 const CATEGORIES = [
   { id: 'all', name: 'All', icon: 'fa-th-large' },
-  { id: 'fashion', name: 'Fashion', icon: 'fa-tshirt' },
-  { id: 'electronics', name: 'Electronics', icon: 'fa-laptop' },
-  { id: 'food', name: 'Food', icon: 'fa-utensils' },
-  { id: 'travel', name: 'Travel', icon: 'fa-plane' },
-  { id: 'health', name: 'Health', icon: 'fa-heart-pulse' },
-  { id: 'entertainment', name: 'Entertainment', icon: 'fa-gamepad' },
-  { id: 'home', name: 'Home', icon: 'fa-home' },
+  { id: 'food', name: 'Food & Dining', icon: 'fa-utensils' },
+  { id: 'supermarkets', name: 'Supermarkets', icon: 'fa-shopping-cart' },
 ];
 
 export default function HomePage() {

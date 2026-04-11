@@ -21,6 +21,7 @@ export default function AdminPromotionsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,9 +35,10 @@ export default function AdminPromotionsPage() {
   useEffect(() => {
     let result = [...promotions];
     if (statusFilter !== 'all') result = result.filter(p => p.status === statusFilter);
+    if (categoryFilter !== 'all') result = result.filter(p => p.category === categoryFilter);
     if (search) { const t = search.toLowerCase(); result = result.filter(p => p.title?.toLowerCase().includes(t) || (typeof p.merchant === 'object' ? p.merchant?.name : p.merchant)?.toLowerCase().includes(t)); }
     setFiltered(result);
-  }, [promotions, search, statusFilter]);
+  }, [promotions, search, statusFilter, categoryFilter]);
 
   const updateStatus = async (id: string, status: string) => {
     setActionLoading(id + status);
@@ -103,6 +105,12 @@ export default function AdminPromotionsPage() {
           <option value="rejected">Rejected</option>
           <option value="admin_paused">Paused</option>
           <option value="expired">Expired</option>
+        </select>
+        <select style={inputStyle} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+          <option value="all">All Categories</option>
+          {[...new Set(promotions.map(p => p.category).filter(Boolean))].sort().map(cat => (
+            <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' ')}</option>
+          ))}
         </select>
       </div>
 
