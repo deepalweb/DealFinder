@@ -1,0 +1,42 @@
+name: Build Flutter Mobile App
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'mobile_app/**'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Inject google-services.json from secret
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > mobile_app/android/app/google-services.json
+
+      - name: Inject .env from secret
+        run: echo '${{ secrets.MOBILE_ENV }}' > mobile_app/.env
+
+      - name: Install Flutter dependencies
+        working-directory: ./mobile_app
+        run: flutter pub get
+
+      - name: Build Android APK
+        working-directory: ./mobile_app
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: mobile_app/build/app/outputs/flutter-apk/app-release.apk

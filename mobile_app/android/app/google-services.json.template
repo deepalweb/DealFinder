@@ -1,37 +1,37 @@
 {
   "project_info": {
-    "project_number": "434034339931",
-    "project_id": "dealfinder-71526",
-    "storage_bucket": "dealfinder-71526.firebasestorage.app"
+    "project_number": "FIREBASE_PROJECT_NUMBER",
+    "project_id": "FIREBASE_PROJECT_ID",
+    "storage_bucket": "FIREBASE_STORAGE_BUCKET"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:434034339931:android:c239bb790917de18208f7e",
+        "mobilesdk_app_id": "FIREBASE_MOBILESDK_APP_ID",
         "android_client_info": {
           "package_name": "com.example.deal_finder_mobile"
         }
       },
       "oauth_client": [
         {
-          "client_id": "434034339931-01174qocrg92p7f3dck1e46el25nfc56.apps.googleusercontent.com",
+          "client_id": "GOOGLE_OAUTH_CLIENT_ID_WEB",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDhrwfaWw7GqBX_z6Ffy6AykYf_u2sEhnQ"
+          "current_key": "GOOGLE_API_KEY"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "434034339931-01174qocrg92p7f3dck1e46el25nfc56.apps.googleusercontent.com",
+              "client_id": "GOOGLE_OAUTH_CLIENT_ID_WEB",
               "client_type": 3
             },
             {
-              "client_id": "434034339931-s2pnlpe12s6lpfjlnfv2trp6qif1e72h.apps.googleusercontent.com",
+              "client_id": "GOOGLE_OAUTH_CLIENT_ID_IOS",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.example.dealFinderMobile"

@@ -10,6 +10,12 @@ import 'cache_service.dart';
 class ApiService {
   static String get _baseUrl => AppConfig.baseUrl;
 
+  static Future<void> warmUp() async {
+    try {
+      await http.get(Uri.parse('${AppConfig.baseUrl}status')).timeout(const Duration(seconds: 30));
+    } catch (_) {}
+  }
+
   // Makes an authenticated request, auto-refreshes token on 401
   Future<http.Response> _authGet(String url) async {
     final prefs = await SharedPreferences.getInstance();
@@ -17,14 +23,14 @@ class ApiService {
     var response = await http.get(
       Uri.parse(url),
       headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
-    ).timeout(const Duration(seconds: 10));
+    ).timeout(const Duration(seconds: 30));
     if (response.statusCode == 401) {
       token = await _refreshToken();
       if (token != null) {
         response = await http.get(
           Uri.parse(url),
           headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
-        ).timeout(const Duration(seconds: 10));
+        ).timeout(const Duration(seconds: 30));
       }
     }
     return response;
@@ -39,7 +45,7 @@ class ApiService {
         Uri.parse('${_baseUrl}users/firebase-auth'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'idToken': idToken}),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final newToken = data['token'] as String?;
@@ -55,7 +61,7 @@ class ApiService {
 
   Future<List<Promotion>> fetchPromotions() async {
     try {
-      final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 10));
+      final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
@@ -166,7 +172,7 @@ class ApiService {
   // Fetch all merchants/stores
   Future<List<Map<String, dynamic>>> fetchMerchants() async {
     try {
-      final response = await http.get(Uri.parse('${_baseUrl}merchants')).timeout(const Duration(seconds: 10));
+      final response = await http.get(Uri.parse('${_baseUrl}merchants')).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         final merchants = data.cast<Map<String, dynamic>>();
@@ -295,7 +301,7 @@ class ApiService {
           if (role != null) 'role': role,
           if (businessName != null) 'businessName': businessName,
         }),
-      ).timeout(const Duration(seconds: 15));
+      ).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200 || response.statusCode == 201) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
@@ -337,7 +343,7 @@ class ApiService {
       Uri.parse('${_baseUrl}users/$userId/change-password'),
       headers: {'Content-Type': 'application/json; charset=UTF-8', 'Authorization': 'Bearer $savedToken'},
       body: jsonEncode({'currentPassword': currentPassword, 'newPassword': newPassword}),
-    ).timeout(const Duration(seconds: 10));
+    ).timeout(const Duration(seconds: 30));
     if (response.statusCode == 401) {
       final newToken = await _refreshToken();
       if (newToken != null) {
@@ -345,7 +351,7 @@ class ApiService {
           Uri.parse('${_baseUrl}users/$userId/change-password'),
           headers: {'Content-Type': 'application/json; charset=UTF-8', 'Authorization': 'Bearer $newToken'},
           body: jsonEncode({'currentPassword': currentPassword, 'newPassword': newPassword}),
-        ).timeout(const Duration(seconds: 10));
+        ).timeout(const Duration(seconds: 30));
       }
     }
     if (response.statusCode == 200) return;
@@ -357,7 +363,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
       headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-    ).timeout(const Duration(seconds: 15));
+    ).timeout(const Duration(seconds: 30));
     if (response.statusCode == 200) {
       final List<dynamic> body = jsonDecode(response.body);
       return body.map((item) => Promotion.fromJson(item)).toList();

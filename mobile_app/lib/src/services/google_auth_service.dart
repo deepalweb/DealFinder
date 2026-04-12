@@ -1,12 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'api_service.dart';
 import 'auth_service.dart';
 
 class GoogleAuthService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: '434034339931-01174qocrg92p7f3dck1e46el25nfc56.apps.googleusercontent.com',
+    serverClientId: dotenv.env['GOOGLE_WEB_CLIENT_ID'],
   );
 
   static final ApiService _apiService = ApiService();
