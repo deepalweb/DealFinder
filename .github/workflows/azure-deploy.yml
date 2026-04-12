@@ -16,29 +16,53 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm install
+      - name: Install Next.js dependencies
+        working-directory: ./frontend-next
+        run: npm ci --legacy-peer-deps
 
-      - name: Build frontend
-        working-directory: ./frontend
+      - name: Build Next.js
+        working-directory: ./frontend-next
         run: npm run build
-
-      - name: Copy frontend build to backend public directory
-        run: |
-          rm -rf backend/public
-          mkdir -p backend/public
-          cp -r frontend/build/* backend/public/
+        env:
+          NEXT_PUBLIC_API_URL: https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api
+          NODE_ENV: production
 
       - name: Install backend dependencies
         working-directory: ./backend
-        run: npm install
+        run: npm ci --omit=dev
+
+      - name: Build deployment package
+        run: |
+          mkdir -p deploy/frontend-next
+          mkdir -p deploy/frontend-next/frontend-next/.next
+
+          # Copy backend
+          cp -r backend deploy/backend
+
+          # Copy standalone output
+          cp -r frontend-next/.next/standalone/. deploy/frontend-next/
+
+          # Copy static assets
+          cp -r frontend-next/.next/static deploy/frontend-next/frontend-next/.next/static
+
+          # Copy public folder if exists
+          if [ -d "frontend-next/public" ] && [ "$(ls -A frontend-next/public 2>/dev/null)" ]; then
+            cp -r frontend-next/public deploy/frontend-next/frontend-next/public
+          fi
+
+          # Root files
+          cp package.json deploy/
+          cp web.config deploy/
+          cp .deployment deploy/
+
+      - name: Zip deployment package
+        run: cd deploy && zip -r ../deploy.zip .
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: .
+          package: ./deploy.zip
