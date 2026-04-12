@@ -85,31 +85,58 @@ async function checkPriceDrops() {
 async function notifyPriceDrop(promotionId, oldDiscount, newDiscount) {
   try {
     console.log('[Price Drop] Checking for promotion:', promotionId);
+    console.log('[Price Drop] Old discount:', oldDiscount);
+    console.log('[Price Drop] New discount:', newDiscount);
 
     // Parse discount percentages
     const oldPercent = parseInt(oldDiscount?.match(/\d+/)?.[0] || '0');
     const newPercent = parseInt(newDiscount?.match(/\d+/)?.[0] || '0');
 
+    console.log('[Price Drop] Old percent:', oldPercent);
+    console.log('[Price Drop] New percent:', newPercent);
+    console.log('[Price Drop] Difference:', newPercent - oldPercent);
+
     // Only notify if discount increased by at least 10%
-    if (newPercent <= oldPercent || (newPercent - oldPercent) < 10) {
+    if (newPercent <= oldPercent) {
+      console.log('[Price Drop] Discount did not increase, skipping notification');
+      return 0;
+    }
+    
+    if ((newPercent - oldPercent) < 10) {
+      console.log('[Price Drop] Discount increase less than 10%, skipping notification');
       return 0;
     }
 
     const promotion = await Promotion.findById(promotionId).populate('merchant');
-    if (!promotion) return 0;
+    if (!promotion) {
+      console.log('[Price Drop] Promotion not found');
+      return 0;
+    }
 
     // Find users who favorited this deal
     const users = await User.find({
       favorites: promotionId
     });
 
-    if (users.length === 0) return 0;
+    console.log(`[Price Drop] Found ${users.length} users who favorited this deal`);
+
+    if (users.length === 0) {
+      console.log('[Price Drop] No users have favorited this deal');
+      return 0;
+    }
 
     // Get preferences for these users
     const preferences = await NotificationPreference.find({
       userId: { $in: users.map(u => u._id) },
       'preferences.priceDrops.enabled': true
     });
+
+    console.log(`[Price Drop] Found ${preferences.length} users with price drop notifications enabled`);
+
+    if (preferences.length === 0) {
+      console.log('[Price Drop] No users have price drop notifications enabled');
+      return 0;
+    }
 
     const merchantName = typeof promotion.merchant === 'object' 
       ? promotion.merchant.name 
@@ -142,6 +169,7 @@ async function notifyPriceDrop(promotionId, oldDiscount, newDiscount) {
     return notificationsSent;
   } catch (error) {
     console.error('[Price Drop] Error:', error.message);
+    console.error('[Price Drop] Stack:', error.stack);
     return 0;
   }
 }

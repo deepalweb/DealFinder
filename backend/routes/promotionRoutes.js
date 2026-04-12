@@ -387,6 +387,9 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     }
 
 
+    // Get the old promotion data before update
+    const oldPromotion = await Promotion.findById(req.params.id);
+    
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       req.params.id,
       { $set: updateData }, // Use $set to only update provided fields
@@ -397,11 +400,12 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       return res.status(404).json({ message: 'Promotion not found' });
     }
     
-    // Check for price drop notification
-    if (discount && discount !== updatedPromotion.discount) {
+    // Check for price drop notification (discount field changed)
+    if (discount && oldPromotion && discount !== oldPromotion.discount) {
       setImmediate(async () => {
         try {
-          await notifyPriceDrop(req.params.id, updatedPromotion.discount, discount);
+          console.log(`[Price Drop] Discount changed from "${oldPromotion.discount}" to "${discount}"`);
+          await notifyPriceDrop(req.params.id, oldPromotion.discount, discount);
         } catch (err) {
           console.error('Error sending price drop notification:', err);
         }
