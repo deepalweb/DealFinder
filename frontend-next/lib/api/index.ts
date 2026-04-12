@@ -82,3 +82,22 @@ export const AdminAPI = {
     return fetchAPI<any>(`admin/promotions${q ? `?${q}` : ''}`).then((res: any) => Array.isArray(res) ? res : (res?.data || []));
   },
 };
+
+// Notifications
+export const NotificationAPI = {
+  getAll: (params?: { limit?: number; skip?: number; unreadOnly?: boolean }) => {
+    const q = new URLSearchParams(params as any).toString();
+    return fetchAPI<any[]>(`notifications${q ? `?${q}` : ''}`);
+  },
+  getUnreadCount: () => fetchAPI<{ count: number }>('notifications/unread-count'),
+  markAsRead: (id: string) => fetchAPI<any>(`notifications/${id}/read`, { method: 'PATCH' }),
+  delete: (id: string) => fetchAPI<any>(`notifications/${id}`, { method: 'DELETE' }),
+  getPreferences: () => fetchAPI<any>('notifications/preferences'),
+  updatePreferences: (data: any) => fetchAPI<any>('notifications/preferences', { method: 'PUT', body: JSON.stringify(data) }),
+  resetPreferences: () => fetchAPI<any>('notifications/preferences/reset', { method: 'POST' }),
+  subscribe: (subscription: any, type: 'web' | 'push' = 'web') => 
+    fetchAPI<any>('notifications/subscribe', { method: 'POST', body: JSON.stringify({ subscription, type }) }),
+  unsubscribe: (type: 'web' | 'push' = 'web') => 
+    fetchAPI<any>('notifications/unsubscribe', { method: 'POST', body: JSON.stringify({ type }) }),
+  sendTest: () => fetchAPI<any>('notifications/test', { method: 'POST' }),
+};

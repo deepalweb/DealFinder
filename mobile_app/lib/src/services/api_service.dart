@@ -370,4 +370,76 @@ class ApiService {
     }
     throw Exception('Nearby API returned ${response.statusCode}');
   }
+
+  // Notification API methods
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    final response = await _authGet('${_baseUrl}notifications/preferences');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to load notification preferences');
+  }
+
+  Future<void> updateNotificationPreferences(Map<String, dynamic> preferences) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    final response = await http.put(
+      Uri.parse('${_baseUrl}notifications/preferences'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(preferences),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update preferences');
+    }
+  }
+
+  Future<void> subscribeToNotifications(String token, String type) async {
+    final prefs = await SharedPreferences.getInstance();
+    final authToken = prefs.getString('userToken');
+    final response = await http.post(
+      Uri.parse('${_baseUrl}notifications/subscribe'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $authToken',
+      },
+      body: jsonEncode({'subscription': token, 'type': type}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to subscribe');
+    }
+  }
+
+  Future<void> unsubscribeFromNotifications(String type) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    final response = await http.post(
+      Uri.parse('${_baseUrl}notifications/unsubscribe'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'type': type}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to unsubscribe');
+    }
+  }
+
+  Future<void> sendTestNotification() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    final response = await http.post(
+      Uri.parse('${_baseUrl}notifications/test'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to send test notification');
+    }
+  }
 }

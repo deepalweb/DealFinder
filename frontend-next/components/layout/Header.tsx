@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import NotificationBell from '@/components/ui/NotificationBell';
 
 export default function Header() {
   const pathname = usePathname();
@@ -83,6 +84,9 @@ export default function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+
+            {/* Notification Bell */}
+            {mounted && user && <NotificationBell />}
 
             {/* Dark mode toggle — only after mount */}
             {mounted && (

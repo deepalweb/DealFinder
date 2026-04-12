@@ -5,6 +5,9 @@ const Promotion = require('../models/Promotion');
 const Merchant = require('../models/Merchant');
 const PromotionClick = require('../models/PromotionClick');
 const { authenticateJWT, authorizeAdmin, authorizePromotionOwnerOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
+const { notifyFavoriteStoreFollowers } = require('../jobs/favoriteStoreNotifications');
+const { notifyFlashSale } = require('../jobs/flashSaleNotifications');
+const { notifyPriceDrop } = require('../jobs/priceDropNotifications');
 
 // Add safeError helper
 function safeError(error) {
@@ -267,6 +270,19 @@ router.post('/', authenticateJWT, [
     merchant.promotions.push(savedPromotion._id);
     await merchant.save();
     
+    // Trigger notifications asynchronously
+    setImmediate(async () => {
+      try {
+        // Notify favorite store followers
+        await notifyFavoriteStoreFollowers(savedPromotion._id);
+        
+        // Check if it's a flash sale
+        await notifyFlashSale(savedPromotion._id);
+      } catch (err) {
+        console.error('Error sending notifications for new promotion:', err);
+      }
+    });
+    
     res.status(201).json(savedPromotion);
   } catch (error) {
     console.error('Error creating promotion:', error);
@@ -379,6 +395,17 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     
     if (!updatedPromotion) {
       return res.status(404).json({ message: 'Promotion not found' });
+    }
+    
+    // Check for price drop notification
+    if (discount && discount !== updatedPromotion.discount) {
+      setImmediate(async () => {
+        try {
+          await notifyPriceDrop(req.params.id, updatedPromotion.discount, discount);
+        } catch (err) {
+          console.error('Error sending price drop notification:', err);
+        }
+      });
     }
     
     res.status(200).json(updatedPromotion);
