@@ -75,7 +75,7 @@ class Promotion {
       merchantName: json['merchantName'] as String? ?? (json['merchant'] is Map ? json['merchant']['name'] as String? : null),
       merchantLogoUrl: json['merchantLogoUrl'] as String? ?? (json['merchant'] is Map ? json['merchant']['logo'] as String? : null),
       merchantCurrency: json['merchantCurrency'] as String? ?? (json['merchant'] is Map ? json['merchant']['currency'] as String? : null),
-      imageDataString: json['imageUrl'] as String? ?? json['image'] as String? ?? json['imageDataString'] as String?,
+      imageDataString: _resizeUnsplash(json['imageUrl'] as String? ?? json['image'] as String? ?? json['imageDataString'] as String?),
       code: json['code'] as String?,
       discount: json['discount'] as String?,
       startDate: parseDate(json['startDate'] as String?),
@@ -94,6 +94,14 @@ class Promotion {
           : null,
       ratingsCount: (json['ratings'] as List?)?.length ?? 0,
     );
+  }
+
+  static String? _resizeUnsplash(String? url) {
+    if (url == null) return null;
+    if (url.contains('unsplash.com')) {
+      return url.replaceAll(RegExp(r'w=\d+'), 'w=600').replaceAll(RegExp(r'q=\d+'), 'q=60');
+    }
+    return url;
   }
 
   Map<String, dynamic> toJson() {

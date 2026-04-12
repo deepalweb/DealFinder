@@ -534,7 +534,7 @@ Future<void> _checkAlerts() async {
                         ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
                       final featuredList = featuredDeals.take(5).toList();
                       return SizedBox(
-                        height: 220,
+                        height: 280,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: featuredList.length,
@@ -557,7 +557,7 @@ Future<void> _checkAlerts() async {
                               }
                             }
                             return Container(
-                              width: MediaQuery.of(context).size.width * 0.75,
+                              width: MediaQuery.of(context).size.width * 0.6,
                               margin: const EdgeInsets.symmetric(horizontal: 4.0),
                               child: Stack(
                                 children: [
@@ -568,7 +568,7 @@ Future<void> _checkAlerts() async {
                                         MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
                                       );
                                     },
-                                    child: DealCard(promotion: promotion),
+                                    child: DealCard(promotion: promotion, compact: true),
                                   ),
                                   Positioned(
                                     left: 10,
@@ -702,7 +702,7 @@ Future<void> _checkAlerts() async {
                       }
                       final nearbyDeals = snapshot.data!;
                       return SizedBox(
-                        height: 200,
+                        height: 280,
                         child: ListView.builder(
                           scrollDirection: Axis.horizontal,
                           itemCount: nearbyDeals.length,
@@ -710,7 +710,7 @@ Future<void> _checkAlerts() async {
                           itemBuilder: (context, index) {
                             final promotion = nearbyDeals[index];
                             return Container(
-                              width: MediaQuery.of(context).size.width * 0.75,
+                              width: MediaQuery.of(context).size.width * 0.6,
                               margin: const EdgeInsets.symmetric(horizontal: 4.0),
                               child: Stack(
                                 children: [
@@ -719,7 +719,7 @@ Future<void> _checkAlerts() async {
                                       context,
                                       MaterialPageRoute(builder: (context) => DealDetailScreen(promotion: promotion)),
                                     ),
-                                    child: DealCard(promotion: promotion),
+                                    child: DealCard(promotion: promotion, compact: true),
                                   ),
                                   Positioned(
                                     left: 10,

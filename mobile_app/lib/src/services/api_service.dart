@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
@@ -65,6 +66,7 @@ class ApiService {
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
+        debugPrint('Fetched ${promotions.length} promotions, first image: ${promotions.isNotEmpty ? promotions.first.imageDataString : "none"}');
         try { await CacheService.savePromotions(promotions); } catch (_) {}
         return promotions;
       }

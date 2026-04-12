@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
 
@@ -90,13 +91,16 @@ class _DealCardState extends State<DealCard> {
     }
 
     if (img.startsWith('http')) {
-      return Image.network(
-        img, height: height, width: double.infinity, fit: BoxFit.cover,
-        loadingBuilder: (_, child, progress) => progress == null ? child : Container(
+      return CachedNetworkImage(
+        imageUrl: img,
+        height: height,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Container(
           height: height, color: Colors.grey[200],
           child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
-        errorBuilder: (_, __, ___) => placeholder,
+        errorWidget: (_, __, ___) => placeholder,
       );
     }
 
