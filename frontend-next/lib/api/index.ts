@@ -6,6 +6,26 @@ const API_BASE = typeof window === 'undefined'
     ? 'http://localhost:8080/api'
     : '/api';
 
+// Simple in-memory cache for GET requests (client-side only)
+const cache = new Map<string, { data: any; ts: number }>();
+const CACHE_TTL = 60_000; // 1 minute
+
+function getCached<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data as T;
+  cache.delete(key);
+  return null;
+}
+
+function setCached(key: string, data: any) {
+  cache.set(key, { data, ts: Date.now() });
+}
+
+export function invalidateCache(keyPrefix?: string) {
+  if (!keyPrefix) { cache.clear(); return; }
+  cache.forEach((_, k) => { if (k.startsWith(keyPrefix)) cache.delete(k); });
+}
+
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -14,7 +34,16 @@ function getToken(): string | null {
   } catch { return null; }
 }
 
-async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalidate?: number): Promise<T> {
+  const isGet = !options.method || options.method === 'GET';
+  const cacheKey = `${endpoint}`;
+
+  // Return cached data for GET requests on the client
+  if (isGet && typeof window !== 'undefined') {
+    const cached = getCached<T>(cacheKey);
+    if (cached) return cached;
+  }
+
   const token = getToken();
   const res = await fetch(`${API_BASE}/${endpoint}`, {
     ...options,
@@ -23,12 +52,20 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
+    ...((!options.method || options.method === 'GET') && typeof window === 'undefined'
+      ? { next: { revalidate: revalidate ?? 60 } }
+      : { cache: 'no-store' }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `API Error: ${res.status}`);
   }
-  return res.json();
+  const data = await res.json();
+
+  // Store in cache for GET requests
+  if (isGet && typeof window !== 'undefined') setCached(cacheKey, data);
+
+  return data;
 }
 
 // Promotions
@@ -38,9 +75,12 @@ export const PromotionAPI = {
   getByMerchant: (merchantId: string) => fetchAPI<any[]>(`promotions/merchant/${merchantId}`),
   getNearby: (lat: number, lon: number, radius = 10) =>
     fetchAPI<any[]>(`promotions/nearby?latitude=${lat}&longitude=${lon}&radius=${radius}`),
-  create: (data: any) => fetchAPI<any>('promotions', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: any) => fetchAPI<any>(`promotions/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) => fetchAPI<any>(`promotions/${id}`, { method: 'DELETE' }),
+  create: (data: any) => fetchAPI<any>('promotions', { method: 'POST', body: JSON.stringify(data) })
+    .then(r => { invalidateCache('promotions'); return r; }),
+  update: (id: string, data: any) => fetchAPI<any>(`promotions/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+    .then(r => { invalidateCache('promotions'); return r; }),
+  delete: (id: string) => fetchAPI<any>(`promotions/${id}`, { method: 'DELETE' })
+    .then(r => { invalidateCache('promotions'); return r; }),
   getAnalyticsByMerchant: (merchantId: string) => fetchAPI<any[]>(`promotions/analytics/merchant/${merchantId}`),
   getAnalyticsByPromotion: (id: string) => fetchAPI<any[]>(`promotions/${id}/analytics`),
   recordClick: (id: string, data: any) => fetchAPI<any>(`promotions/${id}/click`, { method: 'POST', body: JSON.stringify(data) }),

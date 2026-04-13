@@ -30,6 +30,9 @@ export default function HomePage() {
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [latestCount, setLatestCount] = useState(8);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     PromotionAPI.getAll().then(data => {
@@ -282,14 +285,14 @@ export default function HomePage() {
             <div style={{ position: 'absolute', bottom: '-30px', left: '-30px', width: '150px', height: '150px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
             <div style={{ position: 'relative', zIndex: 1 }}>
               <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)', fontWeight: 800, color: '#fff', marginBottom: '1rem', textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-                {user ? 'Never Miss a Deal!' : 'Join DealFinder Today'}
+                {mounted && user ? 'Never Miss a Deal!' : 'Join DealFinder Today'}
               </h2>
               <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.9)', marginBottom: '1.75rem', maxWidth: '600px', margin: '0 auto 1.75rem' }}>
-                {user ? 'Enable notifications to get instant alerts when new deals match your interests' : 'Create a free account to save favorites, get personalized recommendations, and never miss exclusive deals'}
+                {mounted && user ? 'Enable notifications to get instant alerts when new deals match your interests' : 'Create a free account to save favorites, get personalized recommendations, and never miss exclusive deals'}
               </p>
-              <button onClick={() => router.push(user ? '/profile' : '/register')} className="btn" style={{ background: '#fff', color: '#6366f1', padding: '0.875rem 2rem', fontSize: '1rem', fontWeight: 700, border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
-                <i className={`fas ${user ? 'fa-bell' : 'fa-user-plus'} mr-2`}></i>
-                {user ? 'Manage Notifications' : 'Sign Up Free'}
+              <button onClick={() => router.push(mounted && user ? '/profile' : '/register')} className="btn" style={{ background: '#fff', color: '#6366f1', padding: '0.875rem 2rem', fontSize: '1rem', fontWeight: 700, border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
+                <i className={`fas ${mounted && user ? 'fa-bell' : 'fa-user-plus'} mr-2`}></i>
+                {mounted && user ? 'Manage Notifications' : 'Sign Up Free'}
               </button>
             </div>
           </div>

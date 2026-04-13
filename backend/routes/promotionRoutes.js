@@ -67,16 +67,6 @@ router.get('/nearby', async (req, res) => {
     const searchRadiusKm = parseFloat(radius) || 10;
     const radiusInMeters = searchRadiusKm * 1000;
 
-    // Check if any merchants have a valid location set — skip $geoNear if none
-    const merchantsWithLocation = await Merchant.countDocuments({
-      'location.type': 'Point',
-      'location.coordinates': { $exists: true, $ne: [] }
-    });
-
-    if (merchantsWithLocation === 0) {
-      return res.status(200).json([]);
-    }
-
     let merchantsWithDistance = [];
     try {
       merchantsWithDistance = await Merchant.aggregate([
@@ -110,10 +100,10 @@ router.get('/nearby', async (req, res) => {
       status: { $in: ['active', 'approved'] },
       startDate: { $lte: now },
       endDate: { $gte: now },
-    }).populate({
-      path: 'merchant',
-      select: 'name logo location address contactInfo'
-    }).lean();
+    })
+    .select('-comments -ratings')
+    .populate({ path: 'merchant', select: 'name logo location address contactInfo currency' })
+    .lean();
 
     promotions = promotions.map(promo => {
       const merchantInfo = merchantsWithDistance.find(m => m._id.equals(promo.merchant._id));
@@ -140,7 +130,10 @@ router.get('/', async (req, res) => {
       status: { $in: ['active', 'approved'] },
       startDate: { $lte: now },
       endDate: { $gte: now }
-    }).populate('merchant');
+    })
+    .select('-comments -ratings')
+    .populate('merchant', 'name logo address contactInfo currency location')
+    .lean();
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
@@ -163,7 +156,9 @@ router.get('/:id', async (req, res) => {
 // Get promotions by merchant ID
 router.get('/merchant/:merchantId', async (req, res) => {
   try {
-    const promotions = await Promotion.find({ merchant: req.params.merchantId });
+    const promotions = await Promotion.find({ merchant: req.params.merchantId })
+      .select('-comments -ratings')
+      .lean();
     res.status(200).json(promotions);
   } catch (error) {
     console.error(`Error fetching promotions for merchant ${req.params.merchantId}:`, error);

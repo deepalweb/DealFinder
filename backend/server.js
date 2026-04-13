@@ -136,7 +136,7 @@ app.get('/test-static', (req, res) => {
 mongoose.connect(process.env.MONGO_URI, {
   tls: true,
   retryWrites: false,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
   maxPoolSize: 10,
   minPoolSize: 2,

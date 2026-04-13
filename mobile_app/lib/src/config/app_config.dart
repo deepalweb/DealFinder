@@ -1,10 +1,10 @@
 class AppConfig {
   // ── Change only this line to switch environments ──────────────────────────
-  static const _env = _Env.production;
+  static const _env = _Env.device;
   // ─────────────────────────────────────────────────────────────────────────
 
   static const _urls = {
-    _Env.device:     'http://192.168.1.163:8080/api/',
+    _Env.device:     'http://192.168.8.102:8080/api/',
     _Env.emulator:   'http://10.0.2.2:8080/api/',
     _Env.production: 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/',
   };

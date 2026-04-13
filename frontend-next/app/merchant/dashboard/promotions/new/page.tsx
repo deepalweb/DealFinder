@@ -7,7 +7,17 @@ import { PromotionAPI } from '@/lib/api';
 import { getCurrencySymbol } from '@/lib/currency';
 import toast from 'react-hot-toast';
 
-const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','education'];
+const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','supermarkets','education'];
+const CAT_LABELS: Record<string, string> = { fashion:'Fashion', electronics:'Electronics', travel:'Travel', health:'Health & Beauty', entertainment:'Entertainment', home:'Home & Garden', pets:'Pets', food:'Food & Dining', supermarkets:'Supermarkets', education:'Education' };
+
+const DEAL_TYPES = [
+  { value: 'percentage', label: '% Percentage Discount', icon: 'fa-percent' },
+  { value: 'fixed', label: 'Fixed Amount Off', icon: 'fa-dollar-sign' },
+  { value: 'bogo', label: 'Buy 1 Get 1 Free', icon: 'fa-gift' },
+  { value: 'price_drop', label: 'Price Drop', icon: 'fa-arrow-down' },
+  { value: 'free_shipping', label: 'Free Shipping', icon: 'fa-shipping-fast' },
+  { value: 'bundle', label: 'Bundle Deal', icon: 'fa-box' },
+];
 
 function NewPromotionContent() {
   const { user } = useAuth();
@@ -25,7 +35,7 @@ function NewPromotionContent() {
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-  const defaultForm = { title:'', description:'', discount:'', code:'', category:'electronics', startDate: today, endDate: nextMonth.toISOString().split('T')[0], image:'', images:[] as string[], url:'', featured: false, originalPrice:'', discountedPrice:'' };
+  const defaultForm = { title:'', description:'', discount:'', code:'', category:'electronics', startDate: today, endDate: nextMonth.toISOString().split('T')[0], image:'', images:[] as string[], url:'', featured: false, originalPrice:'', discountedPrice:'', dealType:'percentage' as 'percentage'|'fixed'|'bogo'|'price_drop'|'free_shipping'|'bundle', percentageOff:'', fixedAmountOff:'' };
   const [form, setForm] = useState(defaultForm);
   const [original, setOriginal] = useState(defaultForm);
 
@@ -41,7 +51,43 @@ function NewPromotionContent() {
     if (editId) {
       PromotionAPI.getById(editId).then(p => {
         const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
-        const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'' };
+        // Infer deal type from existing data
+        let dealType: any = 'percentage';
+        let percentageOff = '';
+        let fixedAmountOff = '';
+        
+        if (p.discount?.toLowerCase().includes('buy 1 get 1') || p.discount?.toLowerCase().includes('bogo')) dealType = 'bogo';
+        else if (p.discount?.toLowerCase().includes('free shipping')) dealType = 'free_shipping';
+        else if (p.discount?.includes('%')) {
+          dealType = 'percentage';
+          percentageOff = p.discount.replace('%', '').trim();
+        } else if (p.discount?.match(/[\$₹£€]/)) {
+          dealType = 'fixed';
+          fixedAmountOff = p.discount.replace(/[^0-9.]/g, '');
+        } else if (p.originalPrice && p.discountedPrice) {
+          dealType = 'price_drop';
+        } else {
+          dealType = 'bundle';
+        }
+        
+        const data = { 
+          title: p.title||'', 
+          description: p.description||'', 
+          discount: p.discount||'', 
+          code: p.code||'', 
+          category: p.category||'electronics', 
+          startDate: fmt(p.startDate), 
+          endDate: fmt(p.endDate), 
+          image: p.image||'', 
+          images: p.images||[], 
+          url: p.url||'', 
+          featured: !!p.featured, 
+          originalPrice: p.originalPrice?.toString()||'', 
+          discountedPrice: p.discountedPrice?.toString()||'',
+          dealType,
+          percentageOff,
+          fixedAmountOff
+        };
         setForm(data); setOriginal(data); setImagePreviews(p.images?.length ? p.images : (p.image ? [p.image] : []));
       }).catch(() => toast.error('Failed to load promotion.'));
     }
@@ -49,6 +95,38 @@ function NewPromotionContent() {
 
   useEffect(() => { setHasChanges(JSON.stringify(form) !== JSON.stringify(original)); }, [form, original]);
   useEffect(() => { if (form.image && form.image.startsWith('http')) setImagePreviews(prev => prev.length ? prev : [form.image]); }, [form.image]);
+
+  // Auto-calculate discount and discounted price based on deal type
+  useEffect(() => {
+    const orig = parseFloat(form.originalPrice);
+    if (isNaN(orig) || orig <= 0) return;
+
+    if (form.dealType === 'percentage') {
+      const pct = parseFloat(form.percentageOff);
+      if (!isNaN(pct) && pct > 0 && pct <= 100) {
+        const discounted = orig - (orig * pct / 100);
+        setForm(prev => ({ ...prev, discountedPrice: discounted.toFixed(2), discount: `${pct}%` }));
+      }
+    } else if (form.dealType === 'fixed') {
+      const amt = parseFloat(form.fixedAmountOff);
+      if (!isNaN(amt) && amt > 0 && amt < orig) {
+        const discounted = orig - amt;
+        setForm(prev => ({ ...prev, discountedPrice: discounted.toFixed(2), discount: `${currencySymbol}${amt.toFixed(2)}` }));
+      }
+    } else if (form.dealType === 'price_drop') {
+      const newPrice = parseFloat(form.discountedPrice);
+      if (!isNaN(newPrice) && newPrice > 0 && newPrice < orig) {
+        const pct = Math.round((1 - newPrice / orig) * 100);
+        setForm(prev => ({ ...prev, discount: `${pct}% off` }));
+      }
+    } else if (form.dealType === 'bogo') {
+      setForm(prev => ({ ...prev, discount: 'Buy 1 Get 1 Free', originalPrice: '', discountedPrice: '', percentageOff: '', fixedAmountOff: '' }));
+    } else if (form.dealType === 'free_shipping') {
+      setForm(prev => ({ ...prev, discount: 'Free Shipping', originalPrice: '', discountedPrice: '', percentageOff: '', fixedAmountOff: '' }));
+    }
+  }, [form.dealType, form.originalPrice, form.percentageOff, form.fixedAmountOff, form.discountedPrice, currencySymbol]);
+
+  const endDateError = form.startDate && form.endDate && form.endDate <= form.startDate ? 'End date must be after start date' : '';
 
   const update = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
 
@@ -89,16 +167,46 @@ function NewPromotionContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) { toast.error('Title is required'); setActiveTab('details'); return; }
-    if (!form.discount.trim()) { toast.error('Discount is required'); setActiveTab('details'); return; }
     if (!form.code.trim()) { toast.error('Promo code is required'); setActiveTab('details'); return; }
-    if (form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) >= parseFloat(form.originalPrice)) { toast.error('Discounted price must be less than original price'); setActiveTab('pricing'); return; }
+    if (endDateError) { toast.error(endDateError); setActiveTab('details'); return; }
+    
+    // Validate based on deal type
+    if (form.dealType === 'percentage' && (!form.originalPrice || !form.percentageOff)) {
+      toast.error('Original price and percentage are required'); setActiveTab('details'); return;
+    }
+    if (form.dealType === 'fixed' && (!form.originalPrice || !form.fixedAmountOff)) {
+      toast.error('Original price and amount off are required'); setActiveTab('details'); return;
+    }
+    if (form.dealType === 'price_drop' && (!form.originalPrice || !form.discountedPrice)) {
+      toast.error('Original price and new price are required'); setActiveTab('details'); return;
+    }
+    if ((form.dealType === 'bogo' || form.dealType === 'free_shipping' || form.dealType === 'bundle') && !form.discount.trim()) {
+      toast.error('Deal details are required'); setActiveTab('details'); return;
+    }
+    
+    if (form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) >= parseFloat(form.originalPrice)) { 
+      toast.error('Discounted price must be less than original price'); setActiveTab('details'); return; 
+    }
     setSaving(true);
     try {
       const merchantId = user!.merchantId?.toString() || user!.merchantId;
       if (!merchantId) { toast.error('Merchant profile not linked. Please contact support.'); setSaving(false); return; }
-      const data: any = { ...form, featured: Boolean(form.featured), merchantId };
-      if (!data.originalPrice || data.originalPrice === '') delete data.originalPrice;
-      if (!data.discountedPrice || data.discountedPrice === '') delete data.discountedPrice;
+      const data: any = { 
+        title: form.title,
+        description: form.description,
+        discount: form.discount,
+        code: form.code,
+        category: form.category,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        image: form.image,
+        images: form.images,
+        url: form.url,
+        featured: Boolean(form.featured),
+        merchantId
+      };
+      if (form.originalPrice) data.originalPrice = parseFloat(form.originalPrice);
+      if (form.discountedPrice) data.discountedPrice = parseFloat(form.discountedPrice);
       if (!data.url || data.url === '') delete data.url;
       if (editId) { await PromotionAPI.update(editId, data); toast.success('Promotion updated!'); }
       else { await PromotionAPI.create(data); toast.success('Promotion created!'); }
@@ -109,7 +217,7 @@ function NewPromotionContent() {
     finally { setSaving(false); }
   };
 
-  const TABS = [{ id:'details', icon:'fa-tag', label:'Details' },{ id:'pricing', icon:'fa-dollar-sign', label:'Pricing' },{ id:'media', icon:'fa-image', label:'Media' },{ id:'settings', icon:'fa-cog', label:'Settings' }];
+  const TABS = [{ id:'details', icon:'fa-tag', label:'Details' },{ id:'media', icon:'fa-image', label:'Media' },{ id:'settings', icon:'fa-cog', label:'Settings' }];
 
   const inputStyle = { width:'100%', padding:'0.75rem 1rem', borderRadius:'0.75rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--text-primary)', fontSize:'0.9rem', outline:'none', boxSizing:'border-box' as const, transition:'border-color 0.2s' };
   const labelStyle = { display:'block', fontSize:'0.85rem', fontWeight:600 as const, marginBottom:'0.4rem', color:'var(--text-primary)' };
@@ -186,15 +294,84 @@ function NewPromotionContent() {
                     </div>
                     <div>
                       <label style={labelStyle}>Description <span style={{ color:'#ef4444' }}>*</span></label>
-                      <textarea style={{ ...inputStyle, resize:'vertical', minHeight:'100px' }} value={form.description} onChange={e => update('description', e.target.value)} required placeholder="Describe what customers get with this deal..." onFocus={focus} onBlur={blur}></textarea>
-                      <p style={hintStyle}>{form.description.length}/300 characters</p>
+                      <textarea style={{ ...inputStyle, resize:'vertical', minHeight:'100px' }} value={form.description} onChange={e => update('description', e.target.value.slice(0, 300))} required placeholder="Describe what customers get with this deal..." onFocus={focus} onBlur={blur}></textarea>
+                      <p style={{ ...hintStyle, color: form.description.length >= 280 ? '#f59e0b' : 'var(--text-secondary)' }}>{form.description.length}/300 characters</p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label style={labelStyle}>Discount <span style={{ color:'#ef4444' }}>*</span></label>
-                        <input style={inputStyle} value={form.discount} onChange={e => update('discount', e.target.value)} required placeholder="e.g. 20%, $50, BOGO" onFocus={focus} onBlur={blur} />
-                        <p style={hintStyle}>Percentage, fixed amount, or type</p>
+                    <div>
+                      <label style={labelStyle}>Deal Type <span style={{ color:'#ef4444' }}>*</span></label>
+                      <select style={inputStyle} value={form.dealType} onChange={e => update('dealType', e.target.value)} onFocus={focus} onBlur={blur}>
+                        {DEAL_TYPES.map(dt => <option key={dt.value} value={dt.value}>{dt.label}</option>)}
+                      </select>
+                      <p style={hintStyle}>Select the type of discount you're offering</p>
+                    </div>
+                    {/* Conditional pricing fields based on deal type */}
+                    {(form.dealType === 'percentage' || form.dealType === 'fixed' || form.dealType === 'price_drop') && (
+                      <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label style={labelStyle}>Original Price <span style={{ color:'#ef4444' }}>*</span></label>
+                            <div style={{ position:'relative' }}>
+                              <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
+                              <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.originalPrice} onChange={e => update('originalPrice', e.target.value)} required placeholder="100.00" onFocus={focus} onBlur={blur} />
+                            </div>
+                          </div>
+                          {form.dealType === 'percentage' && (
+                            <div>
+                              <label style={labelStyle}>Discount Percentage <span style={{ color:'#ef4444' }}>*</span></label>
+                              <div style={{ position:'relative' }}>
+                                <input type="number" step="1" min="0" max="100" style={{ ...inputStyle, paddingRight:'2.5rem' }} value={form.percentageOff} onChange={e => update('percentageOff', e.target.value)} required placeholder="20" onFocus={focus} onBlur={blur} />
+                                <span style={{ position:'absolute', right:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>%</span>
+                              </div>
+                            </div>
+                          )}
+                          {form.dealType === 'fixed' && (
+                            <div>
+                              <label style={labelStyle}>Amount Off <span style={{ color:'#ef4444' }}>*</span></label>
+                              <div style={{ position:'relative' }}>
+                                <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
+                                <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.fixedAmountOff} onChange={e => update('fixedAmountOff', e.target.value)} required placeholder="50.00" onFocus={focus} onBlur={blur} />
+                              </div>
+                            </div>
+                          )}
+                          {form.dealType === 'price_drop' && (
+                            <div>
+                              <label style={labelStyle}>New Price <span style={{ color:'#ef4444' }}>*</span></label>
+                              <div style={{ position:'relative' }}>
+                                <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
+                                <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.discountedPrice} onChange={e => update('discountedPrice', e.target.value)} required placeholder="80.00" onFocus={focus} onBlur={blur} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        {/* Calculated discounted price display for percentage and fixed */}
+                        {(form.dealType === 'percentage' || form.dealType === 'fixed') && form.discountedPrice && (
+                          <div>
+                            <label style={labelStyle}>Discounted Price (Calculated)</label>
+                            <div style={{ ...inputStyle, background:'var(--light-gray)', color:'var(--text-primary)', fontWeight:700, display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                              <span style={{ color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
+                              {parseFloat(form.discountedPrice).toFixed(2)}
+                            </div>
+                          </div>
+                        )}
                       </div>
+                    )}
+                    {(form.dealType === 'bogo' || form.dealType === 'free_shipping' || form.dealType === 'bundle') && (
+                      <div>
+                        <label style={labelStyle}>Deal Details <span style={{ color:'#ef4444' }}>*</span></label>
+                        <input style={inputStyle} value={form.discount} onChange={e => update('discount', e.target.value)} required placeholder={form.dealType === 'bundle' ? 'e.g. 3 items for the price of 2' : form.dealType === 'bogo' ? 'Buy 1 Get 1 Free' : 'Free Shipping'} onFocus={focus} onBlur={blur} />
+                        <p style={hintStyle}>Describe the offer</p>
+                      </div>
+                    )}
+                    {/* Savings display */}
+                    {form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) < parseFloat(form.originalPrice) && (
+                      <div className="fade-in" style={{ padding:'1rem', borderRadius:'0.875rem', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)' }}>
+                        <p style={{ margin:0, fontSize:'0.875rem', fontWeight:600, color:'#059669' }}>
+                          <i className="fas fa-check-circle mr-2"></i>
+                          Customers save {currencySymbol}{(parseFloat(form.originalPrice) - parseFloat(form.discountedPrice)).toFixed(2)} ({Math.round((1 - parseFloat(form.discountedPrice)/parseFloat(form.originalPrice))*100)}% off)
+                        </p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label style={labelStyle}>Promo Code <span style={{ color:'#ef4444' }}>*</span></label>
                         <div style={{ position:'relative' }}>
@@ -209,7 +386,7 @@ function NewPromotionContent() {
                     <div>
                       <label style={labelStyle}>Category <span style={{ color:'#ef4444' }}>*</span></label>
                       <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)} onFocus={focus} onBlur={blur}>
-                        {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+                        {CATS.map(c => <option key={c} value={c}>{CAT_LABELS[c]}</option>)}
                       </select>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -219,53 +396,9 @@ function NewPromotionContent() {
                       </div>
                       <div>
                         <label style={labelStyle}>End Date <span style={{ color:'#ef4444' }}>*</span></label>
-                        <input type="date" style={inputStyle} value={form.endDate} onChange={e => update('endDate', e.target.value)} required min={form.startDate} onFocus={focus} onBlur={blur} />
-                        {daysLeft > 0 && <p style={{ ...hintStyle, color:'var(--primary-color)' }}><i className="fas fa-check-circle mr-1"></i>{daysLeft} day{daysLeft !== 1 ? 's' : ''} active</p>}
+                        <input type="date" style={{ ...inputStyle, borderColor: endDateError ? '#ef4444' : undefined }} value={form.endDate} onChange={e => update('endDate', e.target.value)} required min={form.startDate} onFocus={focus} onBlur={blur} />
+                        {endDateError ? <p style={{ ...hintStyle, color:'#ef4444' }}><i className="fas fa-exclamation-circle mr-1"></i>{endDateError}</p> : daysLeft > 0 && <p style={{ ...hintStyle, color:'var(--primary-color)' }}><i className="fas fa-check-circle mr-1"></i>{daysLeft} day{daysLeft !== 1 ? 's' : ''} active</p>}
                       </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Pricing Tab */}
-              {activeTab === 'pricing' && (
-                <div className="fade-in">
-                  <h2 style={{ fontSize:'1.1rem', fontWeight:700, color:'var(--text-primary)', marginBottom:'0.5rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                    <i className="fas fa-dollar-sign" style={{ color:'var(--primary-color)' }}></i> Pricing (Optional)
-                  </h2>
-                  <p style={{ ...hintStyle, marginBottom:'1.5rem' }}>Show customers how much they save by adding original and discounted prices</p>
-                  <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label style={labelStyle}>Original Price</label>
-                        <div style={{ position:'relative' }}>
-                          <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>$</span>
-                          <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.originalPrice} onChange={e => update('originalPrice', e.target.value)} placeholder="100.00" onFocus={focus} onBlur={blur} />
-                        </div>
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Discounted Price</label>
-                        <div style={{ position:'relative' }}>
-                          <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>$</span>
-                          <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.discountedPrice} onChange={e => update('discountedPrice', e.target.value)} placeholder="80.00" onFocus={focus} onBlur={blur} />
-                        </div>
-                      </div>
-                    </div>
-                    {form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) < parseFloat(form.originalPrice) && (
-                      <div className="fade-in" style={{ padding:'1rem', borderRadius:'0.875rem', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)' }}>
-                        <p style={{ margin:0, fontSize:'0.875rem', fontWeight:600, color:'#059669' }}>
-                          <i className="fas fa-check-circle mr-2"></i>
-                          Customers save `\${currencySymbol}\${(parseFloat(form.originalPrice) - parseFloat(form.discountedPrice)).toFixed(2)} ({Math.round((1 - parseFloat(form.discountedPrice)/parseFloat(form.originalPrice))*100)}% off)
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <label style={labelStyle}>Promotion URL</label>
-                      <div style={{ position:'relative' }}>
-                        <i className="fas fa-link" style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', pointerEvents:'none' }}></i>
-                        <input type="url" style={{ ...inputStyle, paddingLeft:'2.5rem' }} value={form.url} onChange={e => update('url', e.target.value)} placeholder="https://yourstore.com/deal" onFocus={focus} onBlur={blur} />
-                      </div>
-                      <p style={hintStyle}>Customers will be redirected here when they click &quot;Get This Deal&quot;</p>
                     </div>
                   </div>
                 </div>

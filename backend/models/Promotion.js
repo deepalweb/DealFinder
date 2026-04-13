@@ -18,21 +18,18 @@ const promotionSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'pending_approval', // Newly submitted by merchant, awaiting admin review
-      'approved',         // Approved by admin, will become active based on dates
-      'active',           // Approved and currently within startDate and endDate
-      'scheduled',        // Approved but startDate is in the future
-      'expired',          // Approved but endDate has passed
-      'rejected',         // Rejected by admin
-      'admin_paused',     // Paused by admin (overrides date-based active status)
-      'draft'             // Saved by merchant but not yet submitted for approval
+      'pending_approval',
+      'approved',
+      'active',
+      'scheduled',
+      'expired',
+      'rejected',
+      'admin_paused',
+      'draft'
     ],
-    default: 'pending_approval' // Default for new promotions, admin can override
+    default: 'pending_approval'
   },
-  // Note: 'active' and 'expired' can still be determined by dates for 'approved' promotions.
-  // The 'status' field gives admins more direct control.
   createdAt: { type: Date, default: Date.now },
-  // Add comments and ratings for social features
   comments: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true },
@@ -44,5 +41,10 @@ const promotionSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
   }]
 });
+
+// Indexes for the main query: status + date range filter
+promotionSchema.index({ status: 1, endDate: 1, startDate: 1 });
+promotionSchema.index({ merchant: 1, status: 1 });
+promotionSchema.index({ featured: 1, status: 1 });
 
 module.exports = mongoose.model('Promotion', promotionSchema);
