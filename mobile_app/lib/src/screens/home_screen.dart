@@ -99,12 +99,12 @@ class _HomeScreenState extends State<HomeScreen> {
       final deals = await _api.fetchPromotions();
       if (mounted) setState(() { _allDeals = deals; _loading = false; _isOffline = false; });
       _startBannerTimer();
-    } catch (_) {
+    } catch (e) {
       final cached = await CacheService.loadPromotions(forceStale: true);
       if (mounted) setState(() {
         _allDeals = cached ?? [];
         _loading = false;
-        _isOffline = true;
+        _isOffline = cached == null || cached.isEmpty;
       });
       _startBannerTimer();
     }
