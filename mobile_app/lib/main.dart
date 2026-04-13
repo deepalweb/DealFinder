@@ -17,7 +17,7 @@ final _navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: '.env');
-  ApiService.warmUp();
+  await ApiService.warmUp();
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     await PushNotificationService.initialize(navKey: _navigatorKey);

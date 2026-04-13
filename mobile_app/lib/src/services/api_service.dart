@@ -13,7 +13,7 @@ class ApiService {
 
   static Future<void> warmUp() async {
     try {
-      await http.get(Uri.parse('${AppConfig.baseUrl}status')).timeout(const Duration(seconds: 30));
+      await http.get(Uri.parse('${AppConfig.baseUrl}status')).timeout(const Duration(seconds: 60));
     } catch (_) {}
   }
 
@@ -62,11 +62,10 @@ class ApiService {
 
   Future<List<Promotion>> fetchPromotions() async {
     try {
-      final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 30));
+      final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 60));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
-        debugPrint('Fetched ${promotions.length} promotions, first image: ${promotions.isNotEmpty ? promotions.first.imageDataString : "none"}');
         try { await CacheService.savePromotions(promotions); } catch (_) {}
         return promotions;
       }
