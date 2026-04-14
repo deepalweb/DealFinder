@@ -46,18 +46,19 @@ export default function HomePage() {
     // Optimized: Single API call for homepage data + favorites in parallel
     const fetchData = async () => {
       try {
-        const promises = [
+        const homepagePromise: Promise<{ featured: any[]; latest: any[] }> =
           PromotionAPI.getHomepage().catch(() => {
             console.warn('Homepage endpoint failed, falling back to getAll');
             return PromotionAPI.getAll({ limit: 20 }).then((data: any[]) => ({
               featured: data.filter((p: any) => p.featured).slice(0, 8) as any[],
               latest: data as any[]
             }));
-          }),
+          });
+
+        const [homepageData, favoritesData] = await Promise.all([
+          homepagePromise,
           user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([])
-        ];
-        
-        const [homepageData, favoritesData] = await Promise.all(promises);
+        ]);
 
         // Set featured and latest from optimized endpoint
         setFeatured(homepageData.featured);
