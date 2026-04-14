@@ -36,20 +36,30 @@ async function checkCategoryDeals() {
       dealsByCategory[deal.category].push(deal);
     }
 
+    // Fetch all relevant preferences once, then group in memory
+    const allPreferences = await NotificationPreference.find({
+      'preferences.categories.0': { $exists: true },
+      $or: [
+        { 'channels.push.enabled': true },
+        { 'channels.web.enabled': true },
+        { 'channels.email.enabled': true }
+      ]
+    }).lean();
+
+    // Build a map: category -> [prefs]
+    const prefsByCategory = {};
+    for (const pref of allPreferences) {
+      for (const cat of (pref.preferences.categories || [])) {
+        if (!prefsByCategory[cat]) prefsByCategory[cat] = [];
+        prefsByCategory[cat].push(pref);
+      }
+    }
+
     let notificationsSent = 0;
 
     // Process each category
     for (const [category, deals] of Object.entries(dealsByCategory)) {
-      // Find users interested in this category
-      const preferences = await NotificationPreference.find({
-        'preferences.categories': category,
-        $or: [
-          { 'channels.push.enabled': true },
-          { 'channels.web.enabled': true },
-          { 'channels.email.enabled': true }
-        ]
-      });
-
+      const preferences = prefsByCategory[category] || [];
       if (preferences.length === 0) continue;
 
       console.log(`[Category Deals Job] ${preferences.length} users interested in ${category}`);

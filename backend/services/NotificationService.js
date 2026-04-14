@@ -151,18 +151,20 @@ class NotificationService {
   /**
    * Send email notification
    */
-  async _sendEmailNotification(userId, title, body, data, log) {
+  async _sendEmailNotification(userId, title, body, data, log, userEmail = null) {
     try {
-      const user = await User.findById(userId);
-      if (!user || !user.email) {
-        throw new Error('User email not found');
+      let email = userEmail;
+      if (!email) {
+        const user = await User.findById(userId).select('email').lean();
+        email = user?.email;
       }
+      if (!email) throw new Error('User email not found');
 
       const emailHtml = this._generateEmailTemplate(title, body, data);
 
       await mailer.sendMail({
         from: `DealFinder <${process.env.M365_EMAIL}>`,
-        to: user.email,
+        to: email,
         subject: title,
         html: emailHtml
       });

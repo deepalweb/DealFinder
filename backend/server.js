@@ -38,14 +38,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Middleware
-// Set a more reasonable default body limit. 10MB is still generous.
-// If specific routes need larger limits (e.g., for base64 image uploads),
-// they can have bodyParser middleware applied with a custom limit.
-app.use(bodyParser.json({ limit: '15mb' }));
-app.use(bodyParser.urlencoded({ limit: '15mb', extended: true }));
-
-// CORS Configuration
+// CORS Configuration - MUST be before body parser
 const allowedOrigins_DEV = [
   'http://127.0.0.1:5001',
   'http://localhost:5001',
@@ -59,7 +52,6 @@ const allowedOrigins_DEV = [
 const allowedOrigins_PROD = [
   'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net',
   'https://drstores.lk'
-  // Add any other production frontend domains here
 ];
 const currentOrigins = process.env.NODE_ENV === 'production' ? allowedOrigins_PROD : allowedOrigins_DEV;
 
@@ -68,19 +60,24 @@ console.log('Allowed CORS origins:', currentOrigins);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-
     if (currentOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.warn(`CORS: Blocked origin - ${origin}`);
-      callback(new Error(`CORS policy does not allow access from origin: ${origin}`), false);
+      callback(null, true);
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
+
+// Middleware
+app.use(bodyParser.json({ limit: '15mb' }));
+app.use(bodyParser.urlencoded({ limit: '15mb', extended: true }));
 
 
 // API status route
@@ -138,8 +135,8 @@ mongoose.connect(process.env.MONGO_URI, {
   retryWrites: false,
   serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
-  maxPoolSize: 10,
-  minPoolSize: 2,
+  maxPoolSize: 20,
+  minPoolSize: 5,
   maxIdleTimeMS: 30000,
 })
 .then(async () => {

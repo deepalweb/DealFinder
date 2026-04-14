@@ -25,6 +25,29 @@ async function checkExpiringDealsForUsers() {
       return;
     }
 
+    // Collect all favorite IDs across all users, then query once
+    const allFavoriteIds = [...new Set(preferences.flatMap(p => {
+      const user = p.userId;
+      return (user && user.favorites) ? user.favorites.map(id => id.toString()) : [];
+    }))];
+
+    if (allFavoriteIds.length === 0) {
+      console.log('[Expiring Deals Job] No favorites found');
+      return;
+    }
+
+    // Single query for all expiring deals across all users
+    const maxExpiryHours = Math.max(...preferences.map(p => p.preferences.expiringDeals.hours || 24));
+    const maxThreshold = new Date(now.getTime() + maxExpiryHours * 60 * 60 * 1000);
+
+    const allExpiringDeals = await Promotion.find({
+      _id: { $in: allFavoriteIds },
+      status: { $in: ['active', 'approved'] },
+      endDate: { $gte: now, $lte: maxThreshold }
+    }).populate('merchant').lean();
+
+    const expiringDealsMap = new Map(allExpiringDeals.map(d => [d._id.toString(), d]));
+
     let notificationsSent = 0;
 
     for (const pref of preferences) {
@@ -34,15 +57,9 @@ async function checkExpiringDealsForUsers() {
       const expiryHours = pref.preferences.expiringDeals.hours || 24;
       const expiryThreshold = new Date(now.getTime() + expiryHours * 60 * 60 * 1000);
 
-      // Get user's favorite deals that are expiring soon
-      const expiringDeals = await Promotion.find({
-        _id: { $in: user.favorites },
-        status: { $in: ['active', 'approved'] },
-        endDate: { 
-          $gte: now,
-          $lte: expiryThreshold
-        }
-      }).populate('merchant');
+      const expiringDeals = user.favorites
+        .map(id => expiringDealsMap.get(id.toString()))
+        .filter(d => d && new Date(d.endDate) <= expiryThreshold);
 
       if (expiringDeals.length === 0) continue;
 

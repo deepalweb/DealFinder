@@ -8,7 +8,7 @@ const API_BASE = typeof window === 'undefined'
 
 // Simple in-memory cache for GET requests (client-side only)
 const cache = new Map<string, { data: any; ts: number }>();
-const CACHE_TTL = 60_000; // 1 minute
+const CACHE_TTL = 2 * 60_000; // 2 minutes
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key);
@@ -38,8 +38,8 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalida
   const isGet = !options.method || options.method === 'GET';
   const cacheKey = `${endpoint}`;
 
-  // Return cached data for GET requests on the client
-  if (isGet && typeof window !== 'undefined') {
+  // Return cached data for GET requests on the client (skip if cache: no-store)
+  if (isGet && typeof window !== 'undefined' && options.cache !== 'no-store') {
     const cached = getCached<T>(cacheKey);
     if (cached) return cached;
   }
@@ -63,14 +63,18 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalida
   const data = await res.json();
 
   // Store in cache for GET requests
-  if (isGet && typeof window !== 'undefined') setCached(cacheKey, data);
+  if (isGet && typeof window !== 'undefined' && options.cache !== 'no-store') setCached(cacheKey, data);
 
   return data;
 }
 
 // Promotions
 export const PromotionAPI = {
-  getAll: () => fetchAPI<any[]>('promotions'),
+  getAll: (params?: { limit?: number; skip?: number }) => {
+    const q = params ? new URLSearchParams(params as any).toString() : '';
+    return fetchAPI<any[]>(`promotions${q ? `?${q}` : ''}`);
+  },
+  getHomepage: () => fetchAPI<{ featured: any[]; latest: any[] }>('promotions/homepage'),
   getById: (id: string) => fetchAPI<any>(`promotions/${id}`),
   getByMerchant: (merchantId: string) => fetchAPI<any[]>(`promotions/merchant/${merchantId}`),
   getNearby: (lat: number, lon: number, radius = 10) =>
@@ -129,7 +133,7 @@ export const NotificationAPI = {
     const q = new URLSearchParams(params as any).toString();
     return fetchAPI<any[]>(`notifications${q ? `?${q}` : ''}`);
   },
-  getUnreadCount: () => fetchAPI<{ count: number }>('notifications/unread-count'),
+  getUnreadCount: () => fetchAPI<{ count: number }>('notifications/unread-count', { method: 'GET', cache: 'no-store' }),
   markAsRead: (id: string) => fetchAPI<any>(`notifications/${id}/read`, { method: 'PATCH' }),
   delete: (id: string) => fetchAPI<any>(`notifications/${id}`, { method: 'DELETE' }),
   getPreferences: () => fetchAPI<any>('notifications/preferences'),

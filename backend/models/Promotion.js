@@ -43,8 +43,8 @@ const promotionSchema = new mongoose.Schema({
 });
 
 // Indexes for the main query: status + date range filter
-promotionSchema.index({ status: 1, endDate: 1, startDate: 1 });
+promotionSchema.index({ status: 1, endDate: 1, startDate: 1, _id: -1 });
 promotionSchema.index({ merchant: 1, status: 1 });
-promotionSchema.index({ featured: 1, status: 1 });
+promotionSchema.index({ featured: 1, status: 1, _id: -1 });
 
 module.exports = mongoose.model('Promotion', promotionSchema);

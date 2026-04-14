@@ -23,11 +23,16 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const failCountRef = useRef(0);
 
   useEffect(() => {
     if (user) {
       fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 30000); // Poll every 30s
+      const interval = setInterval(() => {
+        // exponential back-off: skip poll if consecutive failures
+        if (failCountRef.current >= 3) return;
+        fetchUnreadCount();
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [user]);
@@ -52,8 +57,9 @@ export default function NotificationBell() {
     try {
       const { count } = await NotificationAPI.getUnreadCount();
       setUnreadCount(count);
-    } catch (error) {
-      console.error('Failed to fetch unread count:', error);
+      failCountRef.current = 0;
+    } catch {
+      failCountRef.current += 1;
     }
   };
 

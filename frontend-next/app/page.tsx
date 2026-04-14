@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { PromotionAPI, UserAPI } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,25 +30,56 @@ export default function HomePage() {
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [latestCount, setLatestCount] = useState(8);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreLatest, setHasMoreLatest] = useState(true);
   const [mounted, setMounted] = useState(false);
+
+  const heroStats = useMemo(() => [
+    { icon: 'fa-tag', value: `${allPromotions.length}+`, label: 'Active Deals' },
+    { icon: 'fa-store', value: `${new Set(allPromotions.map((p: any) => typeof p.merchant === 'object' ? p.merchant?._id : p.merchant)).size}+`, label: 'Merchants' },
+    { icon: 'fa-map-marker-alt', value: nearby.length > 0 ? `${nearby.length}` : 'Find', label: nearby.length > 0 ? 'Nearby' : 'Near You' },
+  ], [allPromotions, nearby]);
 
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    PromotionAPI.getAll().then(data => {
-      setAllPromotions(data);
-      setFeatured([...data].filter((p: any) => p.featured).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-      setLatest([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    }).catch(() => toast.error('Failed to load deals.')).finally(() => setLoadingDeals(false));
+    // Optimized: Single API call for homepage data + favorites in parallel
+    const fetchData = async () => {
+      try {
+        const promises = [
+          PromotionAPI.getHomepage().catch(() => {
+            // Fallback to old endpoint if homepage fails
+            console.warn('Homepage endpoint failed, falling back to getAll');
+            return PromotionAPI.getAll({ limit: 20 }).then(data => ({
+              featured: data.filter((p: any) => p.featured).slice(0, 8),
+              latest: data
+            }));
+          }),
+          user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([])
+        ];
+        
+        const [homepageData, favoritesData] = await Promise.all(promises);
 
-    // Fetch user favorites once
-    if (user) {
-      UserAPI.getFavorites(user._id).then(favs => {
-        setFavoriteIds(new Set(favs.map((f: any) => f._id || f.id)));
-      }).catch(() => {});
-    }
+        // Set featured and latest from optimized endpoint
+        setFeatured(homepageData.featured);
+        setLatest(homepageData.latest);
+        setAllPromotions(homepageData.latest); // Use latest for search
+        setHasMoreLatest(homepageData.latest.length >= 20); // Check if there might be more
+        
+        if (favoritesData.length > 0) {
+          setFavoriteIds(new Set(favoritesData.map((f: any) => f._id || f.id)));
+        }
+      } catch (error) {
+        console.error('Failed to load deals:', error);
+        toast.error('Failed to load deals.');
+      } finally {
+        setLoadingDeals(false);
+      }
+    };
 
-    // Fetch nearby
+    fetchData();
+
+    // Fetch nearby separately (non-blocking)
     if (navigator.geolocation) {
       setLoadingNearby(true);
       navigator.geolocation.getCurrentPosition(
@@ -66,7 +97,26 @@ export default function HomePage() {
         }
       );
     }
-  }, []);
+  }, [user]);
+
+  const loadMoreLatest = async () => {
+    if (loadingMore || !hasMoreLatest) return;
+    
+    setLoadingMore(true);
+    try {
+      const moreDeals = await PromotionAPI.getAll({ limit: 20, skip: latest.length });
+      if (moreDeals.length > 0) {
+        setLatest(prev => [...prev, ...moreDeals]);
+        setHasMoreLatest(moreDeals.length >= 20);
+      } else {
+        setHasMoreLatest(false);
+      }
+    } catch (error) {
+      toast.error('Failed to load more deals');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Debounced search
   useEffect(() => {
@@ -159,11 +209,7 @@ export default function HomePage() {
 
           {/* Stats */}
           <div className="flex justify-center gap-6 flex-wrap">
-            {[
-              { icon: 'fa-tag', value: `${allPromotions.length}+`, label: 'Active Deals' },
-              { icon: 'fa-store', value: `${new Set(allPromotions.map((p: any) => typeof p.merchant === 'object' ? p.merchant?._id : p.merchant)).size}+`, label: 'Merchants' },
-              { icon: 'fa-map-marker-alt', value: nearby.length > 0 ? `${nearby.length}` : 'Find', label: nearby.length > 0 ? 'Nearby' : 'Near You' },
-            ].map(s => (
+            {heroStats.map(s => (
               <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', borderRadius: '9999px', padding: '0.4rem 1rem', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)' }}>
                 <i className={`fas ${s.icon}`} style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
                 <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.value}</span>
@@ -268,7 +314,18 @@ export default function HomePage() {
                   {latestCount < latest.length && (
                     <div className="text-center mt-6">
                       <button onClick={() => setLatestCount(c => c + 8)} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
-                        <i className="fas fa-chevron-down mr-2"></i>Load More ({latest.length - latestCount} remaining)
+                        <i className="fas fa-chevron-down mr-2"></i>Show More ({latest.length - latestCount} remaining)
+                      </button>
+                    </div>
+                  )}
+                  {latestCount >= latest.length && hasMoreLatest && (
+                    <div className="text-center mt-6">
+                      <button onClick={loadMoreLatest} disabled={loadingMore} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
+                        {loadingMore ? (
+                          <><i className="fas fa-spinner fa-spin mr-2"></i>Loading...</>
+                        ) : (
+                          <><i className="fas fa-chevron-down mr-2"></i>Load More Deals</>
+                        )}
                       </button>
                     </div>
                   )}

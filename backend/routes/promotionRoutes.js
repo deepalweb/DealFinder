@@ -48,6 +48,53 @@ router.get('/:id/analytics', authenticateJWT, authorizePromotionOwnerOrAdmin, as
   }
 });
 
+// Server-side cache for homepage (2 minute TTL)
+let homepageCache = null;
+let homepageCacheTs = 0;
+const HOMEPAGE_CACHE_TTL = 2 * 60 * 1000;
+
+// Invalidate homepage cache (call after promotion create/update/delete)
+function invalidateHomepageCache() { homepageCache = null; homepageCacheTs = 0; }
+
+// Get homepage data (optimized endpoint)
+router.get('/homepage', async (req, res) => {
+  try {
+    if (homepageCache && Date.now() - homepageCacheTs < HOMEPAGE_CACHE_TTL) {
+      return res.status(200).json(homepageCache);
+    }
+
+    const now = new Date();
+    const query = {
+      status: { $in: ['active', 'approved'] },
+      startDate: { $lte: now },
+      endDate: { $gte: now }
+    };
+
+    const [featured, latest] = await Promise.all([
+      Promotion.find({ ...query, featured: true })
+        .select('-comments -ratings')
+        .populate('merchant', 'name logo currency')
+        .sort({ _id: -1 })
+        .limit(8)
+        .lean(),
+      Promotion.find(query)
+        .select('-comments -ratings')
+        .populate('merchant', 'name logo currency')
+        .sort({ _id: -1 })
+        .limit(20)
+        .lean()
+    ]);
+
+    homepageCache = { featured, latest };
+    homepageCacheTs = Date.now();
+
+    res.status(200).json(homepageCache);
+  } catch (error) {
+    console.error('Error in GET /api/promotions/homepage:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Get nearby promotions
 router.get('/nearby', async (req, res) => {
   try {
@@ -126,14 +173,26 @@ router.get('/nearby', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const now = new Date();
-    const promotions = await Promotion.find({
+    const limit = parseInt(req.query.limit) || 0; // 0 means no limit
+    const skip = parseInt(req.query.skip) || 0;
+    
+    const query = {
       status: { $in: ['active', 'approved'] },
       startDate: { $lte: now },
       endDate: { $gte: now }
-    })
-    .select('-comments -ratings')
-    .populate('merchant', 'name logo address contactInfo currency location')
-    .lean();
+    };
+    
+    let promotionsQuery = Promotion.find(query)
+      .select('-comments -ratings')
+      .populate('merchant', 'name logo address contactInfo currency location')
+      .sort({ _id: -1 })
+      .lean();
+    
+    if (limit > 0) {
+      promotionsQuery = promotionsQuery.limit(limit).skip(skip);
+    }
+    
+    const promotions = await promotionsQuery;
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
@@ -278,6 +337,7 @@ router.post('/', authenticateJWT, [
       }
     });
     
+    homepageCache = null; // invalidate on create
     res.status(201).json(savedPromotion);
   } catch (error) {
     console.error('Error creating promotion:', error);
@@ -407,6 +467,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       });
     }
     
+    homepageCache = null; // invalidate on update
     res.status(200).json(updatedPromotion);
   } catch (error) {
     console.error(`Error updating promotion ${req.params.id}:`, error);
@@ -433,6 +494,7 @@ router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (re
     );
     
     await Promotion.findByIdAndDelete(req.params.id);
+    homepageCache = null; // invalidate on delete
     res.status(200).json({ message: 'Promotion deleted successfully' });
   } catch (error) {
     console.error(`Error deleting promotion ${req.params.id}:`, error);

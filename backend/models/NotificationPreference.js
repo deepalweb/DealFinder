@@ -58,4 +58,9 @@ notificationPreferenceSchema.pre('save', function(next) {
   next();
 });
 
+notificationPreferenceSchema.index({ 'preferences.nearbyDeals.enabled': 1 });
+notificationPreferenceSchema.index({ 'preferences.favoriteStores.enabled': 1 });
+notificationPreferenceSchema.index({ 'preferences.expiringDeals.enabled': 1 });
+notificationPreferenceSchema.index({ 'preferences.categories': 1 });
+
 module.exports = mongoose.model('NotificationPreference', notificationPreferenceSchema);
