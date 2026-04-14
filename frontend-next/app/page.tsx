@@ -48,11 +48,10 @@ export default function HomePage() {
       try {
         const promises = [
           PromotionAPI.getHomepage().catch(() => {
-            // Fallback to old endpoint if homepage fails
             console.warn('Homepage endpoint failed, falling back to getAll');
-            return PromotionAPI.getAll({ limit: 20 }).then(data => ({
-              featured: data.filter((p: any) => p.featured).slice(0, 8),
-              latest: data
+            return PromotionAPI.getAll({ limit: 20 }).then((data: any[]) => ({
+              featured: data.filter((p: any) => p.featured).slice(0, 8) as any[],
+              latest: data as any[]
             }));
           }),
           user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([])
