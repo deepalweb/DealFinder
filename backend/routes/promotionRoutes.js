@@ -48,10 +48,10 @@ router.get('/:id/analytics', authenticateJWT, authorizePromotionOwnerOrAdmin, as
   }
 });
 
-// Server-side cache for homepage (2 minute TTL)
+// Server-side cache for homepage (5 minute TTL)
 let homepageCache = null;
 let homepageCacheTs = 0;
-const HOMEPAGE_CACHE_TTL = 2 * 60 * 1000;
+const HOMEPAGE_CACHE_TTL = 5 * 60 * 1000; // Increased from 2 minutes
 
 // Invalidate homepage cache (call after promotion create/update/delete)
 function invalidateHomepageCache() { homepageCache = null; homepageCacheTs = 0; }

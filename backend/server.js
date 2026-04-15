@@ -7,11 +7,15 @@ const config = require('./config');
 const mongoose = require('mongoose');
 const webpush = require('web-push');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const sendExpiryNotifications = require('./jobs/expiryNotifications');
 const { initializeNotificationJobs } = require('./jobs/notificationScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// Enable gzip compression
+app.use(compression());
 
 // Rate limiters
 const loginLimiter = rateLimit({
@@ -129,15 +133,17 @@ app.get('/test-static', (req, res) => {
   res.send('Static file serving is working');
 });
 
-// Connect to MongoDB
+// Connect to MongoDB with optimized settings for Azure Cosmos DB
 mongoose.connect(process.env.MONGO_URI, {
   tls: true,
   retryWrites: false,
-  serverSelectionTimeoutMS: 30000,
-  socketTimeoutMS: 45000,
-  maxPoolSize: 20,
-  minPoolSize: 5,
-  maxIdleTimeMS: 30000,
+  serverSelectionTimeoutMS: 10000, // Reduced from 30s
+  socketTimeoutMS: 20000, // Reduced from 45s
+  maxPoolSize: 50, // Increased from 20
+  minPoolSize: 10, // Increased from 5
+  maxIdleTimeMS: 10000, // Reduced from 30s
+  connectTimeoutMS: 10000, // Added
+  family: 4, // Force IPv4
 })
 .then(async () => {
   console.log('Connected to MongoDB');
