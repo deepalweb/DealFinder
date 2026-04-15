@@ -36,24 +36,23 @@ jobs:
 
       - name: Build deployment package
         run: |
-          # standalone structure is: .next/standalone/frontend-next/{server.js, node_modules, .next/}
-          # We copy it to deploy/frontend-next/frontend-next/ to match server.js path
-
-          mkdir -p deploy/frontend-next
-          mkdir -p deploy/frontend-next/frontend-next/.next
+          # Create deploy structure
+          mkdir -p deploy/frontend-next/frontend-next
 
           # Copy backend
           cp -r backend deploy/backend
 
-          # Copy standalone output (contains frontend-next/ subfolder)
+          # Copy standalone output
           cp -r frontend-next/.next/standalone/. deploy/frontend-next/
 
-          # Copy static assets into the nested path
-          cp -r frontend-next/.next/static deploy/frontend-next/frontend-next/.next/static
+          # Copy static assets to the correct location
+          mkdir -p deploy/frontend-next/frontend-next/.next/static
+          cp -r frontend-next/.next/static/. deploy/frontend-next/frontend-next/.next/static/
 
-          # Copy public folder (only if it exists and has files)
+          # Copy public folder if exists
           if [ -d "frontend-next/public" ] && [ "$(ls -A frontend-next/public 2>/dev/null)" ]; then
-            cp -r frontend-next/public deploy/frontend-next/frontend-next/public
+            mkdir -p deploy/frontend-next/frontend-next/public
+            cp -r frontend-next/public/. deploy/frontend-next/frontend-next/public/
           fi
 
           # Root files
@@ -61,12 +60,21 @@ jobs:
           cp web.config deploy/
           cp .deployment deploy/
 
-          echo "=== Deploy root ==="
-          ls deploy/
-          echo "=== frontend-next root ==="
-          ls deploy/frontend-next/
-          echo "=== frontend-next/frontend-next ==="
-          ls deploy/frontend-next/frontend-next/
+          echo "=== Deploy structure ==="
+          echo "Root:"
+          ls -la deploy/
+          echo ""
+          echo "Frontend-next root:"
+          ls -la deploy/frontend-next/
+          echo ""
+          echo "Frontend-next/frontend-next:"
+          ls -la deploy/frontend-next/frontend-next/
+          echo ""
+          echo "Static files:"
+          ls -la deploy/frontend-next/frontend-next/.next/static/ || echo "No static folder"
+          echo ""
+          echo "Public files:"
+          ls -la deploy/frontend-next/frontend-next/public/ || echo "No public folder"
 
       - name: Zip deployment package
         run: cd deploy && zip -r ../deploy.zip .
