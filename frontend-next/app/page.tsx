@@ -43,7 +43,7 @@ export default function HomePage() {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    // Optimized: Single API call for homepage data + favorites in parallel
+    // Optimized: Single API call for homepage data + cached favorites
     const fetchData = async () => {
       try {
         const homepagePromise: Promise<{ featured: any[]; latest: any[] }> =
@@ -55,10 +55,26 @@ export default function HomePage() {
             }));
           });
 
-        const [homepageData, favoritesData] = await Promise.all([
-          homepagePromise,
-          user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([])
-        ]);
+        // Check cache first for favorites (5 minute TTL)
+        let favoritesData: any[] = [];
+        if (user) {
+          const cacheKey = `favorites_${user._id}`;
+          const cached = localStorage.getItem(cacheKey);
+          const cacheTime = localStorage.getItem(`${cacheKey}_time`);
+          const now = Date.now();
+          
+          if (cached && cacheTime && (now - parseInt(cacheTime)) < 5 * 60 * 1000) {
+            // Use cached data
+            favoritesData = JSON.parse(cached);
+          } else {
+            // Fetch fresh data
+            favoritesData = await UserAPI.getFavorites(user._id).catch(() => []);
+            localStorage.setItem(cacheKey, JSON.stringify(favoritesData));
+            localStorage.setItem(`${cacheKey}_time`, now.toString());
+          }
+        }
+
+        const homepageData = await homepagePromise;
 
         // Set featured and latest from optimized endpoint
         setFeatured(homepageData.featured);

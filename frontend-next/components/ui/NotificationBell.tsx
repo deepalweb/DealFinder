@@ -28,11 +28,11 @@ export default function NotificationBell() {
   useEffect(() => {
     if (user) {
       fetchUnreadCount();
+      // Reduced polling frequency: 60 seconds instead of 30
       const interval = setInterval(() => {
-        // exponential back-off: skip poll if consecutive failures
         if (failCountRef.current >= 3) return;
         fetchUnreadCount();
-      }, 30000);
+      }, 60000); // Changed from 30000 to 60000
       return () => clearInterval(interval);
     }
   }, [user]);
