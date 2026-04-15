@@ -15,10 +15,12 @@ const locationSchema = new mongoose.Schema({
 const merchantSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   profile: { type: String }, // Description of the merchant
+  description: { type: String }, // Merchant description
+  category: { type: String, index: true }, // Add category field with index
   contactInfo: { type: String }, // General contact like email or phone
   promotions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' }],
   logo: { type: String }, // URL or path to merchant's logo
-  createdAt: { type: Date, default: Date.now },
+  createdAt: { type: Date, default: Date.now, index: true }, // Add index for sorting
   address: { type: String }, // Textual address
   contactNumber: { type: String }, // Specific contact phone number
   socialMedia: {
@@ -30,7 +32,8 @@ const merchantSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'],
-    default: 'active'
+    default: 'active',
+    index: true // Add index for filtering
   },
   currency: { type: String, default: 'USD' }, // e.g. USD, LKR, EUR, GBP, INR
   location: { // GeoJSON Point for location

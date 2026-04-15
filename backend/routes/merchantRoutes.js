@@ -18,24 +18,76 @@ async function getFollowersCount(merchantId) {
   return await User.countDocuments({ merchantId });
 }
 
-// Get all merchants
+// Server-side cache for merchants list (5 minute TTL)
+let merchantsCache = null;
+let merchantsCacheTs = 0;
+const MERCHANTS_CACHE_TTL = 5 * 60 * 1000;
+
+// Invalidate merchants cache
+function invalidateMerchantsCache() { merchantsCache = null; merchantsCacheTs = 0; }
+
+// Get all merchants (optimized)
 router.get('/', async (req, res) => {
   try {
-    const merchants = await Merchant.find().populate('promotions');
-    // Add followers and activeDeals count to each merchant
-    const merchantsWithCounts = await Promise.all(merchants.map(async (merchant) => {
-      const followers = await getFollowersCount(merchant._id);
-      const activeDeals = Array.isArray(merchant.promotions)
-        ? merchant.promotions.filter(p => p.status === 'active' && new Date(p.endDate) >= new Date()).length
-        : 0;
-      return {
-        ...merchant.toObject(),
-        followers,
-        activeDeals
-      };
+    // Check cache
+    if (merchantsCache && Date.now() - merchantsCacheTs < MERCHANTS_CACHE_TTL) {
+      return res.status(200).json(merchantsCache);
+    }
+
+    // Optimized: Get merchants without populating promotions
+    const merchants = await Merchant.find()
+      .select('name logo category description address location currency')
+      .lean();
+    
+    // Get promotion counts in a single aggregation query
+    const Promotion = require('../models/Promotion');
+    const now = new Date();
+    const promotionCounts = await Promotion.aggregate([
+      {
+        $match: {
+          status: { $in: ['active', 'approved'] },
+          startDate: { $lte: now },
+          endDate: { $gte: now }
+        }
+      },
+      {
+        $group: {
+          _id: '$merchant',
+          activeDeals: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Get follower counts in a single aggregation query
+    const followerCounts = await User.aggregate([
+      {
+        $match: { merchantId: { $exists: true, $ne: null } }
+      },
+      {
+        $group: {
+          _id: '$merchantId',
+          followers: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Create lookup maps
+    const promotionMap = new Map(promotionCounts.map(p => [p._id.toString(), p.activeDeals]));
+    const followerMap = new Map(followerCounts.map(f => [f._id.toString(), f.followers]));
+
+    // Merge data
+    const merchantsWithCounts = merchants.map(merchant => ({
+      ...merchant,
+      activeDeals: promotionMap.get(merchant._id.toString()) || 0,
+      followers: followerMap.get(merchant._id.toString()) || 0
     }));
+
+    merchantsCache = merchantsWithCounts;
+    merchantsCacheTs = Date.now();
+
     res.status(200).json(merchantsWithCounts);
   } catch (error) {
+    console.error('Error in GET /api/merchants:', error);
     res.status(500).json(safeError(error));
   }
 });

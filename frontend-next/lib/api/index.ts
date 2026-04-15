@@ -96,11 +96,14 @@ export const PromotionAPI = {
 
 // Merchants
 export const MerchantAPI = {
-  getAll: () => fetchAPI<any[]>('merchants'),
+  getAll: () => fetchAPI<any[]>('merchants'), // Now uses 2-minute client cache + 5-minute server cache
   getById: (id: string) => fetchAPI<any>(`merchants/${id}`),
-  update: (id: string, data: any) => fetchAPI<any>(`merchants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  create: (data: any) => fetchAPI<any>('merchants', { method: 'POST', body: JSON.stringify(data) }),
-  delete: (id: string) => fetchAPI<any>(`merchants/${id}`, { method: 'DELETE' }),
+  update: (id: string, data: any) => fetchAPI<any>(`merchants/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+    .then(r => { invalidateCache('merchants'); return r; }),
+  create: (data: any) => fetchAPI<any>('merchants', { method: 'POST', body: JSON.stringify(data) })
+    .then(r => { invalidateCache('merchants'); return r; }),
+  delete: (id: string) => fetchAPI<any>(`merchants/${id}`, { method: 'DELETE' })
+    .then(r => { invalidateCache('merchants'); return r; }),
 };
 
 // Users
