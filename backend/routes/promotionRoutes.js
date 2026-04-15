@@ -217,6 +217,7 @@ router.get('/merchant/:merchantId', async (req, res) => {
   try {
     const promotions = await Promotion.find({ merchant: req.params.merchantId })
       .select('-comments -ratings')
+      .sort({ createdAt: -1 })
       .lean();
     res.status(200).json(promotions);
   } catch (error) {

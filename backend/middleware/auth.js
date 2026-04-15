@@ -31,7 +31,7 @@ function authorizeAdmin(req, res, next) {
 // Authorization Middleware: User is accessing/modifying their own resource, or is an Admin
 function authorizeSelfOrAdmin(req, res, next) {
   // Assumes route has an :id parameter that is the user's ID
-  if (req.user && (req.user.id === req.params.id || req.user.role === 'admin')) {
+  if (req.user && (req.user.id.toString() === req.params.id.toString() || req.user.role === 'admin')) {
     next();
   } else {
     res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource' });
@@ -47,7 +47,7 @@ function authorizeMerchantSelfOrAdmin(req, res, next) {
   // and req.user.merchantId is populated if the user's role is 'merchant'
   if (req.user &&
       (req.user.role === 'admin' ||
-       (req.user.role === 'merchant' && req.user.merchantId && req.user.merchantId.toString() === req.params.id))) {
+       (req.user.role === 'merchant' && req.user.merchantId && req.user.merchantId.toString() === req.params.id.toString()))) {
     next();
   } else {
     res.status(403).json({ message: 'Forbidden: You do not have permission to access this merchant resource' });
