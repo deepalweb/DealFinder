@@ -501,4 +501,42 @@ class ApiService {
       throw Exception('Failed to send test notification');
     }
   }
+
+  // Create a new promotion (merchant only)
+  Future<Map<String, dynamic>> createPromotion(Map<String, dynamic> promotionData, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(promotionData),
+    ).timeout(const Duration(seconds: 30));
+    
+    if (response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to create promotion');
+    }
+  }
+
+  // Update merchant information
+  Future<Map<String, dynamic>> updateMerchant(String merchantId, Map<String, dynamic> merchantData, String token) async {
+    final response = await http.put(
+      Uri.parse('${_baseUrl}merchants/$merchantId'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(merchantData),
+    ).timeout(const Duration(seconds: 30));
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to update merchant');
+    }
+  }
 }

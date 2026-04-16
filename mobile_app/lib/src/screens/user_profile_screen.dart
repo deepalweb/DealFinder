@@ -10,6 +10,7 @@ import '../models/promotion.dart';
 import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';
 import 'login_screen.dart';
+import 'merchant_dashboard_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -436,6 +437,29 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
               ),
             ),
             const SizedBox(height: 16),
+            // Merchant Dashboard Button
+            if (_role == 'merchant')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MerchantDashboardScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.dashboard),
+                  label: const Text('Merchant Dashboard'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+            if (_role == 'merchant')
+              const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

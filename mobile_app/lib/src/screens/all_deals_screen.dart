@@ -5,6 +5,7 @@ import '../models/promotion.dart';
 import '../models/category.dart';
 import '../widgets/modern_deal_card.dart';
 import 'deals_list_screen.dart';
+import 'deal_detail_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AllDealsScreen extends StatefulWidget {
@@ -353,7 +354,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                     margin: EdgeInsets.only(
                       right: index < displayDeals.length - 1 ? 12 : 0,
                     ),
-                    child: ModernDealCard(promotion: displayDeals[index]),
+                    child: ModernDealCard(
+                      promotion: displayDeals[index],
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DealDetailScreen(promotion: displayDeals[index]),
+                          ),
+                        );
+                      },
+                    ),
                   );
                 },
               ),

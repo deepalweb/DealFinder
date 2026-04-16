@@ -1,11 +1,13 @@
 import 'dart:convert'; // For base64Decode
-// For Uint8List
+import 'dart:typed_data'; // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Clipboard
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
 import '../services/api_service.dart';
@@ -676,22 +678,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                             color: Colors.grey[300],
                                             borderRadius: BorderRadius.circular(8),
                                           ),
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: deal.imageDataString != null && deal.imageDataString!.isNotEmpty
-                                              ? (deal.imageDataString!.startsWith('http')
-                                                  ? Image.network(deal.imageDataString!, fit: BoxFit.cover, width: double.infinity, height: 70, errorBuilder: (c, e, s) => const Icon(Icons.broken_image))
-                                                  : (deal.imageDataString!.startsWith('data:image')
-                                                      ? Image.memory(
-                                                          base64Decode(deal.imageDataString!.substring(deal.imageDataString!.indexOf(',') + 1)),
-                                                          fit: BoxFit.cover,
-                                                          width: double.infinity,
-                                                          height: 70,
-                                                          errorBuilder: (c, e, s) => const Icon(Icons.broken_image),
-                                                        )
-                                                      : const Icon(Icons.broken_image)))
-                                              : const Icon(Icons.broken_image),
-                                          ),
+                                          clipBehavior: Clip.antiAlias,
+                                          child: _buildRecommendationImage(deal.imageDataString),
                                         ),
                                       ),
                                       const SizedBox(height: 8),
@@ -989,5 +977,54 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       );
     }
     return _buildImageErrorPlaceholder(context);
+  }
+
+  Widget _buildRecommendationImage(String? imageDataString) {
+    final shimmer = Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(color: Colors.white),
+    );
+
+    if (imageDataString == null || imageDataString.isEmpty) {
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: const Center(
+          child: Icon(Icons.local_offer, size: 30, color: Colors.white70),
+        ),
+      );
+    }
+
+    if (imageDataString.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(imageDataString.substring(imageDataString.indexOf(',') + 1));
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => shimmer,
+        );
+      } catch (e) {
+        return shimmer;
+      }
+    }
+
+    if (imageDataString.startsWith('http')) {
+      return CachedNetworkImage(
+        imageUrl: imageDataString,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        placeholder: (_, __) => shimmer,
+        errorWidget: (_, __, ___) => shimmer,
+      );
+    }
+
+    return shimmer;
   }
 }
