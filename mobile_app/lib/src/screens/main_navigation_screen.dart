@@ -3,7 +3,7 @@ import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'home_screen.dart';
 import 'user_profile_screen.dart';
 import 'favorites_screen.dart';
-import 'deals_list_screen.dart';
+import 'all_deals_screen.dart';
 import 'stores_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -25,7 +25,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     super.initState();
     _screens = [
       HomeScreen(onNavigateToFavorites: () => setState(() => _selectedIndex = 3)),
-      const DealsListScreen(),
+      const AllDealsScreen(),
       const StoresScreen(),
       FavoritesScreen(userId: widget.userId, token: widget.token),
       const UserProfileScreen(),

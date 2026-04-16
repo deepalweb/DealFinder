@@ -41,10 +41,27 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() { _isLoading = true; _errorMessage = null; });
     try {
-      final result = await AuthService.loginWithEmail(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+      // Demo login - bypass Firebase for testing
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+      
+      // Check for demo credentials
+      if (email == 'demo@dealfinder.com' && password == 'demo123') {
+        // Use demo credentials
+        final demoResult = {
+          'id': 'demo-user-123',
+          'token': 'demo-token-xyz',
+          'name': 'Demo User',
+          'email': 'demo@dealfinder.com',
+          'role': 'user',
+        };
+        await AuthService.saveSession(demoResult);
+        if (mounted) _navigateToMain(demoResult);
+        return;
+      }
+      
+      // Try normal Firebase login
+      final result = await AuthService.loginWithEmail(email, password);
       if (mounted) _navigateToMain(result);
     } catch (e) {
       if (mounted) {
@@ -117,6 +134,44 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Colors.grey[700])),
               const SizedBox(height: 40),
+
+              // Demo credentials info box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Colors.blue[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Demo Login',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Email: demo@dealfinder.com',
+                      style: TextStyle(fontSize: 13, color: Colors.blue[900]),
+                    ),
+                    Text(
+                      'Password: demo123',
+                      style: TextStyle(fontSize: 13, color: Colors.blue[900]),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
 
               // Email
               TextFormField(

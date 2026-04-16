@@ -1,6 +1,6 @@
 class AppConfig {
   // ── Change only this line to switch environments ──────────────────────────
-  static const _env = _Env.device;
+  static const _env = _Env.production;
   // ─────────────────────────────────────────────────────────────────────────
 
   static const _urls = {

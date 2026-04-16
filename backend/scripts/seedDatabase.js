@@ -47,17 +47,29 @@ const merchants = [
   {
     name: 'Jane\'s Electronics',
     profile: 'Leading electronics retailer with the best deals on the latest gadgets.',
-    contactInfo: 'jane@example.com'
+    contactInfo: 'jane@example.com',
+    category: 'electronics',
+    currency: 'USD',
+    logo: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=200&h=200&fit=crop',
+    banner: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800&h=300&fit=crop'
   },
   {
     name: 'Fashion Forward',
     profile: 'Trendy fashion items at affordable prices.',
-    contactInfo: 'contact@fashionforward.com'
+    contactInfo: 'contact@fashionforward.com',
+    category: 'fashion',
+    currency: 'USD',
+    logo: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=200&h=200&fit=crop',
+    banner: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=300&fit=crop'
   },
   {
     name: 'Home Essentials',
     profile: 'Everything you need for your home.',
-    contactInfo: 'info@homeessentials.com'
+    contactInfo: 'info@homeessentials.com',
+    category: 'home',
+    currency: 'USD',
+    logo: 'https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=200&h=200&fit=crop',
+    banner: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&h=300&fit=crop'
   }
 ];
 

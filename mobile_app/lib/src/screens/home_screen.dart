@@ -1,36 +1,40 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import '../models/category.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/cache_service.dart';
-import '../widgets/deal_card_new.dart';
+import '../widgets/quick_action_button.dart';
+import '../widgets/section_header.dart';
+import '../widgets/home_shimmer.dart';
+import '../widgets/flash_sale_card.dart';
+import '../widgets/modern_deal_card.dart';
 import 'deal_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'search_screen.dart';
 import 'user_profile_screen.dart';
 import 'nearby_deals_screen.dart';
+import 'all_deals_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToFavorites;
+  
   const HomeScreen({super.key, this.onNavigateToFavorites});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  static const _bg = Color(0xFFF8F9FA);
-  static const _red = Color(0xFFE53935);
-  static const _blue = Color(0xFF1E88E5);
-
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final ApiService _api = ApiService();
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  
   List<Promotion> _allDeals = [];
   bool _loading = true;
   bool _isOffline = false;
@@ -45,24 +49,34 @@ class _HomeScreenState extends State<HomeScreen> {
   Position? _position;
 
   String? _selectedCategory;
-  final PageController _bannerController = PageController();
-  Timer? _bannerTimer;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
     _loadAll();
+    _animationController.forward();
   }
 
   @override
   void dispose() {
-    _bannerTimer?.cancel();
-    _bannerController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
   Future<void> _loadAll() async {
-    await Future.wait([_loadUser(), _loadLocation(), _loadDeals()]);
+    await Future.wait([
+      _loadUser(),
+      _loadLocation(),
+      _loadDeals(),
+    ]);
   }
 
   Future<void> _loadUser() async {
@@ -90,45 +104,75 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() => _position = pos);
     if (pos != null) {
-      setState(() => _locationName = '${pos.latitude.toStringAsFixed(2)}°N');
+      setState(() => _locationName = 'Current Location');
+      // Fetch nearby deals from backend
+      _loadNearbyDeals(pos.latitude, pos.longitude);
+    }
+  }
+
+  Future<void> _loadNearbyDeals(double lat, double lng) async {
+    try {
+      final nearbyDeals = await _api.fetchNearbyPromotions(lat, lng, radiusKm: 10);
+      if (mounted) {
+        setState(() {
+          // Update deals with distance information
+          for (var deal in nearbyDeals) {
+            final index = _allDeals.indexWhere((d) => d.id == deal.id);
+            if (index != -1) {
+              _allDeals[index] = deal;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      // Silently fail - nearby deals are optional
     }
   }
 
   Future<void> _loadDeals() async {
     try {
       final deals = await _api.fetchPromotions();
-      if (mounted) setState(() { _allDeals = deals; _loading = false; _isOffline = false; });
-      _startBannerTimer();
+      if (mounted) {
+        setState(() {
+          _allDeals = deals;
+          _loading = false;
+          _isOffline = false;
+        });
+      }
     } catch (e) {
       final cached = await CacheService.loadPromotions(forceStale: true);
-      if (mounted) setState(() {
-        _allDeals = cached ?? [];
-        _loading = false;
-        _isOffline = cached == null || cached.isEmpty;
-      });
-      _startBannerTimer();
+      if (mounted) {
+        setState(() {
+          _allDeals = cached ?? [];
+          _loading = false;
+          _isOffline = cached == null || cached.isEmpty;
+        });
+      }
     }
   }
 
-  void _startBannerTimer() {
-    _bannerTimer?.cancel();
-    final banners = _bannerDeals;
-    if (banners.length < 2) return;
-    _bannerTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!_bannerController.hasClients) return;
-      final next = (_bannerController.page?.round() ?? 0) + 1;
-      _bannerController.animateToPage(
-        next % banners.length,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
-
   Future<void> _refresh() async {
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     await _loadDeals();
     await _loadLocation();
+    
+    if (mounted && !_isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text('${_allDeals.length} deals loaded'),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF4CAF50),
+        ),
+      );
+    }
   }
 
   List<Promotion> get _filteredDeals {
@@ -139,12 +183,9 @@ class _HomeScreenState extends State<HomeScreen> {
     ).toList();
   }
 
-  List<Promotion> get _bannerDeals =>
-      _filteredDeals.where((p) => p.featured == true).take(5).toList();
-
-  List<Promotion> get _expiringSoon {
+  List<Promotion> get _flashSales {
     final now = DateTime.now();
-    final cutoff = now.add(const Duration(hours: 48));
+    final cutoff = now.add(const Duration(hours: 24));
     return _filteredDeals
         .where((p) => p.endDate != null && p.endDate!.isBefore(cutoff) && p.endDate!.isAfter(now))
         .toList()
@@ -155,10 +196,14 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_position == null) return [];
     final withDist = _filteredDeals.where((p) => p.distance != null).toList()
       ..sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
-    return withDist;
+    return withDist.take(10).toList();
   }
 
-  List<Promotion> get _justAdded {
+  List<Promotion> get _featuredDeals {
+    return _filteredDeals.where((p) => p.featured == true).take(5).toList();
+  }
+
+  List<Promotion> get _newDeals {
     final sorted = [..._filteredDeals]
       ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
     return sorted.take(10).toList();
@@ -170,47 +215,35 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          color: _blue,
-          child: CustomScrollView(
-            slivers: [
-              _buildHeader(),
-              _buildActionZone(),
-              _buildCategories(),
-              if (_isOffline) _buildOfflineBanner(),
-              if (_loading) _buildLoadingShimmer(),
-              if (!_loading) ...[
-                if (_bannerDeals.isNotEmpty) _buildBannerCarousel(),
-                if (_expiringSoon.isNotEmpty) _buildSection(
-                  title: '🔥 Expiring Soon',
-                  subtitle: 'Grab them before they\'re gone',
-                  child: _buildHorizontalScroll(_expiringSoon),
-                ),
-                if (_nearbyDeals.isNotEmpty) _buildSection(
-                  title: '📍 Deals Near You',
-                  subtitle: 'Sorted by distance',
-                  child: _buildGrid(_nearbyDeals),
-                ),
-                if (_justAdded.isNotEmpty) _buildSection(
-                  title: '🆕 Just Added',
-                  subtitle: 'Fresh deals today',
-                  child: _buildHorizontalScroll(_justAdded),
-                ),
-                if (_filteredDeals.isEmpty && !_loading)
-                  SliverToBoxAdapter(child: _buildEmpty()),
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            color: Theme.of(context).colorScheme.primary,
+            child: CustomScrollView(
+              slivers: [
+                _buildHeader(),
+                _buildGreeting(),
+                _buildSearchBar(),
+                _buildQuickActions(),
+                _buildCategories(),
+                if (_isOffline) _buildOfflineBanner(),
+                if (_loading)
+                  const SliverToBoxAdapter(child: HomeShimmer())
+                else
+                  _buildContent(),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
-              const SliverToBoxAdapter(child: SizedBox(height: 24)),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // ── Smart Header ──────────────────────────────────────────────────────────
+  // ── Header with location, notifications, profile ──────────────────────────
   Widget _buildHeader() {
     return SliverToBoxAdapter(
       child: Padding(
@@ -218,26 +251,48 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Row(
           children: [
             // Location
-            GestureDetector(
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const NearbyDealsScreen())),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)],
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 600),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: child,
+                );
+              },
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.location_on, size: 14, color: _red),
-                    const SizedBox(width: 4),
-                    Text(_locationName,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 2),
-                    const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
-                  ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Color(0xFFE53935)),
+                      const SizedBox(width: 4),
+                      Text(
+                        _locationName,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -247,32 +302,82 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined, size: 26),
-                  onPressed: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => NotificationsScreen(userId: _userId, token: _userToken))),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsScreen(
+                        userId: _userId,
+                        token: _userToken,
+                      ),
+                    ),
+                  ),
                 ),
                 if (_notificationCount > 0)
                   Positioned(
-                    right: 8, top: 8,
-                    child: Container(
-                      width: 8, height: 8,
-                      decoration: const BoxDecoration(color: _red, shape: BoxShape.circle),
+                    right: 8,
+                    top: 8,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.elasticOut,
+                      builder: (context, value, child) {
+                        return Transform.scale(
+                          scale: value,
+                          child: child,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE53935),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          _notificationCount > 9 ? '9+' : '$_notificationCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
                   ),
               ],
             ),
-            // Profile avatar
-            GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => const UserProfileScreen())),
-              child: CircleAvatar(
-                radius: 18,
-                backgroundColor: _blue.withOpacity(0.1),
-                backgroundImage: _profilePicture != null && _profilePicture!.contains(',')
-                    ? MemoryImage(base64Decode(_profilePicture!.split(',')[1]))
-                    : null,
-                child: (_profilePicture == null || !_profilePicture!.contains(','))
-                    ? const Icon(Icons.person, size: 18, color: _blue)
-                    : null,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Greeting Section ──────────────────────────────────────────────────────
+  Widget _buildGreeting() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hello, $_userName 👋',
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF9E9E9E),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Find amazing deals today!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A1A),
               ),
             ),
           ],
@@ -281,48 +386,73 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Action Zone ───────────────────────────────────────────────────────────
-  Widget _buildActionZone() {
+  // ── Search Bar ────────────────────────────────────────────────────────────
+  Widget _buildSearchBar() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Hello, $_userName 👋',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF9E9E9E))),
-            const SizedBox(height: 4),
-            const Text('Find the best deals near you.',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
-            const SizedBox(height: 14),
-            // Search bar
-            GestureDetector(
-              onTap: () => Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const SearchScreen())),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: Hero(
+          tag: 'search_bar',
+          child: Material(
+            color: Colors.transparent,
+            child: GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              ),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: Color(0xFF9E9E9E), size: 20),
-                    const SizedBox(width: 10),
-                    Text('Search KFC, Pizza, Shoes...',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 14)),
+                    const Icon(Icons.search, color: Color(0xFF9E9E9E), size: 22),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Search deals, stores...',
+                      style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 14,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  // ── Category Pills ────────────────────────────────────────────────────────
+  // ── Quick Actions ─────────────────────────────────────────────────────────
+  Widget _buildQuickActions() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: QuickActionButton(
+          icon: Icons.map,
+          label: 'Nearby Deals',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
+          ),
+          iconColor: const Color(0xFF4CAF50),
+          backgroundColor: const Color(0xFFE8F5E9),
+        ),
+      ),
+    );
+  }
+
+  // ── Categories ────────────────────────────────────────────────────────────
   Widget _buildCategories() {
     final categories = [null, ...predefinedCategories.map((c) => c.id)];
     final labels = ['All', ...predefinedCategories.map((c) => c.name)];
@@ -340,36 +470,50 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return SliverToBoxAdapter(
-      child: SizedBox(
-        height: 44,
+      child: Container(
+        height: 50,
+        margin: const EdgeInsets.only(top: 20),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           itemCount: categories.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
           itemBuilder: (_, i) {
             final selected = _selectedCategory == categories[i];
             return GestureDetector(
               onTap: () => setState(() => _selectedCategory = categories[i]),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: selected ? _blue : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 6)],
+                  color: selected
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(icons[i], size: 14, color: selected ? Colors.white : _blue),
-                    const SizedBox(width: 5),
-                    Text(labels[i],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: selected ? Colors.white : const Color(0xFF1A1A1A),
-                        )),
+                    Icon(
+                      icons[i],
+                      size: 16,
+                      color: selected ? Colors.white : Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      labels[i],
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: selected ? Colors.white : const Color(0xFF1A1A1A),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -384,7 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildOfflineBanner() {
     return SliverToBoxAdapter(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.orange[50],
@@ -396,8 +540,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(Icons.wifi_off, color: Colors.orange[700], size: 16),
             const SizedBox(width: 8),
             Expanded(
-              child: Text('Offline — showing cached deals',
-                  style: TextStyle(color: Colors.orange[800], fontSize: 13)),
+              child: Text(
+                'Offline — showing cached deals',
+                style: TextStyle(color: Colors.orange[800], fontSize: 13),
+              ),
             ),
             TextButton(
               onPressed: _refresh,
@@ -409,236 +555,362 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Loading Shimmer ───────────────────────────────────────────────────────
-  Widget _buildLoadingShimmer() {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
+  // ── Content Sections ──────────────────────────────────────────────────────
+  Widget _buildContent() {
+    if (_filteredDeals.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(height: 160, decoration: BoxDecoration(
-                color: Colors.white, borderRadius: BorderRadius.circular(16))),
-              const SizedBox(height: 16),
-              Row(children: [
-                Expanded(child: Container(height: 180, decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(16)))),
-                const SizedBox(width: 12),
-                Expanded(child: Container(height: 180, decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(16)))),
-              ]),
+              Icon(Icons.search_off, size: 60, color: Colors.grey[300]),
+              const SizedBox(height: 12),
+              Text(
+                'No deals found',
+                style: TextStyle(color: Colors.grey[500], fontSize: 16),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Try a different category',
+                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  // ── Banner Carousel ───────────────────────────────────────────────────────
-  Widget _buildBannerCarousel() {
-    final banners = _bannerDeals;
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 170,
-              child: PageView.builder(
-                controller: _bannerController,
-                itemCount: banners.length,
-                itemBuilder: (_, i) {
-                  final p = banners[i];
-                  return GestureDetector(
-                    onTap: () => _openDeal(p),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (p.imageDataString != null && p.imageDataString!.startsWith('http'))
-                            CachedNetworkImage(
-                              imageUrl: p.imageDataString!,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => Shimmer.fromColors(
-                                baseColor: Colors.grey[300]!,
-                                highlightColor: Colors.grey[100]!,
-                                child: Container(color: Colors.white),
-                              ),
-                              errorWidget: (_, __, ___) => Container(color: Colors.grey[200]),
-                            )
-                          else
-                            Container(
-                              decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
-                                ),
-                              ),
+    return SliverList(
+      delegate: SliverChildListDelegate([
+        // Flash Sales Section
+        if (_flashSales.isNotEmpty) ...[
+          SectionHeader(
+            title: '⚡ Flash Sales',
+            subtitle: 'Ending soon - Hurry up!',
+            icon: Icons.flash_on,
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 240,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _flashSales.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => FlashSaleCard(
+                    promotion: _flashSales[i],
+                    width: 180,
+                    onTap: () => _openDeal(_flashSales[i]),
+                  ),
+                ),
+              ),
+              // Swipe indicator - right side
+              if (_flashSales.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
                             ),
-                          // Gradient overlay
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Colors.transparent, Colors.black.withOpacity(0.6)],
-                              ),
-                            ),
-                          ),
-                          // Text overlay
-                          Positioned(
-                            bottom: 14, left: 14, right: 14,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (p.discount != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: _red,
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(p.discount!,
-                                        style: const TextStyle(color: Colors.white,
-                                            fontSize: 11, fontWeight: FontWeight.bold)),
-                                  ),
-                                const SizedBox(height: 4),
-                                Text(p.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: Colors.white,
-                                        fontSize: 15, fontWeight: FontWeight.bold)),
-                                if (p.merchantName != null)
-                                  Text(p.merchantName!,
-                                      style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
                       ),
                     ),
-                  );
-                },
-              ),
-            ),
-            // Dots indicator
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(banners.length, (i) {
-                return AnimatedBuilder(
-                  animation: _bannerController,
-                  builder: (_, __) {
-                    final page = _bannerController.hasClients
-                        ? (_bannerController.page?.round() ?? 0)
-                        : 0;
-                    return Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      width: page == i ? 16 : 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: page == i ? _blue : Colors.grey[300],
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Section wrapper ───────────────────────────────────────────────────────
-  Widget _buildSection({required String title, required String subtitle, required Widget child}) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold,
-                            color: Color(0xFF1A1A1A))),
-                    Text(subtitle,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF9E9E9E))),
-                  ],
+                  ),
                 ),
-              ],
+            ],
+          ),
+        ],
+
+        // Featured Deals Section
+        if (_featuredDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '🔥 Hot Deals',
+            subtitle: 'Trending now',
+            icon: Icons.local_fire_department,
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 240,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _featuredDeals.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => ModernDealCard(
+                    promotion: _featuredDeals[i],
+                    width: 170,
+                    onTap: () => _openDeal(_featuredDeals[i]),
+                  ),
+                ),
+              ),
+              // Swipe indicator - right side
+              if (_featuredDeals.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+
+        // Nearby Deals Section
+        if (_nearbyDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '📍 Near You',
+            subtitle: 'Deals around your location',
+            icon: Icons.location_on,
+            onSeeAll: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
             ),
           ),
-          child,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+              ),
+              itemCount: _nearbyDeals.length > 4 ? 4 : _nearbyDeals.length,
+              itemBuilder: (_, i) => ModernDealCard(
+                promotion: _nearbyDeals[i],
+                onTap: () => _openDeal(_nearbyDeals[i]),
+              ),
+            ),
+          ),
+        ] else if (_position == null) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '📍 Near You',
+            subtitle: 'Enable location to see nearby deals',
+            icon: Icons.location_on,
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.location_off, size: 48, color: Colors.blue[700]),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Location Access Required',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue[900],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Allow location access to discover amazing deals near you',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.blue[800]),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await _loadLocation();
+                      if (_position != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Location enabled! Loading nearby deals...'),
+                            backgroundColor: Color(0xFF4CAF50),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.location_on),
+                    label: const Text('Enable Location'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
-      ),
-    );
-  }
 
-  // ── Horizontal scroll row ─────────────────────────────────────────────────
-  Widget _buildHorizontalScroll(List<Promotion> deals) {
-    return SizedBox(
-      height: 230,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: deals.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => DealCardNew(
-          promotion: deals[i],
-          width: 160,
-          onTap: () => _openDeal(deals[i]),
-        ),
-      ),
-    );
-  }
-
-  // ── 2-column grid ─────────────────────────────────────────────────────────
-  Widget _buildGrid(List<Promotion> deals) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.72,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: deals.length > 6 ? 6 : deals.length,
-        itemBuilder: (_, i) => DealCardNew(
-          promotion: deals[i],
-          onTap: () => _openDeal(deals[i]),
-        ),
-      ),
-    );
-  }
-
-  // ── Empty state ───────────────────────────────────────────────────────────
-  Widget _buildEmpty() {
-    return Padding(
-      padding: const EdgeInsets.all(40),
-      child: Column(
-        children: [
-          Icon(Icons.search_off, size: 60, color: Colors.grey[300]),
-          const SizedBox(height: 12),
-          Text('No deals found', style: TextStyle(color: Colors.grey[500], fontSize: 16)),
-          const SizedBox(height: 4),
-          Text('Try a different category', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+        // New This Week Section
+        if (_newDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '🆕 New This Week',
+            subtitle: 'Fresh deals just added',
+            icon: Icons.fiber_new,
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 240,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _newDeals.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => ModernDealCard(
+                    promotion: _newDeals[i],
+                    width: 170,
+                    onTap: () => _openDeal(_newDeals[i]),
+                  ),
+                ),
+              ),
+              // Swipe indicator - right side
+              if (_newDeals.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
-      ),
+
+        // All Deals Section
+        const SizedBox(height: 8),
+        SectionHeader(
+          title: '🎯 All Deals',
+          subtitle: '${_filteredDeals.length} deals available',
+          icon: Icons.grid_view,
+          onSeeAll: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AllDealsScreen()),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: _filteredDeals.length > 6 ? 6 : _filteredDeals.length,
+            itemBuilder: (_, i) => ModernDealCard(
+              promotion: _filteredDeals[i],
+              onTap: () => _openDeal(_filteredDeals[i]),
+            ),
+          ),
+        ),
+        // View All Button
+        if (_filteredDeals.length > 6)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: OutlinedButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AllDealsScreen()),
+              ),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'View All ${_filteredDeals.length} Deals',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ]),
     );
   }
 }

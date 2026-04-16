@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
 
     // Optimized: Get merchants without populating promotions
     const merchants = await Merchant.find()
-      .select('name logo category description address location currency')
+      .select('name logo banner category description address location currency')
       .lean();
     
     // Get promotion counts in a single aggregation query

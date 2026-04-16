@@ -20,6 +20,7 @@ const merchantSchema = new mongoose.Schema({
   contactInfo: { type: String }, // General contact like email or phone
   promotions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' }],
   logo: { type: String }, // URL or path to merchant's logo
+  banner: { type: String }, // URL or path to merchant's banner/cover photo
   createdAt: { type: Date, default: Date.now, index: true }, // Add index for sorting
   address: { type: String }, // Textual address
   contactNumber: { type: String }, // Specific contact phone number

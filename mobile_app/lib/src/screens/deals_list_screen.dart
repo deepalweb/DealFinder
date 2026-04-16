@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/promotion.dart';
 import '../widgets/deal_card.dart'; // Import the new DealCard widget
-import '../widgets/deal_card_shimmer.dart'; // Import the shimmer widget
+import 'package:shimmer/shimmer.dart';
 import '../models/category.dart'; // Import Category model
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
 import 'search_screen.dart'; // Import SearchScreen for navigation
@@ -86,7 +86,7 @@ class _DealsListScreenState extends State<DealsListScreen> {
           future: _promotionsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-              return buildDealsListShimmer();
+              return _buildShimmer();
             } else if (snapshot.hasError) {
               return Center(
                 child: Padding(
@@ -185,6 +185,30 @@ class _DealsListScreenState extends State<DealsListScreen> {
           child: DealCard(promotion: promo, compact: true),
         );
       },
+    );
+  }
+
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: GridView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          childAspectRatio: 0.62,
+          crossAxisSpacing: 2,
+          mainAxisSpacing: 2,
+        ),
+        itemCount: 6,
+        itemBuilder: (_, __) => Container(
+          margin: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      ),
     );
   }
 }
