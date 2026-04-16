@@ -60,6 +60,7 @@ class AuthService {
     await prefs.remove('userEmail');
     await prefs.remove('userRole');
     await prefs.remove('userBusinessName');
+    await prefs.remove('merchantId');
   }
 
   static Future<void> saveSession(Map<String, dynamic> response) async {
@@ -75,10 +76,20 @@ class AuthService {
     await prefs.setString('userEmail', response['email'] as String? ?? '');
     final role = response['role'] as String? ?? 'user';
     await prefs.setString('userRole', role);
-    if (role == 'merchant' && response['businessName'] != null) {
-      await prefs.setString('userBusinessName', response['businessName'] as String);
+    
+    // Save merchant-specific data
+    if (role == 'merchant') {
+      if (response['businessName'] != null) {
+        await prefs.setString('userBusinessName', response['businessName'] as String);
+      }
+      // Save merchantId if available
+      final merchantId = response['merchantId'] as String?;
+      if (merchantId != null) {
+        await prefs.setString('merchantId', merchantId);
+      }
     } else {
       await prefs.remove('userBusinessName');
+      await prefs.remove('merchantId');
     }
   }
 }
