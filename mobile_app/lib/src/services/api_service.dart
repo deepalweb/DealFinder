@@ -539,4 +539,50 @@ class ApiService {
       throw Exception(errorBody['message'] ?? 'Failed to update merchant');
     }
   }
+
+  // Initialize merchant profile for existing merchant user
+  Future<Map<String, dynamic>> initializeMerchantProfile({
+    required String businessName,
+    required String token,
+    String? contactInfo,
+    String? address,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}users/initialize-merchant-profile'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'businessName': businessName,
+        if (contactInfo != null) 'contactInfo': contactInfo,
+        if (address != null) 'address': address,
+      }),
+    ).timeout(const Duration(seconds: 30));
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to initialize merchant profile');
+    }
+  }
+
+  // Fetch user profile by ID
+  Future<Map<String, dynamic>> fetchUserProfile(String userId, String token) async {
+    final response = await http.get(
+      Uri.parse('${_baseUrl}users/$userId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 30));
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to fetch user profile');
+    }
+  }
 }

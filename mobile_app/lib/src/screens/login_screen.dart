@@ -60,6 +60,24 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       
+      // Check for demo merchant credentials
+      if (email == 'merchant@dealfinder.com' && password == 'merchant123') {
+        // Use demo merchant credentials
+        final demoMerchantResult = {
+          'id': 'demo-merchant-user-123',
+          '_id': 'demo-merchant-user-123',
+          'token': 'demo-merchant-token-xyz',
+          'name': 'Demo Merchant',
+          'email': 'merchant@dealfinder.com',
+          'role': 'merchant',
+          'businessName': 'Demo Store',
+          'merchantId': 'demo-merchant-123',
+        };
+        await AuthService.saveSession(demoMerchantResult);
+        if (mounted) _navigateToMain(demoMerchantResult);
+        return;
+      }
+      
       // Try normal Firebase login
       final result = await AuthService.loginWithEmail(email, password);
       if (mounted) _navigateToMain(result);
@@ -161,11 +179,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Email: demo@dealfinder.com',
+                      'User: demo@dealfinder.com / demo123',
                       style: TextStyle(fontSize: 13, color: Colors.blue[900]),
                     ),
                     Text(
-                      'Password: demo123',
+                      'Merchant: merchant@dealfinder.com / merchant123',
                       style: TextStyle(fontSize: 13, color: Colors.blue[900]),
                     ),
                   ],

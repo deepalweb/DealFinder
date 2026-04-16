@@ -35,10 +35,38 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     _merchantId = prefs.getString('merchantId');
     _token = prefs.getString('userToken');
     _merchantName = prefs.getString('userBusinessName');
+    final userId = prefs.getString('userId');
+    
+    print('🔍 Merchant Dashboard - Loading data:');
+    print('   merchantId: $_merchantId');
+    print('   token: ${_token != null ? "exists" : "null"}');
+    print('   merchantName: $_merchantName');
+    print('   userId: $userId');
+    print('   All keys: ${prefs.getKeys()}');
+
+    // If merchantId is null, try to fetch it from the backend
+    if (_merchantId == null && userId != null && _token != null) {
+      print('🔄 Fetching user profile to get merchantId...');
+      try {
+        final userProfile = await _apiService.fetchUserProfile(userId, _token!);
+        final fetchedMerchantId = userProfile['merchantId'] as String?;
+        if (fetchedMerchantId != null) {
+          print('✅ Found merchantId in user profile: $fetchedMerchantId');
+          await prefs.setString('merchantId', fetchedMerchantId);
+          _merchantId = fetchedMerchantId;
+        } else {
+          print('❌ No merchantId in user profile');
+        }
+      } catch (e) {
+        print('❌ Error fetching user profile: $e');
+      }
+    }
 
     if (_merchantId != null) {
       await _fetchMerchantDetails();
       await _fetchMyPromotions();
+    } else {
+      print('❌ No merchantId found in SharedPreferences or backend');
     }
 
     setState(() => _isLoading = false);
@@ -78,6 +106,51 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     await _loadMerchantData();
   }
 
+  Future<void> _initializeMerchantProfile() async {
+    if (_merchantName == null || _merchantName!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Business name is required')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final response = await _apiService.initializeMerchantProfile(
+        businessName: _merchantName!,
+        token: _token!,
+      );
+
+      // Save the new merchantId
+      final merchantId = response['merchantId'] as String?;
+      if (merchantId != null) {
+        await prefs.setString('merchantId', merchantId);
+        setState(() => _merchantId = merchantId);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Store profile initialized successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        await _loadMerchantData();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to initialize profile: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -89,15 +162,48 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     if (_merchantId == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Merchant Dashboard')),
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 64, color: Colors.red),
-              SizedBox(height: 16),
-              Text('No merchant account linked'),
-              Text('Please contact support'),
-            ],
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.store_outlined, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 24),
+                const Text(
+                  'Merchant Profile Not Set Up',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Your account is registered as a merchant, but your store profile needs to be initialized.',
+                  style: TextStyle(color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await _initializeMerchantProfile();
+                  },
+                  icon: const Icon(Icons.store),
+                  label: const Text('Initialize Store Profile'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
           ),
         ),
       );

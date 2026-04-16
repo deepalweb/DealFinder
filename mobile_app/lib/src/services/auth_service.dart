@@ -69,6 +69,10 @@ class AuthService {
     if (token == null || userId == null) {
       throw Exception('Invalid response from server');
     }
+    
+    // Debug: Print the entire response to see what we're getting
+    print('🔍 Login Response: $response');
+    
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userToken', token);
     await prefs.setString('userId', userId);
@@ -84,8 +88,12 @@ class AuthService {
       }
       // Save merchantId if available
       final merchantId = response['merchantId'] as String?;
+      print('🔍 MerchantId from response: $merchantId');
       if (merchantId != null) {
         await prefs.setString('merchantId', merchantId);
+        print('✅ Saved merchantId: $merchantId');
+      } else {
+        print('❌ No merchantId in response');
       }
     } else {
       await prefs.remove('userBusinessName');
