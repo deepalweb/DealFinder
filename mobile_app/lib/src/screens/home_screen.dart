@@ -205,7 +205,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   List<Promotion> get _newDeals {
     final sorted = [..._filteredDeals]
-      ..sort((a, b) => (b.startDate ?? DateTime(0)).compareTo(a.startDate ?? DateTime(0)));
+      ..sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
     return sorted.take(10).toList();
   }
 

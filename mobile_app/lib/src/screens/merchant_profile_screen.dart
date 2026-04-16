@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -33,6 +35,17 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     try {
       final merchant = await ApiService().fetchMerchantById(widget.merchantId);
       final deals = await ApiService().fetchPromotionsByMerchant(widget.merchantId);
+      
+      // Debug logging
+      if (kDebugMode) {
+        print('=== MERCHANT DATA ===');
+        print('Name: ${merchant['name']}');
+        print('Logo: ${merchant['logo']?.toString().substring(0, 50)}...');
+        print('Banner: ${merchant['banner']?.toString().substring(0, 50)}...');
+        print('Has logo: ${merchant['logo'] != null}');
+        print('Has banner: ${merchant['banner'] != null}');
+      }
+      
       setState(() {
         _merchant = merchant;
         _deals = deals;
@@ -64,6 +77,76 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     }
     await prefs.setStringList('dealFinderFollowing', followed);
     setState(() { _isFollowing = !_isFollowing; });
+  }
+
+  Widget _buildImageWidget(String? imageUrl, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return Container(
+        width: width,
+        height: height,
+        color: Colors.grey[300],
+        child: const Icon(Icons.image, color: Colors.white, size: 48),
+      );
+    }
+    
+    // Handle base64 data URI
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (_, __, ___) => Container(
+            width: width,
+            height: height,
+            color: Colors.grey[300],
+            child: const Icon(Icons.image, color: Colors.white, size: 48),
+          ),
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error decoding base64 image: $e');
+        return Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: const Icon(Icons.image, color: Colors.white, size: 48),
+        );
+      }
+    }
+    
+    // Handle HTTP/HTTPS URL
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, __, ___) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: const Icon(Icons.image, color: Colors.white, size: 48),
+        ),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: width,
+            height: height,
+            color: Colors.grey[200],
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        },
+      );
+    }
+    
+    return Container(
+      width: width,
+      height: height,
+      color: Colors.grey[300],
+      child: const Icon(Icons.image, color: Colors.white, size: 48),
+    );
   }
 
   String _getSafeLogo(dynamic logo, String name) {
@@ -126,8 +209,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final bannerUrl = _merchant?['banner'] ?? '';
-    final hasBanner = bannerUrl.isNotEmpty;
+    final bannerUrl = _merchant?['banner'];
+    final hasBanner = bannerUrl != null && bannerUrl.toString().isNotEmpty;
+    
+    if (kDebugMode && _merchant != null) {
+      print('Building merchant profile:');
+      print('Banner URL: $bannerUrl');
+      print('Has banner: $hasBanner');
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Store Profile'),
@@ -152,16 +242,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Banner
+                          // Banner / Cover Photo
                           if (hasBanner)
-                            Container(
+                            SizedBox(
                               width: double.infinity,
-                              height: 160,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: NetworkImage(bannerUrl),
-                                  fit: BoxFit.cover,
-                                ),
+                              height: 200,
+                              child: _buildImageWidget(
+                                bannerUrl,
+                                width: double.infinity,
+                                height: 200,
                               ),
                             )
                           else
@@ -182,17 +271,10 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     ClipOval(
-                                      child: Image.network(
-                                        _getSafeLogo(_merchant!['logo'], _merchant!['name'] ?? 'M'),
+                                      child: _buildImageWidget(
+                                        _merchant!['logo'],
                                         width: 72,
                                         height: 72,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          width: 72,
-                                          height: 72,
-                                          color: Colors.grey[300],
-                                          child: const Icon(Icons.store, color: Colors.white),
-                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 16),
@@ -341,7 +423,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                         margin: const EdgeInsets.symmetric(vertical: 6),
                                         child: ListTile(
                                           leading: deal['image'] != null && deal['image'].toString().isNotEmpty
-                                              ? Image.network(deal['image'], width: 48, height: 48, fit: BoxFit.cover)
+                                              ? SizedBox(
+                                                  width: 48,
+                                                  height: 48,
+                                                  child: _buildImageWidget(
+                                                    deal['image'],
+                                                    width: 48,
+                                                    height: 48,
+                                                  ),
+                                                )
                                               : null,
                                           title: Row(
                                             children: [

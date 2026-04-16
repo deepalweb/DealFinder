@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../widgets/category_icon.dart';
 
 class MerchantCard extends StatelessWidget {
@@ -16,6 +18,44 @@ class MerchantCard extends StatelessWidget {
     required this.isFollowing,
     required this.onShare,
   });
+
+  Widget _buildImageWidget(String? imageUrl, Widget placeholder, {BoxFit fit = BoxFit.cover, double? width, double? height}) {
+    if (imageUrl == null || imageUrl.isEmpty) return placeholder;
+    
+    // Handle base64 data URI
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
+        return Image.memory(
+          bytes,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (_, __, ___) => placeholder,
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error decoding base64 image: $e');
+        return placeholder;
+      }
+    }
+    
+    // Handle HTTP/HTTPS URL
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (_, __, ___) => placeholder,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return placeholder;
+        },
+      );
+    }
+    
+    return placeholder;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +88,11 @@ class MerchantCard extends StatelessWidget {
                 hasBanner
                     ? ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                        child: Image.network(
+                        child: _buildImageWidget(
                           bannerUrl,
+                          _buildGradientBanner(name, gradientColors),
                           height: 140,
                           width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (c, e, s) => _buildGradientBanner(name, gradientColors),
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return _buildGradientBanner(name, gradientColors);
-                          },
                         ),
                       )
                     : _buildGradientBanner(name, gradientColors),
@@ -82,16 +117,11 @@ class MerchantCard extends StatelessWidget {
                       backgroundColor: Colors.white,
                       child: hasLogo
                           ? ClipOval(
-                              child: Image.network(
+                              child: _buildImageWidget(
                                 logoUrl,
+                                _buildLogoPlaceholder(name, gradientColors),
                                 width: 64,
                                 height: 64,
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => _buildLogoPlaceholder(name, gradientColors),
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return _buildLogoPlaceholder(name, gradientColors);
-                                },
                               ),
                             )
                           : _buildLogoPlaceholder(name, gradientColors),

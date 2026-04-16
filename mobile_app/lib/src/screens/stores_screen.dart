@@ -41,10 +41,10 @@ class _StoresScreenState extends State<StoresScreen> {
     _fetchMerchants();
   }
 
-  Future<void> _fetchMerchants() async {
+  Future<void> _fetchMerchants({bool forceRefresh = false}) async {
     setState(() { _loading = true; _error = null; });
     try {
-      final merchants = await ApiService().fetchMerchants();
+      final merchants = await ApiService().fetchMerchants(forceRefresh: forceRefresh);
       if (mounted) {
         setState(() {
           _allMerchants = merchants;
@@ -333,7 +333,7 @@ class _StoresScreenState extends State<StoresScreen> {
     return RefreshIndicator(
       onRefresh: () async {
         HapticFeedback.mediumImpact();
-        await _fetchMerchants();
+        await _fetchMerchants(forceRefresh: true);
       },
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),

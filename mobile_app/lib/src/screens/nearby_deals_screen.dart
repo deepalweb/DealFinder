@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/promotion.dart';
@@ -82,6 +83,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     try {
       setState(() {
         _locationStatus = 'Finding deals near you...';
+        _error = null;
       });
 
       final nearbyDeals = await _apiService.fetchNearbyPromotions(
@@ -90,11 +92,25 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         radiusKm: searchRadius,
       );
 
+      // Sort by createdAt (most recent first)
+      nearbyDeals.sort((a, b) {
+        if (a.createdAt == null && b.createdAt == null) return 0;
+        if (a.createdAt == null) return 1;
+        if (b.createdAt == null) return -1;
+        return b.createdAt!.compareTo(a.createdAt!);
+      });
+
       setState(() {
         _nearbyDeals = nearbyDeals;
         _locationStatus = nearbyDeals.isEmpty 
           ? 'No deals found within ${searchRadius.round()}km'
           : 'Found ${nearbyDeals.length} deals within ${searchRadius.round()}km';
+        _isLoading = false;
+        _error = null;
+      });
+    } on TimeoutException {
+      setState(() {
+        _error = 'Request timed out. The server might be slow or unavailable. Please try again.';
         _isLoading = false;
       });
     } catch (e) {
@@ -169,7 +185,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       child: Slider(
                         value: _selectedRadius,
                         min: 1,
-                        max: 500,
+                        max: 50,
                         divisions: 49,
                         label: '${_selectedRadius.round()} km',
                         onChanged: _changeRadius,

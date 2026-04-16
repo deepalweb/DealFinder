@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
@@ -15,6 +16,57 @@ class ModernDealCard extends StatelessWidget {
     this.onTap,
     this.width,
   });
+
+  Widget _buildLogo(String logoUrl) {
+    // Handle base64 data URI
+    if (logoUrl.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(logoUrl.substring(logoUrl.indexOf(',') + 1));
+        return Container(
+          width: 16,
+          height: 16,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: Colors.grey[200],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5)),
+          ),
+        );
+      } catch (e) {
+        if (kDebugMode) print('Error decoding logo base64: $e');
+        return const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5));
+      }
+    }
+    
+    // Handle HTTP/HTTPS URL
+    if (logoUrl.startsWith('http')) {
+      return Container(
+        width: 16,
+        height: 16,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          color: Colors.grey[200],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: CachedNetworkImage(
+          imageUrl: logoUrl,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => Container(color: Colors.grey[200]),
+          errorWidget: (context, url, error) {
+            if (kDebugMode) print('Logo error: $error');
+            return const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5));
+          },
+        ),
+      );
+    }
+    
+    // Fallback
+    return const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5));
+  }
 
   String _formatDistance(double? distanceMeters) {
     if (distanceMeters == null) return '';
@@ -50,7 +102,8 @@ class ModernDealCard extends StatelessWidget {
         final bytes = base64Decode(img.substring(img.indexOf(',') + 1));
         return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity,
             errorBuilder: (_, __, ___) => shimmer);
-      } catch (_) {
+      } catch (e) {
+        if (kDebugMode) print('Error decoding base64 image: $e');
         return shimmer;
       }
     }
@@ -195,11 +248,14 @@ class ModernDealCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Merchant name
+                        // Merchant name with logo
                         if (p.merchantName != null && p.merchantName!.isNotEmpty)
                           Row(
                             children: [
-                              const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5)),
+                              if (p.merchantLogoUrl != null && p.merchantLogoUrl!.isNotEmpty)
+                                _buildLogo(p.merchantLogoUrl!)
+                              else
+                                const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5)),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(

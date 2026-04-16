@@ -60,19 +60,37 @@ class ApiService {
     return null;
   }
 
-  Future<List<Promotion>> fetchPromotions() async {
+  Future<List<Promotion>> fetchPromotions({bool forceRefresh = false}) async {
+    // Check cache first unless force refresh
+    if (!forceRefresh) {
+      final cached = await CacheService.loadPromotions();
+      if (cached != null && cached.isNotEmpty) {
+        if (kDebugMode) print('✅ Loaded ${cached.length} promotions from cache');
+        return cached;
+      }
+    }
+    
+    // Fetch from network
     try {
+      if (kDebugMode) print('🌐 Fetching promotions from network...');
       final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 60));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
-        try { await CacheService.savePromotions(promotions); } catch (_) {}
+        try { 
+          await CacheService.savePromotions(promotions);
+          if (kDebugMode) print('💾 Saved ${promotions.length} promotions to cache');
+        } catch (_) {}
         return promotions;
       }
       throw Exception('Failed to load promotions. Status code: ${response.statusCode}');
     } catch (e) {
+      if (kDebugMode) print('❌ Network error: $e');
       final cached = await CacheService.loadPromotions(forceStale: true);
-      if (cached != null) return cached;
+      if (cached != null) {
+        if (kDebugMode) print('📦 Using stale cache (${cached.length} promotions)');
+        return cached;
+      }
       rethrow;
     }
   }
@@ -171,19 +189,37 @@ class ApiService {
   }
 
   // Fetch all merchants/stores
-  Future<List<Map<String, dynamic>>> fetchMerchants() async {
+  Future<List<Map<String, dynamic>>> fetchMerchants({bool forceRefresh = false}) async {
+    // Check cache first unless force refresh
+    if (!forceRefresh) {
+      final cached = await CacheService.loadMerchants();
+      if (cached != null && cached.isNotEmpty) {
+        if (kDebugMode) print('✅ Loaded ${cached.length} merchants from cache');
+        return cached;
+      }
+    }
+    
+    // Fetch from network
     try {
+      if (kDebugMode) print('🌐 Fetching merchants from network...');
       final response = await http.get(Uri.parse('${_baseUrl}merchants')).timeout(const Duration(seconds: 30));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         final merchants = data.cast<Map<String, dynamic>>();
-        try { await CacheService.saveMerchants(merchants); } catch (_) {}
+        try { 
+          await CacheService.saveMerchants(merchants);
+          if (kDebugMode) print('💾 Saved ${merchants.length} merchants to cache');
+        } catch (_) {}
         return merchants;
       }
       throw Exception('Failed to load merchants');
     } catch (e) {
+      if (kDebugMode) print('❌ Network error: $e');
       final cached = await CacheService.loadMerchants(forceStale: true);
-      if (cached != null) return cached;
+      if (cached != null) {
+        if (kDebugMode) print('📦 Using stale cache (${cached.length} merchants)');
+        return cached;
+      }
       rethrow;
     }
   }
@@ -361,15 +397,37 @@ class ApiService {
   }
 
   Future<List<Promotion>> fetchNearbyPromotions(double lat, double lng, {double radiusKm = 10}) async {
-    final response = await http.get(
-      Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-    ).timeout(const Duration(seconds: 30));
-    if (response.statusCode == 200) {
-      final List<dynamic> body = jsonDecode(response.body);
-      return body.map((item) => Promotion.fromJson(item)).toList();
+    try {
+      if (kDebugMode) print('🌐 Fetching nearby deals: lat=$lat, lng=$lng, radius=${radiusKm}km');
+      
+      final response = await http.get(
+        Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+      ).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () {
+          if (kDebugMode) print('⏱️ Nearby request timed out after 60 seconds');
+          throw TimeoutException('The server took too long to respond');
+        },
+      );
+      
+      if (kDebugMode) print('📡 Nearby API response: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> body = jsonDecode(response.body);
+        if (kDebugMode) print('✅ Loaded ${body.length} nearby promotions');
+        return body.map((item) => Promotion.fromJson(item)).toList();
+      }
+      
+      if (kDebugMode) print('❌ Nearby API returned ${response.statusCode}: ${response.body}');
+      throw Exception('Server returned error: ${response.statusCode}');
+    } on TimeoutException catch (e) {
+      if (kDebugMode) print('⏱️ Timeout: $e');
+      throw Exception('Request timed out. The server might be slow or there are too many merchants to process.');
+    } catch (e) {
+      if (kDebugMode) print('❌ Nearby deals error: $e');
+      rethrow;
     }
-    throw Exception('Nearby API returned ${response.statusCode}');
   }
 
   // Notification API methods

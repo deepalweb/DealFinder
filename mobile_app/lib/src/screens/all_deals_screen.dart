@@ -21,17 +21,31 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   @override
   void initState() {
     super.initState();
-    _refreshPromotions();
+    _loadPromotions();
+  }
+
+  void _loadPromotions() {
+    setState(() {
+      _promotionsFuture = _apiService.fetchPromotions(forceRefresh: false);
+    });
   }
 
   Future<void> _refreshPromotions() async {
     setState(() {
-      _promotionsFuture = _apiService.fetchPromotions();
+      _promotionsFuture = _apiService.fetchPromotions(forceRefresh: true);
     });
   }
 
   Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
     final Map<String, List<Promotion>> grouped = {};
+    
+    // Sort promotions by createdAt (most recent first)
+    promotions.sort((a, b) {
+      if (a.createdAt == null && b.createdAt == null) return 0;
+      if (a.createdAt == null) return 1;
+      if (b.createdAt == null) return -1;
+      return b.createdAt!.compareTo(a.createdAt!);
+    });
     
     for (var promo in promotions) {
       final category = promo.category ?? 'other';

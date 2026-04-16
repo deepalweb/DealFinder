@@ -7,20 +7,25 @@ class CacheService {
   static const _keyPromotionsTs = 'cache_promotions_ts';
   static const _keyMerchants = 'cache_merchants';
   static const _keyMerchantsTs = 'cache_merchants_ts';
-  static const _ttl = Duration(hours: 24); // longer TTL for offline use
+  static const _ttl = Duration(hours: 1); // Cache valid for 1 hour
 
   // ── Promotions ────────────────────────────────────────────────────────────
 
   static Future<void> savePromotions(List<Promotion> promotions) async {
     final prefs = await SharedPreferences.getInstance();
-    // Strip base64 images before caching — they are too large for SharedPreferences
-    // Network URLs are kept, only data:image/... base64 strings are removed
+    // Keep HTTP URLs, strip base64 images (too large for SharedPreferences)
+    // Base64 images will be re-fetched from network but HTTP URLs are cached by CachedNetworkImage
     final stripped = promotions.map((p) {
       final json = p.toJson();
       final img = json['imageUrl'] as String?;
       if (img != null && img.startsWith('data:image')) {
         json['imageUrl'] = null;
         json['imageDataString'] = null;
+      }
+      // Also strip merchant logo if base64
+      final logo = json['merchantLogoUrl'] as String?;
+      if (logo != null && logo.startsWith('data:image')) {
+        json['merchantLogoUrl'] = null;
       }
       return json;
     }).toList();
@@ -52,12 +57,16 @@ class CacheService {
 
   static Future<void> saveMerchants(List<Map<String, dynamic>> merchants) async {
     final prefs = await SharedPreferences.getInstance();
-    // Strip base64 logos before caching
+    // Strip base64 images (logo and banner) before caching
     final stripped = merchants.map((m) {
       final copy = Map<String, dynamic>.from(m);
       final logo = copy['logo'] as String?;
       if (logo != null && logo.startsWith('data:image')) {
         copy['logo'] = null;
+      }
+      final banner = copy['banner'] as String?;
+      if (banner != null && banner.startsWith('data:image')) {
+        copy['banner'] = null;
       }
       return copy;
     }).toList();

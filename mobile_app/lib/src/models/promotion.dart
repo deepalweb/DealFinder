@@ -24,6 +24,7 @@ class Promotion {
   final String? merchantLogoUrl;
   final int ratingsCount;
   final String? merchantCurrency;
+  final DateTime? createdAt;
 
   Promotion({
     required this.id,
@@ -49,6 +50,7 @@ class Promotion {
     this.merchantLogoUrl,
     this.ratingsCount = 0,
     this.merchantCurrency,
+    this.createdAt,
   });
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
@@ -67,13 +69,21 @@ class Promotion {
       }
     }
 
+    // Debug: Check merchant logo
+    String? logoUrl = (json['merchant'] is Map ? json['merchant']['logo'] as String? : null) ?? json['merchantLogoUrl'] as String?;
+    if (kDebugMode && logoUrl != null) {
+      print('✅ Logo found for ${json['title']}: $logoUrl');
+    } else if (kDebugMode) {
+      print('❌ No logo for ${json['title']}');
+    }
+
     return Promotion(
       id: json['_id'] as String? ?? json['id'] as String? ?? 'unknown_id_${DateTime.now().millisecondsSinceEpoch}',
       title: json['title'] as String? ?? 'No Title',
       description: json['description'] as String? ?? 'No Description',
       merchantId: json['merchantId'] as String? ?? (json['merchant'] is Map ? json['merchant']['_id'] as String? : null),
       merchantName: json['merchantName'] as String? ?? (json['merchant'] is Map ? json['merchant']['name'] as String? : null),
-      merchantLogoUrl: json['merchantLogoUrl'] as String? ?? (json['merchant'] is Map ? json['merchant']['logo'] as String? : null),
+      merchantLogoUrl: logoUrl,
       merchantCurrency: json['merchantCurrency'] as String? ?? (json['merchant'] is Map ? json['merchant']['currency'] as String? : null),
       imageDataString: _resizeUnsplash(json['imageUrl'] as String? ?? json['image'] as String? ?? json['imageDataString'] as String?),
       code: json['code'] as String?,
@@ -93,6 +103,7 @@ class Promotion {
           ? (json['merchant']['distance'] as num?)?.toDouble()
           : null,
       ratingsCount: (json['ratings'] as List?)?.length ?? 0,
+      createdAt: parseDate(json['createdAt'] as String?),
     );
   }
 
@@ -129,6 +140,7 @@ class Promotion {
       'location': location,
       'distance': distance,
       'ratings': List.generate(ratingsCount, (_) => {}),
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 }

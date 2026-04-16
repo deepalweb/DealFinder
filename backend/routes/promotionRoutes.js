@@ -74,13 +74,13 @@ router.get('/homepage', async (req, res) => {
       Promotion.find({ ...query, featured: true })
         .select('-comments -ratings')
         .populate('merchant', 'name logo currency')
-        .sort({ _id: -1 })
+        .sort({ createdAt: -1 })
         .limit(8)
         .lean(),
       Promotion.find(query)
         .select('-comments -ratings')
         .populate('merchant', 'name logo currency')
-        .sort({ _id: -1 })
+        .sort({ createdAt: -1 })
         .limit(20)
         .lean()
     ]);
@@ -185,7 +185,7 @@ router.get('/', async (req, res) => {
     let promotionsQuery = Promotion.find(query)
       .select('-comments -ratings')
       .populate('merchant', 'name logo address contactInfo currency location')
-      .sort({ _id: -1 })
+      .sort({ createdAt: -1 })
       .lean();
     
     if (limit > 0) {
