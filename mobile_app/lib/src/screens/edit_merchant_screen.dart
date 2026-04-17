@@ -204,16 +204,21 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        elevation: 0,
         title: const Text('Edit Store Profile'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: const [
-            Tab(icon: Icon(Icons.store), text: 'Basic Info'),
-            Tab(icon: Icon(Icons.phone), text: 'Contact'),
-            Tab(icon: Icon(Icons.share), text: 'Social'),
-            Tab(icon: Icon(Icons.image), text: 'Branding'),
-            Tab(icon: Icon(Icons.location_on), text: 'Location'),
+            Tab(text: 'Basic'),
+            Tab(text: 'Contact'),
+            Tab(text: 'Social'),
+            Tab(text: 'Branding'),
+            Tab(text: 'Location'),
           ],
         ),
       ),
@@ -231,7 +236,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
@@ -247,6 +252,10 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(color: Colors.grey[400]!),
+                  ),
                   child: const Text('Cancel'),
                 ),
               ),
@@ -255,6 +264,9 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                 flex: 2,
                 child: ElevatedButton(
                   onPressed: _isSubmitting ? null : _submitChanges,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   child: _isSubmitting
                       ? const SizedBox(
                           height: 20,
@@ -282,11 +294,19 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         children: [
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Business Name *',
               hintText: 'Your Store Name',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.store),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.store),
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
@@ -299,10 +319,18 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           
           DropdownButtonFormField<String>(
             value: _categoryController.text.isEmpty ? null : _categoryController.text,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Category',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.category),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.category),
             ),
             items: _categories.map((category) {
               return DropdownMenuItem(
@@ -318,27 +346,56 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           
           TextFormField(
             controller: _profileController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Store Description',
               hintText: 'Tell customers about your store...',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.description),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(bottom: 60),
+                child: Icon(Icons.description),
+              ),
+              alignLabelWithHint: true,
             ),
             maxLines: 4,
+            onChanged: (value) => setState(() {}),
           ),
-          Text(
-            '${_profileController.text.length}/500 characters',
-            style: Theme.of(context).textTheme.bodySmall,
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '${_profileController.text.length}/500 characters',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           
           TextFormField(
             controller: _websiteController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Website',
               hintText: 'https://yourstore.com',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.language),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.language),
             ),
           ),
         ],
@@ -354,11 +411,19 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         children: [
           TextFormField(
             controller: _contactInfoController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Contact Email',
               hintText: 'contact@yourstore.com',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.email),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.email),
             ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
@@ -372,11 +437,19 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           
           TextFormField(
             controller: _contactNumberController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Phone Number',
               hintText: '+1 (555) 000-0000',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.phone),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.phone),
             ),
             keyboardType: TextInputType.phone,
           ),
@@ -384,11 +457,23 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           
           TextFormField(
             controller: _addressController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Store Address',
               hintText: '123 Main Street, City, Country',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.location_on),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(bottom: 36),
+                child: Icon(Icons.location_on),
+              ),
+              alignLabelWithHint: true,
             ),
             maxLines: 3,
             validator: (value) {
@@ -471,7 +556,15 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        border: const OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
         prefixIcon: Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
@@ -569,10 +662,18 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           
           TextFormField(
             controller: _logoUrlController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Or paste logo URL',
               hintText: 'https://...',
-              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
             ),
           ),
           const SizedBox(height: 32),
@@ -634,10 +735,18 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           
           TextFormField(
             controller: _bannerUrlController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Or paste banner URL',
               hintText: 'https://...',
-              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -793,11 +902,19 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             children: [
               Expanded(
                 child: TextFormField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Latitude',
                     hintText: '6.9271',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    prefixIcon: const Icon(Icons.location_on),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                   initialValue: _latitude?.toString() ?? '',
@@ -812,11 +929,19 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
               const SizedBox(width: 12),
               Expanded(
                 child: TextFormField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Longitude',
                     hintText: '79.8612',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    prefixIcon: const Icon(Icons.location_on),
                   ),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
                   initialValue: _longitude?.toString() ?? '',

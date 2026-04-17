@@ -28,6 +28,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   String? _token;
   bool _isLoading = true;
   late TabController _tabController;
+  late TabController _favoritesTabController;
   List<Promotion> _favoriteDeals = [];
   bool _loadingFavorites = false;
   String? _profilePicture;
@@ -56,12 +57,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _favoritesTabController = TabController(length: 2, vsync: this);
     _loadUserData();
   }
   
   @override
   void dispose() {
     _tabController.dispose();
+    _favoritesTabController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -388,28 +391,55 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                   children: [
                     TextField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.person),
+                        prefixIcon: const Icon(Icons.person),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _emailController,
                       enabled: false,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Email',
-                        prefixIcon: Icon(Icons.email),
+                        prefixIcon: const Icon(Icons.email),
                         helperText: 'Email cannot be changed',
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _roleController,
                       enabled: false,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Role',
-                        prefixIcon: Icon(Icons.badge),
+                        prefixIcon: const Icon(Icons.badge),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey[300]!),
+                        ),
                       ),
                     ),
                     if (_role == 'merchant' && _businessName != null)
@@ -418,9 +448,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                         child: TextField(
                           controller: _businessController,
                           enabled: false,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Business Name',
-                            prefixIcon: Icon(Icons.business),
+                            prefixIcon: const Icon(Icons.business),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: Colors.grey[300]!),
+                            ),
                           ),
                         ),
                       ),
@@ -429,6 +468,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _updateProfile,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
                         child: const Text('Save Changes'),
                       ),
                     ),
@@ -464,7 +506,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _logout,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
                 child: const Text('Logout'),
               ),
             ),
@@ -491,27 +536,54 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
               TextField(
                 controller: _currentPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Current Password',
-                  prefixIcon: Icon(Icons.lock_outline),
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _newPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'New Password',
-                  prefixIcon: Icon(Icons.lock),
+                  prefixIcon: const Icon(Icons.lock),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _confirmPasswordController,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Confirm New Password',
-                  prefixIcon: Icon(Icons.lock),
+                  prefixIcon: const Icon(Icons.lock),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -519,6 +591,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _changePassword,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   child: const Text('Change Password'),
                 ),
               ),
@@ -568,6 +643,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _updateProfile,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   child: const Text('Save Preferences'),
                 ),
               ),
@@ -579,6 +657,35 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   }
   
   Widget _buildFavoritesTab() {
+    return Column(
+      children: [
+        Container(
+          color: Colors.white,
+          child: TabBar(
+            controller: _favoritesTabController,
+            labelColor: Theme.of(context).colorScheme.primary,
+            unselectedLabelColor: Colors.grey,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            tabs: const [
+              Tab(text: 'Deals'),
+              Tab(text: 'Stores'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _favoritesTabController,
+            children: [
+              _buildFavoriteDealsView(),
+              _buildFavoriteStoresView(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildFavoriteDealsView() {
     if (_loadingFavorites) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -633,6 +740,81 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
                 );
               },
               child: DealCard(promotion: deal),
+            ),
+          );
+        },
+      ),
+    );
+  }
+  
+  Widget _buildFavoriteStoresView() {
+    if (_loadingFollowing) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_followingMerchants.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadFollowingMerchants,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.store_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('No favorite stores yet'),
+                  Text('Start following stores to see them here!'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return RefreshIndicator(
+      onRefresh: _loadFollowingMerchants,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: _followingMerchants.length,
+        itemBuilder: (context, index) {
+          final merchant = _followingMerchants[index];
+          final merchantId = merchant['_id'] ?? merchant['id'] ?? '';
+          final merchantName = merchant['name'] ?? 'Unknown Merchant';
+          final merchantLogo = merchant['logo'];
+          
+          return Dismissible(
+            key: ValueKey(merchantId),
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 16),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            direction: DismissDirection.endToStart,
+            onDismissed: (_) => _unfollowMerchant(merchantId),
+            child: Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: merchantLogo != null && merchantLogo.toString().isNotEmpty
+                      ? NetworkImage(merchantLogo)
+                      : null,
+                  child: merchantLogo == null || merchantLogo.toString().isEmpty
+                      ? const Icon(Icons.store)
+                      : null,
+                ),
+                title: Text(merchantName),
+                subtitle: Text(merchant['contactInfo'] ?? 'No contact info'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Store profile coming soon!')),
+                  );
+                },
+              ),
             ),
           );
         },
@@ -739,15 +921,21 @@ class _UserProfileScreenState extends State<UserProfileScreen> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        elevation: 0,
+        title: const Text('My Profile'),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: const [
-            Tab(icon: Icon(Icons.person), text: 'Profile'),
-            Tab(icon: Icon(Icons.lock), text: 'Security'),
-            Tab(icon: Icon(Icons.notifications), text: 'Notifications'),
-            Tab(icon: Icon(Icons.favorite), text: 'Favorites'),
-            Tab(icon: Icon(Icons.store), text: 'Following'),
+            Tab(text: 'Profile'),
+            Tab(text: 'Security'),
+            Tab(text: 'Notifications'),
+            Tab(text: 'Favorites'),
+            Tab(text: 'Following'),
           ],
         ),
       ),

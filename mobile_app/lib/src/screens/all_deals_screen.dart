@@ -18,6 +18,14 @@ class AllDealsScreen extends StatefulWidget {
 class _AllDealsScreenState extends State<AllDealsScreen> {
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
+  
+  // Sort and Filter state
+  String _sortBy = 'recent'; // recent, discount, price_low, price_high, ending_soon, distance
+  double _minPrice = 0;
+  double _maxPrice = 10000;
+  double _minDiscount = 0;
+  String? _selectedCategory;
+  bool _showFilters = false;
 
   @override
   void initState() {
@@ -40,15 +48,76 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
     final Map<String, List<Promotion>> grouped = {};
     
-    // Sort promotions by createdAt (most recent first)
-    promotions.sort((a, b) {
-      if (a.createdAt == null && b.createdAt == null) return 0;
-      if (a.createdAt == null) return 1;
-      if (b.createdAt == null) return -1;
-      return b.createdAt!.compareTo(a.createdAt!);
+    // Apply filters
+    var filtered = promotions.where((promo) {
+      // Category filter
+      if (_selectedCategory != null && promo.category != _selectedCategory) {
+        return false;
+      }
+      
+      // Price filter
+      final price = promo.discountedPrice ?? promo.price ?? promo.originalPrice ?? 0;
+      if (price < _minPrice || price > _maxPrice) {
+        return false;
+      }
+      
+      // Discount filter
+      if (promo.discount != null) {
+        final discountMatch = RegExp(r'(\d+)').firstMatch(promo.discount!);
+        if (discountMatch != null) {
+          final discountValue = double.parse(discountMatch.group(1)!);
+          if (discountValue < _minDiscount) {
+            return false;
+          }
+        }
+      } else if (_minDiscount > 0) {
+        return false;
+      }
+      
+      return true;
+    }).toList();
+    
+    // Apply sorting
+    filtered.sort((a, b) {
+      switch (_sortBy) {
+        case 'recent':
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        
+        case 'discount':
+          final aDiscount = _extractDiscount(a.discount);
+          final bDiscount = _extractDiscount(b.discount);
+          return bDiscount.compareTo(aDiscount);
+        
+        case 'price_low':
+          final aPrice = a.discountedPrice ?? a.price ?? a.originalPrice ?? double.infinity;
+          final bPrice = b.discountedPrice ?? b.price ?? b.originalPrice ?? double.infinity;
+          return aPrice.compareTo(bPrice);
+        
+        case 'price_high':
+          final aPrice = a.discountedPrice ?? a.price ?? a.originalPrice ?? 0;
+          final bPrice = b.discountedPrice ?? b.price ?? b.originalPrice ?? 0;
+          return bPrice.compareTo(aPrice);
+        
+        case 'ending_soon':
+          if (a.endDate == null && b.endDate == null) return 0;
+          if (a.endDate == null) return 1;
+          if (b.endDate == null) return -1;
+          return a.endDate!.compareTo(b.endDate!);
+        
+        case 'distance':
+          final aDist = a.distance ?? double.infinity;
+          final bDist = b.distance ?? double.infinity;
+          return aDist.compareTo(bDist);
+        
+        default:
+          return 0;
+      }
     });
     
-    for (var promo in promotions) {
+    for (var promo in filtered) {
       final category = promo.category ?? 'other';
       if (!grouped.containsKey(category)) {
         grouped[category] = [];
@@ -57,6 +126,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     }
     
     return grouped;
+  }
+  
+  double _extractDiscount(String? discount) {
+    if (discount == null) return 0;
+    final match = RegExp(r'(\d+)').firstMatch(discount);
+    return match != null ? double.parse(match.group(1)!) : 0;
   }
 
   String _getCategoryName(String categoryId) {
@@ -106,28 +181,246 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
+            onPressed: () {
+              setState(() => _showFilters = !_showFilters);
+            },
+            tooltip: 'Filters',
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            tooltip: 'Sort by',
+            onSelected: (value) {
+              setState(() => _sortBy = value);
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'recent',
+                child: Row(
+                  children: [
+                    Icon(Icons.access_time, size: 20, color: _sortBy == 'recent' ? Theme.of(context).colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    Text('Most Recent', style: TextStyle(fontWeight: _sortBy == 'recent' ? FontWeight.bold : null)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'discount',
+                child: Row(
+                  children: [
+                    Icon(Icons.percent, size: 20, color: _sortBy == 'discount' ? Theme.of(context).colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    Text('Highest Discount', style: TextStyle(fontWeight: _sortBy == 'discount' ? FontWeight.bold : null)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'price_low',
+                child: Row(
+                  children: [
+                    Icon(Icons.arrow_upward, size: 20, color: _sortBy == 'price_low' ? Theme.of(context).colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    Text('Price: Low to High', style: TextStyle(fontWeight: _sortBy == 'price_low' ? FontWeight.bold : null)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'price_high',
+                child: Row(
+                  children: [
+                    Icon(Icons.arrow_downward, size: 20, color: _sortBy == 'price_high' ? Theme.of(context).colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    Text('Price: High to Low', style: TextStyle(fontWeight: _sortBy == 'price_high' ? FontWeight.bold : null)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'ending_soon',
+                child: Row(
+                  children: [
+                    Icon(Icons.schedule, size: 20, color: _sortBy == 'ending_soon' ? Theme.of(context).colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    Text('Ending Soon', style: TextStyle(fontWeight: _sortBy == 'ending_soon' ? FontWeight.bold : null)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'distance',
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on, size: 20, color: _sortBy == 'distance' ? Theme.of(context).colorScheme.primary : null),
+                    const SizedBox(width: 8),
+                    Text('Nearest', style: TextStyle(fontWeight: _sortBy == 'distance' ? FontWeight.bold : null)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          HapticFeedback.mediumImpact();
-          await _refreshPromotions();
-        },
-        child: FutureBuilder<List<Promotion>>(
-          future: _promotionsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildShimmer();
-            } else if (snapshot.hasError) {
-              return _buildError();
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return _buildEmpty();
-            }
+      body: Column(
+        children: [
+          // Filter Panel
+          if (_showFilters)
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  
+                  // Category Filter
+                  const Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilterChip(
+                        label: const Text('All'),
+                        selected: _selectedCategory == null,
+                        onSelected: (selected) {
+                          setState(() => _selectedCategory = null);
+                        },
+                      ),
+                      ...predefinedCategories.map((cat) => FilterChip(
+                        label: Text(cat.name),
+                        selected: _selectedCategory == cat.id,
+                        onSelected: (selected) {
+                          setState(() => _selectedCategory = selected ? cat.id : null);
+                        },
+                      )),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Price Range Filter
+                  const Text('Price Range', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Min',
+                            prefixText: 'Rs. ',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            setState(() => _minPrice = double.tryParse(value) ?? 0);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            labelText: 'Max',
+                            prefixText: 'Rs. ',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            setState(() => _maxPrice = double.tryParse(value) ?? 10000);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Discount Filter
+                  Text('Minimum Discount: ${_minDiscount.toInt()}%', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Slider(
+                    value: _minDiscount,
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    label: '${_minDiscount.toInt()}%',
+                    onChanged: (value) {
+                      setState(() => _minDiscount = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  // Reset Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Reset Filters'),
+                      onPressed: () {
+                        setState(() {
+                          _selectedCategory = null;
+                          _minPrice = 0;
+                          _maxPrice = 10000;
+                          _minDiscount = 0;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // Deals List
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                HapticFeedback.mediumImpact();
+                await _refreshPromotions();
+              },
+              child: FutureBuilder<List<Promotion>>(
+                future: _promotionsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return _buildShimmer();
+                  } else if (snapshot.hasError) {
+                    return _buildError();
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return _buildEmpty();
+                  }
 
-            final groupedDeals = _groupByCategory(snapshot.data!);
-            final totalDeals = snapshot.data!.length;
-            return _buildCategoryList(groupedDeals, totalDeals);
-          },
-        ),
+                  final groupedDeals = _groupByCategory(snapshot.data!);
+                  final totalDeals = groupedDeals.values.fold<int>(0, (sum, list) => sum + list.length);
+                  
+                  if (totalDeals == 0) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                          const SizedBox(height: 16),
+                          const Text('No deals match your filters'),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedCategory = null;
+                                _minPrice = 0;
+                                _maxPrice = 10000;
+                                _minDiscount = 0;
+                              });
+                            },
+                            child: const Text('Reset Filters'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  return _buildCategoryList(groupedDeals, totalDeals);
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

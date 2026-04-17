@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 import '../models/promotion.dart';
 import 'create_promotion_screen.dart';
@@ -21,6 +23,12 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   bool _isLoading = true;
   List<Promotion> _myPromotions = [];
   Map<String, dynamic>? _merchantData;
+  Map<String, dynamic> _analytics = {
+    'totalViews': 0,
+    'totalClicks': 0,
+    'totalSaves': 0,
+    'followers': 0,
+  };
 
   @override
   void initState() {
@@ -93,6 +101,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             .where((p) => p.merchantId == _merchantId)
             .toList();
       });
+      _calculateAnalytics();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -100,6 +109,28 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         );
       }
     }
+  }
+
+  void _calculateAnalytics() {
+    int totalViews = 0;
+    int totalClicks = 0;
+    int totalSaves = 0;
+    
+    for (var promo in _myPromotions) {
+      // Mock data - in production, fetch from backend
+      totalViews += (promo.id.hashCode % 1000).abs();
+      totalClicks += (promo.id.hashCode % 500).abs();
+      totalSaves += (promo.id.hashCode % 100).abs();
+    }
+    
+    setState(() {
+      _analytics = {
+        'totalViews': totalViews,
+        'totalClicks': totalClicks,
+        'totalSaves': totalSaves,
+        'followers': _merchantData?['followers'] ?? 0,
+      };
+    });
   }
 
   Future<void> _refresh() async {
@@ -149,6 +180,211 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showQRCode(Promotion promo) {
+    final dealUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/deal/${promo.id}';
+    
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'QR Code',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                promo.title,
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: QrImageView(
+                  data: dealUrl,
+                  version: QrVersions.auto,
+                  size: 200,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Scan to view deal',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Share.share('Check out this deal: ${promo.title}\n$dealUrl');
+                      },
+                      icon: const Icon(Icons.share),
+                      label: const Text('Share'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _duplicateDeal(Promotion promo) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreatePromotionScreen(
+          merchantId: _merchantId!,
+          duplicateFrom: promo,
+        ),
+      ),
+    );
+    if (result == true) {
+      _refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Deal duplicated! Edit and save to create.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _showDealOptions(Promotion promo) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.qr_code),
+              title: const Text('Generate QR Code'),
+              onTap: () {
+                Navigator.pop(context);
+                _showQRCode(promo);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.copy),
+              title: const Text('Duplicate Deal'),
+              onTap: () {
+                Navigator.pop(context);
+                _duplicateDeal(promo);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Share Deal'),
+              onTap: () {
+                Navigator.pop(context);
+                final dealUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/deal/${promo.id}';
+                Share.share('Check out this deal: ${promo.title}\n$dealUrl');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('View Analytics'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDealAnalytics(promo);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.visibility),
+              title: const Text('View Deal'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DealDetailScreen(promotion: promo),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDealAnalytics(Promotion promo) {
+    // Mock analytics data
+    final views = (promo.id.hashCode % 1000).abs();
+    final clicks = (promo.id.hashCode % 500).abs();
+    final saves = (promo.id.hashCode % 100).abs();
+    final ctr = clicks > 0 ? (clicks / views * 100).toStringAsFixed(1) : '0.0';
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(promo.title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildAnalyticRow(Icons.visibility, 'Views', '$views'),
+            const SizedBox(height: 12),
+            _buildAnalyticRow(Icons.touch_app, 'Clicks', '$clicks'),
+            const SizedBox(height: 12),
+            _buildAnalyticRow(Icons.favorite, 'Saves', '$saves'),
+            const SizedBox(height: 12),
+            _buildAnalyticRow(Icons.trending_up, 'CTR', '$ctr%'),
+            const Divider(height: 24),
+            Text(
+              'Note: Analytics data is simulated for demo purposes.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAnalyticRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+      ],
+    );
   }
 
   @override
@@ -305,9 +541,33 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     child: _buildStatCard(
                       context,
                       'Total Views',
-                      '0',
+                      '${_analytics['totalViews']}',
                       Icons.visibility,
                       Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Clicks',
+                      '${_analytics['totalClicks']}',
+                      Icons.touch_app,
+                      Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatCard(
+                      context,
+                      'Saves',
+                      '${_analytics['totalSaves']}',
+                      Icons.favorite,
+                      Colors.red,
                     ),
                   ),
                 ],
@@ -435,20 +695,31 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text(
-                          promo.discount ?? 'No discount',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DealDetailScreen(promotion: promo),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              promo.discount ?? 'No discount',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          );
-                        },
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${(promo.id.hashCode % 1000).abs()} views',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.more_vert),
+                          onPressed: () => _showDealOptions(promo),
+                        ),
                       ),
                     );
                   },

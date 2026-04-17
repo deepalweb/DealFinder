@@ -4,12 +4,17 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
-import '../models/category.dart';
+import '../models/promotion.dart';
 
 class CreatePromotionScreen extends StatefulWidget {
   final String merchantId;
+  final Promotion? duplicateFrom;
 
-  const CreatePromotionScreen({super.key, required this.merchantId});
+  const CreatePromotionScreen({
+    super.key,
+    required this.merchantId,
+    this.duplicateFrom,
+  });
 
   @override
   State<CreatePromotionScreen> createState() => _CreatePromotionScreenState();
@@ -47,8 +52,34 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
     _startDate = DateTime.now();
     _endDate = DateTime.now().add(const Duration(days: 30));
     
+    // Load data from duplicateFrom if provided
+    if (widget.duplicateFrom != null) {
+      _loadDuplicateData();
+    }
+    
     _percentageOffController.addListener(_calculateDiscountedPrice);
     _originalPriceController.addListener(_calculateDiscountedPrice);
+  }
+
+  void _loadDuplicateData() {
+    final promo = widget.duplicateFrom!;
+    _titleController.text = '${promo.title} (Copy)';
+    _descriptionController.text = promo.description;
+    _discountController.text = promo.discount ?? '';
+    _codeController.text = promo.code ?? '';
+    _urlController.text = promo.url ?? '';
+    _selectedCategory = promo.category;
+    _featured = promo.featured ?? false;
+    
+    if (promo.originalPrice != null) {
+      _originalPriceController.text = promo.originalPrice.toString();
+    }
+    if (promo.discountedPrice != null) {
+      _discountedPriceController.text = promo.discountedPrice.toString();
+    }
+    if (promo.price != null && promo.originalPrice == null) {
+      _originalPriceController.text = promo.price.toString();
+    }
   }
 
   void _calculateDiscountedPrice() {
@@ -214,7 +245,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create New Deal'),
+        title: Text(widget.duplicateFrom != null ? 'Duplicate Deal' : 'Create New Deal'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
