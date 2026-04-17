@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../models/category.dart';
 import '../models/promotion.dart';
 
 class CreatePromotionScreen extends StatefulWidget {

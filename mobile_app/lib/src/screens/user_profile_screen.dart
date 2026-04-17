@@ -19,7 +19,7 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen> with SingleTickerProviderStateMixin {
+class _UserProfileScreenState extends State<UserProfileScreen> with TickerProviderStateMixin {
   String _name = 'Loading...';
   String _email = 'Loading...';
   String _role = 'Loading...';
