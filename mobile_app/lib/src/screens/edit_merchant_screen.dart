@@ -180,7 +180,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         );
       }
 
-      final merchantData = {
+      final merchantData = <String, dynamic>{
         'name': _nameController.text.trim(),
         'profile': _profileController.text.trim(),
         'category': _categoryController.text.trim(),
@@ -188,26 +188,35 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         'contactInfo': _contactInfoController.text.trim(),
         'contactNumber': _contactNumberController.text.trim(),
         'address': _addressController.text.trim(),
-        if (_uploadedLogoUrl != null)
-          'logo': _uploadedLogoUrl,
-        else if (_logoUrlController.text.trim().isNotEmpty && _logoUrlController.text.startsWith('http'))
-          'logo': _logoUrlController.text.trim(),
-        if (_uploadedBannerUrl != null)
-          'banner': _uploadedBannerUrl,
-        else if (_bannerUrlController.text.trim().isNotEmpty && _bannerUrlController.text.startsWith('http'))
-          'banner': _bannerUrlController.text.trim(),
         'socialMedia': {
           'facebook': _facebookController.text.trim(),
           'instagram': _instagramController.text.trim(),
           'twitter': _twitterController.text.trim(),
           'tiktok': _tiktokController.text.trim(),
         },
-        if (_latitude != null && _longitude != null)
-          'location': {
-            'type': 'Point',
-            'coordinates': [_longitude, _latitude],
-          },
       };
+      
+      // Add logo URL
+      if (_uploadedLogoUrl != null) {
+        merchantData['logo'] = _uploadedLogoUrl;
+      } else if (_logoUrlController.text.trim().isNotEmpty && _logoUrlController.text.startsWith('http')) {
+        merchantData['logo'] = _logoUrlController.text.trim();
+      }
+      
+      // Add banner URL
+      if (_uploadedBannerUrl != null) {
+        merchantData['banner'] = _uploadedBannerUrl;
+      } else if (_bannerUrlController.text.trim().isNotEmpty && _bannerUrlController.text.startsWith('http')) {
+        merchantData['banner'] = _bannerUrlController.text.trim();
+      }
+      
+      // Add location
+      if (_latitude != null && _longitude != null) {
+        merchantData['location'] = {
+          'type': 'Point',
+          'coordinates': [_longitude, _latitude],
+        };
+      }
 
       await _apiService.updateMerchant(widget.merchantId, merchantData, _token!);
 
