@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PromotionAPI } from '@/lib/api';
+import { PromotionAPI, ImageAPI } from '@/lib/api';
 import { getCurrencySymbol } from '@/lib/currency';
 import toast from 'react-hot-toast';
 
@@ -17,8 +17,11 @@ function NewPromotionContent() {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('details');
   const [currencySymbol, setCurrencySymbol] = useState('$');
 
@@ -53,32 +56,29 @@ function NewPromotionContent() {
   const update = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
 
   const handleImageFiles = (files: FileList) => {
-    const remaining = 5 - imagePreviews.length;
+    const remaining = 5 - imageFiles.length;
     if (remaining <= 0) { toast.error('Maximum 5 images allowed'); return; }
     const toProcess = Array.from(files).slice(0, remaining);
+    
     toProcess.forEach(file => {
       if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} exceeds 5MB limit`); return; }
+      
+      // Store file for upload
+      setImageFiles(prev => [...prev, file]);
+      
+      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreviews(prev => {
-          const updated = [...prev, result];
-          update('images', updated);
-          if (updated.length === 1) update('image', result);
-          return updated;
-        });
+        setImagePreviews(prev => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
     });
   };
 
   const removeImage = (index: number) => {
-    setImagePreviews(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      update('images', updated);
-      update('image', updated[0] || '');
-      return updated;
-    });
+    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadedImageUrls(prev => prev.filter((_, i) => i !== index));
   };
 
   const generateCode = () => {
@@ -92,21 +92,57 @@ function NewPromotionContent() {
     if (!form.discount.trim()) { toast.error('Discount is required'); setActiveTab('details'); return; }
     if (!form.code.trim()) { toast.error('Promo code is required'); setActiveTab('details'); return; }
     if (form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) >= parseFloat(form.originalPrice)) { toast.error('Discounted price must be less than original price'); setActiveTab('pricing'); return; }
+    
     setSaving(true);
     try {
+      // Upload images to Azure if there are new files
+      let imageUrls = [...uploadedImageUrls];
+      if (imageFiles.length > 0) {
+        setUploading(true);
+        toast.loading('Uploading images...');
+        try {
+          imageUrls = await ImageAPI.uploadMultiple(imageFiles, 'promotions');
+          toast.dismiss();
+          toast.success(`${imageUrls.length} image(s) uploaded!`);
+        } catch (err: any) {
+          toast.dismiss();
+          toast.error(`Image upload failed: ${err.message}`);
+          setSaving(false);
+          setUploading(false);
+          return;
+        }
+        setUploading(false);
+      }
+
       const merchantId = user!.merchantId?.toString() || user!.merchantId;
       if (!merchantId) { toast.error('Merchant profile not linked. Please contact support.'); setSaving(false); return; }
-      const data: any = { ...form, featured: Boolean(form.featured), merchantId };
+      
+      const data: any = { 
+        ...form, 
+        featured: Boolean(form.featured), 
+        merchantId,
+        image: imageUrls[0] || form.image || '',
+        images: imageUrls.length > 0 ? imageUrls : (form.image ? [form.image] : []),
+      };
+      
       if (!data.originalPrice || data.originalPrice === '') delete data.originalPrice;
       if (!data.discountedPrice || data.discountedPrice === '') delete data.discountedPrice;
       if (!data.url || data.url === '') delete data.url;
-      if (editId) { await PromotionAPI.update(editId, data); toast.success('Promotion updated!'); }
-      else { await PromotionAPI.create(data); toast.success('Promotion created!'); }
+      
+      if (editId) { 
+        await PromotionAPI.update(editId, data); 
+        toast.success('Promotion updated!'); 
+      } else { 
+        await PromotionAPI.create(data); 
+        toast.success('Promotion created!'); 
+      }
+      
       router.push('/merchant/dashboard');
     } catch (err: any) { 
       toast.error(err.message || 'Failed to save promotion.'); 
+    } finally { 
+      setSaving(false); 
     }
-    finally { setSaving(false); }
   };
 
   const TABS = [{ id:'details', icon:'fa-tag', label:'Details' },{ id:'media', icon:'fa-image', label:'Media' },{ id:'settings', icon:'fa-cog', label:'Settings' }];

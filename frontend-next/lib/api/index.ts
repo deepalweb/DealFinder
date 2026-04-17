@@ -148,3 +148,59 @@ export const NotificationAPI = {
     fetchAPI<any>('notifications/unsubscribe', { method: 'POST', body: JSON.stringify({ type }) }),
   sendTest: () => fetchAPI<any>('notifications/test', { method: 'POST' }),
 };
+
+// Images (Azure Blob Storage)
+export const ImageAPI = {
+  uploadSingle: async (file: File, folder = 'images'): Promise<string> => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('folder', folder);
+
+    const res = await fetch(`${API_BASE}/images/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Upload failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.imageUrl;
+  },
+
+  uploadMultiple: async (files: File[], folder = 'images'): Promise<string[]> => {
+    const token = getToken();
+    const formData = new FormData();
+    files.forEach(file => formData.append('images', file));
+    formData.append('folder', folder);
+
+    const res = await fetch(`${API_BASE}/images/upload-multiple`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Upload failed: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.imageUrls;
+  },
+
+  delete: async (imageUrl: string): Promise<void> => {
+    await fetchAPI('images/delete', {
+      method: 'DELETE',
+      body: JSON.stringify({ imageUrl }),
+    });
+  },
+};
