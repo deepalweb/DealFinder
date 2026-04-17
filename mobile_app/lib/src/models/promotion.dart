@@ -53,6 +53,14 @@ class Promotion {
     this.createdAt,
   });
 
+  // Safe discount percentage calculation
+  int? get discountPercentage {
+    if (originalPrice == null || discountedPrice == null || originalPrice! <= 0) {
+      return null;
+    }
+    return ((originalPrice! - discountedPrice!) / originalPrice! * 100).round();
+  }
+
   factory Promotion.fromJson(Map<String, dynamic> json) {
     // Helper to safely parse dates
     DateTime? parseDate(String? dateString) {
@@ -102,7 +110,7 @@ class Promotion {
       distance: json['merchant'] is Map && json['merchant']['distance'] != null
           ? (json['merchant']['distance'] as num?)?.toDouble()
           : null,
-      ratingsCount: (json['ratings'] as List?)?.length ?? 0,
+      ratingsCount: json['ratings'] is List ? (json['ratings'] as List).length : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
       createdAt: parseDate(json['createdAt'] as String?),
     );
   }

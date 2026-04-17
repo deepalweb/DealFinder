@@ -508,7 +508,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                       if (_originalPriceController.text.isNotEmpty && value.isNotEmpty) {
                         final original = double.tryParse(_originalPriceController.text);
                         final now = double.tryParse(value);
-                        if (original != null && now != null && now < original) {
+                        if (original != null && original > 0 && now != null && now < original) {
                           final percent = ((original - now) / original * 100).toStringAsFixed(0);
                           _discountController.text = '$percent%';
                         }

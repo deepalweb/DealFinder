@@ -325,7 +325,7 @@ function NewPromotionContent() {
                           <label style={labelStyle}>Now <span style={{ color:'#ef4444' }}>*</span></label>
                           <div style={{ position:'relative' }}>
                             <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
-                            <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.discountedPrice} onChange={e => { update('discountedPrice', e.target.value); if (form.originalPrice && e.target.value) { const saved = ((parseFloat(form.originalPrice) - parseFloat(e.target.value)) / parseFloat(form.originalPrice) * 100).toFixed(0); update('discount', `${saved}%`); } }} placeholder="70.00" onFocus={focus} onBlur={blur} required />
+                            <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.discountedPrice} onChange={e => { update('discountedPrice', e.target.value); if (form.originalPrice && e.target.value && parseFloat(form.originalPrice) > 0) { const saved = ((parseFloat(form.originalPrice) - parseFloat(e.target.value)) / parseFloat(form.originalPrice) * 100).toFixed(0); update('discount', `${saved}%`); } }} placeholder="70.00" onFocus={focus} onBlur={blur} required />
                           </div>
                         </div>
                       </div>
