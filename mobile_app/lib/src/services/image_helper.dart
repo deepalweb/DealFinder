@@ -14,7 +14,7 @@ class ImageHelper {
         imagePath,
         quality: quality,
         minWidth: maxWidth,
-        minHeight: (maxWidth * 0.75).toInt(),
+        minHeight: maxWidth > 0 ? (maxWidth * 0.75).toInt() : 768,
       );
       return result;
     } catch (e) {
@@ -89,8 +89,8 @@ class ImageHelper {
           width: width,
           height: height,
           fit: fit,
-          cacheWidth: width?.toInt(),
-          cacheHeight: height?.toInt(),
+          cacheWidth: width != null && width.isFinite && width > 0 ? width.toInt() : null,
+          cacheHeight: height != null && height.isFinite && height > 0 ? height.toInt() : null,
           errorBuilder: (_, __, ___) => errorWidget,
         );
         
@@ -110,8 +110,8 @@ class ImageHelper {
         width: width,
         height: height,
         fit: fit,
-        memCacheWidth: width?.toInt(),
-        memCacheHeight: height?.toInt(),
+        memCacheWidth: width != null && width.isFinite && width > 0 ? width.toInt() : null,
+        memCacheHeight: height != null && height.isFinite && height > 0 ? height.toInt() : null,
         maxWidthDiskCache: 1024,
         maxHeightDiskCache: 1024,
         placeholder: (_, __) => shimmer,
@@ -196,8 +196,8 @@ class ImageHelper {
         radius: radius,
         backgroundImage: CachedNetworkImageProvider(
           imageUrl,
-          maxWidth: (radius * 2).toInt(),
-          maxHeight: (radius * 2).toInt(),
+          maxWidth: radius.isFinite && radius > 0 ? (radius * 2).toInt() : 100,
+          maxHeight: radius.isFinite && radius > 0 ? (radius * 2).toInt() : 100,
         ),
       );
     }

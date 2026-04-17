@@ -104,7 +104,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (!mounted) return;
     setState(() => _position = pos);
     if (pos != null) {
-      setState(() => _locationName = 'Current Location');
+      // Get location name
+      final locationName = await LocationService.getLocationName(pos.latitude, pos.longitude);
+      if (mounted) {
+        setState(() => _locationName = locationName ?? 'Current Location');
+      }
       // Fetch nearby deals from backend
       _loadNearbyDeals(pos.latitude, pos.longitude);
     }
@@ -248,14 +252,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  // ── Header with location, notifications, profile ──────────────────────────
+  // ── Header with logo, location, notifications ────────────────────────────
   Widget _buildHeader() {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: Row(
           children: [
-            // Location
+            // App Logo/Branding
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
               duration: const Duration(milliseconds: 600),
@@ -265,6 +269,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: child,
                 );
               },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Theme.of(context).colorScheme.primary,
+                      Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.local_offer,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'DealFinder',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Location
+            Expanded(
               child: GestureDetector(
                 onTap: () => Navigator.push(
                   context,
@@ -285,23 +332,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: Color(0xFFE53935)),
+                      const Icon(Icons.location_on, size: 14, color: Color(0xFFE53935)),
                       const SizedBox(width: 4),
-                      Text(
-                        _locationName,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: Text(
+                          _locationName,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
+                      const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
                     ],
                   ),
                 ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(width: 8),
             // Notification bell
             Stack(
               children: [

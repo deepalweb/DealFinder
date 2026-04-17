@@ -1,5 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class LocationService {
   static Future<Position?> getCurrentLocation() async {
@@ -16,6 +18,38 @@ class LocationService {
     } catch (e) {
       return null;
     }
+  }
+
+  // Get location name from coordinates using reverse geocoding
+  static Future<String?> getLocationName(double lat, double lng) async {
+    try {
+      // Using OpenStreetMap Nominatim (free, no API key required)
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=10&addressdetails=1'
+      );
+      
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'DealFinder-Mobile-App'},
+      ).timeout(const Duration(seconds: 5));
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final address = data['address'];
+        
+        // Try to get city, town, or village name
+        String? locationName = address['city'] ?? 
+                               address['town'] ?? 
+                               address['village'] ?? 
+                               address['suburb'] ?? 
+                               address['county'];
+        
+        return locationName;
+      }
+    } catch (e) {
+      print('Error getting location name: $e');
+    }
+    return null;
   }
 
   static double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
