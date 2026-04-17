@@ -7,7 +7,7 @@ class CacheService {
   static const _keyPromotionsTs = 'cache_promotions_ts';
   static const _keyMerchants = 'cache_merchants';
   static const _keyMerchantsTs = 'cache_merchants_ts';
-  static const _ttl = Duration(hours: 1); // Cache valid for 1 hour
+  static const _ttl = Duration(minutes: 10); // Cache valid for 10 minutes
 
   // ── Promotions ────────────────────────────────────────────────────────────
 

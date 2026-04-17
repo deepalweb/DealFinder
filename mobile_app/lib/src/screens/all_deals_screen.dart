@@ -35,7 +35,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   void _loadPromotions() {
     setState(() {
-      _promotionsFuture = _apiService.fetchPromotions(forceRefresh: false);
+      _promotionsFuture = _apiService.fetchPromotions(forceRefresh: false).then((promotions) {
+        // Show cached data immediately, then refresh in background
+        _apiService.fetchPromotions(forceRefresh: true).then((fresh) {
+          if (mounted) {
+            setState(() {
+              _promotionsFuture = Future.value(fresh);
+            });
+          }
+        }).catchError((_) {});
+        return promotions;
+      });
     });
   }
 
@@ -45,13 +55,21 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     });
   }
 
+  String _normalizeCategory(String? category) {
+    if (category == null) return 'other';
+    // Handle legacy 'food' category
+    if (category == 'food') return 'food_bev';
+    return category;
+  }
+
   Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
     final Map<String, List<Promotion>> grouped = {};
     
     // Apply filters
     var filtered = promotions.where((promo) {
       // Category filter
-      if (_selectedCategory != null && promo.category != _selectedCategory) {
+      final normalizedCategory = _normalizeCategory(promo.category);
+      if (_selectedCategory != null && normalizedCategory != _selectedCategory) {
         return false;
       }
       
@@ -117,13 +135,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       }
     });
     
+    // Group by category - only add categories that have deals
     for (var promo in filtered) {
-      final category = promo.category ?? 'other';
+      final category = _normalizeCategory(promo.category);
       if (!grouped.containsKey(category)) {
         grouped[category] = [];
       }
       grouped[category]!.add(promo);
     }
+    
+    // Remove empty categories (shouldn't happen but just in case)
+    grouped.removeWhere((key, value) => value.isEmpty);
     
     return grouped;
   }

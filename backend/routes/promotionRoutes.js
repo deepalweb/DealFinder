@@ -113,6 +113,7 @@ router.get('/nearby', async (req, res) => {
 
     const searchRadiusKm = parseFloat(radius) || 10;
     const radiusInMeters = searchRadiusKm * 1000;
+    const limit = parseInt(req.query.limit) || 100; // Limit merchants to process
 
     let merchantsWithDistance = [];
     try {
@@ -126,12 +127,19 @@ router.get('/nearby', async (req, res) => {
             query: { 'location.type': 'Point' }
           }
         },
+        { $limit: limit }, // Limit number of merchants
         {
           $project: { _id: 1, name: 1, location: 1, distance: 1 }
         }
-      ]);
+      ]).maxTimeMS(5000); // 5 second timeout
     } catch (geoErr) {
       console.error('$geoNear error:', geoErr.message);
+      if (geoErr.message.includes('timeout') || geoErr.message.includes('timed out')) {
+        return res.status(408).json({ 
+          message: 'Request timed out. The server might be slow or there are too many merchants to process.',
+          timeout: true 
+        });
+      }
       return res.status(200).json([]);
     }
 
@@ -142,6 +150,8 @@ router.get('/nearby', async (req, res) => {
     const merchantIds = merchantsWithDistance.map(m => m._id);
 
     const now = new Date();
+    const promotionLimit = parseInt(req.query.promotionLimit) || 50; // Limit promotions returned
+    
     let promotions = await Promotion.find({
       merchant: { $in: merchantIds },
       status: { $in: ['active', 'approved'] },
@@ -150,7 +160,9 @@ router.get('/nearby', async (req, res) => {
     })
     .select('-comments -ratings')
     .populate({ path: 'merchant', select: 'name logo location address contactInfo currency' })
-    .lean();
+    .limit(promotionLimit)
+    .lean()
+    .maxTimeMS(5000); // 5 second timeout
 
     promotions = promotions.map(promo => {
       const merchantInfo = merchantsWithDistance.find(m => m._id.equals(promo.merchant._id));
@@ -164,6 +176,12 @@ router.get('/nearby', async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching nearby promotions:', error);
+    if (error.message && error.message.includes('timeout')) {
+      return res.status(408).json({ 
+        message: 'Request timed out. Please try again with a smaller radius.',
+        timeout: true 
+      });
+    }
     res.status(500).json(safeError(error));
   }
 });

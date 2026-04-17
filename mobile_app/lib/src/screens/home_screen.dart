@@ -20,6 +20,7 @@ import 'search_screen.dart';
 import 'user_profile_screen.dart';
 import 'nearby_deals_screen.dart';
 import 'all_deals_screen.dart';
+import 'dart:math' as math;
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToFavorites;
@@ -72,8 +73,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadAll() async {
+    // Load user first (needed for token)
+    await _loadUser();
+    
+    // Load location and deals in parallel
     await Future.wait([
-      _loadUser(),
       _loadLocation(),
       _loadDeals(),
     ]);
@@ -88,6 +92,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _userToken = prefs.getString('userToken') ?? '';
       _profilePicture = prefs.getString('userProfilePicture');
     });
+    // Load notification count in background (don't block UI)
     _loadNotificationCount();
   }
 
@@ -134,8 +139,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadDeals() async {
+    // Show cached data immediately
+    final cached = await CacheService.loadPromotions();
+    if (cached != null && cached.isNotEmpty && mounted) {
+      setState(() {
+        _allDeals = cached;
+        _loading = false;
+      });
+    }
+    
+    // Then fetch fresh data in background
     try {
-      final deals = await _api.fetchPromotions();
+      final deals = await _api.fetchPromotions(forceRefresh: true);
       if (mounted) {
         setState(() {
           _allDeals = deals;
@@ -144,13 +159,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     } catch (e) {
-      final cached = await CacheService.loadPromotions(forceStale: true);
-      if (mounted) {
-        setState(() {
-          _allDeals = cached ?? [];
-          _loading = false;
-          _isOffline = cached == null || cached.isEmpty;
-        });
+      // If network fails and we have no cache, show offline
+      if (cached == null || cached.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+            _isOffline = true;
+          });
+        }
       }
     }
   }
@@ -236,8 +252,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 _buildHeader(),
                 _buildGreeting(),
                 _buildSearchBar(),
-                _buildQuickActions(),
                 _buildCategories(),
+                if (!_loading && _featuredDeals.isNotEmpty) _buildFeaturedBanner(),
+                _buildQuickActions(),
                 if (_isOffline) _buildOfflineBanner(),
                 if (_loading)
                   const SliverToBoxAdapter(child: HomeShimmer())
@@ -458,23 +475,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey[300]!, width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search, color: Color(0xFF9E9E9E), size: 22),
+                    Icon(
+                      Icons.search,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 22,
+                    ),
                     const SizedBox(width: 12),
                     Text(
                       'Search deals, stores...',
                       style: TextStyle(
-                        color: Colors.grey[400],
+                        color: Colors.grey[500],
                         fontSize: 14,
                       ),
                     ),
@@ -488,20 +511,256 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  // ── Featured Banner Carousel ─────────────────────────────────────────────
+  Widget _buildFeaturedBanner() {
+    return SliverToBoxAdapter(
+      child: Container(
+        height: 180,
+        margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+        child: PageView.builder(
+          itemCount: _featuredDeals.length > 3 ? 3 : _featuredDeals.length,
+          itemBuilder: (context, index) {
+            final deal = _featuredDeals[index];
+            return GestureDetector(
+              onTap: () => _openDeal(deal),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Background Image
+                      if (deal.imageDataString != null && deal.imageDataString!.isNotEmpty)
+                        Image.network(
+                          deal.imageDataString!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Theme.of(context).colorScheme.primary,
+                                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                ],
+                              ),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Theme.of(context).colorScheme.primary,
+                                Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                              ],
+                            ),
+                          ),
+                        ),
+                      // Gradient Overlay
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withOpacity(0.7),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Content
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Discount Badge
+                            if (deal.discount != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF5252),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  deal.discount!,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+                            // Title
+                            Text(
+                              deal.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            // Subtitle
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.local_fire_department,
+                                  color: Colors.orange,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Featured Deal',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   // ── Quick Actions ─────────────────────────────────────────────────────────
   Widget _buildQuickActions() {
+    final nearbyCount = _nearbyDeals.length;
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-        child: QuickActionButton(
-          icon: Icons.map,
-          label: 'Nearby Deals',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
+            );
+          },
+          child: Container(
+            height: 100,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF4CAF50),
+                  Color(0xFF66BB6A),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4CAF50).withOpacity(0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                // Background pattern
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: CustomPaint(
+                      painter: _MapPatternPainter(),
+                    ),
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // Icon
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.map_outlined,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Text
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              'Nearby Deals',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              nearbyCount > 0
+                                  ? '📍 $nearbyCount active deals near you'
+                                  : 'Tap to explore map',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Arrow
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_forward,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          iconColor: const Color(0xFF4CAF50),
-          backgroundColor: const Color(0xFFE8F5E9),
         ),
       ),
     );
@@ -968,4 +1227,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ]),
     );
   }
+}
+
+// Custom painter for map pattern background
+class _MapPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    // Draw grid pattern
+    for (double i = 0; i < size.width; i += 30) {
+      canvas.drawLine(
+        Offset(i, 0),
+        Offset(i, size.height),
+        paint,
+      );
+    }
+    for (double i = 0; i < size.height; i += 30) {
+      canvas.drawLine(
+        Offset(0, i),
+        Offset(size.width, i),
+        paint,
+      );
+    }
+
+    // Draw location pins
+    final pinPaint = Paint()
+      ..color = Colors.white.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    final positions = [
+      Offset(size.width * 0.2, size.height * 0.3),
+      Offset(size.width * 0.6, size.height * 0.5),
+      Offset(size.width * 0.8, size.height * 0.7),
+    ];
+
+    for (final pos in positions) {
+      canvas.drawCircle(pos, 4, pinPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

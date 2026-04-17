@@ -14,7 +14,7 @@ class ApiService {
 
   static Future<void> warmUp() async {
     try {
-      await http.get(Uri.parse('${AppConfig.baseUrl}status')).timeout(const Duration(seconds: 60));
+      await http.get(Uri.parse('${AppConfig.baseUrl}status')).timeout(const Duration(seconds: 10));
     } catch (_) {}
   }
 
@@ -74,7 +74,7 @@ class ApiService {
     // Fetch from network
     try {
       if (kDebugMode) print('🌐 Fetching promotions from network...');
-      final response = await http.get(Uri.parse('${_baseUrl}promotions')).timeout(const Duration(seconds: 60));
+      final response = await http.get(Uri.parse('${_baseUrl}promotions?limit=50')).timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
@@ -203,7 +203,7 @@ class ApiService {
     // Fetch from network
     try {
       if (kDebugMode) print('🌐 Fetching merchants from network...');
-      final response = await http.get(Uri.parse('${_baseUrl}merchants')).timeout(const Duration(seconds: 30));
+      final response = await http.get(Uri.parse('${_baseUrl}merchants')).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         final merchants = data.cast<Map<String, dynamic>>();
@@ -405,9 +405,9 @@ class ApiService {
         Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       ).timeout(
-        const Duration(seconds: 60),
+        const Duration(seconds: 15),
         onTimeout: () {
-          if (kDebugMode) print('⏱️ Nearby request timed out after 60 seconds');
+          if (kDebugMode) print('⏱️ Nearby request timed out after 15 seconds');
           throw TimeoutException('The server took too long to respond');
         },
       );

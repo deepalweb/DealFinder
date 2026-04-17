@@ -1,6 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class LocationService {
@@ -23,6 +24,19 @@ class LocationService {
   // Get location name from coordinates using reverse geocoding
   static Future<String?> getLocationName(double lat, double lng) async {
     try {
+      // Check cache first (24 hour TTL)
+      final prefs = await SharedPreferences.getInstance();
+      final cacheKey = 'location_name_${lat.toStringAsFixed(2)}_${lng.toStringAsFixed(2)}';
+      final cachedName = prefs.getString(cacheKey);
+      final cacheTime = prefs.getInt('${cacheKey}_time');
+      
+      if (cachedName != null && cacheTime != null) {
+        final age = DateTime.now().millisecondsSinceEpoch - cacheTime;
+        if (age < 24 * 60 * 60 * 1000) { // 24 hours
+          return cachedName;
+        }
+      }
+      
       // Using OpenStreetMap Nominatim (free, no API key required)
       final url = Uri.parse(
         'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=10&addressdetails=1'
@@ -43,6 +57,12 @@ class LocationService {
                                address['village'] ?? 
                                address['suburb'] ?? 
                                address['county'];
+        
+        // Cache the result
+        if (locationName != null) {
+          await prefs.setString(cacheKey, locationName);
+          await prefs.setInt('${cacheKey}_time', DateTime.now().millisecondsSinceEpoch);
+        }
         
         return locationName;
       }
