@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../services/image_helper.dart';
 import '../models/category.dart';
 import '../models/promotion.dart';
 
@@ -43,7 +44,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
   bool _isSubmitting = false;
   String? _token;
   String _dealType = 'percentage';
-  List<String> _imageBase64List = [];
+  List<File> _imageFiles = [];
+  List<String> _uploadedImageUrls = [];
 
   @override
   void initState() {
@@ -121,7 +123,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
   }
 
   Future<void> _pickImages() async {
-    if (_imageBase64List.length >= 5) {
+    if (_imageFiles.length >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Maximum 5 images allowed')),
       );
@@ -130,18 +132,16 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
 
     final List<XFile> images = await _picker.pickMultiImage();
     for (var image in images) {
-      if (_imageBase64List.length >= 5) break;
-      final bytes = await File(image.path).readAsBytes();
-      final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      if (_imageFiles.length >= 5) break;
       setState(() {
-        _imageBase64List.add(base64Image);
+        _imageFiles.add(File(image.path));
       });
     }
   }
 
   void _removeImage(int index) {
     setState(() {
-      _imageBase64List.removeAt(index);
+      _imageFiles.removeAt(index);
     });
   }
 
@@ -194,6 +194,25 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
     setState(() => _isSubmitting = true);
 
     try {
+      // Upload images to Azure first
+      if (_imageFiles.isNotEmpty) {
+        final compressedFiles = <File>[];
+        for (final file in _imageFiles) {
+          final compressed = await ImageHelper.compressImageFile(
+            file.path,
+            quality: 70,
+            maxWidth: 1024,
+          );
+          compressedFiles.add(compressed ?? file);
+        }
+        
+        _uploadedImageUrls = await _apiService.uploadMultipleImages(
+          compressedFiles,
+          _token!,
+          folder: 'promotions',
+        );
+      }
+
       final promotionData = {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -210,8 +229,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
           'originalPrice': double.parse(_originalPriceController.text),
         if (_discountedPriceController.text.isNotEmpty)
           'discountedPrice': double.parse(_discountedPriceController.text),
-        if (_imageBase64List.isNotEmpty) 'image': _imageBase64List.first,
-        if (_imageBase64List.isNotEmpty) 'images': _imageBase64List,
+        if (_uploadedImageUrls.isNotEmpty) 'image': _uploadedImageUrls.first,
+        if (_uploadedImageUrls.isNotEmpty) 'images': _uploadedImageUrls,
       };
 
       await _apiService.createPromotion(promotionData, _token!);
@@ -632,7 +651,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
           ),
           const SizedBox(height: 16),
           
-          if (_imageBase64List.isNotEmpty)
+          if (_imageFiles.isNotEmpty)
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -641,9 +660,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
-              itemCount: _imageBase64List.length + (_imageBase64List.length < 5 ? 1 : 0),
+              itemCount: _imageFiles.length + (_imageFiles.length < 5 ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == _imageBase64List.length) {
+                if (index == _imageFiles.length) {
                   return GestureDetector(
                     onTap: _pickImages,
                     child: Container(
@@ -675,8 +694,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.memory(
-                          base64Decode(_imageBase64List[index].split(',')[1]),
+                        child: Image.file(
+                          _imageFiles[index],
                           fit: BoxFit.cover,
                           width: double.infinity,
                           height: double.infinity,
@@ -800,7 +819,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                   _buildSummaryRow('Category', _selectedCategory ?? '—'),
                   _buildSummaryRow('Duration', daysLeft > 0 ? '$daysLeft days' : '—'),
                   _buildSummaryRow('Featured', _featured ? 'Yes ⭐' : 'No'),
-                  _buildSummaryRow('Images', '${_imageBase64List.length}/5'),
+                  _buildSummaryRow('Images', '${_imageFiles.length}/5'),
                 ],
               ),
             ),

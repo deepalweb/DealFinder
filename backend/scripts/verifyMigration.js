@@ -1,77 +1,54 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-
-const OLD_DB_URI = process.env.OLD_MONGO_URI || process.env.MONGO_URI;
-const NEW_DB_URI = process.env.NEW_MONGO_URI;
-
-const collections = ['users', 'merchants', 'promotions', 'notifications', 'notificationlogs', 'notificationpreferences', 'promotionclicks'];
+const Promotion = require('../models/Promotion');
+const Merchant = require('../models/Merchant');
 
 async function verifyMigration() {
-  let oldConn, newConn;
-
   try {
-    console.log('Connecting to databases...\n');
-    
-    oldConn = await mongoose.createConnection(OLD_DB_URI, {
-      tls: true,
-      retryWrites: false,
-      serverSelectionTimeoutMS: 30000,
-    }).asPromise();
+    console.log('Verifying Azure Blob Storage migration...\n');
 
-    newConn = await mongoose.createConnection(NEW_DB_URI, {
-      tls: true,
-      retryWrites: false,
-      serverSelectionTimeoutMS: 30000,
-    }).asPromise();
+    await mongoose.connect(process.env.MONGO_URI);
 
-    console.log('✓ Connected to both databases\n');
-    console.log('Collection Comparison:');
-    console.log('─'.repeat(60));
-    console.log('Collection'.padEnd(25) + 'Old DB'.padEnd(15) + 'New DB'.padEnd(15) + 'Status');
-    console.log('─'.repeat(60));
+    // Check Promotions
+    const totalPromotions = await Promotion.countDocuments();
+    const base64Promotions = await Promotion.countDocuments({
+      $or: [
+        { image: { $regex: '^data:image' } },
+        { images: { $elemMatch: { $regex: '^data:image' } } }
+      ]
+    });
+    const azurePromotions = totalPromotions - base64Promotions;
 
-    let allMatch = true;
+    console.log('=== Promotions ===');
+    console.log(`Total: ${totalPromotions}`);
+    console.log(`Migrated to Azure: ${azurePromotions} (${((azurePromotions/totalPromotions)*100).toFixed(1)}%)`);
+    console.log(`Still base64: ${base64Promotions}`);
 
-    for (const collectionName of collections) {
-      const oldCount = await oldConn.collection(collectionName).countDocuments();
-      const newCount = await newConn.collection(collectionName).countDocuments();
-      
-      const status = oldCount === newCount ? '✓ Match' : '✗ Mismatch';
-      if (oldCount !== newCount) allMatch = false;
+    // Check Merchants
+    const totalMerchants = await Merchant.countDocuments();
+    const base64Merchants = await Merchant.countDocuments({
+      $or: [
+        { logo: { $regex: '^data:image' } },
+        { banner: { $regex: '^data:image' } }
+      ]
+    });
+    const azureMerchants = totalMerchants - base64Merchants;
 
-      console.log(
-        collectionName.padEnd(25) + 
-        oldCount.toString().padEnd(15) + 
-        newCount.toString().padEnd(15) + 
-        status
-      );
-    }
+    console.log('\n=== Merchants ===');
+    console.log(`Total: ${totalMerchants}`);
+    console.log(`Migrated to Azure: ${azureMerchants} (${((azureMerchants/totalMerchants)*100).toFixed(1)}%)`);
+    console.log(`Still base64: ${base64Merchants}`);
 
-    console.log('─'.repeat(60));
-    
-    if (allMatch) {
-      console.log('\n✓ All collections match! Migration successful.');
+    if (base64Promotions === 0 && base64Merchants === 0) {
+      console.log('\n✓ Migration complete! All images are now on Azure Blob Storage');
     } else {
-      console.log('\n⚠ Some collections have different counts. Review migration.');
+      console.log('\n⚠ Migration incomplete. Run migration script again.');
     }
 
-    // Check indexes
-    console.log('\n\nIndex Verification:');
-    console.log('─'.repeat(60));
-    
-    const merchantIndexes = await newConn.collection('merchants').indexes();
-    const has2dsphere = merchantIndexes.some(idx => idx.key && idx.key.location === '2dsphere');
-    console.log(`Merchants 2dsphere index: ${has2dsphere ? '✓ Exists' : '✗ Missing'}`);
-
-    const promotionIndexes = await newConn.collection('promotions').indexes();
-    console.log(`Promotions indexes: ${promotionIndexes.length} total`);
-
-  } catch (err) {
-    console.error('Verification failed:', err.message);
+  } catch (error) {
+    console.error('Verification failed:', error);
   } finally {
-    if (oldConn) await oldConn.close();
-    if (newConn) await newConn.close();
-    process.exit(0);
+    await mongoose.disconnect();
   }
 }
 

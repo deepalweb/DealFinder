@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -583,6 +584,64 @@ class ApiService {
     } else {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['message'] ?? 'Failed to fetch user profile');
+    }
+  }
+
+  // Upload single image to Azure Blob Storage
+  Future<String> uploadImage(File imageFile, String token, {String folder = 'images'}) async {
+    final request = http.MultipartRequest('POST', Uri.parse('${_baseUrl}images/upload'));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['folder'] = folder;
+    request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['imageUrl'] as String;
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to upload image');
+    }
+  }
+
+  // Upload multiple images to Azure Blob Storage
+  Future<List<String>> uploadMultipleImages(List<File> imageFiles, String token, {String folder = 'images'}) async {
+    final request = http.MultipartRequest('POST', Uri.parse('${_baseUrl}images/upload-multiple'));
+    request.headers['Authorization'] = 'Bearer $token';
+    request.fields['folder'] = folder;
+    
+    for (final file in imageFiles) {
+      request.files.add(await http.MultipartFile.fromPath('images', file.path));
+    }
+
+    final streamedResponse = await request.send().timeout(const Duration(seconds: 90));
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return (data['imageUrls'] as List).cast<String>();
+    } else {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to upload images');
+    }
+  }
+
+  // Delete image from Azure Blob Storage
+  Future<void> deleteImage(String imageUrl, String token) async {
+    final response = await http.delete(
+      Uri.parse('${_baseUrl}images/delete'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'imageUrl': imageUrl}),
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(response.body);
+      throw Exception(errorBody['message'] ?? 'Failed to delete image');
     }
   }
 }

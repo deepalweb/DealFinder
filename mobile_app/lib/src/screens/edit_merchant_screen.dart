@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../services/image_helper.dart';
 
 class EditMerchantScreen extends StatefulWidget {
   final String merchantId;
@@ -44,8 +45,10 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   
   bool _isSubmitting = false;
   String? _token;
-  String? _logoBase64;
-  String? _bannerBase64;
+  File? _logoFile;
+  File? _bannerFile;
+  String? _uploadedLogoUrl;
+  String? _uploadedBannerUrl;
   double? _latitude;
   double? _longitude;
 
@@ -122,15 +125,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   Future<void> _pickImage(bool isLogo) async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      final bytes = await File(image.path).readAsBytes();
-      final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
       setState(() {
         if (isLogo) {
-          _logoBase64 = base64Image;
-          _logoUrlController.text = base64Image;
+          _logoFile = File(image.path);
+          _logoUrlController.text = image.path;
         } else {
-          _bannerBase64 = base64Image;
-          _bannerUrlController.text = base64Image;
+          _bannerFile = File(image.path);
+          _bannerUrlController.text = image.path;
         }
       });
     }
@@ -151,6 +152,34 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
     setState(() => _isSubmitting = true);
 
     try {
+      // Upload logo if changed
+      if (_logoFile != null) {
+        final compressed = await ImageHelper.compressImageFile(
+          _logoFile!.path,
+          quality: 80,
+          maxWidth: 512,
+        );
+        _uploadedLogoUrl = await _apiService.uploadImage(
+          compressed ?? _logoFile!,
+          _token!,
+          folder: 'merchants',
+        );
+      }
+      
+      // Upload banner if changed
+      if (_bannerFile != null) {
+        final compressed = await ImageHelper.compressImageFile(
+          _bannerFile!.path,
+          quality: 70,
+          maxWidth: 1200,
+        );
+        _uploadedBannerUrl = await _apiService.uploadImage(
+          compressed ?? _bannerFile!,
+          _token!,
+          folder: 'merchants',
+        );
+      }
+
       final merchantData = {
         'name': _nameController.text.trim(),
         'profile': _profileController.text.trim(),
@@ -159,9 +188,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         'contactInfo': _contactInfoController.text.trim(),
         'contactNumber': _contactNumberController.text.trim(),
         'address': _addressController.text.trim(),
-        if (_logoUrlController.text.trim().isNotEmpty)
+        if (_uploadedLogoUrl != null)
+          'logo': _uploadedLogoUrl,
+        else if (_logoUrlController.text.trim().isNotEmpty && _logoUrlController.text.startsWith('http'))
           'logo': _logoUrlController.text.trim(),
-        if (_bannerUrlController.text.trim().isNotEmpty)
+        if (_uploadedBannerUrl != null)
+          'banner': _uploadedBannerUrl,
+        else if (_bannerUrlController.text.trim().isNotEmpty && _bannerUrlController.text.startsWith('http'))
           'banner': _bannerUrlController.text.trim(),
         'socialMedia': {
           'facebook': _facebookController.text.trim(),
@@ -624,16 +657,19 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                       color: Theme.of(context).colorScheme.primary,
                       width: 3,
                     ),
-                    image: _logoUrlController.text.isNotEmpty
+                    image: _logoFile != null
                         ? DecorationImage(
-                            image: _logoUrlController.text.startsWith('data:')
-                                ? MemoryImage(base64Decode(_logoUrlController.text.split(',')[1]))
-                                : NetworkImage(_logoUrlController.text) as ImageProvider,
+                            image: FileImage(_logoFile!),
                             fit: BoxFit.cover,
                           )
-                        : null,
+                        : _logoUrlController.text.isNotEmpty && _logoUrlController.text.startsWith('http')
+                            ? DecorationImage(
+                                image: NetworkImage(_logoUrlController.text),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                   ),
-                  child: _logoUrlController.text.isEmpty
+                  child: _logoFile == null && !_logoUrlController.text.startsWith('http')
                       ? const Icon(Icons.store, size: 40)
                       : null,
                 ),
@@ -692,19 +728,22 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey[300]!),
               borderRadius: BorderRadius.circular(12),
-              image: _bannerUrlController.text.isNotEmpty
+              image: _bannerFile != null
                   ? DecorationImage(
-                      image: _bannerUrlController.text.startsWith('data:')
-                          ? MemoryImage(base64Decode(_bannerUrlController.text.split(',')[1]))
-                          : NetworkImage(_bannerUrlController.text) as ImageProvider,
+                      image: FileImage(_bannerFile!),
                       fit: BoxFit.cover,
                     )
-                  : null,
+                  : _bannerUrlController.text.isNotEmpty && _bannerUrlController.text.startsWith('http')
+                      ? DecorationImage(
+                          image: NetworkImage(_bannerUrlController.text),
+                          fit: BoxFit.cover,
+                        )
+                      : null,
               color: Colors.grey[200],
             ),
             child: Stack(
               children: [
-                if (_bannerUrlController.text.isEmpty)
+                if (_bannerFile == null && !_bannerUrlController.text.startsWith('http'))
                   const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,

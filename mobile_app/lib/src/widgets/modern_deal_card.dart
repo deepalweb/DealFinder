@@ -1,9 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
+import '../services/image_helper.dart';
 
 class ModernDealCard extends StatelessWidget {
   final Promotion promotion;
@@ -18,54 +17,11 @@ class ModernDealCard extends StatelessWidget {
   });
 
   Widget _buildLogo(String logoUrl) {
-    // Handle base64 data URI
-    if (logoUrl.startsWith('data:image')) {
-      try {
-        final bytes = base64Decode(logoUrl.substring(logoUrl.indexOf(',') + 1));
-        return Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            color: Colors.grey[200],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5)),
-          ),
-        );
-      } catch (e) {
-        if (kDebugMode) print('Error decoding logo base64: $e');
-        return const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5));
-      }
-    }
-    
-    // Handle HTTP/HTTPS URL
-    if (logoUrl.startsWith('http')) {
-      return Container(
-        width: 16,
-        height: 16,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
-          color: Colors.grey[200],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: CachedNetworkImage(
-          imageUrl: logoUrl,
-          fit: BoxFit.cover,
-          placeholder: (_, __) => Container(color: Colors.grey[200]),
-          errorWidget: (context, url, error) {
-            if (kDebugMode) print('Logo error: $error');
-            return const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5));
-          },
-        ),
-      );
-    }
-    
-    // Fallback
-    return const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5));
+    return ImageHelper.buildThumbnail(
+      logoUrl,
+      size: 16,
+      borderRadius: BorderRadius.circular(4),
+    );
   }
 
   String _formatDistance(double? distanceMeters) {
@@ -75,50 +31,11 @@ class ModernDealCard extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    final img = promotion.imageDataString;
-    final shimmer = Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Container(color: Colors.white),
+    return ImageHelper.buildOptimizedImage(
+      promotion.imageDataString,
+      width: double.infinity,
+      fit: BoxFit.cover,
     );
-
-    if (img == null || img.isEmpty) {
-      return Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: const Center(
-          child: Icon(Icons.local_offer, size: 40, color: Colors.white70),
-        ),
-      );
-    }
-
-    if (img.startsWith('data:image')) {
-      try {
-        final bytes = base64Decode(img.substring(img.indexOf(',') + 1));
-        return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity,
-            errorBuilder: (_, __, ___) => shimmer);
-      } catch (e) {
-        if (kDebugMode) print('Error decoding base64 image: $e');
-        return shimmer;
-      }
-    }
-
-    if (img.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: img,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        placeholder: (_, __) => shimmer,
-        errorWidget: (_, __, ___) => shimmer,
-      );
-    }
-
-    return shimmer;
   }
 
   @override
