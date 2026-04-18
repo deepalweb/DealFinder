@@ -423,7 +423,11 @@ router.post('/', authenticateJWT, [
       }
     });
     
-    homepageCache = null; // invalidate on create
+    // Invalidate caches
+    homepageCache = null;
+    nearbyCache.clear(); // Clear nearby deals cache on create
+    
+    console.log('[Promotion Create] Caches invalidated');
     res.status(201).json(savedPromotion);
   } catch (error) {
     console.error('Error creating promotion:', error);
@@ -553,7 +557,11 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       });
     }
     
-    homepageCache = null; // invalidate on update
+    // Invalidate caches
+    homepageCache = null;
+    nearbyCache.clear(); // Clear nearby deals cache on update
+    
+    console.log('[Promotion Update] Caches invalidated');
     res.status(200).json(updatedPromotion);
   } catch (error) {
     console.error(`Error updating promotion ${req.params.id}:`, error);
@@ -580,7 +588,12 @@ router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (re
     );
     
     await Promotion.findByIdAndDelete(req.params.id);
-    homepageCache = null; // invalidate on delete
+    
+    // Invalidate caches
+    homepageCache = null;
+    nearbyCache.clear(); // Clear nearby deals cache on delete
+    
+    console.log('[Promotion Delete] Caches invalidated');
     res.status(200).json({ message: 'Promotion deleted successfully' });
   } catch (error) {
     console.error(`Error deleting promotion ${req.params.id}:`, error);
