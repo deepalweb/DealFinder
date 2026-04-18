@@ -131,7 +131,7 @@ router.get('/nearby', async (req, res) => {
         {
           $project: { _id: 1, name: 1, location: 1, distance: 1 }
         }
-      ]).maxTimeMS(5000); // 5 second timeout
+      ]).option({ maxTimeMS: 5000 }); // Use option() instead of maxTimeMS()
     } catch (geoErr) {
       console.error('$geoNear error:', geoErr.message);
       console.error('Full error:', geoErr);
@@ -166,8 +166,8 @@ router.get('/nearby', async (req, res) => {
     .select('-comments -ratings')
     .populate({ path: 'merchant', select: 'name logo location address contactInfo currency' })
     .limit(promotionLimit)
-    .lean()
-    .maxTimeMS(5000); // 5 second timeout
+    .maxTimeMS(5000) // maxTimeMS works on find() queries
+    .lean();
 
     promotions = promotions.map(promo => {
       const merchantInfo = merchantsWithDistance.find(m => m._id.equals(promo.merchant._id));
