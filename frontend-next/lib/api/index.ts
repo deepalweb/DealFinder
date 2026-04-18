@@ -74,7 +74,7 @@ export const PromotionAPI = {
     const q = params ? new URLSearchParams(params as any).toString() : '';
     return fetchAPI<any[]>(`promotions${q ? `?${q}` : ''}`);
   },
-  getHomepage: () => fetchAPI<{ featured: any[]; latest: any[] }>('promotions/homepage'),
+  getHomepage: () => fetchAPI<{ featured: any[]; latest: any[] }>('promotions/homepage', { cache: 'no-store' }),
   getById: (id: string) => fetchAPI<any>(`promotions/${id}`),
   getByMerchant: (merchantId: string) => fetchAPI<any[]>(`promotions/merchant/${merchantId}`),
   getNearby: (lat: number, lon: number, radius = 10) =>

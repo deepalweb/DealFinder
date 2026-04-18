@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PromotionAPI, UserAPI } from '@/lib/api';
+import { PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
@@ -46,6 +46,9 @@ export default function HomePage() {
     // Optimized: Single API call for homepage data + cached favorites
     const fetchData = async () => {
       try {
+        // Clear any cached homepage data first
+        invalidateCache('promotions');
+        
         const homepagePromise: Promise<{ featured: any[]; latest: any[] }> =
           PromotionAPI.getHomepage().catch(() => {
             console.warn('Homepage endpoint failed, falling back to getAll');
