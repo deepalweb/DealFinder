@@ -408,9 +408,9 @@ class ApiService {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       ).timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 30),
         onTimeout: () {
-          if (kDebugMode) print('⏱️ Nearby request timed out after 15 seconds');
+          if (kDebugMode) print('⏱️ Nearby request timed out after 30 seconds');
           throw TimeoutException('The server took too long to respond');
         },
       );
