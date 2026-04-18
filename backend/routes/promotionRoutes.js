@@ -476,13 +476,19 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     };
     if (images !== undefined) updateData.images = images;
 
-    if (startDate && endDate) {
-      updateData.status = new Date(endDate) > new Date() ? 'active' : 'expired';
-    } else if (endDate) { // If only endDate is provided, we might need to fetch startDate from DB to determine status
-        const existingPromo = await Promotion.findById(req.params.id);
-        if (existingPromo) {
-            updateData.status = new Date(endDate) > new Date(existingPromo.startDate) && new Date(endDate) > new Date() ? 'active' : 'expired';
-        }
+    // Properly calculate status based on dates
+    if (startDate || endDate) {
+      const now = new Date();
+      const sDate = new Date(startDate || (await Promotion.findById(req.params.id)).startDate);
+      const eDate = new Date(endDate || (await Promotion.findById(req.params.id)).endDate);
+      
+      if (eDate < now) {
+        updateData.status = 'expired';
+      } else if (sDate > now) {
+        updateData.status = 'scheduled';
+      } else {
+        updateData.status = 'active';
+      }
     }
 
 
