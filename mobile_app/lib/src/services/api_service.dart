@@ -401,8 +401,11 @@ class ApiService {
     try {
       if (kDebugMode) print('🌐 Fetching nearby deals: lat=$lat, lng=$lng, radius=${radiusKm}km');
       
+      final url = '${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm';
+      if (kDebugMode) print('📍 URL: $url');
+      
       final response = await http.get(
-        Uri.parse('${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm'),
+        Uri.parse(url),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       ).timeout(
         const Duration(seconds: 15),
@@ -412,7 +415,11 @@ class ApiService {
         },
       );
       
-      if (kDebugMode) print('📡 Nearby API response: ${response.statusCode}');
+      if (kDebugMode) {
+        print('📡 Nearby API response: ${response.statusCode}');
+        print('📦 Response body length: ${response.body.length}');
+        print('📄 Response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      }
       
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
