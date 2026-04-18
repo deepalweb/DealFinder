@@ -118,13 +118,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       });
     } on TimeoutException {
       setState(() {
-        _error = 'Request timed out. Try a smaller radius or check your connection.';
+        _error = 'Server is taking longer than usual. Try reducing the search radius or checking your internet connection.';
         _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _error = e.toString().contains('timeout') 
-            ? 'Request timed out. Try a smaller radius.'
+            ? 'Request timed out. Try a smaller radius or check your internet connection.'
             : 'Failed to load nearby deals. Please try again.';
         _isLoading = false;
       });

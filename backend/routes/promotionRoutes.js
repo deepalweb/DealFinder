@@ -118,7 +118,7 @@ function setNearbyCache(lat, lon, radius, data) {
   }
 }
 
-// Get nearby promotions
+// Get nearby promotions - Optimized with single aggregation pipeline
 router.get('/nearby', async (req, res) => {
   try {
     const { latitude, longitude, radius } = req.query;
@@ -139,16 +139,19 @@ router.get('/nearby', async (req, res) => {
     // Check cache first
     const cached = getNearbyCache(lat, lon, searchRadiusKm);
     if (cached) {
-      console.log('Returning cached nearby deals');
+      console.log('[Nearby API] Returning cached results');
       return res.status(200).json(cached);
     }
 
     const radiusInMeters = searchRadiusKm * 1000;
-    const limit = parseInt(req.query.limit) || 50; // Reduced from 100
+    const merchantLimit = parseInt(req.query.limit) || 30; // Reduced for faster geo query
+    const promotionLimit = parseInt(req.query.promotionLimit) || 100;
 
-    let merchantsWithDistance = [];
+    const now = new Date();
+
     try {
-      merchantsWithDistance = await Merchant.aggregate([
+      // Single optimized aggregation pipeline
+      const promotions = await Merchant.aggregate([
         {
           $geoNear: {
             near: { type: 'Point', coordinates: [lon, lat] },
@@ -158,57 +161,93 @@ router.get('/nearby', async (req, res) => {
             query: { 'location.type': 'Point' }
           }
         },
-        { $limit: limit },
+        { $limit: merchantLimit }, // Limit merchants first for faster geo query
         {
-          $project: { _id: 1, name: 1, location: 1, distance: 1 }
+          $lookup: {
+            from: 'promotions',
+            let: { merchantId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$merchant', '$$merchantId'] },
+                  status: { $in: ['active', 'approved'] },
+                  startDate: { $lte: now },
+                  endDate: { $gte: now }
+                }
+              },
+              { $limit: 10 }, // Limit promotions per merchant
+              {
+                $project: {
+                  title: 1,
+                  description: 1,
+                  discount: 1,
+                  code: 1,
+                  category: 1,
+                  merchant: 1,
+                  startDate: 1,
+                  endDate: 1,
+                  images: 1,
+                  image: 1,
+                  url: 1,
+                  featured: 1,
+                  originalPrice: 1,
+                  discountedPrice: 1,
+                  status: 1,
+                  createdAt: 1
+                }
+              }
+            ]
+          }
+        },
+        {
+          $unwind: {
+            path: '$promotions',
+            preserveNullAndEmptyArrays: false // Don't include merchants with no promotions
+          }
+        },
+        {
+          $replaceRoot: {
+            newRoot: {
+              $mergeObjects: [
+                '$promotions',
+                {
+                  merchant: {
+                    _id: '$_id',
+                    name: '$name',
+                    logo: '$logo',
+                    location: '$location',
+                    address: '$address',
+                    contactInfo: '$contactInfo',
+                    currency: '$currency',
+                    distance: '$distance'
+                  }
+                }
+              ]
+            }
+          }
+        },
+        { $limit: promotionLimit },
+        {
+          $sort: { createdAt: -1 }
         }
       ]);
+
+      // Cache the result
+      setNearbyCache(lat, lon, searchRadiusKm, promotions);
+
+      res.status(200).json(promotions);
+
     } catch (geoErr) {
-      console.error('$geoNear error:', geoErr.message);
-      console.error('Full error:', geoErr);
+      console.error('[Nearby API] Aggregation error:', geoErr.message);
       return res.status(500).json({ 
-        message: '$geoNear query failed', 
-        error: geoErr.message,
+        message: 'Query failed',
+        error: process.env.NODE_ENV === 'production' ? undefined : geoErr.message,
         hint: 'Check if geospatial index exists on Merchant.location field'
       });
     }
 
-    if (!merchantsWithDistance.length) {
-      setNearbyCache(lat, lon, searchRadiusKm, []);
-      return res.status(200).json([]);
-    }
-
-    const merchantIds = merchantsWithDistance.map(m => m._id);
-
-    const now = new Date();
-    const promotionLimit = parseInt(req.query.promotionLimit) || 50;
-    
-    let promotions = await Promotion.find({
-      merchant: { $in: merchantIds },
-      status: { $in: ['active', 'approved'] },
-      startDate: { $lte: now },
-      endDate: { $gte: now },
-    })
-    .select('-comments -ratings')
-    .populate({ path: 'merchant', select: 'name logo location address contactInfo currency' })
-    .limit(promotionLimit)
-    .lean();
-
-    promotions = promotions.map(promo => {
-      const merchantInfo = merchantsWithDistance.find(m => m._id.equals(promo.merchant._id));
-      if (merchantInfo && typeof promo.merchant === 'object' && promo.merchant !== null) {
-        promo.merchant.distance = merchantInfo.distance;
-      }
-      return promo;
-    });
-
-    // Cache the result
-    setNearbyCache(lat, lon, searchRadiusKm, promotions);
-
-    res.status(200).json(promotions);
-
   } catch (error) {
-    console.error('Error fetching nearby promotions:', error);
+    console.error('[Nearby API] Error:', error);
     res.status(500).json(safeError(error));
   }
 });
