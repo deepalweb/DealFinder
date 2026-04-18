@@ -196,7 +196,8 @@ router.get('/nearby', async (req, res) => {
                   createdAt: 1
                 }
               }
-            ]
+            ],
+            as: 'promotions'
           }
         },
         {
