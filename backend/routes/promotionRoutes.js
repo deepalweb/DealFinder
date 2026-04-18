@@ -134,13 +134,18 @@ router.get('/nearby', async (req, res) => {
       ]).maxTimeMS(5000); // 5 second timeout
     } catch (geoErr) {
       console.error('$geoNear error:', geoErr.message);
+      console.error('Full error:', geoErr);
       if (geoErr.message.includes('timeout') || geoErr.message.includes('timed out')) {
         return res.status(408).json({ 
           message: 'Request timed out. The server might be slow or there are too many merchants to process.',
           timeout: true 
         });
       }
-      return res.status(200).json([]);
+      return res.status(500).json({ 
+        message: '$geoNear query failed', 
+        error: geoErr.message,
+        hint: 'Check if geospatial index exists on Merchant.location field'
+      });
     }
 
     if (!merchantsWithDistance.length) {
