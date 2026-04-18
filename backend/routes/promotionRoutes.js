@@ -95,6 +95,29 @@ router.get('/homepage', async (req, res) => {
   }
 });
 
+// Server-side cache for nearby deals (2 minute TTL)
+let nearbyCache = new Map();
+const NEARBY_CACHE_TTL = 2 * 60 * 1000;
+
+function getNearbyCache(lat, lon, radius) {
+  const key = `${lat.toFixed(3)}_${lon.toFixed(3)}_${radius}`;
+  const cached = nearbyCache.get(key);
+  if (cached && Date.now() - cached.timestamp < NEARBY_CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+}
+
+function setNearbyCache(lat, lon, radius, data) {
+  const key = `${lat.toFixed(3)}_${lon.toFixed(3)}_${radius}`;
+  nearbyCache.set(key, { data, timestamp: Date.now() });
+  // Limit cache size
+  if (nearbyCache.size > 100) {
+    const firstKey = nearbyCache.keys().next().value;
+    nearbyCache.delete(firstKey);
+  }
+}
+
 // Get nearby promotions
 router.get('/nearby', async (req, res) => {
   try {
@@ -112,8 +135,16 @@ router.get('/nearby', async (req, res) => {
     }
 
     const searchRadiusKm = parseFloat(radius) || 10;
+    
+    // Check cache first
+    const cached = getNearbyCache(lat, lon, searchRadiusKm);
+    if (cached) {
+      console.log('Returning cached nearby deals');
+      return res.status(200).json(cached);
+    }
+
     const radiusInMeters = searchRadiusKm * 1000;
-    const limit = parseInt(req.query.limit) || 100; // Limit merchants to process
+    const limit = parseInt(req.query.limit) || 50; // Reduced from 100
 
     let merchantsWithDistance = [];
     try {
@@ -127,7 +158,7 @@ router.get('/nearby', async (req, res) => {
             query: { 'location.type': 'Point' }
           }
         },
-        { $limit: limit }, // Limit number of merchants
+        { $limit: limit },
         {
           $project: { _id: 1, name: 1, location: 1, distance: 1 }
         }
@@ -135,12 +166,6 @@ router.get('/nearby', async (req, res) => {
     } catch (geoErr) {
       console.error('$geoNear error:', geoErr.message);
       console.error('Full error:', geoErr);
-      if (geoErr.message.includes('timeout') || geoErr.message.includes('timed out')) {
-        return res.status(408).json({ 
-          message: 'Request timed out. The server might be slow or there are too many merchants to process.',
-          timeout: true 
-        });
-      }
       return res.status(500).json({ 
         message: '$geoNear query failed', 
         error: geoErr.message,
@@ -149,13 +174,14 @@ router.get('/nearby', async (req, res) => {
     }
 
     if (!merchantsWithDistance.length) {
+      setNearbyCache(lat, lon, searchRadiusKm, []);
       return res.status(200).json([]);
     }
 
     const merchantIds = merchantsWithDistance.map(m => m._id);
 
     const now = new Date();
-    const promotionLimit = parseInt(req.query.promotionLimit) || 50; // Limit promotions returned
+    const promotionLimit = parseInt(req.query.promotionLimit) || 50;
     
     let promotions = await Promotion.find({
       merchant: { $in: merchantIds },
@@ -176,16 +202,13 @@ router.get('/nearby', async (req, res) => {
       return promo;
     });
 
+    // Cache the result
+    setNearbyCache(lat, lon, searchRadiusKm, promotions);
+
     res.status(200).json(promotions);
 
   } catch (error) {
     console.error('Error fetching nearby promotions:', error);
-    if (error.message && error.message.includes('timeout')) {
-      return res.status(408).json({ 
-        message: 'Request timed out. Please try again with a smaller radius.',
-        timeout: true 
-      });
-    }
     res.status(500).json(safeError(error));
   }
 });
