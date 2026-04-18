@@ -50,7 +50,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
 
       {/* Image */}
       <div style={{ position: 'relative', overflow: 'hidden', height: '180px', flexShrink: 0 }}>
-        <img src={promotion.image || 'https://via.placeholder.com/400x180?text=No+Image'} alt={promotion.title}
+        <img src={promotion.image || 'https://placehold.co/400x180?text=No+Image&bg=f3f4f6&textcolor=6b7280'} alt={promotion.title}
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />

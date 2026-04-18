@@ -102,7 +102,7 @@ function generateDigestEmail(userName, deals) {
   
   const dealsHtml = deals.map(deal => {
     const merchantName = typeof deal.merchant === 'object' ? deal.merchant.name : 'Store';
-    const imageUrl = deal.image || 'https://via.placeholder.com/400x200?text=Deal';
+    const imageUrl = deal.image || 'https://placehold.co/400x200?text=Deal&bg=f3f4f6&textcolor=6b7280';
     const dealUrl = `${appUrl}/deal/${deal._id}`;
     
     return `
