@@ -253,6 +253,23 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
+// Manual cache clear endpoint (for admin/testing - clears all in-memory caches)
+router.post('/admin/clear-cache', authenticateJWT, authorizeAdmin, async (req, res) => {
+  try {
+    invalidateHomepageCache();
+    nearbyCache.clear();
+    
+    console.log('[Cache Clear] All caches cleared by admin');
+    res.status(200).json({ 
+      message: 'All caches cleared successfully',
+      cleared: ['homepage', 'nearby'],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Cache Clear] Error:', error);
+    res.status(500).json(safeError(error));
+  }
+});
 
 // Get all promotions
 router.get('/', async (req, res) => {
