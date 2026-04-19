@@ -78,7 +78,7 @@ export const PromotionAPI = {
   getById: (id: string) => fetchAPI<any>(`promotions/${id}`),
   getByMerchant: (merchantId: string) => fetchAPI<any[]>(`promotions/merchant/${merchantId}`),
   getNearby: (lat: number, lon: number, radius = 10) =>
-    fetchAPI<any[]>(`promotions/nearby?latitude=${lat}&longitude=${lon}&radius=${radius}`),
+    fetchAPI<any[]>(`promotions/nearby?latitude=${lat}&longitude=${lon}&radius=${radius}`, { cache: 'no-store' }),
   create: (data: any) => fetchAPI<any>('promotions', { method: 'POST', body: JSON.stringify(data) })
     .then(r => { invalidateCache('promotions'); return r; }),
   update: (id: string, data: any) => fetchAPI<any>(`promotions/${id}`, { method: 'PUT', body: JSON.stringify(data) })
