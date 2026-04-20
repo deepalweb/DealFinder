@@ -1,0 +1,48 @@
+# Azure Developer CLI configuration
+name: dealfinder
+metadata:
+  template: dealfinder-app-service
+  description: DealFinder - Full-stack deals discovery app (Backend + Frontend on Linux App Service)
+
+services:
+  backend:
+    project: ./backend
+    language: node
+    host: appservice
+    docker:
+      path: ./backend/Dockerfile
+
+  frontend:
+    project: ./frontend-next
+    language: node
+    host: appservice
+    docker:
+      path: ./frontend-next/Dockerfile
+
+hooks:
+  prebuild:
+    shell: pwsh
+    run: |
+      Write-Host "🔨 Building Docker images locally for testing..."
+
+  postdeploy:
+    shell: pwsh
+    run: |
+      Write-Host "✅ Deployment complete!"
+      Write-Host "🌐 Application URL: https://${{ AZURE_APP_SERVICE_NAME }}.azurewebsites.net"
+      Write-Host "📊 Backend API: https://${{ AZURE_APP_SERVICE_NAME }}.azurewebsites.net/api/status"
+
+env:
+  # Application secrets (from .env file)
+  MONGO_URI: ${MONGO_URI}
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+  GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+  FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+  FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+  FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+  VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+  VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+  AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+  AZURE_STORAGE_CONTAINER_NAME: ${AZURE_STORAGE_CONTAINER_NAME}
+  NODE_ENV: production

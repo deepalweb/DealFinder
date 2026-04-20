@@ -149,6 +149,39 @@ class ApiService {
     }
   }
 
+  // Direct login (bypass Firebase) - fallback when Firebase is unavailable
+  Future<Map<String, dynamic>> directLogin({required String email, required String password}) async {
+    try {
+      if (kDebugMode) print('🔐 Attempting direct backend login for: $email');
+      
+      final response = await http.post(
+        Uri.parse('${_baseUrl}users/login'),
+        headers: <String, String>{
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode(<String, String>{
+          'email': email,
+          'password': password,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        if (kDebugMode) print('✅ Direct login successful');
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else if (response.statusCode == 400 || response.statusCode == 401) {
+        final errorBody = jsonDecode(response.body);
+        throw Exception(errorBody['message'] ?? 'Invalid email or password.');
+      } else {
+        throw Exception('Login failed. Status code: ${response.statusCode}');
+      }
+    } on TimeoutException {
+      throw Exception('Connection timed out. Is the backend running?');
+    } catch (e) {
+      if (kDebugMode) print('❌ Direct login error: $e');
+      rethrow;
+    }
+  }
+
   // Fetch stats: deals and merchants count
   Future<Map<String, int>> fetchStats() async {
     final results = await Future.wait([
@@ -408,9 +441,9 @@ class ApiService {
         Uri.parse(url),
         headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
       ).timeout(
-        const Duration(seconds: 60), // Increased from 30 to 60 seconds for better reliability
+        const Duration(seconds: 30), // Reduced from 60 to 30 seconds (backend now optimized)
         onTimeout: () {
-          if (kDebugMode) print('⏱️ Nearby request timed out after 60 seconds');
+          if (kDebugMode) print('⏱️ Nearby request timed out after 30 seconds');
           throw TimeoutException('The server took too long to respond');
         },
       );

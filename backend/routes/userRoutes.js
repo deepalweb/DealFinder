@@ -538,10 +538,16 @@ const config = require('../config');
 const client = new OAuth2Client(config.GOOGLE_CLIENT_ID);
 
 router.post('/google-signin', async (req, res) => {
-    const { token } = req.body;
+    const { token, idToken } = req.body; // Accept both 'token' and 'idToken'
+    const googleToken = token || idToken;
+    
+    if (!googleToken) {
+        return res.status(400).json({ message: 'Token or idToken is required' });
+    }
+    
     try {
         const ticket = await client.verifyIdToken({
-            idToken: token,
+            idToken: googleToken,
             audience: config.GOOGLE_CLIENT_ID,
         });
         const { name, email, picture } = ticket.getPayload();
@@ -567,7 +573,8 @@ router.post('/google-signin', async (req, res) => {
         res.status(200).json({ ...userResponse, token: jwtToken, refreshToken });
 
     } catch (error) {
-        res.status(500).json(safeError(error));
+        console.error('Google Sign-In error:', error.message);
+        res.status(500).json({ message: 'Google Sign-In failed: ' + error.message });
     }
 });
 

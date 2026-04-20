@@ -36,14 +36,26 @@ class AuthService {
   static Future<Map<String, dynamic>> loginWithEmail(
       String email, String password) async {
     try {
-      final credential = await _auth.signInWithEmailAndPassword(
-          email: email, password: password);
-      final idToken = await credential.user!.getIdToken();
-      final response = await _apiService.firebaseAuthSync(idToken: idToken!);
+      // Try Firebase first
+      try {
+        final credential = await _auth.signInWithEmailAndPassword(
+            email: email, password: password);
+        final idToken = await credential.user!.getIdToken();
+        final response = await _apiService.firebaseAuthSync(idToken: idToken!);
+        await saveSession(response);
+        return response;
+      } on FirebaseAuthException catch (e) {
+        print('⚠️ Firebase auth failed: ${e.code} - ${e.message}');
+        print('🔄 Falling back to direct API login...');
+        // Firebase failed, try direct backend login
+      }
+      
+      // Fallback: Direct backend login (no Firebase)
+      final response = await _apiService.directLogin(email: email, password: password);
       await saveSession(response);
       return response;
-    } on FirebaseAuthException catch (e) {
-      throw Exception('Firebase Auth error [${e.code}]: ${e.message}');
+    } catch (e) {
+      throw Exception('Login failed: ${e.toString()}');
     }
   }
 

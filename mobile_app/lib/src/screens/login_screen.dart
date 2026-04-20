@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/google_auth_service.dart';
+import '../services/api_service.dart';
 import 'register_screen.dart';
 import 'main_navigation_screen.dart';
 
@@ -78,9 +79,33 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
       
-      // Try normal Firebase login
-      final result = await AuthService.loginWithEmail(email, password);
-      if (mounted) _navigateToMain(result);
+      // Try normal Firebase login first
+      try {
+        final result = await AuthService.loginWithEmail(email, password);
+        if (mounted) _navigateToMain(result);
+      } catch (firebaseError) {
+        // Firebase failed - fallback to direct backend login
+        if (mounted) {
+          setState(() {
+            _errorMessage = 'Trying direct backend login...';
+          });
+        }
+        try {
+          final directLoginResult = await ApiService().directLogin(
+            email: email,
+            password: password,
+          );
+          await AuthService.saveSession(directLoginResult);
+          if (mounted) _navigateToMain(directLoginResult);
+        } catch (directLoginError) {
+          // Both methods failed
+          if (mounted) {
+            setState(() {
+              _errorMessage = _friendlyError(directLoginError.toString());
+            });
+          }
+        }
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
