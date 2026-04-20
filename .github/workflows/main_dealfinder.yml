@@ -82,7 +82,7 @@ jobs:
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'dealfinder'
+          app-name: 'dealfinderlk'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_DAE04F5DFEC143DDBD5202A1353AA7D8 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_LINUX }}
           package: ./deploy.zip
