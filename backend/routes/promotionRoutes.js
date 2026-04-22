@@ -175,7 +175,8 @@ router.get('/nearby', async (req, res) => {
                   endDate: { $gte: now }
                 }
               },
-              { $limit: 10 }, // Limit promotions per merchant
+              { $sort: { createdAt: -1, _id: -1 } },
+              { $limit: 10 }, // Keep only the newest promotions per merchant
               {
                 $project: {
                   title: 1,
@@ -227,10 +228,10 @@ router.get('/nearby', async (req, res) => {
             }
           }
         },
-        { $limit: promotionLimit },
         {
-          $sort: { createdAt: -1 }
-        }
+          $sort: { createdAt: -1, _id: -1 }
+        },
+        { $limit: promotionLimit }
       ]);
 
       // Cache the result
