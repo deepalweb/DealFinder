@@ -77,7 +77,10 @@ jobs:
           ls -la deploy/frontend-next/frontend-next/public/ || echo "No public folder"
 
       - name: Zip deployment package
-        run: cd deploy && zip -r ../deploy.zip .
+        shell: pwsh
+        run: |
+          $items = Get-ChildItem deploy -Force | ForEach-Object { $_.FullName }
+          Compress-Archive -Path $items -DestinationPath deploy.zip -Force
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
