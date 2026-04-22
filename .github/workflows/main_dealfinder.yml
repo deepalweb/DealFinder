@@ -77,10 +77,16 @@ jobs:
           ls -la deploy/frontend-next/frontend-next/public/ || echo "No public folder"
 
       - name: Zip deployment package
-        shell: pwsh
         run: |
-          $items = Get-ChildItem deploy -Force | ForEach-Object { $_.FullName }
-          Compress-Archive -Path $items -DestinationPath deploy.zip -Force
+          python <<'PY'
+          from pathlib import Path
+          import zipfile
+
+          deploy_dir = Path('deploy')
+          with zipfile.ZipFile('deploy.zip', 'w', compression=zipfile.ZIP_DEFLATED) as archive:
+              for path in deploy_dir.rglob('*'):
+                  archive.write(path, path.relative_to(deploy_dir))
+          PY
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
