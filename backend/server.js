@@ -165,8 +165,8 @@ mongoose.connect(process.env.MONGO_URI, {
 if (process.env.NODE_ENV === 'production') {
   const { spawn } = require('child_process');
   const fs = require('fs');
-  // standalone output: deploy/frontend-next/frontend-next/server.js
-  const nextServerPath = path.join(__dirname, '../frontend-next/frontend-next/server.js');
+  // standalone output: deploy/frontend-next/server.js
+  const nextServerPath = path.join(__dirname, '../frontend-next/server.js');
 
   if (fs.existsSync(nextServerPath)) {
     const nextProc = spawn('node', [nextServerPath], {
@@ -185,8 +185,8 @@ if (process.env.NODE_ENV === 'production') {
     }));
   } else {
     console.warn('Next.js not found at:', nextServerPath);
-    // Try alternate path
-    const altPath = path.join(__dirname, '../frontend-next/server.js');
+    // Try alternate path for older deploy layouts
+    const altPath = path.join(__dirname, '../frontend-next/frontend-next/server.js');
     if (fs.existsSync(altPath)) {
       console.log('Found Next.js at alternate path:', altPath);
       const nextProc = spawn('node', [altPath], {

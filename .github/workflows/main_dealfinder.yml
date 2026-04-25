@@ -37,22 +37,22 @@ jobs:
       - name: Build deployment package
         run: |
           # Create deploy structure
-          mkdir -p deploy/frontend-next/frontend-next
+          mkdir -p deploy/frontend-next/.next
 
           # Copy backend
           cp -r backend deploy/backend
 
-          # Copy standalone output
+          # Copy standalone output (server.js + minimal runtime)
           cp -r frontend-next/.next/standalone/. deploy/frontend-next/
 
-          # Copy static assets to the correct location
-          mkdir -p deploy/frontend-next/frontend-next/.next/static
-          cp -r frontend-next/.next/static/. deploy/frontend-next/frontend-next/.next/static/
+          # Copy static assets to the location expected by standalone/server.js
+          mkdir -p deploy/frontend-next/.next/static
+          cp -r frontend-next/.next/static/. deploy/frontend-next/.next/static/
 
           # Copy public folder if exists
           if [ -d "frontend-next/public" ] && [ "$(ls -A frontend-next/public 2>/dev/null)" ]; then
-            mkdir -p deploy/frontend-next/frontend-next/public
-            cp -r frontend-next/public/. deploy/frontend-next/frontend-next/public/
+            mkdir -p deploy/frontend-next/public
+            cp -r frontend-next/public/. deploy/frontend-next/public/
           fi
 
           # Root files
@@ -67,14 +67,11 @@ jobs:
           echo "Frontend-next root:"
           ls -la deploy/frontend-next/
           echo ""
-          echo "Frontend-next/frontend-next:"
-          ls -la deploy/frontend-next/frontend-next/
-          echo ""
           echo "Static files:"
-          ls -la deploy/frontend-next/frontend-next/.next/static/ || echo "No static folder"
+          ls -la deploy/frontend-next/.next/static/ || echo "No static folder"
           echo ""
           echo "Public files:"
-          ls -la deploy/frontend-next/frontend-next/public/ || echo "No public folder"
+          ls -la deploy/frontend-next/public/ || echo "No public folder"
 
       - name: Zip deployment package
         run: |
