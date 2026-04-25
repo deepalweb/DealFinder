@@ -192,9 +192,9 @@ export default function NearbyPage() {
         </div>
       </HeroSection>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="page-shell">
         {error && (
-          <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.875rem', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+          <div className="surface-panel panel-pad" style={{ background: 'linear-gradient(135deg, rgba(239,68,68,0.08), rgba(249,115,22,0.08))', borderColor: 'rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
             <i className="fas fa-exclamation-triangle" style={{ color: '#ef4444' }}></i>
             <p style={{ color: '#ef4444', margin: 0, fontSize: '0.875rem' }}>{error}</p>
           </div>
@@ -216,7 +216,7 @@ export default function NearbyPage() {
 
             {/* Map view */}
             {view === 'map' && (
-              <div ref={mapContainerRef} style={{ height: '520px', width: '100%', borderRadius: '1.25rem', overflow: 'hidden', border: '1.5px solid var(--border-color)', marginBottom: '2rem', boxShadow: 'var(--box-shadow)' }} />
+              <div ref={mapContainerRef} className="surface-panel" style={{ height: '520px', width: '100%', borderRadius: '1.5rem', overflow: 'hidden', marginBottom: '2rem' }} />
             )}
 
             {/* List view */}
@@ -250,18 +250,18 @@ export default function NearbyPage() {
             )}
           </>
         ) : !loading && !error && userLocation ? (
-          <div className="text-center py-16">
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📍</div>
-            <h2 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>No deals found nearby</h2>
+          <div className="empty-state">
+            <div className="empty-icon"><i className="fas fa-map-pin"></i></div>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No deals found nearby</h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Try increasing the search radius</p>
             <div className="flex justify-center gap-2 flex-wrap">
               {[20, 50, 100].map(r => <button key={r} onClick={() => handleRadiusChange(r)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Try {r}km</button>)}
             </div>
           </div>
         ) : !loading && !error && (
-          <div className="text-center py-16">
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🗺️</div>
-            <h2 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>Share your location</h2>
+          <div className="empty-state">
+            <div className="empty-icon"><i className="fas fa-map-location-dot"></i></div>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Share your location</h2>
             <p style={{ color: 'var(--text-secondary)' }}>Click &quot;Find Deals Near Me&quot; to discover promotions in your area</p>
           </div>
         )}
