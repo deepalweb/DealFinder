@@ -1,17 +1,35 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
-import toast from 'react-hot-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 
 const CATEGORIES = [
-  { id: 'all', name: 'All', icon: 'fa-th-large' },
-  { id: 'food', name: 'Food & Dining', icon: 'fa-utensils' },
-  { id: 'supermarkets', name: 'Supermarkets', icon: 'fa-shopping-cart' },
+  { id: 'all', name: 'All Deals', icon: 'fa-layer-group', note: 'Browse every active offer' },
+  { id: 'food', name: 'Food & Dining', icon: 'fa-utensils', note: 'Restaurants, cafes, takeaway' },
+  { id: 'supermarkets', name: 'Supermarkets', icon: 'fa-cart-shopping', note: 'Daily savings and essentials' },
+];
+
+const VALUE_POINTS = [
+  {
+    icon: 'fa-location-crosshairs',
+    title: 'Nearby discovery',
+    text: 'Surface offers around you without digging through outdated posts and scattered pages.',
+  },
+  {
+    icon: 'fa-bolt',
+    title: 'Fresh daily updates',
+    text: 'Featured and latest deals stay visible in one place so your best offers are easy to scan.',
+  },
+  {
+    icon: 'fa-heart',
+    title: 'Personal shortlist',
+    text: 'Save favorites, revisit merchants quickly, and keep the offers worth tracking close by.',
+  },
 ];
 
 export default function HomePage() {
@@ -20,57 +38,46 @@ export default function HomePage() {
   const [featured, setFeatured] = useState<any[]>([]);
   const [latest, setLatest] = useState<any[]>([]);
   const [nearby, setNearby] = useState<any[]>([]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [loadingDeals, setLoadingDeals] = useState(true);
-  const [loadingNearby, setLoadingNearby] = useState(false);
-  const [locationError, setLocationError] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [allPromotions, setAllPromotions] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [latestCount, setLatestCount] = useState(8);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [loadingDeals, setLoadingDeals] = useState(true);
+  const [loadingNearby, setLoadingNearby] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreLatest, setHasMoreLatest] = useState(true);
+  const [latestCount, setLatestCount] = useState(8);
+  const [locationError, setLocationError] = useState('');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  const heroStats = useMemo(() => [
-    { icon: 'fa-tag', value: `${allPromotions.length}+`, label: 'Active Deals' },
-    { icon: 'fa-store', value: `${new Set(allPromotions.map((p: any) => typeof p.merchant === 'object' ? p.merchant?._id : p.merchant)).size}+`, label: 'Merchants' },
-    { icon: 'fa-map-marker-alt', value: nearby.length > 0 ? `${nearby.length}` : 'Find', label: nearby.length > 0 ? 'Nearby' : 'Near You' },
-  ], [allPromotions, nearby]);
-
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    // Optimized: Single API call for homepage data + cached favorites
     const fetchData = async () => {
       try {
-        // Clear any cached homepage data first
         invalidateCache('promotions');
-        
-        const homepagePromise: Promise<{ featured: any[]; latest: any[] }> =
-          PromotionAPI.getHomepage().catch(() => {
-            console.warn('Homepage endpoint failed, falling back to getAll');
-            return PromotionAPI.getAll({ limit: 20 }).then((data: any[]) => ({
-              featured: data.filter((p: any) => p.featured).slice(0, 8) as any[],
-              latest: data as any[]
-            }));
-          });
 
-        // Check cache first for favorites (5 minute TTL)
+        const homepagePromise: Promise<{ featured: any[]; latest: any[] }> = PromotionAPI.getHomepage().catch(() => {
+          return PromotionAPI.getAll({ limit: 20 }).then((data: any[]) => ({
+            featured: data.filter((promotion: any) => promotion.featured).slice(0, 6),
+            latest: data,
+          }));
+        });
+
         let favoritesData: any[] = [];
         if (user) {
           const cacheKey = `favorites_${user._id}`;
           const cached = localStorage.getItem(cacheKey);
           const cacheTime = localStorage.getItem(`${cacheKey}_time`);
           const now = Date.now();
-          
-          if (cached && cacheTime && (now - parseInt(cacheTime)) < 5 * 60 * 1000) {
-            // Use cached data
+
+          if (cached && cacheTime && now - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
             favoritesData = JSON.parse(cached);
           } else {
-            // Fetch fresh data
             favoritesData = await UserAPI.getFavorites(user._id).catch(() => []);
             localStorage.setItem(cacheKey, JSON.stringify(favoritesData));
             localStorage.setItem(`${cacheKey}_time`, now.toString());
@@ -78,15 +85,13 @@ export default function HomePage() {
         }
 
         const homepageData = await homepagePromise;
-
-        // Set featured and latest from optimized endpoint
         setFeatured(homepageData.featured);
         setLatest(homepageData.latest);
-        setAllPromotions(homepageData.latest); // Use latest for search
-        setHasMoreLatest(homepageData.latest.length >= 20); // Check if there might be more
-        
+        setAllPromotions(homepageData.latest);
+        setHasMoreLatest(homepageData.latest.length >= 20);
+
         if (favoritesData.length > 0) {
-          setFavoriteIds(new Set(favoritesData.map((f: any) => f._id || f.id)));
+          setFavoriteIds(new Set(favoritesData.map((favorite: any) => favorite._id || favorite.id)));
         }
       } catch (error) {
         console.error('Failed to load deals:', error);
@@ -98,282 +103,744 @@ export default function HomePage() {
 
     fetchData();
 
-    // Fetch nearby separately (non-blocking)
     if (navigator.geolocation) {
       setLoadingNearby(true);
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
           setUserLocation({ lat: coords.latitude, lon: coords.longitude });
-          PromotionAPI.getNearby(coords.latitude, coords.longitude, 10).then(data => {
-            setNearby([...data].sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            if (data.length > 0) toast.success(`Found ${data.length} deals near you!`);
-          }).catch(() => setLocationError('Could not fetch nearby deals.')).finally(() => setLoadingNearby(false));
+          PromotionAPI.getNearby(coords.latitude, coords.longitude, 10)
+            .then((data) => {
+              const sorted = [...data].sort(
+                (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              );
+              setNearby(sorted);
+            })
+            .catch(() => setLocationError('Could not fetch nearby deals right now.'))
+            .finally(() => setLoadingNearby(false));
         },
         (err) => {
-          const msgs: Record<number, string> = { 1: 'Location permission denied.', 2: 'Location unavailable.', 3: 'Location timed out.' };
-          setLocationError(msgs[err.code] || 'Could not get location.');
+          const messages: Record<number, string> = {
+            1: 'Location permission denied.',
+            2: 'Location unavailable.',
+            3: 'Location timed out.',
+          };
+          setLocationError(messages[err.code] || 'Could not get location.');
           setLoadingNearby(false);
         }
       );
     }
   }, [user]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!searchTerm.trim()) {
+        setIsSearching(false);
+        setSearchResults([]);
+        return;
+      }
+
+      const term = searchTerm.toLowerCase();
+      setIsSearching(true);
+      setSearchResults(
+        allPromotions.filter((promotion: any) => {
+          const merchantName =
+            typeof promotion.merchant === 'object' ? promotion.merchant?.name : promotion.merchant;
+
+          return (
+            promotion.title?.toLowerCase().includes(term) ||
+            promotion.description?.toLowerCase().includes(term) ||
+            merchantName?.toLowerCase().includes(term)
+          );
+        })
+      );
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, allPromotions]);
+
   const loadMoreLatest = async () => {
     if (loadingMore || !hasMoreLatest) return;
-    
+
     setLoadingMore(true);
     try {
       const moreDeals = await PromotionAPI.getAll({ limit: 20, skip: latest.length });
       if (moreDeals.length > 0) {
-        setLatest(prev => [...prev, ...moreDeals]);
+        setLatest((current) => [...current, ...moreDeals]);
+        setAllPromotions((current) => [...current, ...moreDeals]);
         setHasMoreLatest(moreDeals.length >= 20);
       } else {
         setHasMoreLatest(false);
       }
-    } catch (error) {
-      toast.error('Failed to load more deals');
+    } catch {
+      toast.error('Failed to load more deals.');
     } finally {
       setLoadingMore(false);
     }
   };
 
-  // Debounced search
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!searchTerm.trim()) { setIsSearching(false); return; }
-      setIsSearching(true);
-      const term = searchTerm.toLowerCase();
-      setSearchResults(allPromotions.filter((p: any) =>
-        p.title?.toLowerCase().includes(term) ||
-        p.description?.toLowerCase().includes(term) ||
-        (typeof p.merchant === 'object' ? p.merchant?.name : p.merchant)?.toLowerCase().includes(term)
-      ));
-    }, 400);
-    return () => clearTimeout(t);
-  }, [searchTerm, allPromotions]);
+  const stats = useMemo(() => {
+    const merchantCount = new Set(
+      allPromotions.map((promotion: any) =>
+        typeof promotion.merchant === 'object' ? promotion.merchant?._id : promotion.merchant
+      )
+    ).size;
+
+    return [
+      { value: `${allPromotions.length}+`, label: 'Active deals' },
+      { value: `${merchantCount}+`, label: 'Trusted merchants' },
+      { value: nearby.length > 0 ? `${nearby.length}` : 'Live', label: 'Nearby picks' },
+    ];
+  }, [allPromotions, nearby]);
 
   const DealGrid = ({ deals }: { deals: any[] }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
-      {deals.map(p => (
-        <div key={p._id || p.id} style={{ display: 'flex' }}>
-          <PromotionCard
-            promotion={p}
-            isFavorite={favoriteIds.has(p._id || p.id)}
-            onFavoriteToggle={(id, fav) => setFavoriteIds(prev => { const s = new Set(prev); fav ? s.add(id) : s.delete(id); return s; })}
-          />
-        </div>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+        gap: '1.5rem',
+      }}
+    >
+      {deals.map((promotion) => (
+        <PromotionCard
+          key={promotion._id || promotion.id}
+          promotion={promotion}
+          isFavorite={favoriteIds.has(promotion._id || promotion.id)}
+          onFavoriteToggle={(id, isFav) =>
+            setFavoriteIds((current) => {
+              const next = new Set(current);
+              if (isFav) next.add(id);
+              else next.delete(id);
+              return next;
+            })
+          }
+        />
       ))}
     </div>
   );
 
   const SkeletonGrid = ({ count }: { count: number }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {Array.from({ length: count }).map((_, i) => <SkeletonCard key={i} />)}
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      {Array.from({ length: count }).map((_, index) => (
+        <SkeletonCard key={index} />
+      ))}
     </div>
   );
 
   return (
     <div>
-      {/* Hero */}
-      <div style={{
-        position: 'relative',
-        padding: '5rem 0 4rem',
-        overflow: 'hidden',
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4c1d95 70%, #7c3aed 100%)',
-      }}>
-        {/* Background image with overlay */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          backgroundImage: 'url(https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&auto=format&fit=crop&q=60)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: 0.12,
-        }} />
-        {/* Gradient overlay */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(135deg, rgba(99,102,241,0.92) 0%, rgba(139,92,246,0.88) 50%, rgba(244,63,94,0.85) 100%)',
-        }} />
-        {/* Decorative blobs */}
-        <div style={{ position: 'absolute', top: '-80px', right: '-80px', width: '320px', height: '320px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: '-60px', left: '-60px', width: '240px', height: '240px', borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-
-        <div className="max-w-7xl mx-auto px-4 text-center text-white" style={{ position: 'relative', zIndex: 1 }}>
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 mb-5" style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '9999px', padding: '0.4rem 1.1rem', fontSize: '0.85rem', fontWeight: 600, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.2)' }}>
-            <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i> New deals added daily
-          </div>
-
-          {/* Headline */}
-          <h1 style={{ fontSize: 'clamp(2.2rem, 6vw, 4rem)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.05, marginBottom: '1.25rem', textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}>
-            Sri Lanka's Smartest Way<br />
-            <span style={{ background: 'linear-gradient(135deg, #fbbf24, #f97316)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>to Find Deals</span>
-          </h1>
-
-          <p style={{ fontSize: '1.1rem', opacity: 0.9, maxWidth: '580px', margin: '0 auto 2rem', lineHeight: 1.6 }}>
-            Discover exclusive discounts from top stores near you. Smart search, real-time updates, personalized recommendations.
-          </p>
-
-          {/* Search */}
-          <div style={{ position: 'relative', maxWidth: '580px', margin: '0 auto 2.5rem' }}>
-            <i className="fas fa-search" style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.6)', pointerEvents: 'none', fontSize: '1rem' }}></i>
-            <input type="text" placeholder="Search deals, stores, categories..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              style={{ width: '100%', padding: '1rem 3.5rem', border: '2px solid rgba(255,255,255,0.25)', borderRadius: '9999px', fontSize: '1rem', background: 'rgba(255,255,255,0.12)', color: '#fff', backdropFilter: 'blur(12px)', outline: 'none', boxSizing: 'border-box', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }} />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} style={{ position: 'absolute', right: '1.25rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '1rem' }}>
-                <i className="fas fa-times"></i>
-              </button>
-            )}
-          </div>
-
-          {/* Stats */}
-          <div className="flex justify-center gap-6 flex-wrap">
-            {heroStats.map(s => (
-              <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.1)', borderRadius: '9999px', padding: '0.4rem 1rem', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)' }}>
-                <i className={`fas ${s.icon}`} style={{ color: '#fbbf24', fontSize: '0.85rem' }}></i>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{s.value}</span>
-                <span style={{ opacity: 0.75, fontSize: '0.8rem' }}>{s.label}</span>
+      <section
+        style={{
+          position: 'relative',
+          overflow: 'hidden',
+          background:
+            'radial-gradient(circle at top left, rgba(22,163,74,0.22), transparent 32%), radial-gradient(circle at bottom right, rgba(245,158,11,0.2), transparent 28%), linear-gradient(135deg, #0f172a 0%, #123b2a 45%, #0f766e 100%)',
+          color: '#f8fafc',
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage:
+              'url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.16,
+          }}
+        />
+        <div
+          className="max-w-7xl mx-auto px-4"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            paddingTop: '4.5rem',
+            paddingBottom: '4rem',
+          }}
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-8 items-center">
+            <div>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '1rem',
+                  padding: '0.45rem 0.85rem',
+                  borderRadius: '999px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.03em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i>
+                Fresh offers from stores across Sri Lanka
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Why Choose DealFinder */}
-        {!isSearching && (
-          <div className="mb-12">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { icon: 'fa-search-location', title: 'Smart Location Search', desc: 'Find deals near you with intelligent geolocation', color: '#6366f1' },
-                { icon: 'fa-bolt', title: 'Real-Time Updates', desc: 'Get notified instantly when new deals are added', color: '#f59e0b' },
-                { icon: 'fa-heart', title: 'Personalized Favorites', desc: 'Save and track your favorite deals in one place', color: '#ec4899' },
-              ].map(feature => (
-                <div key={feature.title} style={{ background: 'var(--card-bg)', border: '1.5px solid var(--border-color)', borderRadius: '1rem', padding: '1.75rem', textAlign: 'center', transition: 'all 0.3s ease' }}
-                  onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.1)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-                  <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: `${feature.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                    <i className={`fas ${feature.icon}`} style={{ fontSize: '1.5rem', color: feature.color }}></i>
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{feature.title}</h3>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>{feature.desc}</p>
+              <h1
+                style={{
+                  fontSize: 'clamp(2.4rem, 6vw, 4.6rem)',
+                  lineHeight: 1.02,
+                  margin: 0,
+                  fontWeight: 900,
+                  maxWidth: '11ch',
+                }}
+              >
+                Find the right deal before it disappears.
+              </h1>
+
+              <p
+                style={{
+                  marginTop: '1.2rem',
+                  marginBottom: '1.8rem',
+                  maxWidth: '44rem',
+                  fontSize: '1.05rem',
+                  lineHeight: 1.7,
+                  color: 'rgba(248,250,252,0.86)',
+                }}
+              >
+                DealFinder brings featured offers, nearby promotions, and newest price drops into one cleaner feed so
+                your shopping decisions are faster and less noisy.
+              </p>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0,1fr)',
+                  gap: '0.9rem',
+                  maxWidth: '42rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.65rem',
+                    borderRadius: '1rem',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.16)',
+                    backdropFilter: 'blur(10px)',
+                  }}
+                >
+                  <i className="fas fa-search" style={{ color: '#fbbf24', paddingLeft: '0.45rem' }}></i>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search stores, categories, or deals"
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      border: 'none',
+                      outline: 'none',
+                      background: 'transparent',
+                      color: '#fff',
+                      fontSize: '1rem',
+                    }}
+                  />
+                  {searchTerm ? (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      style={{
+                        border: 'none',
+                        background: 'rgba(255,255,255,0.12)',
+                        color: '#fff',
+                        width: '2rem',
+                        height: '2rem',
+                        borderRadius: '999px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  ) : null}
                 </div>
-              ))}
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => router.push('/categories/all')}
+                    className="btn"
+                    style={{
+                      background: '#f8fafc',
+                      color: '#0f172a',
+                      padding: '0.85rem 1.25rem',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <i className="fas fa-fire"></i>
+                    Explore All Deals
+                  </button>
+                  <button
+                    onClick={() => router.push('/nearby')}
+                    className="btn"
+                    style={{
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      padding: '0.85rem 1.25rem',
+                    }}
+                  >
+                    <i className="fas fa-location-dot"></i>
+                    Browse Nearby
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                borderRadius: '1.5rem',
+                padding: '1.25rem',
+                background: 'rgba(15,23,42,0.42)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                backdropFilter: 'blur(12px)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                  gap: '0.75rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                {stats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    style={{
+                      borderRadius: '1rem',
+                      padding: '0.95rem',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                    }}
+                  >
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800 }}>{stat.value}</div>
+                    <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.72)' }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  borderRadius: '1.25rem',
+                  background: 'rgba(255,255,255,0.96)',
+                  color: '#0f172a',
+                  padding: '1.25rem',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f766e', textTransform: 'uppercase' }}>
+                      Right now
+                    </div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>Shopping snapshot</div>
+                  </div>
+                  <div
+                    style={{
+                      width: '2.4rem',
+                      height: '2.4rem',
+                      borderRadius: '999px',
+                      background: 'rgba(15,118,110,0.12)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#0f766e',
+                    }}
+                  >
+                    <i className="fas fa-chart-line"></i>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3">
+                  {VALUE_POINTS.map((point) => (
+                    <div
+                      key={point.title}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '2.6rem 1fr',
+                        gap: '0.85rem',
+                        alignItems: 'start',
+                        padding: '0.85rem',
+                        borderRadius: '1rem',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: '2.6rem',
+                          height: '2.6rem',
+                          borderRadius: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#0f766e',
+                          background: 'rgba(15,118,110,0.1)',
+                        }}
+                      >
+                        <i className={`fas ${point.icon}`}></i>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 800, marginBottom: '0.2rem' }}>{point.title}</div>
+                        <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.6 }}>{point.text}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      </section>
 
-        {/* Categories */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-8" style={{ scrollbarWidth: 'none' }}>
-          {CATEGORIES.map(cat => (
-            <button key={cat.id} onClick={() => router.push(`/categories/${cat.id}`)}
-              className="category-item" style={{ flexShrink: 0 }}>
-              <i className={`fas ${cat.icon}`}></i> {cat.name}
+      <section className="max-w-7xl mx-auto px-4" style={{ marginTop: '-1.5rem', position: 'relative', zIndex: 2 }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+            gap: '1rem',
+          }}
+        >
+          {CATEGORIES.map((category) => (
+            <button
+              key={category.id}
+              onClick={() => router.push(`/categories/${category.id}`)}
+              style={{
+                textAlign: 'left',
+                border: '1px solid var(--border-color)',
+                background: 'var(--card-bg)',
+                borderRadius: '1.2rem',
+                padding: '1rem 1.1rem',
+                boxShadow: 'var(--box-shadow)',
+                cursor: 'pointer',
+              }}
+            >
+              <div
+                style={{
+                  width: '2.8rem',
+                  height: '2.8rem',
+                  borderRadius: '0.95rem',
+                  background: 'rgba(15,118,110,0.1)',
+                  color: '#0f766e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '0.85rem',
+                }}
+              >
+                <i className={`fas ${category.icon}`}></i>
+              </div>
+              <div style={{ fontWeight: 800, marginBottom: '0.2rem', color: 'var(--text-primary)' }}>{category.name}</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>{category.note}</div>
             </button>
           ))}
         </div>
+      </section>
 
+      <section className="max-w-7xl mx-auto px-4 py-10">
         {isSearching ? (
-          <div className="mb-8">
-            <h2 className="section-title">
-              <i className="fas fa-search" style={{ color: 'var(--primary-color)' }}></i>
+          <div>
+            <div className="section-title">
+              <i className="fas fa-magnifying-glass" style={{ color: 'var(--primary-color)' }}></i>
               Search Results
-              <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text-secondary)' }}>({searchResults.length} found)</span>
-            </h2>
-            {searchResults.length > 0 ? <DealGrid deals={searchResults} /> : (
-              <div className="text-center py-16" style={{ background: 'var(--card-bg)', borderRadius: '1.25rem', border: '1.5px solid var(--border-color)' }}>
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🔍</div>
-                <h3 style={{ fontWeight: 700, fontSize: '1.3rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No deals found for "{searchTerm}"</h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Try different keywords or browse our categories below</p>
-                <button onClick={() => setSearchTerm('')} className="btn btn-primary" style={{ padding: '0.75rem 1.5rem' }}>
-                  <i className="fas fa-times-circle mr-2"></i>Clear Search
+              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                {searchResults.length} matches
+              </span>
+            </div>
+            {searchResults.length > 0 ? (
+              <DealGrid deals={searchResults} />
+            ) : (
+              <div
+                style={{
+                  borderRadius: '1.25rem',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--card-bg)',
+                  padding: '3rem 1.5rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '2.7rem', color: 'var(--primary-color)', marginBottom: '0.85rem' }}>
+                  <i className="fas fa-search"></i>
+                </div>
+                <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.4rem' }}>No deals found for "{searchTerm}"</h2>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', marginBottom: '1.2rem' }}>
+                  Try a merchant name, a product type, or one of the quick categories above.
+                </p>
+                <button onClick={() => setSearchTerm('')} className="btn btn-primary">
+                  Clear Search
                 </button>
               </div>
             )}
           </div>
         ) : (
-          <>
-            {/* Featured */}
-            <div className="mb-12" id="featured-section">
-              <h2 className="section-title"><i className="fas fa-star" style={{ color: 'var(--primary-color)' }}></i> Featured Deals</h2>
-              {loadingDeals ? <SkeletonGrid count={4} /> : <DealGrid deals={featured} />}
-            </div>
-
-            {/* Nearby */}
-            {(userLocation || locationError || loadingNearby) && (
-              <div className="mb-12">
-                <h2 className="section-title">
-                  <i className="fas fa-map-marker-alt" style={{ color: 'var(--primary-color)' }}></i> Nearby Deals
-                  {userLocation && <span style={{ fontSize: '0.875rem', fontWeight: 400, color: 'var(--text-secondary)' }}>within 10km</span>}
-                </h2>
-                {loadingNearby ? <SkeletonGrid count={4} /> : locationError ? (
-                  <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.875rem', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <i className="fas fa-exclamation-triangle" style={{ color: '#ef4444' }}></i>
-                    <p style={{ color: '#ef4444', margin: 0, fontSize: '0.875rem' }}>{locationError}</p>
+          <div className="grid grid-cols-1 gap-12">
+            <section>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'end',
+                  gap: '1rem',
+                  marginBottom: '1.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ color: '#0f766e', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Featured now
                   </div>
-                ) : nearby.length === 0 ? (
-                  <div className="text-center py-12" style={{ background: 'var(--card-bg)', borderRadius: '1.25rem', border: '1.5px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📍</div>
-                    <h3 style={{ fontWeight: 700, fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No deals found nearby</h3>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>Check out our featured and latest deals instead</p>
-                    <button onClick={() => document.getElementById('featured-section')?.scrollIntoView({ behavior: 'smooth' })} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--primary-color)', padding: '0.6rem 1.25rem' }}>
-                      <i className="fas fa-star mr-2"></i>View Featured Deals
-                    </button>
-                  </div>
-                ) : <DealGrid deals={nearby} />}
+                  <h2 className="section-title" style={{ marginBottom: 0 }}>
+                    <i className="fas fa-star" style={{ color: '#f59e0b' }}></i>
+                    Best Offers This Week
+                  </h2>
+                </div>
+                <button
+                  onClick={() => router.push('/categories/all')}
+                  className="btn"
+                  style={{
+                    background: 'var(--card-bg)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  View All Deals
+                </button>
               </div>
-            )}
+              {loadingDeals ? <SkeletonGrid count={4} /> : <DealGrid deals={featured} />}
+            </section>
 
-            {/* Latest */}
-            <div className="mb-12">
-              <h2 className="section-title"><i className="fas fa-clock" style={{ color: 'var(--primary-color)' }}></i> Latest Deals</h2>
-              {loadingDeals ? <SkeletonGrid count={8} /> : (
+            <section
+              style={{
+                background: 'linear-gradient(135deg, rgba(15,118,110,0.08), rgba(245,158,11,0.08))',
+                border: '1px solid var(--border-color)',
+                borderRadius: '1.5rem',
+                padding: '1.5rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'end',
+                  gap: '1rem',
+                  marginBottom: '1.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ color: '#0f766e', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Around you
+                  </div>
+                  <h2 className="section-title" style={{ marginBottom: 0 }}>
+                    <i className="fas fa-location-dot" style={{ color: '#0f766e' }}></i>
+                    Nearby Picks
+                  </h2>
+                </div>
+                {userLocation ? (
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>Showing deals within 10km</span>
+                ) : null}
+              </div>
+
+              {loadingNearby ? (
+                <SkeletonGrid count={4} />
+              ) : locationError ? (
+                <div
+                  style={{
+                    borderRadius: '1rem',
+                    background: 'rgba(239,68,68,0.08)',
+                    color: '#b91c1c',
+                    border: '1px solid rgba(239,68,68,0.18)',
+                    padding: '1rem 1.1rem',
+                  }}
+                >
+                  <i className="fas fa-circle-exclamation" style={{ marginRight: '0.5rem' }}></i>
+                  {locationError}
+                </div>
+              ) : nearby.length > 0 ? (
+                <DealGrid deals={nearby} />
+              ) : (
+                <div
+                  style={{
+                    borderRadius: '1.1rem',
+                    background: 'var(--card-bg)',
+                    border: '1px solid var(--border-color)',
+                    padding: '2rem 1.25rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <h3 style={{ marginTop: 0, marginBottom: '0.45rem', fontSize: '1.2rem' }}>No nearby deals yet</h3>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: 0 }}>
+                    We can still show featured and latest offers while location-based results catch up.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            <section>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'end',
+                  gap: '1rem',
+                  marginBottom: '1.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <div style={{ color: '#0f766e', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Just added
+                  </div>
+                  <h2 className="section-title" style={{ marginBottom: 0 }}>
+                    <i className="fas fa-clock" style={{ color: 'var(--primary-color)' }}></i>
+                    Latest Deals
+                  </h2>
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
+                  Recent offers from supermarkets, restaurants, and local merchants
+                </div>
+              </div>
+
+              {loadingDeals ? (
+                <SkeletonGrid count={8} />
+              ) : (
                 <>
                   <DealGrid deals={latest.slice(0, latestCount)} />
-                  {latestCount < latest.length && (
-                    <div className="text-center mt-6">
-                      <button onClick={() => setLatestCount(c => c + 8)} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
-                        <i className="fas fa-chevron-down mr-2"></i>Show More ({latest.length - latestCount} remaining)
+                  <div className="flex justify-center mt-8">
+                    {latestCount < latest.length ? (
+                      <button
+                        onClick={() => setLatestCount((current) => current + 8)}
+                        className="btn"
+                        style={{
+                          background: 'var(--card-bg)',
+                          color: 'var(--text-primary)',
+                          border: '1px solid var(--border-color)',
+                          padding: '0.85rem 1.4rem',
+                        }}
+                      >
+                        Show More
                       </button>
-                    </div>
-                  )}
-                  {latestCount >= latest.length && hasMoreLatest && (
-                    <div className="text-center mt-6">
-                      <button onClick={loadMoreLatest} disabled={loadingMore} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', padding: '0.75rem 2rem', fontSize: '0.9rem' }}>
-                        {loadingMore ? (
-                          <><i className="fas fa-spinner fa-spin mr-2"></i>Loading...</>
-                        ) : (
-                          <><i className="fas fa-chevron-down mr-2"></i>Load More Deals</>
-                        )}
+                    ) : hasMoreLatest ? (
+                      <button
+                        onClick={loadMoreLatest}
+                        disabled={loadingMore}
+                        className="btn btn-primary"
+                        style={{ padding: '0.85rem 1.4rem' }}
+                      >
+                        {loadingMore ? 'Loading...' : 'Load More Deals'}
                       </button>
-                    </div>
-                  )}
+                    ) : null}
+                  </div>
                 </>
               )}
-            </div>
-          </>
-        )}
+            </section>
 
-        {/* CTA Banner */}
-        {!isSearching && (
-          <div style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)', borderRadius: '1.5rem', padding: '3rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden', marginTop: '3rem' }}>
-            <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '200px', height: '200px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
-            <div style={{ position: 'absolute', bottom: '-30px', left: '-30px', width: '150px', height: '150px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <h2 style={{ fontSize: 'clamp(1.5rem, 4vw, 2.2rem)', fontWeight: 800, color: '#fff', marginBottom: '1rem', textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-                {mounted && user ? 'Never Miss a Deal!' : 'Join DealFinder Today'}
-              </h2>
-              <p style={{ fontSize: '1.05rem', color: 'rgba(255,255,255,0.9)', marginBottom: '1.75rem', maxWidth: '600px', margin: '0 auto 1.75rem' }}>
-                {mounted && user ? 'Enable notifications to get instant alerts when new deals match your interests' : 'Create a free account to save favorites, get personalized recommendations, and never miss exclusive deals'}
-              </p>
-              <button onClick={() => router.push(mounted && user ? '/profile' : '/register')} className="btn" style={{ background: '#fff', color: '#6366f1', padding: '0.875rem 2rem', fontSize: '1rem', fontWeight: 700, border: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.15)' }}>
-                <i className={`fas ${mounted && user ? 'fa-bell' : 'fa-user-plus'} mr-2`}></i>
-                {mounted && user ? 'Manage Notifications' : 'Sign Up Free'}
-              </button>
-            </div>
+            <section
+              style={{
+                borderRadius: '1.6rem',
+                overflow: 'hidden',
+                background:
+                  'linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(17,94,89,1) 56%, rgba(245,158,11,0.95) 100%)',
+              }}
+            >
+              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-0 items-stretch">
+                <div style={{ padding: '2.2rem', color: '#f8fafc' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', color: '#fde68a' }}>
+                    Keep saving
+                  </div>
+                  <h2 style={{ marginTop: '0.5rem', marginBottom: '0.85rem', fontSize: 'clamp(1.8rem, 4vw, 2.5rem)' }}>
+                    {mounted && user ? 'Your next best deal is already waiting.' : 'Create an account and keep your best offers in reach.'}
+                  </h2>
+                  <p style={{ margin: 0, lineHeight: 1.7, color: 'rgba(248,250,252,0.86)', maxWidth: '34rem' }}>
+                    {mounted && user
+                      ? 'Use favorites and notifications to keep the offers you care about from slipping away.'
+                      : 'Save favorites, revisit merchants faster, and build a smarter deal-hunting routine without bouncing between apps.'}
+                  </p>
+                  <div className="flex flex-wrap gap-3" style={{ marginTop: '1.5rem' }}>
+                    <button
+                      onClick={() => router.push(mounted && user ? '/profile' : '/register')}
+                      className="btn"
+                      style={{
+                        background: '#f8fafc',
+                        color: '#0f172a',
+                        padding: '0.9rem 1.3rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {mounted && user ? 'Open Profile' : 'Create Free Account'}
+                    </button>
+                    <button
+                      onClick={() => router.push('/merchants')}
+                      className="btn"
+                      style={{
+                        background: 'rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        border: '1px solid rgba(255,255,255,0.16)',
+                        padding: '0.9rem 1.3rem',
+                      }}
+                    >
+                      Browse Stores
+                    </button>
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background:
+                      'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+                    padding: '2rem',
+                    display: 'grid',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      borderRadius: '1.25rem',
+                      background: 'rgba(255,255,255,0.12)',
+                      border: '1px solid rgba(255,255,255,0.16)',
+                      padding: '1.25rem',
+                      color: '#fff',
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, marginBottom: '1rem', fontSize: '1.05rem' }}>Why people keep coming back</div>
+                    <div className="grid grid-cols-1 gap-3">
+                      {[
+                        'Clearer homepage flow with faster deal browsing',
+                        'Featured, nearby, and latest offers on one screen',
+                        'A stronger starting point for your live site refresh',
+                      ].map((item) => (
+                        <div
+                          key={item}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.7rem',
+                            borderRadius: '0.9rem',
+                            padding: '0.8rem 0.9rem',
+                            background: 'rgba(15,23,42,0.22)',
+                          }}
+                        >
+                          <i className="fas fa-check-circle" style={{ color: '#fde68a' }}></i>
+                          <span style={{ lineHeight: 1.5 }}>{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
