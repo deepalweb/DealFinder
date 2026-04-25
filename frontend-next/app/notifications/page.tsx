@@ -104,25 +104,24 @@ export default function NotificationsPage() {
   if (!user) return null;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-          Notifications
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}>
-          Stay updated with your deals and offers
-        </p>
+    <div className="page-shell compact">
+      <div className="page-header">
+        <div>
+          <div className="page-eyebrow"><i className="fas fa-bell"></i> Notifications</div>
+          <h1 className="page-title">Stay on top of what matters.</h1>
+          <p className="page-subtitle">Your latest alerts, deal changes, and account activity all in one place.</p>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="glass-toolbar" style={{ marginBottom: '1.5rem', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             onClick={() => setFilter('all')}
             style={{
               padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              border: '1.5px solid var(--border-color)',
-              background: filter === 'all' ? 'var(--primary-color)' : 'var(--card-bg)',
+              borderRadius: '9999px',
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+              background: filter === 'all' ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.7)',
               color: filter === 'all' ? '#fff' : 'var(--text-primary)',
               cursor: 'pointer',
               fontWeight: 600,
@@ -135,9 +134,9 @@ export default function NotificationsPage() {
             onClick={() => setFilter('unread')}
             style={{
               padding: '0.5rem 1rem',
-              borderRadius: '0.5rem',
-              border: '1.5px solid var(--border-color)',
-              background: filter === 'unread' ? 'var(--primary-color)' : 'var(--card-bg)',
+              borderRadius: '9999px',
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+              background: filter === 'unread' ? 'var(--primary-gradient)' : 'rgba(255,255,255,0.7)',
               color: filter === 'unread' ? '#fff' : 'var(--text-primary)',
               cursor: 'pointer',
               fontWeight: 600,
@@ -152,9 +151,9 @@ export default function NotificationsPage() {
           onClick={() => router.push('/profile')}
           style={{
             padding: '0.5rem 1rem',
-            borderRadius: '0.5rem',
-            border: '1.5px solid var(--border-color)',
-            background: 'var(--card-bg)',
+            borderRadius: '9999px',
+            border: '1px solid rgba(148, 163, 184, 0.2)',
+            background: 'rgba(255,255,255,0.75)',
             color: 'var(--primary-color)',
             cursor: 'pointer',
             fontWeight: 600,
@@ -167,13 +166,13 @@ export default function NotificationsPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
+        <div className="surface-panel panel-pad" style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
           <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', marginBottom: '1rem' }}></i>
           <p>Loading notifications...</p>
         </div>
       ) : notifications.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '4rem', background: 'var(--card-bg)', borderRadius: '1rem', border: '1.5px solid var(--border-color)' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔔</div>
+        <div className="empty-state">
+          <div className="empty-icon"><i className="fas fa-bell-slash"></i></div>
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
             {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
           </h3>
@@ -195,16 +194,14 @@ export default function NotificationsPage() {
             return (
               <div
                 key={notification._id}
+                className="surface-panel"
                 style={{
-                  background: 'var(--card-bg)',
-                  border: `1.5px solid ${notification.read ? 'var(--border-color)' : 'var(--primary-color)'}`,
-                  borderRadius: '1rem',
                   padding: '1.25rem',
                   display: 'flex',
                   gap: '1rem',
                   alignItems: 'start',
-                  position: 'relative',
                   transition: 'all 0.2s',
+                  borderColor: notification.read ? 'var(--border-color)' : 'rgba(37, 99, 235, 0.35)',
                 }}
               >
                 <div

@@ -1,0 +1,128 @@
+Firebase Admin: Missing credentials. Firebase auth routes will be disabled.
+WARNING: GOOGLE_MAPS_API_KEY environment variable is not set. Using a hardcoded key for development. This is not secure for production.
+Azure Storage connection string not configured
+Warning: JWT_SECRET is not set in environment variables. Using default (insecure) secret.
+To fix: Set JWT_SECRET in a .env file at backend/.env or in your environment variables.
+Warning: JWT_REFRESH_SECRET is not set in environment variables. Using default (insecure) secret.
+To fix: Set JWT_REFRESH_SECRET in a .env file at backend/.env or in your environment variables.
+VAPID keys not found. Push notifications will not work.
+Error connecting to MongoDB: The `uri` parameter to `openUri()` must be a string, got "undefined". Make sure the first parameter to `mongoose.connect()` or `mongoose.createConnection()` is a string.
+MongoDB URI host: Not provided
+[Expiry Notice] Error: Operation `promotions.find()` buffering timed out after 10000ms
+(node:15844) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[Nearby Deals Job] Error: Operation `notificationpreferences.find()` buffering timed out after 10000ms
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions/homepage: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+[Nearby API] Aggregation error: Operation `merchants.aggregate()` buffering timed out after 10000ms
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)
+Error in GET /api/promotions: MongooseError: Operation `promotions.find()` buffering timed out after 10000ms
+    at Timeout.<anonymous> (C:\Users\DeepalRupasinghe\DealFinder-1\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:187:23)
+    at listOnTimeout (node:internal/timers:594:17)
+    at process.processTimers (node:internal/timers:529:7)

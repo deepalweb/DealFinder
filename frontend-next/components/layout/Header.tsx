@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import NotificationBell from '@/components/ui/NotificationBell';
 
@@ -25,9 +25,17 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
+    setMenuOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
     };
+
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -39,140 +47,486 @@ export default function Header() {
     localStorage.setItem('df-theme', next ? 'dark' : 'light');
   };
 
-  const isActive = (path: string) => pathname === path;
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   const navLinks = [
-    { href: '/', icon: 'fa-home', label: 'Home' },
-    { href: '/categories/all', icon: 'fa-tags', label: 'All Deals' },
+    { href: '/', icon: 'fa-house', label: 'Home' },
+    { href: '/categories/all', icon: 'fa-tags', label: 'Deals' },
     { href: '/merchants', icon: 'fa-store', label: 'Stores' },
     { href: '/favorites', icon: 'fa-heart', label: 'Favorites' },
-    { href: '/nearby', icon: 'fa-map-marker-alt', label: 'Nearby' },
+    { href: '/nearby', icon: 'fa-location-dot', label: 'Nearby' },
   ];
+
+  const quickLabel = user ? `Welcome back, ${user.name.split(' ')[0]}` : 'Fresh offers updated daily';
 
   const getSafeImage = (url?: string, name?: string) => {
     if (url && (url.startsWith('data:image') || url.startsWith('http'))) return url;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&size=100`;
   };
 
-  const userMenuItems = user ? [
-    { href: '/profile', icon: 'fa-user', label: 'My Profile' },
-    { href: '/favorites', icon: 'fa-heart', label: 'My Favorites' },
-    ...(user.role === 'merchant' ? [{ href: '/merchant/dashboard', icon: 'fa-store', label: 'Dashboard' }] : []),
-    ...(user.role === 'admin' ? [{ href: '/admin/dashboard', icon: 'fa-shield-alt', label: 'Admin' }] : []),
-  ] : [];
+  const userMenuItems = user
+    ? [
+        { href: '/profile', icon: 'fa-user', label: 'My Profile' },
+        { href: '/favorites', icon: 'fa-heart', label: 'Saved Deals' },
+        ...(user.role === 'merchant' ? [{ href: '/merchant/dashboard', icon: 'fa-chart-line', label: 'Merchant Dashboard' }] : []),
+        ...(user.role === 'admin' ? [{ href: '/admin/dashboard', icon: 'fa-shield-halved', label: 'Admin Console' }] : []),
+      ]
+    : [];
 
   return (
-    <header style={{ backgroundColor: 'var(--header-bg)', backdropFilter: 'blur(16px)', boxShadow: '0 1px 0 var(--border-color)', position: 'sticky', top: 0, zIndex: 100 }}>
+    <header
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        background: 'color-mix(in srgb, var(--header-bg) 92%, transparent)',
+        backdropFilter: 'blur(18px)',
+        borderBottom: '1px solid color-mix(in srgb, var(--border-color) 78%, transparent)',
+        boxShadow: '0 16px 36px rgba(37, 99, 235, 0.12)',
+      }}
+    >
+      <div
+        style={{
+          borderBottom: '1px solid color-mix(in srgb, var(--border-color) 68%, transparent)',
+          background: 'linear-gradient(90deg, rgba(37,99,235,0.12), rgba(56,189,248,0.12), rgba(245,158,11,0.1))',
+        }}
+      >
+        <div
+          className="max-w-7xl mx-auto px-4"
+          style={{
+            minHeight: '2.2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            fontSize: '0.76rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+            <span
+              style={{
+                width: '0.5rem',
+                height: '0.5rem',
+                borderRadius: '999px',
+                background: 'var(--primary-color)',
+                boxShadow: '0 0 0 4px rgba(37,99,235,0.12)',
+                flexShrink: 0,
+              }}
+            />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{quickLabel}</span>
+          </div>
+          <div className="hidden md:flex" style={{ alignItems: 'center', gap: '1rem' }}>
+            <Link href="/categories/all" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 600 }}>
+              Explore every category
+            </Link>
+            <Link href="/contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 600 }}>
+              Contact support
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link
+              href="/"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.8rem',
+                textDecoration: 'none',
+                minWidth: 0,
+              }}
+            >
+              <span
+                style={{
+                  width: '2.65rem',
+                  height: '2.65rem',
+                  borderRadius: '0.95rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--primary-gradient)',
+                  color: '#fff',
+                  fontWeight: 900,
+                  boxShadow: '0 18px 30px rgba(37,99,235,0.24)',
+                  flexShrink: 0,
+                }}
+              >
+                %
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: '1.1rem',
+                    fontWeight: 900,
+                    letterSpacing: '-0.03em',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  DealFinder
+                </span>
+                <span
+                  className="hidden sm:block"
+                  style={{
+                    fontSize: '0.76rem',
+                    color: 'var(--text-secondary)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Smarter deal discovery across Sri Lanka
+                </span>
+              </span>
+            </Link>
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-extrabold text-xl"
-            style={{ color: 'var(--primary-color)', letterSpacing: '-0.03em', textDecoration: 'none' }}>
-            <span style={{ background: 'linear-gradient(135deg,#6366f1,#f43f5e)', borderRadius: '0.5rem', padding: '0.25rem 0.5rem', color: '#fff', fontSize: '1rem' }}>%</span>
-            DealFinder
-          </Link>
+            <nav className="hidden lg:flex items-center gap-2">
+              {navLinks.map(({ href, icon, label }) => {
+                const active = isActive(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.7rem 0.95rem',
+                      borderRadius: '999px',
+                      textDecoration: 'none',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      color: active ? '#0f172a' : 'var(--text-secondary)',
+                      background: active ? 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.14), rgba(245,158,11,0.16))' : 'transparent',
+                      border: active ? '1px solid rgba(37,99,235,0.18)' : '1px solid transparent',
+                      boxShadow: active ? '0 10px 20px rgba(37,99,235,0.12)' : 'none',
+                    }}
+                  >
+                    <i className={`fas ${icon}`} style={{ color: active ? 'var(--primary-color)' : 'var(--text-secondary)' }}></i>
+                    {label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ href, icon, label }) => (
-              <Link key={href} href={href} style={{ color: isActive(href) ? 'var(--primary-color)' : 'var(--text-secondary)', background: isActive(href) ? 'rgba(99,102,241,0.1)' : 'transparent', padding: '0.4rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <i className={`fas ${icon}`}></i> {label}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Right side */}
           <div className="flex items-center gap-2">
-
-            {/* Notification Bell */}
             {mounted && user && <NotificationBell />}
 
-            {/* Dark mode toggle — only after mount */}
             {mounted && (
-              <button onClick={toggleDark} title={isDark ? 'Light mode' : 'Dark mode'}
-                style={{ width: '2.25rem', height: '2.25rem', borderRadius: '50%', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1rem' }}>
+              <button
+                onClick={toggleDark}
+                title={isDark ? 'Light mode' : 'Dark mode'}
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: '999px',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--card-bg)',
+                  color: 'var(--text-secondary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: 'var(--box-shadow)',
+                }}
+              >
                 <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
               </button>
             )}
 
-            {/* User menu — only after mount */}
-            {mounted && (
-              <>
-                {user ? (
-                  <div className="hidden md:block relative" ref={userMenuRef}>
-                    <button onClick={() => setUserMenuOpen(!userMenuOpen)}
-                      className="flex items-center gap-2" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>{user.name}</span>
-                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--primary-color)' }}>
-                        <img src={getSafeImage(user.profilePicture, user.name)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {mounted &&
+              (user ? (
+                <div className="hidden md:block relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    style={{
+                      border: '1px solid var(--border-color)',
+                      background: 'var(--card-bg)',
+                      borderRadius: '999px',
+                      padding: '0.35rem 0.45rem 0.35rem 0.85rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      cursor: 'pointer',
+                      boxShadow: 'var(--box-shadow)',
+                    }}
+                  >
+                    <span style={{ textAlign: 'right' }}>
+                      <span style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {user.name}
+                      </span>
+                      <span style={{ display: 'block', fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
+                        {user.role === 'merchant' ? 'Merchant account' : user.role === 'admin' ? 'Admin account' : 'Member'}
+                      </span>
+                    </span>
+                    <span
+                      style={{
+                        width: '2.25rem',
+                        height: '2.25rem',
+                        borderRadius: '999px',
+                        overflow: 'hidden',
+                        border: '2px solid rgba(37,99,235,0.16)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={getSafeImage(user.profilePicture, user.name)}
+                        alt="Profile"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </span>
+                  </button>
+
+                  {userMenuOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 'calc(100% + 0.7rem)',
+                        width: '250px',
+                        background: 'var(--card-bg)',
+                        borderRadius: '1rem',
+                        boxShadow: '0 20px 40px rgba(15,23,42,0.16)',
+                        border: '1px solid var(--border-color)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: '1rem',
+                          background: 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(245,158,11,0.08))',
+                          borderBottom: '1px solid var(--border-color)',
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{user.name}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{user.email}</div>
                       </div>
-                    </button>
-                    {userMenuOpen && (
-                      <div style={{ position: 'absolute', right: 0, top: '110%', width: '220px', background: 'var(--card-bg)', borderRadius: '0.875rem', boxShadow: '0 8px 32px rgba(0,0,0,0.15)', border: '1px solid var(--border-color)', overflow: 'hidden', zIndex: 50 }}>
-                        <div style={{ padding: '0.875rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
-                          <p style={{ fontWeight: 700, margin: 0, fontSize: '0.875rem', color: 'var(--text-primary)' }}>{user.name}</p>
-                          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>{user.email}</p>
-                        </div>
-                        {userMenuItems.map(item => (
-                          <Link key={item.href} href={item.href} onClick={() => setUserMenuOpen(false)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', fontSize: '0.875rem', color: 'var(--text-primary)', textDecoration: 'none' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--light-gray)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                            <i className={`fas ${item.icon}`} style={{ width: '16px', color: 'var(--primary-color)' }}></i> {item.label}
+
+                      <div style={{ padding: '0.5rem' }}>
+                        {userMenuItems.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.65rem',
+                              padding: '0.8rem',
+                              borderRadius: '0.8rem',
+                              textDecoration: 'none',
+                              color: 'var(--text-primary)',
+                              fontSize: '0.9rem',
+                              fontWeight: 600,
+                            }}
+                            onMouseEnter={(event) => {
+                              event.currentTarget.style.background = 'var(--light-gray)';
+                            }}
+                            onMouseLeave={(event) => {
+                              event.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            <i className={`fas ${item.icon}`} style={{ width: '1rem', color: 'var(--primary-color)' }}></i>
+                            {item.label}
                           </Link>
                         ))}
-                        <hr style={{ margin: '0.25rem 0', border: 'none', borderTop: '1px solid var(--border-color)' }} />
-                        <button onClick={() => { setUserMenuOpen(false); logout(); }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 1rem', fontSize: '0.875rem', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', width: '100%' }}>
-                          <i className="fas fa-sign-out-alt" style={{ width: '16px' }}></i> Logout
+                        <button
+                          onClick={() => logout()}
+                          style={{
+                            marginTop: '0.25rem',
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.65rem',
+                            padding: '0.8rem',
+                            borderRadius: '0.8rem',
+                            border: 'none',
+                            background: 'transparent',
+                            color: 'var(--danger-color)',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <i className="fas fa-right-from-bracket" style={{ width: '1rem' }}></i>
+                          Logout
                         </button>
                       </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="hidden md:flex items-center gap-2">
-                    <Link href="/login" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)', textDecoration: 'none' }}>Login</Link>
-                    <Link href="/register" className="btn btn-primary" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem' }}>Sign Up</Link>
-                  </div>
-                )}
-              </>
-            )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    style={{
+                      padding: '0.72rem 0.95rem',
+                      borderRadius: '999px',
+                      textDecoration: 'none',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="btn"
+                    style={{
+                      background: 'var(--primary-gradient)',
+                      color: '#fff',
+                      padding: '0.8rem 1.1rem',
+                      borderRadius: '999px',
+                      boxShadow: '0 14px 28px rgba(37,99,235,0.2)',
+                    }}
+                  >
+                    Create Account
+                  </Link>
+                </div>
+              ))}
 
-            {/* Mobile menu button */}
-            <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}
-              style={{ width: '2.25rem', height: '2.25rem', borderRadius: '50%', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button
+              className="lg:hidden"
+              onClick={() => setMenuOpen(!menuOpen)}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '999px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--card-bg)',
+                color: 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: 'var(--box-shadow)',
+              }}
+            >
               <i className={`fas ${menuOpen ? 'fa-times' : 'fa-bars'}`}></i>
             </button>
           </div>
         </div>
 
-        {/* Mobile menu */}
         {menuOpen && (
-          <div className="md:hidden mt-3 pb-3" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-            <nav className="flex flex-col gap-1">
-              {navLinks.map(({ href, icon, label }) => (
-                <Link key={href} href={href} onClick={() => setMenuOpen(false)}
-                  style={{ color: isActive(href) ? 'var(--primary-color)' : 'var(--text-secondary)', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <i className={`fas ${icon}`}></i> {label}
-                </Link>
-              ))}
-              {mounted && user ? (
-                <>
-                  <Link href="/profile" onClick={() => setMenuOpen(false)} style={{ color: 'var(--text-secondary)', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-user"></i> Profile
+          <div
+            className="lg:hidden"
+            style={{
+              marginTop: '1rem',
+              padding: '1rem',
+              borderRadius: '1.2rem',
+              background: 'var(--card-bg)',
+              border: '1px solid var(--border-color)',
+              boxShadow: 'var(--box-shadow)',
+            }}
+          >
+            <nav className="grid grid-cols-1 gap-2">
+              {navLinks.map(({ href, icon, label }) => {
+                const active = isActive(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.7rem',
+                      padding: '0.9rem 1rem',
+                      borderRadius: '0.9rem',
+                      textDecoration: 'none',
+                      fontWeight: 700,
+                      color: active ? '#0f172a' : 'var(--text-primary)',
+                      background: active ? 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.14), rgba(245,158,11,0.16))' : 'var(--light-gray)',
+                    }}
+                  >
+                    <i className={`fas ${icon}`} style={{ color: active ? 'var(--primary-color)' : 'var(--text-secondary)' }}></i>
+                    {label}
                   </Link>
-                  <button onClick={() => { setMenuOpen(false); logout(); }} style={{ color: '#ef4444', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.9rem', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-sign-out-alt"></i> Logout
+                );
+              })}
+            </nav>
+
+            <div
+              style={{
+                marginTop: '1rem',
+                paddingTop: '1rem',
+                borderTop: '1px solid var(--border-color)',
+              }}
+            >
+              {mounted && user ? (
+                <div className="grid grid-cols-1 gap-2">
+                  {userMenuItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.7rem',
+                        padding: '0.9rem 1rem',
+                        borderRadius: '0.9rem',
+                        background: 'var(--light-gray)',
+                        color: 'var(--text-primary)',
+                        textDecoration: 'none',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <i className={`fas ${item.icon}`} style={{ color: 'var(--primary-color)' }}></i>
+                      {item.label}
+                    </Link>
+                  ))}
+                  <button
+                    onClick={() => logout()}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.7rem',
+                      padding: '0.9rem 1rem',
+                      borderRadius: '0.9rem',
+                      border: 'none',
+                      background: 'rgba(239,68,68,0.08)',
+                      color: 'var(--danger-color)',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <i className="fas fa-right-from-bracket"></i>
+                    Logout
                   </button>
-                </>
+                </div>
               ) : (
-                <div className="flex gap-2 pt-2">
-                  <Link href="/login" onClick={() => setMenuOpen(false)} className="btn" style={{ flex: 1, justifyContent: 'center', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Login</Link>
-                  <Link href="/register" onClick={() => setMenuOpen(false)} className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }}>Sign Up</Link>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/login"
+                    className="btn"
+                    style={{
+                      justifyContent: 'center',
+                      background: 'var(--light-gray)',
+                      color: 'var(--text-primary)',
+                      padding: '0.9rem 1rem',
+                    }}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="btn"
+                    style={{
+                      justifyContent: 'center',
+                      background: 'var(--primary-gradient)',
+                      color: '#fff',
+                      padding: '0.9rem 1rem',
+                    }}
+                  >
+                    Sign Up
+                  </Link>
                 </div>
               )}
-            </nav>
+            </div>
           </div>
         )}
       </div>

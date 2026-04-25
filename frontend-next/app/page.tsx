@@ -233,7 +233,7 @@ export default function HomePage() {
           position: 'relative',
           overflow: 'hidden',
           background:
-            'radial-gradient(circle at top left, rgba(22,163,74,0.22), transparent 32%), radial-gradient(circle at bottom right, rgba(245,158,11,0.2), transparent 28%), linear-gradient(135deg, #0f172a 0%, #123b2a 45%, #0f766e 100%)',
+            'radial-gradient(circle at top left, rgba(37,99,235,0.24), transparent 30%), radial-gradient(circle at top right, rgba(56,189,248,0.18), transparent 24%), radial-gradient(circle at bottom right, rgba(245,158,11,0.18), transparent 24%), linear-gradient(135deg, #0f172a 0%, #163b75 42%, #1d4ed8 100%)',
           color: '#f8fafc',
         }}
       >
@@ -267,7 +267,7 @@ export default function HomePage() {
                   marginBottom: '1rem',
                   padding: '0.45rem 0.85rem',
                   borderRadius: '999px',
-                  background: 'rgba(255,255,255,0.1)',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.07))',
                   border: '1px solid rgba(255,255,255,0.18)',
                   fontSize: '0.82rem',
                   fontWeight: 700,
@@ -275,7 +275,7 @@ export default function HomePage() {
                   textTransform: 'uppercase',
                 }}
               >
-                <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i>
+                    <i className="fas fa-bolt" style={{ color: '#f59e0b' }}></i>
                 Fresh offers from stores across Sri Lanka
               </div>
 
@@ -364,10 +364,11 @@ export default function HomePage() {
                     onClick={() => router.push('/categories/all')}
                     className="btn"
                     style={{
-                      background: '#f8fafc',
+                      background: 'var(--primary-gradient)',
                       color: '#0f172a',
                       padding: '0.85rem 1.25rem',
                       fontWeight: 700,
+                      boxShadow: '0 16px 28px rgba(37,99,235,0.26)',
                     }}
                   >
                     <i className="fas fa-fire"></i>
@@ -394,7 +395,7 @@ export default function HomePage() {
               style={{
                 borderRadius: '1.5rem',
                 padding: '1.25rem',
-                background: 'rgba(15,23,42,0.42)',
+                background: 'linear-gradient(180deg, rgba(15,23,42,0.42), rgba(15,23,42,0.34))',
                 border: '1px solid rgba(255,255,255,0.12)',
                 backdropFilter: 'blur(12px)',
               }}
@@ -413,7 +414,7 @@ export default function HomePage() {
                     style={{
                       borderRadius: '1rem',
                       padding: '0.95rem',
-                      background: 'rgba(255,255,255,0.08)',
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
                       border: '1px solid rgba(255,255,255,0.12)',
                     }}
                   >
@@ -440,7 +441,7 @@ export default function HomePage() {
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f766e', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase' }}>
                       Right now
                     </div>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>Shopping snapshot</div>
@@ -450,11 +451,11 @@ export default function HomePage() {
                       width: '2.4rem',
                       height: '2.4rem',
                       borderRadius: '999px',
-                      background: 'rgba(15,118,110,0.12)',
+                      background: 'rgba(37,99,235,0.12)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#0f766e',
+                      color: 'var(--primary-color)',
                     }}
                   >
                     <i className="fas fa-chart-line"></i>
@@ -484,8 +485,8 @@ export default function HomePage() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: '#0f766e',
-                          background: 'rgba(15,118,110,0.1)',
+                          color: 'var(--primary-color)',
+                          background: 'rgba(37,99,235,0.1)',
                         }}
                       >
                         <i className={`fas ${point.icon}`}></i>
@@ -530,8 +531,8 @@ export default function HomePage() {
                   width: '2.8rem',
                   height: '2.8rem',
                   borderRadius: '0.95rem',
-                  background: 'rgba(15,118,110,0.1)',
-                  color: '#0f766e',
+                  background: 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.12))',
+                  color: 'var(--primary-color)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -596,11 +597,11 @@ export default function HomePage() {
                 }}
               >
                 <div>
-                  <div style={{ color: '#0f766e', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ color: 'var(--highlight-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
                     Featured now
                   </div>
                   <h2 className="section-title" style={{ marginBottom: 0 }}>
-                    <i className="fas fa-star" style={{ color: '#f59e0b' }}></i>
+                    <i className="fas fa-star" style={{ color: 'var(--highlight-color)' }}></i>
                     Best Offers This Week
                   </h2>
                 </div>
@@ -621,7 +622,7 @@ export default function HomePage() {
 
             <section
               style={{
-                background: 'linear-gradient(135deg, rgba(15,118,110,0.08), rgba(245,158,11,0.08))',
+                background: 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(56,189,248,0.06), rgba(245,158,11,0.08))',
                 border: '1px solid var(--border-color)',
                 borderRadius: '1.5rem',
                 padding: '1.5rem',
@@ -638,11 +639,11 @@ export default function HomePage() {
                 }}
               >
                 <div>
-                  <div style={{ color: '#0f766e', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ color: 'var(--success-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
                     Around you
                   </div>
                   <h2 className="section-title" style={{ marginBottom: 0 }}>
-                    <i className="fas fa-location-dot" style={{ color: '#0f766e' }}></i>
+                    <i className="fas fa-location-dot" style={{ color: 'var(--success-color)' }}></i>
                     Nearby Picks
                   </h2>
                 </div>
@@ -657,8 +658,8 @@ export default function HomePage() {
                 <div
                   style={{
                     borderRadius: '1rem',
-                    background: 'rgba(239,68,68,0.08)',
-                    color: '#b91c1c',
+                    background: 'var(--danger-soft)',
+                    color: 'var(--danger-color)',
                     border: '1px solid rgba(239,68,68,0.18)',
                     padding: '1rem 1.1rem',
                   }}
@@ -698,7 +699,7 @@ export default function HomePage() {
                 }}
               >
                 <div>
-                  <div style={{ color: '#0f766e', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ color: 'var(--warning-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
                     Just added
                   </div>
                   <h2 className="section-title" style={{ marginBottom: 0 }}>
@@ -750,7 +751,7 @@ export default function HomePage() {
                 borderRadius: '1.6rem',
                 overflow: 'hidden',
                 background:
-                  'linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(17,94,89,1) 56%, rgba(245,158,11,0.95) 100%)',
+                  'linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(30,58,138,1) 46%, rgba(37,99,235,1) 72%, rgba(245,158,11,0.95) 100%)',
               }}
             >
               <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-0 items-stretch">
@@ -783,7 +784,7 @@ export default function HomePage() {
                       onClick={() => router.push('/merchants')}
                       className="btn"
                       style={{
-                        background: 'rgba(255,255,255,0.08)',
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
                         color: '#fff',
                         border: '1px solid rgba(255,255,255,0.16)',
                         padding: '0.9rem 1.3rem',

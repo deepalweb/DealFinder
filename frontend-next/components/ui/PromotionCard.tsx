@@ -44,8 +44,8 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
   return (
     <div className="promotion-card fade-in cursor-pointer" onClick={handleClick}>
       {/* Favorite button */}
-      <button onClick={handleFavorite} style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 10, width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', transition: 'all 0.2s' }}>
-        <i className={`${isFavorite ? 'fas' : 'far'} fa-heart`} style={{ color: isFavorite ? '#ef4444' : '#64748b' }}></i>
+      <button onClick={handleFavorite} style={{ position: 'absolute', top: '0.75rem', left: '0.75rem', zIndex: 10, width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 10px 18px rgba(17,24,39,0.12)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', transition: 'all 0.2s' }}>
+        <i className={`${isFavorite ? 'fas' : 'far'} fa-heart`} style={{ color: isFavorite ? 'var(--danger-color)' : 'var(--text-secondary)' }}></i>
       </button>
 
       {/* Image */}
@@ -54,7 +54,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />
-        <div className="discount-badge" style={{ position: 'absolute', top: '0.75rem', right: '0.75rem' }}>
+        <div className="discount-badge" style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', border: '1px solid rgba(255,255,255,0.24)' }}>
           {promotion.discount} OFF
         </div>
       </div>
@@ -65,7 +65,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             <i className="fas fa-store-alt" style={{ marginRight: '0.25rem' }}></i>{merchantName}
           </span>
-          <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '9999px', background: 'var(--light-gray)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <span style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '9999px', background: daysLeft <= 1 ? 'var(--warning-soft)' : 'var(--light-gray)', color: daysLeft <= 1 ? 'var(--warning-color)' : 'var(--text-secondary)', border: `1px solid ${daysLeft <= 1 ? 'rgba(249, 115, 22, 0.22)' : 'var(--border-color)'}`, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             <i className="far fa-clock"></i> {expiryText}
           </span>
         </div>
@@ -93,7 +93,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           {directionsUrl ? (
             <a href={directionsUrl} target="_blank" rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
-              className="btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', border: '1.5px solid rgba(16,185,129,0.3)', background: 'rgba(16,185,129,0.06)', color: '#059669' }}>
+              className="btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', border: '1.5px solid rgba(22,163,74,0.28)', background: 'var(--success-soft)', color: 'var(--success-color)' }}>
               <i className="fas fa-directions"></i> Directions
             </a>
           ) : (

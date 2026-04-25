@@ -1,13 +1,44 @@
 export default function AboutPage() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-12">
-      <h1 style={{ fontSize:'2rem', fontWeight:800, color:'var(--text-primary)', marginBottom:'1rem' }}>About DealFinder</h1>
-      <p style={{ color:'var(--text-secondary)', lineHeight:1.8, marginBottom:'1rem' }}>DealFinder is your one-stop destination for discovering the best discounts, promotions, and deals from your favorite stores and brands.</p>
-      <p style={{ color:'var(--text-secondary)', lineHeight:1.8, marginBottom:'1rem' }}>Our mission is to help shoppers save money by connecting them with merchants who offer exclusive deals and promotions.</p>
-      <h2 style={{ fontSize:'1.25rem', fontWeight:700, color:'var(--text-primary)', margin:'2rem 0 0.75rem' }}>For Shoppers</h2>
-      <p style={{ color:'var(--text-secondary)', lineHeight:1.8 }}>Browse thousands of deals, save your favorites, get notified about nearby promotions, and never miss a great offer again.</p>
-      <h2 style={{ fontSize:'1.25rem', fontWeight:700, color:'var(--text-primary)', margin:'2rem 0 0.75rem' }}>For Merchants</h2>
-      <p style={{ color:'var(--text-secondary)', lineHeight:1.8 }}>Create and manage your promotions, reach new customers, and grow your business with our merchant dashboard.</p>
+    <div className="page-shell compact">
+      <div className="page-header">
+        <div>
+          <div className="page-eyebrow"><i className="fas fa-circle-info"></i> About</div>
+          <h1 className="page-title">Built to make deal hunting feel clear and fast.</h1>
+          <p className="page-subtitle">
+            DealFinder brings featured offers, nearby promotions, and newest price drops into one sharper experience for shoppers and merchants.
+          </p>
+        </div>
+      </div>
+
+      <div className="surface-panel panel-pad">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 0.8rem' }}>What we do</h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '1rem' }}>
+              DealFinder is your one-stop destination for discovering the best discounts, promotions, and limited-time offers from the stores people already shop with.
+            </p>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, margin: 0 }}>
+              Our goal is simple: help shoppers save faster while giving merchants a cleaner way to reach the right customers.
+            </p>
+          </div>
+
+          <div className="grid gap-4">
+            <div className="stat-tile">
+              <div className="page-eyebrow" style={{ marginBottom: '0.8rem' }}><i className="fas fa-bag-shopping"></i> For Shoppers</div>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
+                Browse real deals, save favorites, check nearby offers, and move from discovery to decision without the usual noise.
+              </p>
+            </div>
+            <div className="stat-tile">
+              <div className="page-eyebrow" style={{ marginBottom: '0.8rem' }}><i className="fas fa-store"></i> For Merchants</div>
+              <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
+                Publish promotions, manage visibility, and attract new customers with a dashboard that keeps campaigns simple to run.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

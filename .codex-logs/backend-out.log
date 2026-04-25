@@ -1,0 +1,25 @@
+CORS enabled for NODE_ENV: development (default)
+Allowed CORS origins: [
+  'http://127.0.0.1:5001',
+  'http://localhost:5001',
+  'http://127.0.0.1:5500',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:8080',
+  'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
+]
+Server is running on port 8080
+[Job Scheduler] Initializing notification jobs...
+[Job Scheduler] All notification jobs initialized
+[Job Scheduler] Schedule:
+  - Nearby deals: Every 30 minutes
+  - Expiring deals (users): Daily at 9 AM
+  - Favorite stores: Every 2 hours
+  - Price drops: Every 2 hours
+  - Flash sales: Every hour
+  - Category deals: Every hour
+  - Weekly digest: Sunday at 8 AM
+  - Merchant expiry: Daily at 10 AM
+[Job Scheduler] Running nearby deals check...
+[Nearby Deals Job] Starting...

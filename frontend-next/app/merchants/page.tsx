@@ -59,7 +59,7 @@ export default function MerchantsPage() {
         </div>
       </HeroSection>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="page-shell">
         <div className="flex gap-2 overflow-x-auto pb-2 mb-8" style={{ scrollbarWidth: 'none' }}>
           {CATEGORIES.map(cat => (
             <button key={cat.id} onClick={() => setSelectedCat(cat.id)} className={`category-item ${selectedCat === cat.id ? 'active' : ''}`} style={{ flexShrink: 0 }}>
@@ -73,9 +73,9 @@ export default function MerchantsPage() {
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🏪</div>
-            <h2 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>No stores found</h2>
+          <div className="empty-state">
+            <div className="empty-icon"><i className="fas fa-store-slash"></i></div>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No stores found</h2>
             <p style={{ color: 'var(--text-secondary)' }}>Try a different search or category</p>
           </div>
         ) : (

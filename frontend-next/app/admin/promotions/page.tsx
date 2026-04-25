@@ -66,8 +66,6 @@ export default function AdminPromotionsPage() {
 
   const getMerchantName = (m: any) => typeof m === 'object' ? m?.name : m || '—';
   const fmt = (d: string) => new Date(d).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-  const inputStyle = { padding:'0.5rem 0.875rem', borderRadius:'0.625rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--text-primary)', fontSize:'0.875rem', outline:'none' };
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -79,7 +77,7 @@ export default function AdminPromotionsPage() {
 
       {/* Pending alert */}
       {promotions.filter(p => p.status === 'pending_approval').length > 0 && (
-        <div style={{ padding:'0.875rem 1.25rem', borderRadius:'0.875rem', background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.25)', marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'0.75rem' }}>
+        <div className="surface-panel panel-pad" style={{ marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'0.75rem', background:'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(249,115,22,0.08))', borderColor:'rgba(245,158,11,0.25)' }}>
           <i className="fas fa-clock" style={{ color:'#f59e0b' }}></i>
           <span style={{ fontSize:'0.875rem', color:'#92400e', fontWeight:500 }}>
             {promotions.filter(p => p.status === 'pending_approval').length} promotion(s) waiting for approval
@@ -91,12 +89,12 @@ export default function AdminPromotionsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 mb-5">
-        <div style={{ position:'relative', flex:1, maxWidth:'400px' }}>
-          <i className="fas fa-search" style={{ position:'absolute', left:'0.875rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', pointerEvents:'none' }}></i>
-          <input style={{ ...inputStyle, width:'100%', paddingLeft:'2.5rem', boxSizing:'border-box' }} placeholder="Search promotions..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="glass-toolbar mb-5">
+        <div className="input-with-icon toolbar-grow" style={{ maxWidth:'400px' }}>
+          <i className="fas fa-search"></i>
+          <input className="modern-input" placeholder="Search promotions..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select style={inputStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className="modern-select" style={{ maxWidth:'190px' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="pending_approval">Pending Approval</option>
@@ -106,7 +104,7 @@ export default function AdminPromotionsPage() {
           <option value="admin_paused">Paused</option>
           <option value="expired">Expired</option>
         </select>
-        <select style={inputStyle} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
+        <select className="modern-select" style={{ maxWidth:'210px' }} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
           <option value="all">All Categories</option>
           {[...new Set(promotions.map(p => p.category).filter(Boolean))].sort().map(cat => (
             <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace(/_/g, ' ')}</option>
@@ -115,16 +113,12 @@ export default function AdminPromotionsPage() {
       </div>
 
       {/* Table */}
-      <div className="promotion-card overflow-hidden">
+      <div className="surface-panel overflow-hidden">
         <div className="overflow-x-auto">
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead>
-              <tr style={{ background:'var(--light-gray)', borderBottom:'1.5px solid var(--border-color)' }}>
-                {['Promotion','Merchant','Discount','Status','Dates','Actions'].map(h => (
-                  <th key={h} style={{ padding:'0.75rem 1rem', textAlign:h==='Actions'?'right':'left', fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <table className="data-table">
+            <thead><tr>{['Promotion','Merchant','Discount','Status','Dates','Actions'].map(h => (
+              <th key={h} style={{ textAlign:h==='Actions'?'right':'left' }}>{h}</th>
+            ))}</tr></thead>
             <tbody>
               {loading ? Array.from({ length:5 }).map((_,i) => (
                 <tr key={i}><td colSpan={6} style={{ padding:'0.75rem 1rem' }}><div className="skeleton" style={{ height:'20px' }}></div></td></tr>
@@ -133,10 +127,8 @@ export default function AdminPromotionsPage() {
               ) : filtered.map(p => {
                 const id = p._id || p.id;
                 return (
-                  <tr key={id} style={{ borderBottom:'1px solid var(--border-color)' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--light-gray)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                    <td style={{ padding:'0.75rem 1rem' }}>
+                  <tr key={id}>
+                    <td>
                       <div className="flex items-center gap-3">
                         {p.image && <img src={p.image} alt={p.title} style={{ width:'36px', height:'36px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />}
                         <div>
@@ -145,20 +137,20 @@ export default function AdminPromotionsPage() {
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding:'0.75rem 1rem', fontSize:'0.875rem', color:'var(--text-secondary)' }}>{getMerchantName(p.merchant)}</td>
-                    <td style={{ padding:'0.75rem 1rem' }}>
+                    <td style={{ fontSize:'0.875rem', color:'var(--text-secondary)' }}>{getMerchantName(p.merchant)}</td>
+                    <td>
                       <span className="discount-badge" style={{ position:'static', fontSize:'0.72rem' }}>{p.discount} OFF</span>
                       {p.featured && <span style={{ display:'block', fontSize:'0.7rem', color:'#d97706', fontWeight:700, marginTop:'0.2rem' }}>⭐ Featured</span>}
                     </td>
-                    <td style={{ padding:'0.75rem 1rem' }}>
-                      <span style={{ padding:'0.2rem 0.6rem', borderRadius:'9999px', fontSize:'0.72rem', fontWeight:700, background: STATUS_STYLES[p.status]?.bg || 'var(--light-gray)', color: STATUS_STYLES[p.status]?.color || 'var(--text-secondary)' }}>
+                    <td>
+                      <span className="status-chip" style={{ background: STATUS_STYLES[p.status]?.bg || 'var(--light-gray)', color: STATUS_STYLES[p.status]?.color || 'var(--text-secondary)' }}>
                         {p.status?.replace(/_/g,' ') || '—'}
                       </span>
                     </td>
-                    <td style={{ padding:'0.75rem 1rem', fontSize:'0.75rem', color:'var(--text-secondary)' }}>
+                    <td style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>
                       {fmt(p.startDate)}<br/>{fmt(p.endDate)}
                     </td>
-                    <td style={{ padding:'0.75rem 1rem', textAlign:'right' }}>
+                    <td style={{ textAlign:'right' }}>
                       <div className="flex justify-end gap-2 flex-wrap">
                         {p.status === 'pending_approval' && (
                           <>

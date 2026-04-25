@@ -43,14 +43,14 @@ export default function AdminDashboardPage() {
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Dashboard</h1>
           <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>Welcome back! Here&apos;s what&apos;s happening.</p>
         </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0.875rem', borderRadius: '9999px', background: 'var(--light-gray)', border: '1px solid var(--border-color)' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.45rem 0.9rem', borderRadius: '9999px', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(148,163,184,0.2)' }}>
           <i className="fas fa-clock mr-1"></i> {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
       </div>
 
       {/* Alerts */}
       {(pendingMerchants > 0 || pendingPromotions > 0) && (
-        <div style={{ padding: '1rem 1.25rem', borderRadius: '0.875rem', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div className="surface-panel panel-pad" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(249,115,22,0.08))', borderColor: 'rgba(245,158,11,0.25)' }}>
           <i className="fas fa-exclamation-triangle" style={{ color: '#f59e0b' }}></i>
           <span style={{ fontSize: '0.875rem', color: '#92400e', fontWeight: 500 }}>
             {pendingMerchants > 0 && `${pendingMerchants} merchant${pendingMerchants > 1 ? 's' : ''} pending approval`}
@@ -76,7 +76,7 @@ export default function AdminDashboardPage() {
       {/* Bottom row */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Promotions by status */}
-        <div className="promotion-card" style={{ padding: '1.5rem' }}>
+        <div className="surface-panel panel-pad">
           <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <i className="fas fa-tags" style={{ color: 'var(--primary-color)' }}></i> Promotions by Status
           </h3>
@@ -88,7 +88,7 @@ export default function AdminDashboardPage() {
                 return entries.length === 0
                   ? <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>No promotions yet</p>
                   : entries.map(([status, count]: any) => (
-                    <div key={status} className="flex items-center justify-between" style={{ padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'var(--light-gray)' }}>
+                    <div key={status} className="flex items-center justify-between" style={{ padding: '0.6rem 0.8rem', borderRadius: '0.9rem', background: 'rgba(255,255,255,0.74)', border: '1px solid rgba(148,163,184,0.14)' }}>
                       <div className="flex items-center gap-2">
                         <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: colors[status] || '#94a3b8', flexShrink: 0 }}></div>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{status.replace(/_/g, ' ')}</span>
@@ -102,7 +102,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Expiring Soon */}
-        <div className="promotion-card" style={{ padding: '1.5rem' }}>
+        <div className="surface-panel panel-pad">
           <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <i className="fas fa-fire" style={{ color: '#ef4444' }}></i> Expiring This Week
             {!loading && stats?.expiringSoon?.length > 0 && (
@@ -120,7 +120,7 @@ export default function AdminDashboardPage() {
                   const warn = days <= 3;
                   const color = urgent ? '#ef4444' : warn ? '#f59e0b' : '#6366f1';
                   return (
-                    <div key={p._id} style={{ padding: '0.6rem 0.75rem', borderRadius: '0.5rem', background: 'var(--light-gray)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div key={p._id} style={{ padding: '0.7rem 0.8rem', borderRadius: '0.95rem', background: 'rgba(255,255,255,0.74)', border: '1px solid rgba(148,163,184,0.14)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ flexShrink: 0, width: '36px', height: '36px', borderRadius: '0.5rem', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <i className="fas fa-clock" style={{ color, fontSize: '0.85rem' }}></i>
                       </div>
@@ -146,7 +146,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Recent Activity */}
-      <div className="promotion-card" style={{ padding: '1.5rem', marginTop: '1.25rem' }}>
+      <div className="surface-panel panel-pad" style={{ marginTop: '1.25rem' }}>
         <h3 style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <i className="fas fa-history" style={{ color: 'var(--primary-color)' }}></i> Recent Activity
         </h3>

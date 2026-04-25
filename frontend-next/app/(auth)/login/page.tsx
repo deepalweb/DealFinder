@@ -105,28 +105,21 @@ export default function LoginPage() {
     }
   };
 
-  const inputStyle = {
-    width: '100%', padding: '0.75rem 1rem', borderRadius: '0.625rem', fontSize: '0.9rem',
-    border: '1.5px solid var(--border-color)', background: 'var(--card-bg)',
-    color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' as const,
-    transition: 'border-color 0.2s',
-  };
-
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 160px)', padding: '2rem 1rem' }}>
-      <div className="fade-in" style={{ width: '100%', maxWidth: '420px' }}>
+    <div className="auth-shell">
+      <div className="auth-card fade-in">
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', marginBottom: '1rem' }}>
-            <span style={{ background: 'linear-gradient(135deg,#6366f1,#f43f5e)', borderRadius: '0.625rem', padding: '0.4rem 0.7rem', color: '#fff', fontSize: '1.1rem', fontWeight: 800 }}>%</span>
+          <Link href="/" className="brand-mark" style={{ marginBottom: '1rem' }}>
+            <span className="brand-badge">%</span>
             <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>DealFinder</span>
           </Link>
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: '0.5rem 0 0.25rem' }}>Welcome back</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Sign in to your account</p>
         </div>
 
-        <div className="promotion-card" style={{ padding: '1.5rem' }}>
+        <div className="auth-panel">
 
           {/* Google Sign-In */}
           <div style={{ marginBottom: '1.25rem' }}>
@@ -134,7 +127,7 @@ export default function LoginPage() {
             <div style={{ width: '100%', minHeight: '44px', position: 'relative' }}>
               {/* Placeholder - hidden once Google renders */}
               {!googleReady && (
-                <div style={{ width: '100%', height: '44px', borderRadius: '0.5rem', background: 'var(--light-gray)', border: '1.5px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+                <div style={{ width: '100%', height: '44px', borderRadius: '0.9rem', background: 'rgba(255,255,255,0.82)', border: '1px solid rgba(148,163,184,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                   <i className="fab fa-google" style={{ fontSize: '1rem' }}></i>
                   Sign in with Google
                 </div>
@@ -158,9 +151,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.4rem', color: 'var(--text-primary)' }}>Email Address</label>
               <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
-                style={inputStyle} placeholder="you@example.com" required autoComplete="email"
-                onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')}
-                onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
+                className="modern-input" placeholder="you@example.com" required autoComplete="email" />
             </div>
 
             <div style={{ marginBottom: '1.25rem' }}>
@@ -171,9 +162,7 @@ export default function LoginPage() {
               <div style={{ position: 'relative' }}>
                 <input type={showPassword ? 'text' : 'password'} value={formData.password}
                   onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  style={{ ...inputStyle, paddingRight: '2.75rem' }} placeholder="••••••••" required autoComplete="current-password"
-                  onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
+                  className="modern-input" style={{ paddingRight: '2.75rem' }} placeholder="••••••••" required autoComplete="current-password" />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   style={{ position: 'absolute', right: '0.875rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}>
                   <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
@@ -197,7 +186,7 @@ export default function LoginPage() {
               ].map(d => (
                 <button key={d.label} type="button"
                   onClick={() => setFormData({ email: d.email, password: d.pass })}
-                  style={{ flex: 1, padding: '0.5rem 0.25rem', borderRadius: '0.625rem', border: `1.5px solid ${d.border}`, background: d.bg, color: d.color, fontWeight: 600, cursor: 'pointer', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+                  style={{ flex: 1, padding: '0.6rem 0.35rem', borderRadius: '0.9rem', border: `1px solid ${d.border}`, background: d.bg, color: d.color, fontWeight: 600, cursor: 'pointer', fontSize: '0.78rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
                   <i className={`fas ${d.icon}`}></i> {d.label}
                 </button>
               ))}

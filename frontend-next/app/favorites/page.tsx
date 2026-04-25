@@ -30,11 +30,11 @@ export default function FavoritesPage() {
         icon="fa-heart"
         title="My Favorites"
         subtitle={loading ? 'Loading...' : `${favorites.length} saved deal${favorites.length !== 1 ? 's' : ''}`}
-        gradient="linear-gradient(135deg, rgba(244,63,94,0.92) 0%, rgba(236,72,153,0.88) 50%, rgba(139,92,246,0.85) 100%)"
+        gradient="linear-gradient(135deg, rgba(37,99,235,0.92) 0%, rgba(236,72,153,0.82) 52%, rgba(245,158,11,0.82) 100%)"
         bgImage="https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&auto=format&fit=crop&q=60"
       />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="page-shell">
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
@@ -44,10 +44,10 @@ export default function FavoritesPage() {
             {favorites.map(p => <PromotionCard key={p._id || p.id} promotion={p} onFavoriteToggle={handleFavoriteToggle} />)}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>💔</div>
-            <h2 style={{ fontWeight: 700, marginBottom: '0.5rem' }}>No favorites yet</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Click the ❤️ on any deal to save it here</p>
+          <div className="empty-state">
+            <div className="empty-icon"><i className="fas fa-heart-crack"></i></div>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No favorites yet</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Save the deals you want to come back to, and they’ll appear here.</p>
             <Link href="/categories/all" className="btn btn-primary"><i className="fas fa-search"></i> Browse All Deals</Link>
           </div>
         )}

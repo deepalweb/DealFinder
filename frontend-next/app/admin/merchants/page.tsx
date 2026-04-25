@@ -50,8 +50,6 @@ export default function AdminMerchantsPage() {
   };
 
   const getSafeLogo = (logo: string, name: string) => (logo && (logo.startsWith('data:') || logo.startsWith('http'))) ? logo : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=100`;
-  const inputStyle = { padding:'0.5rem 0.875rem', borderRadius:'0.625rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--text-primary)', fontSize:'0.875rem', outline:'none' };
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -63,7 +61,7 @@ export default function AdminMerchantsPage() {
 
       {/* Pending alert */}
       {merchants.filter(m => m.status === 'pending_approval').length > 0 && (
-        <div style={{ padding:'0.875rem 1.25rem', borderRadius:'0.875rem', background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.25)', marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'0.75rem' }}>
+        <div className="surface-panel panel-pad" style={{ marginBottom:'1.25rem', display:'flex', alignItems:'center', gap:'0.75rem', background:'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(249,115,22,0.08))', borderColor:'rgba(245,158,11,0.25)' }}>
           <i className="fas fa-clock" style={{ color:'#f59e0b' }}></i>
           <span style={{ fontSize:'0.875rem', color:'#92400e', fontWeight:500 }}>
             {merchants.filter(m => m.status === 'pending_approval').length} merchant(s) waiting for approval
@@ -75,12 +73,12 @@ export default function AdminMerchantsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 mb-5">
-        <div style={{ position:'relative', flex:1, maxWidth:'400px' }}>
-          <i className="fas fa-search" style={{ position:'absolute', left:'0.875rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', pointerEvents:'none' }}></i>
-          <input style={{ ...inputStyle, width:'100%', paddingLeft:'2.5rem', boxSizing:'border-box' }} placeholder="Search merchants..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="glass-toolbar mb-5">
+        <div className="input-with-icon toolbar-grow" style={{ maxWidth:'400px' }}>
+          <i className="fas fa-search"></i>
+          <input className="modern-input" placeholder="Search merchants..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select style={inputStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+        <select className="modern-select" style={{ maxWidth:'190px' }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="pending_approval">Pending Approval</option>
@@ -94,26 +92,20 @@ export default function AdminMerchantsPage() {
       </div>
 
       {/* Table */}
-      <div className="promotion-card overflow-hidden">
+      <div className="surface-panel overflow-hidden">
         <div className="overflow-x-auto">
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead>
-              <tr style={{ background:'var(--light-gray)', borderBottom:'1.5px solid var(--border-color)' }}>
-                {['Merchant','Deals','Status','Actions'].map(h => (
-                  <th key={h} style={{ padding:'0.75rem 1rem', textAlign:h==='Actions'?'right':'left', fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <table className="data-table">
+            <thead><tr>{['Merchant','Deals','Status','Actions'].map(h => (
+              <th key={h} style={{ textAlign:h==='Actions'?'right':'left' }}>{h}</th>
+            ))}</tr></thead>
             <tbody>
               {loading ? Array.from({ length:5 }).map((_,i) => (
                 <tr key={i}><td colSpan={4} style={{ padding:'0.75rem 1rem' }}><div className="skeleton" style={{ height:'20px' }}></div></td></tr>
               )) : filtered.length === 0 ? (
                 <tr><td colSpan={4} style={{ padding:'3rem', textAlign:'center', color:'var(--text-secondary)' }}>No merchants found</td></tr>
               ) : filtered.map(m => (
-                <tr key={m._id} style={{ borderBottom:'1px solid var(--border-color)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--light-gray)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding:'0.75rem 1rem' }}>
+                <tr key={m._id}>
+                  <td>
                     <div className="flex items-center gap-3">
                       <img src={getSafeLogo(m.logo, m.name)} alt={m.name} style={{ width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', flexShrink:0, border:'1px solid var(--border-color)' }}
                         onError={(e:any) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=random&size=100`; }} />
@@ -123,7 +115,7 @@ export default function AdminMerchantsPage() {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding:'0.75rem 1rem' }}>
+                  <td>
                     <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
                       <span style={{ fontSize:'0.875rem', fontWeight:700, color: m.promotions?.length > 0 ? 'var(--text-primary)' : '#94a3b8' }}>
                         {m.promotions?.length || 0}
@@ -134,12 +126,12 @@ export default function AdminMerchantsPage() {
                       )}
                     </div>
                   </td>
-                  <td style={{ padding:'0.75rem 1rem' }}>
-                    <span style={{ padding:'0.2rem 0.6rem', borderRadius:'9999px', fontSize:'0.75rem', fontWeight:700, background: STATUS_STYLES[m.status]?.bg || 'var(--light-gray)', color: STATUS_STYLES[m.status]?.color || 'var(--text-secondary)' }}>
+                  <td>
+                    <span className="status-chip" style={{ background: STATUS_STYLES[m.status]?.bg || 'var(--light-gray)', color: STATUS_STYLES[m.status]?.color || 'var(--text-secondary)' }}>
                       {m.status?.replace(/_/g,' ') || 'active'}
                     </span>
                   </td>
-                  <td style={{ padding:'0.75rem 1rem', textAlign:'right' }}>
+                  <td style={{ textAlign:'right' }}>
                     <div className="flex justify-end gap-2 flex-wrap">
                       {m.status === 'pending_approval' && (
                         <>

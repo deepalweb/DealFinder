@@ -45,8 +45,6 @@ export default function AdminUsersPage() {
     try { await UserAPI.updateProfile(editUser._id, { role: editRole }); setUsers(prev => prev.map(u => u._id === editUser._id ? { ...u, role: editRole } : u)); setEditUser(null); toast.success('User updated.'); } catch { toast.error('Failed to update user.'); } finally { setSaving(false); }
   };
 
-  const inputStyle = { padding:'0.5rem 0.875rem', borderRadius:'0.625rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--text-primary)', fontSize:'0.875rem', outline:'none' };
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -57,12 +55,12 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 mb-5">
-        <div style={{ position:'relative', flex:1, maxWidth:'400px' }}>
-          <i className="fas fa-search" style={{ position:'absolute', left:'0.875rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', pointerEvents:'none' }}></i>
-          <input style={{ ...inputStyle, width:'100%', paddingLeft:'2.5rem', boxSizing:'border-box' }} placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="glass-toolbar mb-5">
+        <div className="input-with-icon toolbar-grow" style={{ maxWidth:'400px' }}>
+          <i className="fas fa-search"></i>
+          <input className="modern-input" placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select style={inputStyle} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+        <select className="modern-select" style={{ maxWidth:'180px' }} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
           <option value="all">All Roles</option>
           <option value="user">Users</option>
           <option value="merchant">Merchants</option>
@@ -71,16 +69,12 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Table */}
-      <div className="promotion-card overflow-hidden">
+      <div className="surface-panel overflow-hidden">
         <div className="overflow-x-auto">
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <thead>
-              <tr style={{ background:'var(--light-gray)', borderBottom:'1.5px solid var(--border-color)' }}>
-                {['User','Email','Role','Joined','Actions'].map(h => (
-                  <th key={h} style={{ padding:'0.75rem 1rem', textAlign:h==='Actions'?'right':'left', fontSize:'0.75rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.05em' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
+          <table className="data-table">
+            <thead><tr>{['User','Email','Role','Joined','Actions'].map(h => (
+              <th key={h} style={{ textAlign:h==='Actions'?'right':'left' }}>{h}</th>
+            ))}</tr></thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
@@ -89,27 +83,25 @@ export default function AdminUsersPage() {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={5} style={{ padding:'3rem', textAlign:'center', color:'var(--text-secondary)' }}>No users found</td></tr>
               ) : filtered.map(u => (
-                <tr key={u._id} style={{ borderBottom:'1px solid var(--border-color)' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--light-gray)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <td style={{ padding:'0.75rem 1rem' }}>
+                <tr key={u._id}>
+                  <td>
                     <div className="flex items-center gap-3">
-                      <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:'linear-gradient(135deg,#6366f1,#f43f5e)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:'0.8rem', flexShrink:0 }}>
+                      <div style={{ width:'36px', height:'36px', borderRadius:'50%', background:'var(--primary-gradient)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:'0.8rem', flexShrink:0 }}>
                         {u.name?.charAt(0).toUpperCase()}
                       </div>
                       <span style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-primary)' }}>{u.name}</span>
                     </div>
                   </td>
-                  <td style={{ padding:'0.75rem 1rem', fontSize:'0.875rem', color:'var(--text-secondary)' }}>{u.email}</td>
-                  <td style={{ padding:'0.75rem 1rem' }}>
-                    <span style={{ padding:'0.2rem 0.6rem', borderRadius:'9999px', fontSize:'0.75rem', fontWeight:700, background: ROLE_COLORS[u.role]?.bg || 'var(--light-gray)', color: ROLE_COLORS[u.role]?.color || 'var(--text-secondary)' }}>
+                  <td style={{ fontSize:'0.875rem', color:'var(--text-secondary)' }}>{u.email}</td>
+                  <td>
+                    <span className="status-chip" style={{ background: ROLE_COLORS[u.role]?.bg || 'var(--light-gray)', color: ROLE_COLORS[u.role]?.color || 'var(--text-secondary)' }}>
                       {u.role}
                     </span>
                   </td>
-                  <td style={{ padding:'0.75rem 1rem', fontSize:'0.8rem', color:'var(--text-secondary)' }}>
+                  <td style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>
                     {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—'}
                   </td>
-                  <td style={{ padding:'0.75rem 1rem', textAlign:'right' }}>
+                  <td style={{ textAlign:'right' }}>
                     <div className="flex justify-end gap-2">
                       <button onClick={() => { setEditUser(u); setEditRole(u.role); }} style={{ padding:'0.3rem 0.75rem', borderRadius:'0.5rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--primary-color)', fontSize:'0.8rem', fontWeight:600, cursor:'pointer' }}>
                         <i className="fas fa-edit"></i> Edit
@@ -131,14 +123,14 @@ export default function AdminUsersPage() {
       {/* Edit Modal */}
       {editUser && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, backdropFilter:'blur(4px)' }}>
-          <div style={{ background:'var(--card-bg)', borderRadius:'1.25rem', width:'100%', maxWidth:'400px', padding:'1.5rem', boxShadow:'0 24px 64px rgba(0,0,0,0.3)' }}>
+          <div className="surface-panel panel-pad" style={{ width:'100%', maxWidth:'400px', boxShadow:'0 24px 64px rgba(0,0,0,0.3)' }}>
             <h3 style={{ fontWeight:800, fontSize:'1.1rem', color:'var(--text-primary)', marginBottom:'1.25rem' }}>Edit User Role</h3>
             <div style={{ padding:'0.875rem', borderRadius:'0.75rem', background:'var(--light-gray)', marginBottom:'1.25rem' }}>
               <p style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-primary)', margin:0 }}>{editUser.name}</p>
               <p style={{ fontSize:'0.8rem', color:'var(--text-secondary)', margin:'0.2rem 0 0' }}>{editUser.email}</p>
             </div>
             <label style={{ display:'block', fontSize:'0.85rem', fontWeight:600, marginBottom:'0.4rem', color:'var(--text-primary)' }}>Role</label>
-            <select value={editRole} onChange={e => setEditRole(e.target.value)} style={{ ...inputStyle, width:'100%', marginBottom:'1.25rem', boxSizing:'border-box' as const }}>
+            <select value={editRole} onChange={e => setEditRole(e.target.value)} className="modern-select" style={{ width:'100%', marginBottom:'1.25rem', boxSizing:'border-box' as const }}>
               <option value="user">User</option>
               <option value="merchant">Merchant</option>
               <option value="admin">Admin</option>
