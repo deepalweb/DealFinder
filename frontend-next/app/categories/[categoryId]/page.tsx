@@ -47,6 +47,12 @@ function getDiscountValue(discount: Promotion['discount']) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+function getDateValue(value?: string) {
+  if (!value) return 0;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
 export default function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const router = useRouter();
@@ -71,14 +77,14 @@ export default function CategoryPage() {
   }, [promotions]);
 
   const quickStats = useMemo(() => {
-    const liveDeals = promotions.filter((promotion) => new Date(promotion.endDate) >= new Date());
+    const liveDeals = promotions.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
     const visibleDeals = categoryId === 'all'
       ? liveDeals
       : liveDeals.filter((promotion) => promotion.category === categoryId);
     const merchantCount = new Set(visibleDeals.map((promotion) => getMerchantName(promotion))).size;
     const featuredCount = visibleDeals.filter((promotion) => promotion.featured).length;
     const endingSoonCount = visibleDeals.filter((promotion) => {
-      const timeLeft = new Date(promotion.endDate || 0).getTime() - currentTimestamp;
+      const timeLeft = getDateValue(promotion.endDate) - currentTimestamp;
       return timeLeft >= 0 && timeLeft <= 3 * 24 * 60 * 60 * 1000;
     }).length;
 
@@ -99,7 +105,7 @@ export default function CategoryPage() {
   const filtered = useMemo(() => {
     let result = [...promotions];
     if (categoryId !== 'all') result = result.filter(p => p.category === categoryId);
-    if (activeOnly) result = result.filter(p => new Date(p.endDate) >= new Date());
+    if (activeOnly) result = result.filter(p => getDateValue(p.endDate) >= currentTimestamp);
     if (searchTerm) {
       const t = searchTerm.toLowerCase();
       result = result.filter(p =>
@@ -108,12 +114,12 @@ export default function CategoryPage() {
         getMerchantName(p).toLowerCase().includes(t)
       );
     }
-    if (sortBy === 'newest') result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    else if (sortBy === 'ending-soon') result.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+    if (sortBy === 'newest') result.sort((a, b) => getDateValue(b.createdAt) - getDateValue(a.createdAt));
+    else if (sortBy === 'ending-soon') result.sort((a, b) => getDateValue(a.endDate) - getDateValue(b.endDate));
     else if (sortBy === 'highest-discount') result.sort((a, b) => getDiscountValue(b.discount) - getDiscountValue(a.discount));
     else if (sortBy === 'merchant') result.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
     return result;
-  }, [promotions, categoryId, searchTerm, sortBy, activeOnly]);
+  }, [promotions, categoryId, searchTerm, sortBy, activeOnly, currentTimestamp]);
 
   const featuredVisible = filtered.filter((promotion) => promotion.featured).length;
   const showingLabel = loading
