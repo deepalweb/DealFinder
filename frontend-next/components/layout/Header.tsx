@@ -2,32 +2,27 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import Image from 'next/image';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import NotificationBell from '@/components/ui/NotificationBell';
 
 export default function Header() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setMounted(true);
     const saved = localStorage.getItem('df-theme');
     if (saved === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
-      setIsDark(true);
     }
   }, []);
-
-  useEffect(() => {
-    setMenuOpen(false);
-    setUserMenuOpen(false);
-  }, [pathname]);
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -53,18 +48,20 @@ export default function Header() {
   };
 
   const navLinks = [
-    { href: '/', icon: 'fa-house', label: 'Home' },
-    { href: '/categories/all', icon: 'fa-tags', label: 'Deals' },
-    { href: '/merchants', icon: 'fa-store', label: 'Stores' },
-    { href: '/favorites', icon: 'fa-heart', label: 'Favorites' },
-    { href: '/nearby', icon: 'fa-location-dot', label: 'Nearby' },
+    { href: '/categories/all', icon: 'fa-tags', label: 'Categories' },
+    { href: '/favorites', icon: 'fa-heart', label: 'Saved' },
   ];
-
-  const quickLabel = user ? `Welcome back, ${user.name.split(' ')[0]}` : 'Fresh offers updated daily';
 
   const getSafeImage = (url?: string, name?: string) => {
     if (url && (url.startsWith('data:image') || url.startsWith('http'))) return url;
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&size=100`;
+  };
+
+  const submitSearch = () => {
+    const trimmed = searchQuery.trim();
+    setMenuOpen(false);
+    setUserMenuOpen(false);
+    router.push(trimmed ? `/categories/all?q=${encodeURIComponent(trimmed)}` : '/categories/all');
   };
 
   const userMenuItems = user
@@ -82,57 +79,15 @@ export default function Header() {
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: 'color-mix(in srgb, var(--header-bg) 92%, transparent)',
+        background: 'color-mix(in srgb, var(--header-bg) 94%, transparent)',
         backdropFilter: 'blur(18px)',
         borderBottom: '1px solid color-mix(in srgb, var(--border-color) 78%, transparent)',
-        boxShadow: '0 16px 36px rgba(37, 99, 235, 0.12)',
+        boxShadow: '0 12px 28px rgba(15, 23, 42, 0.08)',
       }}
     >
-      <div
-        style={{
-          borderBottom: '1px solid color-mix(in srgb, var(--border-color) 68%, transparent)',
-          background: 'linear-gradient(90deg, rgba(37,99,235,0.12), rgba(56,189,248,0.12), rgba(245,158,11,0.1))',
-        }}
-      >
-        <div
-          className="max-w-7xl mx-auto px-4"
-          style={{
-            minHeight: '2.2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            fontSize: '0.76rem',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
-            <span
-              style={{
-                width: '0.5rem',
-                height: '0.5rem',
-                borderRadius: '999px',
-                background: 'var(--primary-color)',
-                boxShadow: '0 0 0 4px rgba(37,99,235,0.12)',
-                flexShrink: 0,
-              }}
-            />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{quickLabel}</span>
-          </div>
-          <div className="hidden md:flex" style={{ alignItems: 'center', gap: '1rem' }}>
-            <Link href="/categories/all" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 600 }}>
-              Explore every category
-            </Link>
-            <Link href="/contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 600 }}>
-              Contact support
-            </Link>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
             <Link
               href="/"
               style={{
@@ -180,18 +135,65 @@ export default function Header() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  Smarter deal discovery across Sri Lanka
+                  Search-first deal discovery
                 </span>
               </span>
             </Link>
 
-            <nav className="hidden lg:flex items-center gap-2">
+            <div className="hidden lg:flex" style={{ flex: 1, minWidth: 0, maxWidth: '34rem' }}>
+              <div
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.65rem',
+                  padding: '0.45rem 0.55rem 0.45rem 0.9rem',
+                  borderRadius: '999px',
+                  background: 'var(--card-bg)',
+                  border: '1px solid var(--border-color)',
+                  boxShadow: 'var(--box-shadow)',
+                }}
+              >
+                <i className="fas fa-search" style={{ color: 'var(--text-secondary)' }}></i>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') submitSearch();
+                  }}
+                  placeholder="Search deals..."
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.95rem',
+                  }}
+                />
+                <button
+                  onClick={submitSearch}
+                  className="btn btn-primary"
+                  style={{ padding: '0.7rem 0.95rem', borderRadius: '999px' }}
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+
+            <nav className="hidden xl:flex items-center gap-2">
               {navLinks.map(({ href, icon, label }) => {
                 const active = isActive(href);
                 return (
                   <Link
                     key={href}
                     href={href}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setUserMenuOpen(false);
+                    }}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -216,32 +218,29 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
-            {mounted && user && <NotificationBell />}
+            {user && <NotificationBell />}
 
-            {mounted && (
-              <button
-                onClick={toggleDark}
-                title={isDark ? 'Light mode' : 'Dark mode'}
-                style={{
-                  width: '2.5rem',
-                  height: '2.5rem',
-                  borderRadius: '999px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--card-bg)',
-                  color: 'var(--text-secondary)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: 'var(--box-shadow)',
-                }}
-              >
-                <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
-              </button>
-            )}
+            <button
+              onClick={toggleDark}
+              title={isDark ? 'Light mode' : 'Dark mode'}
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: '999px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--card-bg)',
+                color: 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: 'var(--box-shadow)',
+              }}
+            >
+              <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
+            </button>
 
-            {mounted &&
-              (user ? (
+            {user ? (
                 <div className="hidden md:block relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -269,16 +268,19 @@ export default function Header() {
                       style={{
                         width: '2.25rem',
                         height: '2.25rem',
+                        position: 'relative',
                         borderRadius: '999px',
                         overflow: 'hidden',
                         border: '2px solid rgba(37,99,235,0.16)',
                         flexShrink: 0,
                       }}
                     >
-                      <img
+                      <Image
                         src={getSafeImage(user.profilePicture, user.name)}
                         alt="Profile"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        fill
+                        sizes="36px"
+                        style={{ objectFit: 'cover' }}
                       />
                     </span>
                   </button>
@@ -313,6 +315,7 @@ export default function Header() {
                           <Link
                             key={item.href}
                             href={item.href}
+                            onClick={() => setUserMenuOpen(false)}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -364,6 +367,7 @@ export default function Header() {
                 <div className="hidden md:flex items-center gap-2">
                   <Link
                     href="/login"
+                    onClick={() => setMenuOpen(false)}
                     style={{
                       padding: '0.72rem 0.95rem',
                       borderRadius: '999px',
@@ -376,6 +380,7 @@ export default function Header() {
                   </Link>
                   <Link
                     href="/register"
+                    onClick={() => setMenuOpen(false)}
                     className="btn"
                     style={{
                       background: 'var(--primary-gradient)',
@@ -388,7 +393,7 @@ export default function Header() {
                     Create Account
                   </Link>
                 </div>
-              ))}
+              )}
 
             <button
               className="lg:hidden"
@@ -431,6 +436,7 @@ export default function Header() {
                   <Link
                     key={href}
                     href={href}
+                    onClick={() => setMenuOpen(false)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -457,12 +463,52 @@ export default function Header() {
                 borderTop: '1px solid var(--border-color)',
               }}
             >
-              {mounted && user ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.55rem',
+                  borderRadius: '1rem',
+                  background: 'var(--light-gray)',
+                  marginBottom: '1rem',
+                }}
+              >
+                <i className="fas fa-search" style={{ color: 'var(--text-secondary)', paddingLeft: '0.35rem' }}></i>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') submitSearch();
+                  }}
+                  placeholder="Search deals..."
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.95rem',
+                  }}
+                />
+                <button
+                  onClick={submitSearch}
+                  className="btn btn-primary"
+                  style={{ padding: '0.7rem 0.9rem' }}
+                >
+                  Go
+                </button>
+              </div>
+
+              {user ? (
                 <div className="grid grid-cols-1 gap-2">
                   {userMenuItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={() => setMenuOpen(false)}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -502,6 +548,7 @@ export default function Header() {
                 <div className="grid grid-cols-2 gap-2">
                   <Link
                     href="/login"
+                    onClick={() => setMenuOpen(false)}
                     className="btn"
                     style={{
                       justifyContent: 'center',
@@ -514,6 +561,7 @@ export default function Header() {
                   </Link>
                   <Link
                     href="/register"
+                    onClick={() => setMenuOpen(false)}
                     className="btn"
                     style={{
                       justifyContent: 'center',

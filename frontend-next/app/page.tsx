@@ -8,191 +8,152 @@ import SkeletonCard from '@/components/ui/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 
-const CATEGORIES = [
-  { id: 'all', name: 'All Deals', icon: 'fa-layer-group', note: 'Browse every active offer' },
-  { id: 'food', name: 'Food & Dining', icon: 'fa-utensils', note: 'Restaurants, cafes, takeaway' },
-  { id: 'supermarkets', name: 'Supermarkets', icon: 'fa-cart-shopping', note: 'Daily savings and essentials' },
-];
-
-const VALUE_POINTS = [
-  {
-    icon: 'fa-location-crosshairs',
-    title: 'Nearby discovery',
-    text: 'Surface offers around you without digging through outdated posts and scattered pages.',
-  },
-  {
-    icon: 'fa-bolt',
-    title: 'Fresh daily updates',
-    text: 'Featured and latest deals stay visible in one place so your best offers are easy to scan.',
-  },
-  {
-    icon: 'fa-heart',
-    title: 'Personal shortlist',
-    text: 'Save favorites, revisit merchants quickly, and keep the offers worth tracking close by.',
-  },
-];
-
-export default function HomePage() {
-  const router = useRouter();
-  const { user } = useAuth();
-  const [featured, setFeatured] = useState<any[]>([]);
-  const [latest, setLatest] = useState<any[]>([]);
-  const [nearby, setNearby] = useState<any[]>([]);
-  const [allPromotions, setAllPromotions] = useState<any[]>([]);
-  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [loadingDeals, setLoadingDeals] = useState(true);
-  const [loadingNearby, setLoadingNearby] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMoreLatest, setHasMoreLatest] = useState(true);
-  const [latestCount, setLatestCount] = useState(8);
-  const [locationError, setLocationError] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        invalidateCache('promotions');
-
-        const homepagePromise: Promise<{ featured: any[]; latest: any[] }> = PromotionAPI.getHomepage().catch(() => {
-          return PromotionAPI.getAll({ limit: 20 }).then((data: any[]) => ({
-            featured: data.filter((promotion: any) => promotion.featured).slice(0, 6),
-            latest: data,
-          }));
-        });
-
-        let favoritesData: any[] = [];
-        if (user) {
-          const cacheKey = `favorites_${user._id}`;
-          const cached = localStorage.getItem(cacheKey);
-          const cacheTime = localStorage.getItem(`${cacheKey}_time`);
-          const now = Date.now();
-
-          if (cached && cacheTime && now - parseInt(cacheTime, 10) < 5 * 60 * 1000) {
-            favoritesData = JSON.parse(cached);
-          } else {
-            favoritesData = await UserAPI.getFavorites(user._id).catch(() => []);
-            localStorage.setItem(cacheKey, JSON.stringify(favoritesData));
-            localStorage.setItem(`${cacheKey}_time`, now.toString());
-          }
-        }
-
-        const homepageData = await homepagePromise;
-        setFeatured(homepageData.featured);
-        setLatest(homepageData.latest);
-        setAllPromotions(homepageData.latest);
-        setHasMoreLatest(homepageData.latest.length >= 20);
-
-        if (favoritesData.length > 0) {
-          setFavoriteIds(new Set(favoritesData.map((favorite: any) => favorite._id || favorite.id)));
-        }
-      } catch (error) {
-        console.error('Failed to load deals:', error);
-        toast.error('Failed to load deals.');
-      } finally {
-        setLoadingDeals(false);
-      }
+type Promotion = {
+  _id?: string;
+  id?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  discount?: string | number;
+  featured?: boolean;
+  url?: string;
+  image?: string;
+  createdAt?: string;
+  endDate?: string;
+  merchant?: string | {
+    _id?: string;
+    name?: string;
+    location?: {
+      coordinates?: [number, number];
     };
-
-    fetchData();
-
-    if (navigator.geolocation) {
-      setLoadingNearby(true);
-      navigator.geolocation.getCurrentPosition(
-        ({ coords }) => {
-          setUserLocation({ lat: coords.latitude, lon: coords.longitude });
-          PromotionAPI.getNearby(coords.latitude, coords.longitude, 10)
-            .then((data) => {
-              const sorted = [...data].sort(
-                (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              );
-              setNearby(sorted);
-            })
-            .catch(() => setLocationError('Could not fetch nearby deals right now.'))
-            .finally(() => setLoadingNearby(false));
-        },
-        (err) => {
-          const messages: Record<number, string> = {
-            1: 'Location permission denied.',
-            2: 'Location unavailable.',
-            3: 'Location timed out.',
-          };
-          setLocationError(messages[err.code] || 'Could not get location.');
-          setLoadingNearby(false);
-        }
-      );
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!searchTerm.trim()) {
-        setIsSearching(false);
-        setSearchResults([]);
-        return;
-      }
-
-      const term = searchTerm.toLowerCase();
-      setIsSearching(true);
-      setSearchResults(
-        allPromotions.filter((promotion: any) => {
-          const merchantName =
-            typeof promotion.merchant === 'object' ? promotion.merchant?.name : promotion.merchant;
-
-          return (
-            promotion.title?.toLowerCase().includes(term) ||
-            promotion.description?.toLowerCase().includes(term) ||
-            merchantName?.toLowerCase().includes(term)
-          );
-        })
-      );
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchTerm, allPromotions]);
-
-  const loadMoreLatest = async () => {
-    if (loadingMore || !hasMoreLatest) return;
-
-    setLoadingMore(true);
-    try {
-      const moreDeals = await PromotionAPI.getAll({ limit: 20, skip: latest.length });
-      if (moreDeals.length > 0) {
-        setLatest((current) => [...current, ...moreDeals]);
-        setAllPromotions((current) => [...current, ...moreDeals]);
-        setHasMoreLatest(moreDeals.length >= 20);
-      } else {
-        setHasMoreLatest(false);
-      }
-    } catch {
-      toast.error('Failed to load more deals.');
-    } finally {
-      setLoadingMore(false);
-    }
   };
+};
 
-  const stats = useMemo(() => {
-    const merchantCount = new Set(
-      allPromotions.map((promotion: any) =>
-        typeof promotion.merchant === 'object' ? promotion.merchant?._id : promotion.merchant
-      )
-    ).size;
+type FavoritePromotion = Promotion;
 
-    return [
-      { value: `${allPromotions.length}+`, label: 'Active deals' },
-      { value: `${merchantCount}+`, label: 'Trusted merchants' },
-      { value: nearby.length > 0 ? `${nearby.length}` : 'Live', label: 'Nearby picks' },
-    ];
-  }, [allPromotions, nearby]);
+const CATEGORIES = [
+  { id: 'electronics', name: 'Electronics', icon: 'fa-laptop' },
+  { id: 'fashion', name: 'Fashion', icon: 'fa-shirt' },
+  { id: 'food', name: 'Food', icon: 'fa-utensils' },
+  { id: 'travel', name: 'Travel', icon: 'fa-plane' },
+  { id: 'health', name: 'Health', icon: 'fa-heart-pulse' },
+  { id: 'home', name: 'Home', icon: 'fa-house' },
+  { id: 'entertainment', name: 'Entertainment', icon: 'fa-gamepad' },
+  { id: 'all', name: 'More', icon: 'fa-ellipsis' },
+];
 
-  const DealGrid = ({ deals }: { deals: any[] }) => (
+function getPromotionId(promotion: Promotion) {
+  return promotion._id || promotion.id || '';
+}
+
+function getMerchantName(promotion: Promotion) {
+  return typeof promotion.merchant === 'object' ? promotion.merchant?.name || 'Unknown Merchant' : promotion.merchant || 'Unknown Merchant';
+}
+
+function getMerchantId(promotion: Promotion) {
+  return typeof promotion.merchant === 'object' ? promotion.merchant?._id || promotion.merchant?.name || '' : promotion.merchant || '';
+}
+
+function getDiscountValue(discount: Promotion['discount']) {
+  const numeric = Number.parseFloat(String(discount ?? '').replace(/[^\d.]/g, ''));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function getTimestamp(value?: string) {
+  const time = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function isActiveDeal(promotion: Promotion, now: number) {
+  return getTimestamp(promotion.endDate) >= now;
+}
+
+function scoreRecommendation(
+  promotion: Promotion,
+  favoriteMerchantIds: Set<string>,
+  favoriteCategories: Set<string>,
+  now: number
+) {
+  let score = 0;
+
+  if (promotion.featured) score += 30;
+  if (favoriteCategories.has(promotion.category || '')) score += 35;
+  if (favoriteMerchantIds.has(getMerchantId(promotion))) score += 40;
+  score += Math.min(getDiscountValue(promotion.discount), 60);
+
+  const daysLeft = Math.ceil((getTimestamp(promotion.endDate) - now) / 86400000);
+  if (daysLeft >= 0 && daysLeft <= 3) score += 16;
+
+  return score;
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  icon,
+  meta,
+  actionLabel,
+  onAction,
+  accent,
+}: {
+  eyebrow: string;
+  title: string;
+  icon: string;
+  meta?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  accent?: string;
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'end',
+        gap: '1rem',
+        flexWrap: 'wrap',
+        marginBottom: '1.4rem',
+      }}
+    >
+      <div>
+        <div style={{ color: accent || 'var(--primary-color)', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase' }}>
+          {eyebrow}
+        </div>
+        <h2 className="section-title" style={{ marginBottom: 0 }}>
+          <i className={`fas ${icon}`} style={{ color: accent || 'var(--primary-color)' }}></i>
+          {title}
+        </h2>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        {meta ? <span style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>{meta}</span> : null}
+        {actionLabel && onAction ? (
+          <button
+            onClick={onAction}
+            className="btn"
+            style={{
+              background: 'var(--card-bg)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            {actionLabel}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function DealGrid({
+  deals,
+  favoriteIds,
+  onFavoriteToggle,
+}: {
+  deals: Promotion[];
+  favoriteIds: Set<string>;
+  onFavoriteToggle: (id: string, isFav: boolean) => void;
+}) {
+  return (
     <div
       style={{
         display: 'grid',
@@ -202,29 +163,201 @@ export default function HomePage() {
     >
       {deals.map((promotion) => (
         <PromotionCard
-          key={promotion._id || promotion.id}
+          key={getPromotionId(promotion)}
           promotion={promotion}
-          isFavorite={favoriteIds.has(promotion._id || promotion.id)}
-          onFavoriteToggle={(id, isFav) =>
-            setFavoriteIds((current) => {
-              const next = new Set(current);
-              if (isFav) next.add(id);
-              else next.delete(id);
-              return next;
-            })
-          }
+          isFavorite={favoriteIds.has(getPromotionId(promotion))}
+          onFavoriteToggle={onFavoriteToggle}
         />
       ))}
     </div>
   );
+}
 
-  const SkeletonGrid = ({ count }: { count: number }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+function SkeletonGrid({ count }: { count: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
       {Array.from({ length: count }).map((_, index) => (
         <SkeletonCard key={index} />
       ))}
     </div>
   );
+}
+
+export default function HomePage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [allPromotions, setAllPromotions] = useState<Promotion[]>([]);
+  const [favoriteDeals, setFavoriteDeals] = useState<FavoritePromotion[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [nearbyDeals, setNearbyDeals] = useState<Promotion[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loadingDeals, setLoadingDeals] = useState(true);
+  const [loadingNearby, setLoadingNearby] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [currentTimestamp] = useState(() => Date.now());
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        invalidateCache('promotions');
+        const promotionsPromise = PromotionAPI.getAll({ limit: 48 });
+        const favoritesPromise = user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([]);
+
+        const [promotionsData, favoritesData] = await Promise.all([promotionsPromise, favoritesPromise]);
+        const sortedPromotions = [...promotionsData].sort(
+          (a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt)
+        );
+
+        setAllPromotions(sortedPromotions);
+        setFavoriteDeals(favoritesData);
+        setFavoriteIds(new Set(favoritesData.map((favorite: Promotion) => getPromotionId(favorite))));
+      } catch (error) {
+        console.error('Failed to load homepage data:', error);
+        toast.error('Failed to load deals.');
+      } finally {
+        setLoadingDeals(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    setLoadingNearby(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        PromotionAPI.getNearby(coords.latitude, coords.longitude, 10)
+          .then((data: Promotion[]) => {
+            const sorted = [...data].sort((a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt));
+            setNearbyDeals(sorted);
+          })
+          .catch(() => setLocationError('Nearby deals are not available right now.'))
+          .finally(() => setLoadingNearby(false));
+      },
+      () => {
+        setLocationError('Location is off, so we are focusing on the best platform-wide deals instead.');
+        setLoadingNearby(false);
+      }
+    );
+  }, []);
+
+  const activePromotions = useMemo(
+    () => allPromotions.filter((promotion) => isActiveDeal(promotion, currentTimestamp)),
+    [allPromotions, currentTimestamp]
+  );
+
+  const featuredDeals = useMemo(
+    () =>
+      [...activePromotions]
+        .sort((a, b) => {
+          if (Boolean(a.featured) !== Boolean(b.featured)) return a.featured ? -1 : 1;
+          return getDiscountValue(b.discount) - getDiscountValue(a.discount);
+        })
+        .slice(0, 6),
+    [activePromotions]
+  );
+
+  const endingSoonDeals = useMemo(
+    () =>
+      [...activePromotions]
+        .sort((a, b) => getTimestamp(a.endDate) - getTimestamp(b.endDate))
+        .slice(0, 3),
+    [activePromotions]
+  );
+
+  const favoriteMerchantIds = useMemo(
+    () => new Set(favoriteDeals.map((promotion) => getMerchantId(promotion))),
+    [favoriteDeals]
+  );
+
+  const favoriteCategories = useMemo(
+    () => new Set(favoriteDeals.map((promotion) => promotion.category || '')),
+    [favoriteDeals]
+  );
+
+  const recommendedDeals = useMemo(() => {
+    const source = activePromotions.filter((promotion) => !favoriteIds.has(getPromotionId(promotion)));
+
+    if (favoriteDeals.length > 0) {
+      return [...source]
+        .sort(
+          (a, b) =>
+            scoreRecommendation(b, favoriteMerchantIds, favoriteCategories, currentTimestamp) -
+            scoreRecommendation(a, favoriteMerchantIds, favoriteCategories, currentTimestamp)
+        )
+        .slice(0, 3);
+    }
+
+    if (nearbyDeals.length > 0) return nearbyDeals.slice(0, 3);
+    return featuredDeals.slice(0, 3);
+  }, [activePromotions, currentTimestamp, favoriteCategories, favoriteDeals.length, favoriteIds, favoriteMerchantIds, featuredDeals, nearbyDeals]);
+
+  const featuredDeal = useMemo(() => {
+    const pool = featuredDeals.length > 0 ? featuredDeals : activePromotions;
+    return pool[0] || null;
+  }, [activePromotions, featuredDeals]);
+
+  const searchResults = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return [];
+
+    return activePromotions
+      .filter((promotion) => {
+        return (
+          promotion.title?.toLowerCase().includes(term) ||
+          promotion.description?.toLowerCase().includes(term) ||
+          promotion.category?.toLowerCase().includes(term) ||
+          getMerchantName(promotion).toLowerCase().includes(term)
+        );
+      })
+      .slice(0, 6);
+  }, [activePromotions, searchTerm]);
+
+  const savedPreview = useMemo(() => favoriteDeals.slice(0, 2), [favoriteDeals]);
+
+  const stats = useMemo(() => {
+    const merchantCount = new Set(activePromotions.map((promotion) => getMerchantId(promotion))).size;
+    return [
+      { label: 'Active deals', value: activePromotions.length },
+      { label: 'Merchants', value: merchantCount },
+      { label: 'Saved by you', value: favoriteDeals.length },
+    ];
+  }, [activePromotions, favoriteDeals.length]);
+
+  const handleFavoriteToggle = (id: string, isFav: boolean) => {
+    setFavoriteIds((current) => {
+      const next = new Set(current);
+      if (isFav) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const openDeals = (query?: string) => {
+    const trimmed = query?.trim();
+    router.push(trimmed ? `/categories/all?q=${encodeURIComponent(trimmed)}` : '/categories/all');
+  };
+
+  const compareRows = [
+    {
+      side: 'Other platforms',
+      icon: 'fa-xmark',
+      color: 'var(--danger-color)',
+      items: ['Endless scrolling', 'No clear best option', 'Too many tabs'],
+      background: 'rgba(220,38,38,0.06)',
+      border: 'rgba(220,38,38,0.12)',
+    },
+    {
+      side: 'DealFinder',
+      icon: 'fa-check',
+      color: 'var(--success-color)',
+      items: ['Smart deal ranking', 'Compare instantly', 'Save and track deals'],
+      background: 'rgba(22,163,74,0.08)',
+      border: 'rgba(22,163,74,0.14)',
+    },
+  ];
 
   return (
     <div>
@@ -233,7 +366,7 @@ export default function HomePage() {
           position: 'relative',
           overflow: 'hidden',
           background:
-            'radial-gradient(circle at top left, rgba(37,99,235,0.24), transparent 30%), radial-gradient(circle at top right, rgba(56,189,248,0.18), transparent 24%), radial-gradient(circle at bottom right, rgba(245,158,11,0.18), transparent 24%), linear-gradient(135deg, #0f172a 0%, #163b75 42%, #1d4ed8 100%)',
+            'radial-gradient(circle at top left, rgba(245,158,11,0.18), transparent 24%), radial-gradient(circle at top right, rgba(37,99,235,0.22), transparent 30%), linear-gradient(135deg, #07111f 0%, #0f2f5b 48%, #173f78 100%)',
           color: '#f8fafc',
         }}
       >
@@ -241,22 +374,13 @@ export default function HomePage() {
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage:
-              'url(https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=1600&q=80)',
+            backgroundImage: 'url(https://images.unsplash.com/photo-1515169067868-5387ec356754?auto=format&fit=crop&w=1600&q=80)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            opacity: 0.16,
+            opacity: 0.14,
           }}
         />
-        <div
-          className="max-w-7xl mx-auto px-4"
-          style={{
-            position: 'relative',
-            zIndex: 1,
-            paddingTop: '4.5rem',
-            paddingBottom: '4rem',
-          }}
-        >
+        <div className="max-w-7xl mx-auto px-4" style={{ position: 'relative', zIndex: 1, paddingTop: '4.5rem', paddingBottom: '4rem' }}>
           <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-8 items-center">
             <div>
               <div
@@ -265,52 +389,49 @@ export default function HomePage() {
                   alignItems: 'center',
                   gap: '0.5rem',
                   marginBottom: '1rem',
-                  padding: '0.45rem 0.85rem',
+                  padding: '0.45rem 0.9rem',
                   borderRadius: '999px',
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.14), rgba(255,255,255,0.07))',
-                  border: '1px solid rgba(255,255,255,0.18)',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.03em',
+                  background: 'rgba(255,255,255,0.12)',
+                  border: '1px solid rgba(255,255,255,0.14)',
+                  fontSize: '0.8rem',
+                  fontWeight: 800,
                   textTransform: 'uppercase',
                 }}
               >
-                    <i className="fas fa-bolt" style={{ color: '#f59e0b' }}></i>
-                Fresh offers from stores across Sri Lanka
+                <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i>
+                Search is the fastest path
               </div>
 
               <h1
                 style={{
-                  fontSize: 'clamp(2.4rem, 6vw, 4.6rem)',
+                  fontSize: 'clamp(2.4rem, 5.5vw, 4.8rem)',
                   lineHeight: 1.02,
                   margin: 0,
                   fontWeight: 900,
-                  maxWidth: '11ch',
+                  maxWidth: '10ch',
                 }}
               >
-                Find the right deal before it disappears.
+                Find the best deals faster without endless scrolling
               </h1>
 
               <p
                 style={{
                   marginTop: '1.2rem',
-                  marginBottom: '1.8rem',
-                  maxWidth: '44rem',
-                  fontSize: '1.05rem',
-                  lineHeight: 1.7,
+                  marginBottom: '1.6rem',
+                  maxWidth: '42rem',
+                  fontSize: '1.06rem',
+                  lineHeight: 1.75,
                   color: 'rgba(248,250,252,0.86)',
                 }}
               >
-                DealFinder brings featured offers, nearby promotions, and newest price drops into one cleaner feed so
-                your shopping decisions are faster and less noisy.
+                Compare, save, and act on deals that actually matter. We bring urgency, ranking, and cleaner decision-making into one homepage.
               </p>
 
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'minmax(0,1fr)',
                   gap: '0.9rem',
-                  maxWidth: '42rem',
+                  maxWidth: '44rem',
                 }}
               >
                 <div
@@ -318,11 +439,12 @@ export default function HomePage() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    padding: '0.65rem',
-                    borderRadius: '1rem',
+                    padding: '0.7rem',
+                    borderRadius: '1.15rem',
                     background: 'rgba(255,255,255,0.1)',
                     border: '1px solid rgba(255,255,255,0.16)',
                     backdropFilter: 'blur(10px)',
+                    flexWrap: 'wrap',
                   }}
                 >
                   <i className="fas fa-search" style={{ color: '#fbbf24', paddingLeft: '0.45rem' }}></i>
@@ -330,10 +452,13 @@ export default function HomePage() {
                     type="text"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search stores, categories, or deals"
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') openDeals(searchTerm);
+                    }}
+                    placeholder="Search deals, stores, categories..."
                     style={{
                       flex: 1,
-                      minWidth: 0,
+                      minWidth: '220px',
                       border: 'none',
                       outline: 'none',
                       background: 'transparent',
@@ -341,22 +466,18 @@ export default function HomePage() {
                       fontSize: '1rem',
                     }}
                   />
-                  {searchTerm ? (
-                    <button
-                      onClick={() => setSearchTerm('')}
-                      style={{
-                        border: 'none',
-                        background: 'rgba(255,255,255,0.12)',
-                        color: '#fff',
-                        width: '2rem',
-                        height: '2rem',
-                        borderRadius: '999px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  ) : null}
+                  <button
+                    onClick={() => openDeals(searchTerm)}
+                    className="btn"
+                    style={{
+                      background: '#f8fafc',
+                      color: '#0f172a',
+                      padding: '0.8rem 1rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    Search
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -364,15 +485,14 @@ export default function HomePage() {
                     onClick={() => router.push('/categories/all')}
                     className="btn"
                     style={{
-                      background: 'var(--primary-gradient)',
+                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
                       color: '#0f172a',
-                      padding: '0.85rem 1.25rem',
-                      fontWeight: 700,
-                      boxShadow: '0 16px 28px rgba(37,99,235,0.26)',
+                      padding: '0.9rem 1.3rem',
+                      fontWeight: 800,
                     }}
                   >
                     <i className="fas fa-fire"></i>
-                    Explore All Deals
+                    Explore Deals
                   </button>
                   <button
                     onClick={() => router.push('/nearby')}
@@ -381,122 +501,113 @@ export default function HomePage() {
                       background: 'rgba(255,255,255,0.08)',
                       color: '#fff',
                       border: '1px solid rgba(255,255,255,0.18)',
-                      padding: '0.85rem 1.25rem',
+                      padding: '0.9rem 1.3rem',
                     }}
                   >
-                    <i className="fas fa-location-dot"></i>
-                    Browse Nearby
+                    <i className="fas fa-bolt"></i>
+                    Quick Picks
                   </button>
                 </div>
               </div>
             </div>
 
-            <div
-              style={{
-                borderRadius: '1.5rem',
-                padding: '1.25rem',
-                background: 'linear-gradient(180deg, rgba(15,23,42,0.42), rgba(15,23,42,0.34))',
-                border: '1px solid rgba(255,255,255,0.12)',
-                backdropFilter: 'blur(12px)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                  gap: '0.75rem',
-                  marginBottom: '1rem',
-                }}
-              >
-                {stats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    style={{
-                      borderRadius: '1rem',
-                      padding: '0.95rem',
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                    }}
-                  >
-                    <div style={{ fontSize: '1.35rem', fontWeight: 800 }}>{stat.value}</div>
-                    <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.72)' }}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div
-                style={{
-                  borderRadius: '1.25rem',
-                  background: 'rgba(255,255,255,0.96)',
-                  color: '#0f172a',
-                  padding: '1.25rem',
-                }}
-              >
+            <div className="surface-panel" style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.16)' }}>
+              <div className="panel-pad">
                 <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                    gap: '0.75rem',
                     marginBottom: '1rem',
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase' }}>
-                      Right now
-                    </div>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>Shopping snapshot</div>
-                  </div>
-                  <div
-                    style={{
-                      width: '2.4rem',
-                      height: '2.4rem',
-                      borderRadius: '999px',
-                      background: 'rgba(37,99,235,0.12)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--primary-color)',
-                    }}
-                  >
-                    <i className="fas fa-chart-line"></i>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3">
-                  {VALUE_POINTS.map((point) => (
+                  {stats.map((stat) => (
                     <div
-                      key={point.title}
+                      key={stat.label}
                       style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2.6rem 1fr',
-                        gap: '0.85rem',
-                        alignItems: 'start',
-                        padding: '0.85rem',
+                        padding: '0.95rem',
                         borderRadius: '1rem',
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
+                        background: 'rgba(15,23,42,0.32)',
+                        border: '1px solid rgba(255,255,255,0.12)',
                       }}
                     >
-                      <div
-                        style={{
-                          width: '2.6rem',
-                          height: '2.6rem',
-                          borderRadius: '0.85rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--primary-color)',
-                          background: 'rgba(37,99,235,0.1)',
-                        }}
-                      >
-                        <i className={`fas ${point.icon}`}></i>
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 800, marginBottom: '0.2rem' }}>{point.title}</div>
-                        <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.6 }}>{point.text}</div>
-                      </div>
+                      <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#fff' }}>{loadingDeals ? '--' : stat.value}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.72)' }}>{stat.label}</div>
                     </div>
                   ))}
+                </div>
+
+                <div
+                  style={{
+                    borderRadius: '1.2rem',
+                    padding: '1.2rem',
+                    background: 'rgba(255,255,255,0.96)',
+                    color: '#0f172a',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary-color)' }}>
+                        Conversion focused
+                      </div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>Today&apos;s decision board</div>
+                    </div>
+                    <div
+                      style={{
+                        width: '2.5rem',
+                        height: '2.5rem',
+                        borderRadius: '999px',
+                        background: 'rgba(37,99,235,0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--primary-color)',
+                      }}
+                    >
+                      <i className="fas fa-chart-line"></i>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { icon: 'fa-fire', label: 'Best Deals Today', note: 'High-value offers surfaced first.' },
+                      { icon: 'fa-hourglass-half', label: 'Ending Soon', note: 'Urgency visible before deals expire.' },
+                      { icon: 'fa-star', label: 'Recommended For You', note: 'Smarter picks based on what you save.' },
+                    ].map((item) => (
+                      <div
+                        key={item.label}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '2.4rem 1fr',
+                          gap: '0.8rem',
+                          alignItems: 'start',
+                          padding: '0.85rem',
+                          borderRadius: '1rem',
+                          background: '#f8fafc',
+                          border: '1px solid #e2e8f0',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '2.4rem',
+                            height: '2.4rem',
+                            borderRadius: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--primary-color)',
+                            background: 'rgba(37,99,235,0.1)',
+                          }}
+                        >
+                          <i className={`fas ${item.icon}`}></i>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, marginBottom: '0.2rem' }}>{item.label}</div>
+                          <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.6 }}>{item.note}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -504,344 +615,484 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4" style={{ marginTop: '-1.5rem', position: 'relative', zIndex: 2 }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-            gap: '1rem',
-          }}
-        >
-          {CATEGORIES.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => router.push(`/categories/${category.id}`)}
-              style={{
-                textAlign: 'left',
-                border: '1px solid var(--border-color)',
-                background: 'var(--card-bg)',
-                borderRadius: '1.2rem',
-                padding: '1rem 1.1rem',
-                boxShadow: 'var(--box-shadow)',
-                cursor: 'pointer',
-              }}
-            >
-              <div
-                style={{
-                  width: '2.8rem',
-                  height: '2.8rem',
-                  borderRadius: '0.95rem',
-                  background: 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.12))',
-                  color: 'var(--primary-color)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '0.85rem',
-                }}
-              >
-                <i className={`fas ${category.icon}`}></i>
+      <section className="max-w-7xl mx-auto px-4" style={{ marginTop: '-1.6rem', position: 'relative', zIndex: 2 }}>
+        <div className="surface-panel panel-pad">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <div className="page-eyebrow">
+                <i className="fas fa-bullseye"></i>
+                Search preview
               </div>
-              <div style={{ fontWeight: 800, marginBottom: '0.2rem', color: 'var(--text-primary)' }}>{category.name}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>{category.note}</div>
+              <div style={{ marginTop: '0.8rem', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {searchTerm.trim() ? `${searchResults.length} quick matches for "${searchTerm}"` : 'Search deals, stores, or categories to jump straight to the right results.'}
+              </div>
+            </div>
+            <button
+              onClick={() => openDeals(searchTerm)}
+              className="btn btn-primary"
+              style={{ padding: '0.85rem 1.15rem' }}
+            >
+              Open Full Results
             </button>
-          ))}
+          </div>
         </div>
       </section>
 
       <section className="max-w-7xl mx-auto px-4 py-10">
-        {isSearching ? (
-          <div>
-            <div className="section-title">
-              <i className="fas fa-magnifying-glass" style={{ color: 'var(--primary-color)' }}></i>
-              Search Results
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                {searchResults.length} matches
-              </span>
-            </div>
+        {searchTerm.trim() ? (
+          <section style={{ marginBottom: '3rem' }}>
+            <SectionHeader
+              eyebrow="Search results"
+              title="Fast matches"
+              icon="fa-magnifying-glass"
+              meta={searchResults.length > 0 ? 'Quick preview from live deals' : 'No matching preview yet'}
+              actionLabel="View All Deals"
+              onAction={() => openDeals(searchTerm)}
+            />
             {searchResults.length > 0 ? (
-              <DealGrid deals={searchResults} />
+              <DealGrid deals={searchResults} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
             ) : (
-              <div
-                style={{
-                  borderRadius: '1.25rem',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--card-bg)',
-                  padding: '3rem 1.5rem',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '2.7rem', color: 'var(--primary-color)', marginBottom: '0.85rem' }}>
+              <div className="empty-state">
+                <div className="empty-icon">
                   <i className="fas fa-search"></i>
                 </div>
-                <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.4rem' }}>No deals found for "{searchTerm}"</h2>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', marginBottom: '1.2rem' }}>
-                  Try a merchant name, a product type, or one of the quick categories above.
+                <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontWeight: 800 }}>No quick matches found</h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '1.2rem', maxWidth: '34rem', marginInline: 'auto', lineHeight: 1.7 }}>
+                  Try a store name, category, or broader keyword. The full deals page will still give you more room to explore.
                 </p>
-                <button onClick={() => setSearchTerm('')} className="btn btn-primary">
-                  Clear Search
+                <button onClick={() => openDeals(searchTerm)} className="btn btn-primary">
+                  Search All Deals
                 </button>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-12">
-            <section>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'end',
-                  gap: '1rem',
-                  marginBottom: '1.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div>
-                  <div style={{ color: 'var(--highlight-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                    Featured now
-                  </div>
-                  <h2 className="section-title" style={{ marginBottom: 0 }}>
-                    <i className="fas fa-star" style={{ color: 'var(--highlight-color)' }}></i>
-                    Best Offers This Week
-                  </h2>
-                </div>
+          </section>
+        ) : null}
+
+        <div className="grid grid-cols-1 gap-12">
+          <section>
+            <SectionHeader
+              eyebrow="High conversion"
+              title="Best Deals Today"
+              icon="fa-fire"
+              meta="The strongest offers surfaced first"
+              actionLabel="Explore Deals"
+              onAction={() => router.push('/categories/all')}
+              accent="var(--highlight-color)"
+            />
+            {loadingDeals ? (
+              <SkeletonGrid count={3} />
+            ) : (
+              <DealGrid deals={featuredDeals.slice(0, 3)} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
+            )}
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Urgency"
+              title="Ending Soon"
+              icon="fa-hourglass-half"
+              meta="Deals closest to expiry"
+              actionLabel="View All Deals"
+              onAction={() => router.push('/categories/all')}
+              accent="var(--warning-color)"
+            />
+            {loadingDeals ? (
+              <SkeletonGrid count={3} />
+            ) : (
+              <DealGrid deals={endingSoonDeals} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
+            )}
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Personalization"
+              title="Recommended For You"
+              icon="fa-star"
+              meta={user ? 'Based on what you save and revisit' : locationError || 'Smart picks to get you started'}
+              actionLabel={user ? 'Saved Deals' : 'Create Account'}
+              onAction={() => router.push(user ? '/favorites' : '/register')}
+            />
+            {loadingDeals || loadingNearby ? (
+              <SkeletonGrid count={3} />
+            ) : (
+              <DealGrid deals={recommendedDeals} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
+            )}
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Quick navigation"
+              title="Browse by Category"
+              icon="fa-compass"
+              meta="Tap once and narrow the noise"
+            />
+            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+              {CATEGORIES.map((category) => (
                 <button
-                  onClick={() => router.push('/categories/all')}
-                  className="btn"
+                  key={category.id}
+                  onClick={() => router.push(`/categories/${category.id}`)}
                   style={{
-                    background: 'var(--card-bg)',
-                    color: 'var(--text-primary)',
+                    minWidth: '170px',
+                    textAlign: 'left',
                     border: '1px solid var(--border-color)',
-                  }}
-                >
-                  View All Deals
-                </button>
-              </div>
-              {loadingDeals ? <SkeletonGrid count={4} /> : <DealGrid deals={featured} />}
-            </section>
-
-            <section
-              style={{
-                background: 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(56,189,248,0.06), rgba(245,158,11,0.08))',
-                border: '1px solid var(--border-color)',
-                borderRadius: '1.5rem',
-                padding: '1.5rem',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'end',
-                  gap: '1rem',
-                  marginBottom: '1.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div>
-                  <div style={{ color: 'var(--success-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                    Around you
-                  </div>
-                  <h2 className="section-title" style={{ marginBottom: 0 }}>
-                    <i className="fas fa-location-dot" style={{ color: 'var(--success-color)' }}></i>
-                    Nearby Picks
-                  </h2>
-                </div>
-                {userLocation ? (
-                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>Showing deals within 10km</span>
-                ) : null}
-              </div>
-
-              {loadingNearby ? (
-                <SkeletonGrid count={4} />
-              ) : locationError ? (
-                <div
-                  style={{
-                    borderRadius: '1rem',
-                    background: 'var(--danger-soft)',
-                    color: 'var(--danger-color)',
-                    border: '1px solid rgba(239,68,68,0.18)',
-                    padding: '1rem 1.1rem',
-                  }}
-                >
-                  <i className="fas fa-circle-exclamation" style={{ marginRight: '0.5rem' }}></i>
-                  {locationError}
-                </div>
-              ) : nearby.length > 0 ? (
-                <DealGrid deals={nearby} />
-              ) : (
-                <div
-                  style={{
+                    background: 'var(--card-bg)',
                     borderRadius: '1.1rem',
-                    background: 'var(--card-bg)',
-                    border: '1px solid var(--border-color)',
-                    padding: '2rem 1.25rem',
-                    textAlign: 'center',
-                  }}
-                >
-                  <h3 style={{ marginTop: 0, marginBottom: '0.45rem', fontSize: '1.2rem' }}>No nearby deals yet</h3>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: 0 }}>
-                    We can still show featured and latest offers while location-based results catch up.
-                  </p>
-                </div>
-              )}
-            </section>
-
-            <section>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'end',
-                  gap: '1rem',
-                  marginBottom: '1.5rem',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div>
-                  <div style={{ color: 'var(--warning-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                    Just added
-                  </div>
-                  <h2 className="section-title" style={{ marginBottom: 0 }}>
-                    <i className="fas fa-clock" style={{ color: 'var(--primary-color)' }}></i>
-                    Latest Deals
-                  </h2>
-                </div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-                  Recent offers from supermarkets, restaurants, and local merchants
-                </div>
-              </div>
-
-              {loadingDeals ? (
-                <SkeletonGrid count={8} />
-              ) : (
-                <>
-                  <DealGrid deals={latest.slice(0, latestCount)} />
-                  <div className="flex justify-center mt-8">
-                    {latestCount < latest.length ? (
-                      <button
-                        onClick={() => setLatestCount((current) => current + 8)}
-                        className="btn"
-                        style={{
-                          background: 'var(--card-bg)',
-                          color: 'var(--text-primary)',
-                          border: '1px solid var(--border-color)',
-                          padding: '0.85rem 1.4rem',
-                        }}
-                      >
-                        Show More
-                      </button>
-                    ) : hasMoreLatest ? (
-                      <button
-                        onClick={loadMoreLatest}
-                        disabled={loadingMore}
-                        className="btn btn-primary"
-                        style={{ padding: '0.85rem 1.4rem' }}
-                      >
-                        {loadingMore ? 'Loading...' : 'Load More Deals'}
-                      </button>
-                    ) : null}
-                  </div>
-                </>
-              )}
-            </section>
-
-            <section
-              style={{
-                borderRadius: '1.6rem',
-                overflow: 'hidden',
-                background:
-                  'linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(30,58,138,1) 46%, rgba(37,99,235,1) 72%, rgba(245,158,11,0.95) 100%)',
-              }}
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-0 items-stretch">
-                <div style={{ padding: '2.2rem', color: '#f8fafc' }}>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase', color: '#fde68a' }}>
-                    Keep saving
-                  </div>
-                  <h2 style={{ marginTop: '0.5rem', marginBottom: '0.85rem', fontSize: 'clamp(1.8rem, 4vw, 2.5rem)' }}>
-                    {mounted && user ? 'Your next best deal is already waiting.' : 'Create an account and keep your best offers in reach.'}
-                  </h2>
-                  <p style={{ margin: 0, lineHeight: 1.7, color: 'rgba(248,250,252,0.86)', maxWidth: '34rem' }}>
-                    {mounted && user
-                      ? 'Use favorites and notifications to keep the offers you care about from slipping away.'
-                      : 'Save favorites, revisit merchants faster, and build a smarter deal-hunting routine without bouncing between apps.'}
-                  </p>
-                  <div className="flex flex-wrap gap-3" style={{ marginTop: '1.5rem' }}>
-                    <button
-                      onClick={() => router.push(mounted && user ? '/profile' : '/register')}
-                      className="btn"
-                      style={{
-                        background: '#f8fafc',
-                        color: '#0f172a',
-                        padding: '0.9rem 1.3rem',
-                        fontWeight: 700,
-                      }}
-                    >
-                      {mounted && user ? 'Open Profile' : 'Create Free Account'}
-                    </button>
-                    <button
-                      onClick={() => router.push('/merchants')}
-                      className="btn"
-                      style={{
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.06))',
-                        color: '#fff',
-                        border: '1px solid rgba(255,255,255,0.16)',
-                        padding: '0.9rem 1.3rem',
-                      }}
-                    >
-                      Browse Stores
-                    </button>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    background:
-                      'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
-                    padding: '2rem',
-                    display: 'grid',
-                    alignItems: 'center',
+                    padding: '1rem',
+                    boxShadow: 'var(--box-shadow)',
+                    cursor: 'pointer',
+                    flexShrink: 0,
                   }}
                 >
                   <div
                     style={{
-                      borderRadius: '1.25rem',
-                      background: 'rgba(255,255,255,0.12)',
-                      border: '1px solid rgba(255,255,255,0.16)',
-                      padding: '1.25rem',
-                      color: '#fff',
+                      width: '2.8rem',
+                      height: '2.8rem',
+                      borderRadius: '0.95rem',
+                      background: 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.12))',
+                      color: 'var(--primary-color)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '0.8rem',
                     }}
                   >
-                    <div style={{ fontWeight: 800, marginBottom: '1rem', fontSize: '1.05rem' }}>Why people keep coming back</div>
-                    <div className="grid grid-cols-1 gap-3">
-                      {[
-                        'Clearer homepage flow with faster deal browsing',
-                        'Featured, nearby, and latest offers on one screen',
-                        'A stronger starting point for your live site refresh',
-                      ].map((item) => (
-                        <div
-                          key={item}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.7rem',
-                            borderRadius: '0.9rem',
-                            padding: '0.8rem 0.9rem',
-                            background: 'rgba(15,23,42,0.22)',
-                          }}
-                        >
-                          <i className="fas fa-check-circle" style={{ color: '#fde68a' }}></i>
-                          <span style={{ lineHeight: 1.5 }}>{item}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <i className={`fas ${category.icon}`}></i>
+                  </div>
+                  <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{category.name}</div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {featuredDeal ? (
+            <section className="surface-panel" style={{ overflow: 'hidden' }}>
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr]">
+                <div
+                  style={{
+                    minHeight: '320px',
+                    backgroundImage: `url(${featuredDeal.image || 'https://placehold.co/900x700?text=Featured+Deal'})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                />
+                <div className="panel-pad" style={{ display: 'grid', alignContent: 'center', gap: '1rem' }}>
+                  <div className="page-eyebrow">
+                    <i className="fas fa-star"></i>
+                    Featured Deal
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <span className="discount-badge" style={{ fontSize: '1rem', padding: '0.45rem 0.85rem' }}>
+                      {featuredDeal.discount || 'Top'} OFF
+                    </span>
+                    <span className="status-chip" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--warning-color)' }}>
+                      <i className="fas fa-hourglass-half"></i>
+                      Limited-time pick
+                    </span>
+                  </div>
+                  <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.05 }}>
+                    {featuredDeal.title || 'Summer Mega Sale'}
+                  </h2>
+                  <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                    {featuredDeal.description || 'One standout offer with strong savings, clean urgency, and a faster path to action.'}
+                  </p>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
+                    {getMerchantName(featuredDeal)}{featuredDeal.category ? ` • ${featuredDeal.category}` : ''}
+                  </div>
+                  <div className="flex gap-3 flex-wrap">
+                    <button
+                      onClick={() => router.push(`/deal/${getPromotionId(featuredDeal)}`)}
+                      className="btn btn-primary"
+                      style={{ padding: '0.9rem 1.2rem' }}
+                    >
+                      <i className="fas fa-arrow-right"></i>
+                      Get Deal
+                    </button>
+                    <button
+                      onClick={() => handleFavoriteToggle(getPromotionId(featuredDeal), !favoriteIds.has(getPromotionId(featuredDeal)))}
+                      className="btn"
+                      style={{
+                        padding: '0.9rem 1.2rem',
+                        background: 'var(--card-bg)',
+                        color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)',
+                      }}
+                    >
+                      <i className="fas fa-heart"></i>
+                      Save
+                    </button>
                   </div>
                 </div>
               </div>
             </section>
-          </div>
-        )}
+          ) : null}
+
+          <section className="surface-panel panel-pad">
+            <SectionHeader
+              eyebrow="Trust builder"
+              title="Why use DealFinder?"
+              icon="fa-scale-balanced"
+              meta="Less noise, faster decisions"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {compareRows.map((row) => (
+                <div
+                  key={row.side}
+                  style={{
+                    borderRadius: '1.2rem',
+                    padding: '1.25rem',
+                    background: row.background,
+                    border: `1px solid ${row.border}`,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1rem', fontWeight: 900, fontSize: '1.08rem' }}>
+                    <span
+                      style={{
+                        width: '2.2rem',
+                        height: '2.2rem',
+                        borderRadius: '999px',
+                        background: '#fff',
+                        color: row.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <i className={`fas ${row.icon}`}></i>
+                    </span>
+                    {row.side}
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
+                    {row.items.map((item) => (
+                      <div
+                        key={item}
+                        style={{
+                          borderRadius: '0.95rem',
+                          background: '#fff',
+                          padding: '0.9rem 1rem',
+                          color: 'var(--text-primary)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <SectionHeader
+              eyebrow="Simple flow"
+              title="How it works"
+              icon="fa-diagram-project"
+              meta="Three steps, no extra friction"
+            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { step: '1', title: 'Discover deals', text: 'Search, browse, and spot the strongest offers first.' },
+                { step: '2', title: 'Compare options', text: 'Use timing, discount, and category signals to decide faster.' },
+                { step: '3', title: 'Save or grab instantly', text: 'Keep the best deals close or open them right away.' },
+              ].map((item) => (
+                <div key={item.step} className="surface-panel panel-pad">
+                  <div
+                    style={{
+                      width: '2.4rem',
+                      height: '2.4rem',
+                      borderRadius: '0.85rem',
+                      background: 'var(--primary-gradient)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 900,
+                      marginBottom: '0.85rem',
+                    }}
+                  >
+                    {item.step}
+                  </div>
+                  <div style={{ fontWeight: 900, fontSize: '1.05rem', marginBottom: '0.4rem' }}>{item.title}</div>
+                  <div style={{ color: 'var(--text-secondary)', lineHeight: 1.65 }}>{item.text}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {user ? (
+            <section>
+              <SectionHeader
+                eyebrow="Your picks"
+                title="Continue where you left off"
+                icon="fa-heart"
+                meta={savedPreview.length > 0 ? 'Your saved deals are ready' : 'Start building your shortlist'}
+                actionLabel="Open Saved"
+                onAction={() => router.push('/favorites')}
+              />
+              {savedPreview.length > 0 ? (
+                <DealGrid deals={savedPreview} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
+              ) : (
+                <div className="empty-state">
+                  <div className="empty-icon">
+                    <i className="fas fa-heart"></i>
+                  </div>
+                  <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontWeight: 800 }}>No saved deals yet</h2>
+                  <p style={{ color: 'var(--text-secondary)', marginBottom: '1.2rem' }}>
+                    Tap save on any deal and your shortlist will show up here.
+                  </p>
+                  <button onClick={() => router.push('/categories/all')} className="btn btn-primary">
+                    Start Saving
+                  </button>
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          <section
+            style={{
+              borderRadius: '1.6rem',
+              overflow: 'hidden',
+              background: 'linear-gradient(135deg, rgba(15,23,42,1) 0%, rgba(29,78,216,0.96) 60%, rgba(245,158,11,0.9) 100%)',
+              color: '#fff',
+            }}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr] gap-0 items-stretch">
+              <div style={{ padding: '2.2rem' }}>
+                <div className="page-eyebrow" style={{ background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.14)', color: '#fff' }}>
+                  <i className="fas fa-mobile-screen"></i>
+                  Mobile app
+                </div>
+                <h2 style={{ marginTop: '1rem', marginBottom: '0.8rem', fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.08 }}>
+                  Take deals with you
+                </h2>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.84)', lineHeight: 1.75, maxWidth: '34rem' }}>
+                  Stay close to nearby deals, offline-friendly browsing, and smarter alerts so the best offers stay within reach while you move.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ marginTop: '1.4rem' }}>
+                  {['Nearby deals', 'Offline access', 'Smart alerts'].map((item) => (
+                    <div
+                      key={item}
+                      style={{
+                        borderRadius: '1rem',
+                        padding: '0.95rem 1rem',
+                        background: 'rgba(255,255,255,0.12)',
+                        border: '1px solid rgba(255,255,255,0.14)',
+                      }}
+                    >
+                      <i className="fas fa-check-circle" style={{ color: '#fde68a', marginRight: '0.45rem' }}></i>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => router.push('/download')}
+                  className="btn"
+                  style={{
+                    marginTop: '1.5rem',
+                    background: '#fff',
+                    color: '#0f172a',
+                    padding: '0.9rem 1.2rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  Download App
+                </button>
+              </div>
+              <div
+                style={{
+                  minHeight: '280px',
+                  backgroundImage: 'url(https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80)',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              />
+            </div>
+          </section>
+
+          <section className="surface-panel panel-pad" style={{ textAlign: 'center' }}>
+            <div className="page-eyebrow" style={{ marginInline: 'auto' }}>
+              <i className="fas fa-rocket"></i>
+              Final CTA
+            </div>
+            <h2 style={{ marginTop: '1rem', marginBottom: '0.75rem', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.08 }}>
+              Ready to grab your next deal?
+            </h2>
+            <p style={{ margin: '0 auto 1.5rem', maxWidth: '40rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              Start with the strongest offers, save what matters, and keep the decision path short.
+            </p>
+            <div className="flex justify-center gap-3 flex-wrap">
+              <button onClick={() => router.push('/categories/all')} className="btn btn-primary" style={{ padding: '0.95rem 1.3rem' }}>
+                <i className="fas fa-fire"></i>
+                Explore Deals
+              </button>
+              <button
+                onClick={() => router.push(user ? '/favorites' : '/register')}
+                className="btn"
+                style={{
+                  padding: '0.95rem 1.3rem',
+                  background: 'var(--card-bg)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                }}
+              >
+                <i className="fas fa-heart"></i>
+                Start Saving
+              </button>
+            </div>
+          </section>
+        </div>
       </section>
+
+      <div
+        className="md:hidden"
+        style={{
+          position: 'fixed',
+          left: '1rem',
+          right: '1rem',
+          bottom: '1rem',
+          zIndex: 60,
+        }}
+      >
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: '0.65rem',
+            padding: '0.7rem',
+            borderRadius: '1.25rem',
+            background: 'color-mix(in srgb, var(--card-bg) 94%, transparent)',
+            border: '1px solid var(--border-color)',
+            backdropFilter: 'blur(14px)',
+            boxShadow: '0 18px 36px rgba(15,23,42,0.16)',
+          }}
+        >
+          {[
+            { label: 'Explore', icon: 'fa-compass', onClick: () => router.push('/categories/all') },
+            { label: 'Saved', icon: 'fa-heart', onClick: () => router.push('/favorites') },
+            { label: 'Profile', icon: 'fa-user', onClick: () => router.push(user ? '/profile' : '/login') },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={item.onClick}
+              style={{
+                minHeight: '3.2rem',
+                borderRadius: '1rem',
+                border: 'none',
+                background: item.label === 'Explore' ? 'var(--primary-gradient)' : 'var(--light-gray)',
+                color: item.label === 'Explore' ? '#fff' : 'var(--text-primary)',
+                fontWeight: 800,
+                display: 'grid',
+                placeItems: 'center',
+                gap: '0.2rem',
+                cursor: 'pointer',
+              }}
+            >
+              <i className={`fas ${item.icon}`}></i>
+              <span style={{ fontSize: '0.76rem' }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
