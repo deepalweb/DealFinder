@@ -4,7 +4,7 @@ const SectionAssignment = require('../models/SectionAssignment');
 const User = require('../models/User');
 const Merchant = require('../models/Merchant');
 
-const SECTION_KEYS = ['banner', 'hot_deals', 'new_this_week', 'nearby'];
+const SECTION_KEYS = ['banner', 'hot_deals', 'new_this_week', 'flash_sales'];
 
 const SECTION_CONFIG = {
   banner: {
@@ -28,12 +28,19 @@ const SECTION_CONFIG = {
     mode: 'hybrid',
     description: 'Recent deals with force-show and hide overrides.',
   },
+  flash_sales: {
+    key: 'flash_sales',
+    label: 'Flash Sales',
+    maxItems: 10,
+    mode: 'hybrid',
+    description: 'Urgent short-lived deals with manual pins and ending-soon auto-fill.',
+  },
   nearby: {
     key: 'nearby',
     label: 'Nearby',
     maxItems: 20,
-    mode: 'ranking_boost',
-    description: 'Geo-ranked deals with admin boost controls inside distance bounds.',
+    mode: 'automatic',
+    description: 'Geo-ranked deals automatically based on the user location.',
   },
 };
 
@@ -305,6 +312,60 @@ async function resolveNewThisWeekSection() {
   return response;
 }
 
+async function resolveFlashSalesSection() {
+  const cacheKey = 'section:flash_sales';
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
+
+  const config = getSectionConfig('flash_sales');
+  const assignments = await getAssignmentsForSection('flash_sales');
+  const activeAssignments = assignments.filter((assignment) => assignment.promotion && isAssignmentActive(assignment));
+
+  const hiddenIds = new Set(
+    activeAssignments
+      .filter((assignment) => ['hidden', 'excluded'].includes(assignment.mode) || assignment.excludeFromAuto)
+      .map((assignment) => String(assignment.promotion._id))
+  );
+
+  const manualItems = activeAssignments
+    .filter((assignment) => !['hidden', 'excluded'].includes(assignment.mode))
+    .sort(sortAssignments)
+    .map((assignment) => withSectionFields(assignment.promotion, assignment));
+
+  const usedIds = new Set(manualItems.map((item) => String(item._id)));
+  const now = new Date();
+  const nextDay = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const endingSoonDeals = await Promotion.find({
+    ...getNowActivePromotionQuery(now),
+    endDate: { $gte: now, $lte: nextDay },
+    _id: { $nin: Array.from(hiddenIds) },
+  })
+    .select('-comments -ratings')
+    .populate('merchant', 'name logo currency location address contactInfo')
+    .sort({ endDate: 1, createdAt: -1 })
+    .limit(config.maxItems * 2)
+    .lean();
+
+  const autoItems = endingSoonDeals
+    .filter((promotion) => !usedIds.has(String(promotion._id)))
+    .slice(0, Math.max(config.maxItems - manualItems.length, 0))
+    .map((promotion) => ({
+      ...promotion,
+      sectionAssignment: {
+        sectionKey: 'flash_sales',
+        mode: 'auto',
+        priority: 0,
+        status: 'active',
+        metadata: { source: 'ending_soon' },
+      },
+    }));
+
+  const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
+  const response = { section: config, items };
+  setCached(cacheKey, response);
+  return response;
+}
+
 async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
   const lat = Number(latitude);
   const lon = Number(longitude);
@@ -319,9 +380,6 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
   if (cached) return cached;
 
   const config = getSectionConfig('nearby');
-  const assignments = await SectionAssignment.find({ sectionKey: 'nearby' }).lean();
-  const activeAssignments = assignments.filter((assignment) => isAssignmentActive(assignment));
-  const assignmentMap = new Map(activeAssignments.map((assignment) => [String(assignment.promotion), assignment]));
 
   const merchants = await Merchant.aggregate([
     {
@@ -377,46 +435,19 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
 
   const ranked = merchants
     .map((promotion) => {
-      const assignment = assignmentMap.get(String(promotion._id));
-      const distanceMeters = promotion.merchant?.distance || 0;
-      const distanceKm = distanceMeters / 1000;
-
-      if (assignment?.mode === 'hidden') return null;
-      if (assignment?.minDistanceKm != null && distanceKm < assignment.minDistanceKm) return null;
-      if (assignment?.maxDistanceKm != null && distanceKm > assignment.maxDistanceKm) return null;
-      if (assignment?.radiusKm != null && distanceKm > assignment.radiusKm) return null;
-
-      const boost = assignment?.priority || 0;
       return {
         ...promotion,
-        _sectionBoost: boost,
-        sectionAssignment: assignment
-          ? {
-              sectionKey: 'nearby',
-              mode: assignment.mode,
-              priority: boost,
-              status: deriveAssignmentStatus(assignment),
-              radiusKm: assignment.radiusKm ?? null,
-              minDistanceKm: assignment.minDistanceKm ?? null,
-              maxDistanceKm: assignment.maxDistanceKm ?? null,
-              metadata: assignment.metadata || {},
-            }
-          : {
-              sectionKey: 'nearby',
-              mode: 'auto',
-              priority: 0,
-              status: 'active',
-              metadata: {},
-            },
+        sectionAssignment: {
+          sectionKey: 'nearby',
+          mode: 'auto',
+          priority: 0,
+          status: 'active',
+          metadata: {},
+        },
       };
     })
     .filter(Boolean)
-    .sort((a, b) => {
-      if ((b._sectionBoost || 0) !== (a._sectionBoost || 0)) {
-        return (b._sectionBoost || 0) - (a._sectionBoost || 0);
-      }
-      return (a.merchant?.distance || 0) - (b.merchant?.distance || 0);
-    })
+    .sort((a, b) => (a.merchant?.distance || 0) - (b.merchant?.distance || 0))
     .slice(0, config.maxItems);
 
   const response = { section: config, items: ranked };
@@ -432,6 +463,8 @@ async function resolveSection(sectionKey, options = {}) {
       return resolveHotDealsSection();
     case 'new_this_week':
       return resolveNewThisWeekSection();
+    case 'flash_sales':
+      return resolveFlashSalesSection();
     case 'nearby':
       return resolveNearbySection(options);
     default:
@@ -440,20 +473,23 @@ async function resolveSection(sectionKey, options = {}) {
 }
 
 async function resolveHomepageSections() {
-  const [banner, hotDeals, newThisWeek] = await Promise.all([
+  const [banner, hotDeals, newThisWeek, flashSales] = await Promise.all([
     resolveBannerSection(),
     resolveHotDealsSection(),
     resolveNewThisWeekSection(),
+    resolveFlashSalesSection(),
   ]);
 
   return {
     banner: banner.items,
     hotDeals: hotDeals.items,
     newThisWeek: newThisWeek.items,
+    flashSales: flashSales.items,
     sections: {
       banner,
       hot_deals: hotDeals,
       new_this_week: newThisWeek,
+      flash_sales: flashSales,
     },
   };
 }
@@ -495,7 +531,7 @@ async function getSectionManagerSnapshot() {
 
 async function getConflicts() {
   const now = new Date();
-  const assignments = await SectionAssignment.find({ enabled: true })
+  const assignments = await SectionAssignment.find({ enabled: true, sectionKey: { $in: SECTION_KEYS } })
     .populate('promotion', 'title')
     .sort({ updatedAt: -1 })
     .lean();

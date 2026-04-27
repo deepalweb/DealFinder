@@ -37,7 +37,8 @@ class _HomeScreenState extends State<HomeScreen>
   List<Promotion> _bannerDeals = [];
   List<Promotion> _hotDeals = [];
   List<Promotion> _newThisWeekDeals = [];
-  List<Promotion> _nearbySectionDeals = [];
+  List<Promotion> _flashSalesDeals = [];
+  List<Promotion> _nearbyDealsFromLocation = [];
   bool _loading = true;
   bool _isOffline = false;
 
@@ -122,17 +123,16 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadNearbyDeals(double lat, double lng) async {
     try {
-      final nearbyDeals = await _api.fetchCuratedSection(
-        'nearby',
-        latitude: lat,
-        longitude: lng,
+      final nearbyDeals = await _api.fetchNearbyPromotions(
+        lat,
+        lng,
         radiusKm: 10,
       );
       if (mounted) {
         setState(() {
-          _nearbySectionDeals = nearbyDeals;
+          _nearbyDealsFromLocation = nearbyDeals;
           // Update deals with distance information
-          for (var deal in nearbyDeals) {
+          for (var deal in _nearbyDealsFromLocation) {
             final index = _allDeals.indexWhere((d) => d.id == deal.id);
             if (index != -1) {
               _allDeals[index] = deal;
@@ -153,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen>
         _bannerDeals = sections['banner'] ?? [];
         _hotDeals = sections['hotDeals'] ?? [];
         _newThisWeekDeals = sections['newThisWeek'] ?? [];
+        _flashSalesDeals = sections['flashSales'] ?? [];
       });
     } catch (_) {
       // Fall back to local heuristics if curated sections are unavailable
@@ -235,6 +236,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Promotion> get _flashSales {
+    if (_flashSalesDeals.isNotEmpty) return _flashSalesDeals.take(10).toList();
     final now = DateTime.now();
     final cutoff = now.add(const Duration(hours: 24));
     return _filteredDeals
@@ -251,8 +253,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Promotion> get _nearbyDeals {
-    if (_nearbySectionDeals.isNotEmpty) {
-      return _nearbySectionDeals.take(10).toList();
+    if (_nearbyDealsFromLocation.isNotEmpty) {
+      return _nearbyDealsFromLocation.take(10).toList();
     }
     if (_position == null) return [];
     final withDist = _filteredDeals.where((p) => p.distance != null).toList()

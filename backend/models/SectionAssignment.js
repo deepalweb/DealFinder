@@ -5,7 +5,7 @@ const sectionAssignmentSchema = new mongoose.Schema(
     sectionKey: {
       type: String,
       required: true,
-      enum: ['banner', 'hot_deals', 'new_this_week', 'nearby'],
+      enum: ['banner', 'hot_deals', 'new_this_week', 'flash_sales', 'nearby'],
     },
     promotion: {
       type: mongoose.Schema.Types.ObjectId,

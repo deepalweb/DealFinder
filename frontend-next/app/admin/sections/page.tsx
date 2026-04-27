@@ -48,7 +48,6 @@ type Conflict = {
 };
 
 type SectionForm = {
-  promotionId: string;
   mode: string;
   priority: number;
   enabled: boolean;
@@ -65,7 +64,7 @@ const SECTION_LABELS: Record<string, string> = {
   banner: 'Banner',
   hot_deals: 'Hot Deals',
   new_this_week: 'New This Week',
-  nearby: 'Nearby',
+  flash_sales: 'Flash Sales',
 };
 
 const MODE_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -82,14 +81,14 @@ const MODE_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'forced', label: 'Force Show' },
     { value: 'hidden', label: 'Hide' },
   ],
-  nearby: [
-    { value: 'boosted', label: 'Boost' },
-    { value: 'hidden', label: 'Hide' },
+  flash_sales: [
+    { value: 'manual', label: 'Manual Pin' },
+    { value: 'excluded', label: 'Exclude' },
+    { value: 'hidden', label: 'Hidden' },
   ],
 };
 
 const emptyForm: SectionForm = {
-  promotionId: '',
   mode: 'manual',
   priority: 0,
   enabled: true,
@@ -119,6 +118,7 @@ export default function AdminSectionsPage() {
   const [promotionSearch, setPromotionSearch] = useState('');
   const [merchantFilter, setMerchantFilter] = useState('all');
   const [promotionStatusFilter, setPromotionStatusFilter] = useState('active');
+  const [selectedPromotionIds, setSelectedPromotionIds] = useState<string[]>([]);
 
   const load = async () => {
     setLoading(true);
@@ -128,12 +128,13 @@ export default function AdminSectionsPage() {
         AdminAPI.getSectionConflicts(),
         AdminAPI.getAllPromotions(),
       ]);
-      setSections(sectionData || []);
+      const availableSections = (sectionData || []).filter((section: Section) => section.key !== 'nearby');
+      setSections(availableSections);
       setConflicts(conflictData || []);
       setPromotions(Array.isArray(promotionData) ? promotionData : []);
-      const firstKey = (sectionData?.[0]?.key as string | undefined) || 'banner';
+      const firstKey = (availableSections?.[0]?.key as string | undefined) || 'banner';
       setActiveSectionKey((current) =>
-        sectionData?.some((section: Section) => section.key === current) ? current : firstKey
+        availableSections?.some((section: Section) => section.key === current) ? current : firstKey
       );
     } catch (error) {
       console.error(error);
@@ -162,6 +163,16 @@ export default function AdminSectionsPage() {
         )
       ),
     [sections]
+  );
+
+  const currentSectionAssignedPromotionIds = useMemo(
+    () =>
+      new Set(
+        activeSection?.assignments
+          .map((assignment) => assignment.promotion?._id)
+          .filter((promotionId): promotionId is string => Boolean(promotionId)) || []
+      ),
+    [activeSection]
   );
 
   const merchantOptions = useMemo(
@@ -197,10 +208,8 @@ export default function AdminSectionsPage() {
   }, [merchantFilter, promotionSearch, promotionStatusFilter, promotions]);
 
   const selectedPromotion = useMemo(
-    () =>
-      promotions.find((promotion) => promotion._id === form.promotionId) ||
-      activeSection?.assignments.find((assignment) => assignment.promotion?._id === form.promotionId)?.promotion,
-    [activeSection?.assignments, form.promotionId, promotions]
+    () => promotions.find((promotion) => promotion._id === selectedPromotionIds[0]),
+    [promotions, selectedPromotionIds]
   );
 
   useEffect(() => {
@@ -209,6 +218,7 @@ export default function AdminSectionsPage() {
       ...emptyForm,
       mode: nextMode,
     });
+    setSelectedPromotionIds([]);
   }, [activeSectionKey]);
 
   function getErrorMessage(error: unknown, fallback: string) {
@@ -218,8 +228,8 @@ export default function AdminSectionsPage() {
 
   const handleSave = async () => {
     if (!activeSection) return;
-    if (!form.promotionId.trim()) {
-      toast.error('Promotion ID is required.');
+    if (selectedPromotionIds.length === 0) {
+      toast.error('Select at least one deal.');
       return;
     }
 
@@ -227,7 +237,7 @@ export default function AdminSectionsPage() {
     try {
       await AdminAPI.saveSectionAssignment({
         sectionKey: activeSection.key,
-        promotionId: form.promotionId.trim(),
+        promotionIds: selectedPromotionIds,
         mode: form.mode,
         priority: Number(form.priority) || 0,
         enabled: Boolean(form.enabled),
@@ -244,6 +254,7 @@ export default function AdminSectionsPage() {
         ...emptyForm,
         mode: MODE_OPTIONS[activeSection.key]?.[0]?.value || 'manual',
       });
+      setSelectedPromotionIds([]);
       await load();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, 'Failed to save assignment.'));
@@ -275,6 +286,14 @@ export default function AdminSectionsPage() {
     }
   };
 
+  const togglePromotionSelection = (promotionId: string) => {
+    setSelectedPromotionIds((current) =>
+      current.includes(promotionId)
+        ? current.filter((id) => id !== promotionId)
+        : [...current, promotionId]
+    );
+  };
+
   return (
     <div style={{ display: 'grid', gap: '1.25rem' }}>
       <div className="surface-panel panel-pad">
@@ -284,7 +303,7 @@ export default function AdminSectionsPage() {
               Section Manager
             </h1>
             <p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)' }}>
-              Curate banner, hot deals, new-this-week, and nearby without touching the all-deals feed.
+              Curate banner, hot deals, new-this-week, and flash sales without touching the all-deals or nearby feeds.
             </p>
           </div>
           <button
@@ -459,7 +478,9 @@ export default function AdminSectionsPage() {
                   </h3>
                   <div style={{ display: 'grid', gap: '0.85rem' }}>
                     <div style={{ display: 'grid', gap: '0.75rem' }}>
-                      <div style={{ marginBottom: '0.1rem', fontSize: '0.85rem', fontWeight: 700 }}>Select Deal</div>
+                      <div style={{ marginBottom: '0.1rem', fontSize: '0.85rem', fontWeight: 700 }}>
+                        Select Deal{selectedPromotionIds.length > 0 ? ` (${selectedPromotionIds.length} selected)` : ''}
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div className="input-with-icon">
                           <i className="fas fa-search"></i>
@@ -522,19 +543,15 @@ export default function AdminSectionsPage() {
                         ) : (
                           filteredPromotions.slice(0, 30).map((promotion) => {
                             const promotionId = promotion._id || '';
-                            const isSelected = form.promotionId === promotionId;
+                            const isSelected = selectedPromotionIds.includes(promotionId);
                             const alreadyAssigned = assignedPromotionIds.has(promotionId);
+                            const assignedInCurrentSection = currentSectionAssignedPromotionIds.has(promotionId);
 
                             return (
                               <button
                                 key={promotionId}
                                 type="button"
-                                onClick={() =>
-                                  setForm((current) => ({
-                                    ...current,
-                                    promotionId,
-                                  }))
-                                }
+                                onClick={() => togglePromotionSelection(promotionId)}
                                 style={{
                                   textAlign: 'left',
                                   borderRadius: '1rem',
@@ -547,11 +564,17 @@ export default function AdminSectionsPage() {
                                   padding: '0.85rem',
                                   cursor: 'pointer',
                                   display: 'grid',
-                                  gridTemplateColumns: '56px 1fr',
+                                  gridTemplateColumns: '24px 56px 1fr',
                                   gap: '0.8rem',
                                   alignItems: 'center',
                                 }}
                               >
+                                <input
+                                  type="checkbox"
+                                  readOnly
+                                  checked={isSelected}
+                                  style={{ width: '16px', height: '16px', accentColor: 'var(--primary-color)' }}
+                                />
                                 <div
                                   style={{
                                     width: '56px',
@@ -587,7 +610,7 @@ export default function AdminSectionsPage() {
                                           color: '#d97706',
                                         }}
                                       >
-                                        Already in a section
+                                        {assignedInCurrentSection ? 'Already in this section' : 'Already in a section'}
                                       </span>
                                     ) : null}
                                   </div>
@@ -615,7 +638,7 @@ export default function AdminSectionsPage() {
                       </div>
                     </div>
 
-                    {selectedPromotion ? (
+                    {selectedPromotionIds.length > 0 ? (
                       <div
                         style={{
                           padding: '0.9rem 1rem',
@@ -625,15 +648,17 @@ export default function AdminSectionsPage() {
                         }}
                       >
                         <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '0.35rem' }}>
-                          Selected deal
+                          Selected deals
                         </div>
                         <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-                          {selectedPromotion.title || 'Untitled deal'}
+                          {selectedPromotionIds.length === 1
+                            ? (selectedPromotion?.title || '1 deal selected')
+                            : `${selectedPromotionIds.length} deals selected`}
                         </div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', marginTop: '0.2rem' }}>
-                          {selectedPromotion.merchant?.name || 'Unknown merchant'}
-                          {selectedPromotion.category ? ` • ${selectedPromotion.category}` : ''}
-                          {selectedPromotion.status ? ` • ${selectedPromotion.status.replace(/_/g, ' ')}` : ''}
+                          {selectedPromotionIds.length === 1
+                            ? `${selectedPromotion?.merchant?.name || 'Unknown merchant'}${selectedPromotion?.category ? ` • ${selectedPromotion.category}` : ''}${selectedPromotion?.status ? ` • ${selectedPromotion.status.replace(/_/g, ' ')}` : ''}`
+                            : 'The same section settings will be applied to every selected deal.'}
                         </div>
                       </div>
                     ) : null}
@@ -698,39 +723,7 @@ export default function AdminSectionsPage() {
                       </label>
                     ) : null}
 
-                    {activeSection.key === 'nearby' ? (
-                      <div className="grid grid-cols-3 gap-3">
-                        <label>
-                          <div style={{ marginBottom: '0.35rem', fontSize: '0.85rem', fontWeight: 700 }}>Radius km</div>
-                          <input
-                            className="modern-input"
-                            type="number"
-                            value={form.radiusKm}
-                            onChange={(e) => setForm((current) => ({ ...current, radiusKm: e.target.value }))}
-                          />
-                        </label>
-                        <label>
-                          <div style={{ marginBottom: '0.35rem', fontSize: '0.85rem', fontWeight: 700 }}>Min km</div>
-                          <input
-                            className="modern-input"
-                            type="number"
-                            value={form.minDistanceKm}
-                            onChange={(e) => setForm((current) => ({ ...current, minDistanceKm: e.target.value }))}
-                          />
-                        </label>
-                        <label>
-                          <div style={{ marginBottom: '0.35rem', fontSize: '0.85rem', fontWeight: 700 }}>Max km</div>
-                          <input
-                            className="modern-input"
-                            type="number"
-                            value={form.maxDistanceKm}
-                            onChange={(e) => setForm((current) => ({ ...current, maxDistanceKm: e.target.value }))}
-                          />
-                        </label>
-                      </div>
-                    ) : null}
-
-                    {activeSection.key === 'hot_deals' ? (
+                    {['hot_deals', 'flash_sales'].includes(activeSection.key) ? (
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                         <input
                           type="checkbox"
@@ -760,12 +753,12 @@ export default function AdminSectionsPage() {
 
               <div className="surface-panel panel-pad" style={{ boxShadow: 'none' }}>
                 <h3 style={{ marginTop: 0, marginBottom: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Operational Notes</h3>
-                <div style={{ display: 'grid', gap: '0.7rem', color: 'var(--text-secondary)' }}>
-                  <div>Banner is manual-only and capped at five items. Use priority to control display order.</div>
-                  <div>Hot Deals fills empty slots with trending deals when curated slots are not enough.</div>
-                  <div>New This Week auto-includes fresh deals from the last seven days unless they are explicitly hidden.</div>
-                  <div>Nearby only boosts ranking within geo results. It does not bypass location relevance.</div>
-                </div>
+                  <div style={{ display: 'grid', gap: '0.7rem', color: 'var(--text-secondary)' }}>
+                    <div>Banner is manual-only and capped at five items. Use priority to control display order.</div>
+                    <div>Hot Deals fills empty slots with trending deals when curated slots are not enough.</div>
+                    <div>New This Week auto-includes fresh deals from the last seven days unless they are explicitly hidden.</div>
+                    <div>Flash Sales can be curated manually, and the app can auto-fill with deals ending within the next 24 hours.</div>
+                  </div>
               </div>
             </>
           ) : null}

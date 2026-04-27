@@ -56,7 +56,9 @@ router.post(
   authorizeAdmin,
   [
     body('sectionKey').isIn(SECTION_KEYS),
-    body('promotionId').isString().notEmpty(),
+    body('promotionId').optional().isString().notEmpty(),
+    body('promotionIds').optional().isArray({ min: 1 }),
+    body('promotionIds.*').optional().isString().notEmpty(),
     body('enabled').optional().isBoolean(),
     body('mode').optional().isIn(['manual', 'auto', 'forced', 'hidden', 'boosted', 'excluded']),
     body('priority').optional().isNumeric(),
@@ -78,6 +80,7 @@ router.post(
       const {
         sectionKey,
         promotionId,
+        promotionIds,
         enabled,
         mode,
         priority,
@@ -91,13 +94,28 @@ router.post(
         metadata,
       } = req.body;
 
-      if (!mongoose.Types.ObjectId.isValid(promotionId)) {
-        return res.status(400).json({ message: 'Invalid promotion ID.' });
+      if (sectionKey === 'nearby') {
+        return res.status(400).json({ message: 'Nearby deals are automatic and cannot be manually assigned.' });
       }
 
-      const promotion = await Promotion.findById(promotionId);
-      if (!promotion) {
-        return res.status(404).json({ message: 'Promotion not found.' });
+      const targetPromotionIds = Array.isArray(promotionIds) && promotionIds.length
+        ? promotionIds
+        : promotionId
+          ? [promotionId]
+          : [];
+
+      if (!targetPromotionIds.length) {
+        return res.status(400).json({ message: 'At least one promotion must be selected.' });
+      }
+
+      const invalidPromotionId = targetPromotionIds.find((id) => !mongoose.Types.ObjectId.isValid(id));
+      if (invalidPromotionId) {
+        return res.status(400).json({ message: 'One or more promotion IDs are invalid.' });
+      }
+
+      const promotions = await Promotion.find({ _id: { $in: targetPromotionIds } }).select('_id');
+      if (promotions.length !== targetPromotionIds.length) {
+        return res.status(404).json({ message: 'One or more selected promotions were not found.' });
       }
 
       const update = {
@@ -128,19 +146,23 @@ router.post(
       update.minDistanceKm = parsedMinDistanceKm;
       update.maxDistanceKm = parsedMaxDistanceKm;
 
-      const assignment = await SectionAssignment.findOneAndUpdate(
-        { sectionKey, promotion: promotionId },
-        { $set: update, $setOnInsert: { sectionKey, promotion: promotionId } },
-        { upsert: true, new: true }
-      )
-        .populate({
-          path: 'promotion',
-          populate: { path: 'merchant', select: 'name logo currency' },
-        })
-        .populate('updatedBy', 'name email');
+      const assignments = await Promise.all(
+        targetPromotionIds.map((id) =>
+          SectionAssignment.findOneAndUpdate(
+            { sectionKey, promotion: id },
+            { $set: update, $setOnInsert: { sectionKey, promotion: id } },
+            { upsert: true, new: true }
+          )
+            .populate({
+              path: 'promotion',
+              populate: { path: 'merchant', select: 'name logo currency' },
+            })
+            .populate('updatedBy', 'name email')
+        )
+      );
 
       invalidateSectionCaches();
-      res.status(200).json(assignment);
+      res.status(200).json(assignments);
     } catch (error) {
       console.error('Error in POST /api/admin/sections/assignments:', error);
       res.status(500).json(safeError(error));

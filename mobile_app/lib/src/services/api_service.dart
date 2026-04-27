@@ -675,6 +675,7 @@ class ApiService {
       'banner': parseList('banner'),
       'hotDeals': parseList('hotDeals'),
       'newThisWeek': parseList('newThisWeek'),
+      'flashSales': parseList('flashSales'),
     };
   }
 
