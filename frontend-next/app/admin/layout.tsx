@@ -10,6 +10,7 @@ const NAV = [
   { href: '/admin/users', icon: 'fa-users', label: 'Users' },
   { href: '/admin/merchants', icon: 'fa-store', label: 'Merchants' },
   { href: '/admin/promotions', icon: 'fa-tags', label: 'Promotions' },
+  { href: '/admin/sections', icon: 'fa-layer-group', label: 'Sections' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -10,6 +10,11 @@ const { authenticateJWT, authorizeAdmin, authorizePromotionOwnerOrAdmin, gentleA
 const { notifyFavoriteStoreFollowers } = require('../jobs/favoriteStoreNotifications');
 const { notifyFlashSale } = require('../jobs/flashSaleNotifications');
 const { notifyPriceDrop } = require('../jobs/priceDropNotifications');
+const {
+  invalidateSectionCaches,
+  resolveSection,
+  resolveHomepageSections,
+} = require('../services/sectionService');
 
 // Add safeError helper
 function safeError(error) {
@@ -72,13 +77,8 @@ router.get('/homepage', async (req, res) => {
       endDate: { $gte: now }
     };
 
-    const [featured, latest] = await Promise.all([
-      Promotion.find({ ...query, featured: true })
-        .select('-comments -ratings')
-        .populate('merchant', 'name logo currency')
-        .sort({ createdAt: -1 })
-        .limit(8)
-        .lean(),
+    const [sections, latest] = await Promise.all([
+      resolveHomepageSections(),
       Promotion.find(query)
         .select('-comments -ratings')
         .populate('merchant', 'name logo currency')
@@ -87,7 +87,14 @@ router.get('/homepage', async (req, res) => {
         .lean()
     ]);
 
-    homepageCache = { featured, latest };
+    homepageCache = {
+      featured: sections.banner,
+      latest,
+      banner: sections.banner,
+      hotDeals: sections.hotDeals,
+      newThisWeek: sections.newThisWeek,
+      sections: sections.sections,
+    };
     homepageCacheTs = Date.now();
 
     res.status(200).json(homepageCache);
@@ -261,11 +268,12 @@ router.post('/admin/clear-cache', authenticateJWT, authorizeAdmin, async (req, r
   try {
     invalidateHomepageCache();
     nearbyCache.clear();
+    invalidateSectionCaches();
     
     console.log('[Cache Clear] All caches cleared by admin');
     res.status(200).json({ 
       message: 'All caches cleared successfully',
-      cleared: ['homepage', 'nearby'],
+      cleared: ['homepage', 'nearby', 'sections'],
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -301,6 +309,35 @@ router.get('/', async (req, res) => {
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/sections', async (_req, res) => {
+  try {
+    const sections = await resolveHomepageSections();
+    res.status(200).json(sections);
+  } catch (error) {
+    console.error('Error in GET /api/promotions/sections:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/sections/:sectionKey', async (req, res) => {
+  try {
+    const { sectionKey } = req.params;
+    if (!['banner', 'hot_deals', 'new_this_week', 'nearby'].includes(sectionKey)) {
+      return res.status(400).json({ message: 'Invalid section key.' });
+    }
+
+    const section = await resolveSection(sectionKey, {
+      latitude: req.query.latitude,
+      longitude: req.query.longitude,
+      radiusKm: req.query.radius,
+    });
+    res.status(200).json(section);
+  } catch (error) {
+    console.error(`Error in GET /api/promotions/sections/${req.params.sectionKey}:`, error);
     res.status(500).json(safeError(error));
   }
 });
@@ -499,6 +536,7 @@ router.post('/', authenticateJWT, [
     // Invalidate caches
     homepageCache = null;
     nearbyCache.clear(); // Clear nearby deals cache on create
+    invalidateSectionCaches();
     
     console.log('[Promotion Create] Caches invalidated');
     res.status(201).json(savedPromotion);
@@ -639,6 +677,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     // Invalidate caches
     homepageCache = null;
     nearbyCache.clear(); // Clear nearby deals cache on update
+    invalidateSectionCaches();
     
     console.log('[Promotion Update] Caches invalidated');
     res.status(200).json(updatedPromotion);
@@ -671,6 +710,7 @@ router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (re
     // Invalidate caches
     homepageCache = null;
     nearbyCache.clear(); // Clear nearby deals cache on delete
+    invalidateSectionCaches();
     
     console.log('[Promotion Delete] Caches invalidated');
     res.status(200).json({ message: 'Promotion deleted successfully' });

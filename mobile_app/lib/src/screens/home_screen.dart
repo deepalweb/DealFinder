@@ -20,19 +20,24 @@ import 'all_deals_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToFavorites;
-  
+
   const HomeScreen({super.key, this.onNavigateToFavorites});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final ApiService _api = ApiService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  
+
   List<Promotion> _allDeals = [];
+  List<Promotion> _bannerDeals = [];
+  List<Promotion> _hotDeals = [];
+  List<Promotion> _newThisWeekDeals = [];
+  List<Promotion> _nearbySectionDeals = [];
   bool _loading = true;
   bool _isOffline = false;
 
@@ -70,11 +75,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Future<void> _loadAll() async {
     // Load user first (needed for token)
     await _loadUser();
-    
+
     // Load location and deals in parallel
     await Future.wait([
       _loadLocation(),
       _loadDeals(),
+      _loadCuratedSections(),
     ]);
   }
 
@@ -104,7 +110,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     setState(() => _position = pos);
     if (pos != null) {
       // Get location name
-      final locationName = await LocationService.getLocationName(pos.latitude, pos.longitude);
+      final locationName =
+          await LocationService.getLocationName(pos.latitude, pos.longitude);
       if (mounted) {
         setState(() => _locationName = locationName ?? 'Current Location');
       }
@@ -115,9 +122,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadNearbyDeals(double lat, double lng) async {
     try {
-      final nearbyDeals = await _api.fetchNearbyPromotions(lat, lng, radiusKm: 10);
+      final nearbyDeals = await _api.fetchCuratedSection(
+        'nearby',
+        latitude: lat,
+        longitude: lng,
+        radiusKm: 10,
+      );
       if (mounted) {
         setState(() {
+          _nearbySectionDeals = nearbyDeals;
           // Update deals with distance information
           for (var deal in nearbyDeals) {
             final index = _allDeals.indexWhere((d) => d.id == deal.id);
@@ -132,6 +145,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _loadCuratedSections() async {
+    try {
+      final sections = await _api.fetchCuratedHomeSections();
+      if (!mounted) return;
+      setState(() {
+        _bannerDeals = sections['banner'] ?? [];
+        _hotDeals = sections['hotDeals'] ?? [];
+        _newThisWeekDeals = sections['newThisWeek'] ?? [];
+      });
+    } catch (_) {
+      // Fall back to local heuristics if curated sections are unavailable
+    }
+  }
+
   Future<void> _loadDeals() async {
     // Show cached data immediately
     final cached = await CacheService.loadPromotions();
@@ -141,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _loading = false;
       });
     }
-    
+
     // Then fetch fresh data in background
     try {
       final deals = await _api.fetchPromotions(forceRefresh: true);
@@ -169,8 +196,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     await _loadDeals();
+    await _loadCuratedSections();
     await _loadLocation();
-    
+
     if (mounted && !_isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -189,47 +217,71 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  int _compareByRecent(Promotion a, Promotion b) {
+    final aDate = a.createdAt ?? a.startDate ?? DateTime(1970);
+    final bDate = b.createdAt ?? b.startDate ?? DateTime(1970);
+    return bDate.compareTo(aDate);
+  }
+
   List<Promotion> get _filteredDeals {
     final now = DateTime.now();
-    return _allDeals.where((p) =>
-      (p.endDate == null || p.endDate!.isAfter(now)) &&
-      (_selectedCategory == null || p.category == _selectedCategory)
-    ).toList();
+    final filtered = _allDeals
+        .where((p) =>
+            (p.endDate == null || p.endDate!.isAfter(now)) &&
+            (_selectedCategory == null || p.category == _selectedCategory))
+        .toList()
+      ..sort(_compareByRecent);
+    return filtered;
   }
 
   List<Promotion> get _flashSales {
     final now = DateTime.now();
     final cutoff = now.add(const Duration(hours: 24));
     return _filteredDeals
-        .where((p) => p.endDate != null && p.endDate!.isBefore(cutoff) && p.endDate!.isAfter(now))
+        .where((p) =>
+            p.endDate != null &&
+            p.endDate!.isBefore(cutoff) &&
+            p.endDate!.isAfter(now))
         .toList()
-      ..sort((a, b) => a.endDate!.compareTo(b.endDate!));
+      ..sort((a, b) {
+        final byEndDate = a.endDate!.compareTo(b.endDate!);
+        if (byEndDate != 0) return byEndDate;
+        return _compareByRecent(a, b);
+      });
   }
 
   List<Promotion> get _nearbyDeals {
+    if (_nearbySectionDeals.isNotEmpty) {
+      return _nearbySectionDeals.take(10).toList();
+    }
     if (_position == null) return [];
     final withDist = _filteredDeals.where((p) => p.distance != null).toList()
-      ..sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
+      ..sort((a, b) {
+        final byDistance = (a.distance ?? 0).compareTo(b.distance ?? 0);
+        if (byDistance != 0) return byDistance;
+        return _compareByRecent(a, b);
+      });
     return withDist.take(10).toList();
   }
 
   List<Promotion> get _featuredDeals {
+    if (_hotDeals.isNotEmpty) return _hotDeals.take(5).toList();
     return _filteredDeals.where((p) => p.featured == true).take(5).toList();
   }
 
   List<Promotion> get _newDeals {
-    final sorted = [..._filteredDeals]
-      ..sort((a, b) {
-        if (a.createdAt == null && b.createdAt == null) return 0;
-        if (a.createdAt == null) return 1;
-        if (b.createdAt == null) return -1;
-        return b.createdAt!.compareTo(a.createdAt!);
-      });
-    return sorted.take(10).toList();
+    if (_newThisWeekDeals.isNotEmpty)
+      return _newThisWeekDeals.take(10).toList();
+    return _filteredDeals.take(10).toList();
   }
 
-  void _openDeal(Promotion p) => Navigator.push(
-    context, MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: p)));
+  List<Promotion> get _bannerSectionDeals {
+    if (_bannerDeals.isNotEmpty) return _bannerDeals.take(5).toList();
+    return _featuredDeals;
+  }
+
+  void _openDeal(Promotion p) => Navigator.push(context,
+      MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: p)));
 
   @override
   Widget build(BuildContext context) {
@@ -242,16 +294,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             onRefresh: _refresh,
             color: Theme.of(context).colorScheme.primary,
             child: CustomScrollView(
-                slivers: [
-                  _buildHeader(),
-                  _buildGreeting(),
-                  _buildSearchBar(),
-                  _buildCategories(),
-                  if (!_loading && _featuredDeals.isNotEmpty) _buildFeaturedBanner(),
-                  if (_isOffline) _buildOfflineBanner(),
-                  if (_loading)
-                    const SliverToBoxAdapter(child: HomeShimmer())
-                  else
+              slivers: [
+                _buildHeader(),
+                _buildGreeting(),
+                _buildSearchBar(),
+                _buildCategories(),
+                if (!_loading && _bannerSectionDeals.isNotEmpty)
+                  _buildFeaturedBanner(),
+                if (_isOffline) _buildOfflineBanner(),
+                if (_loading)
+                  const SliverToBoxAdapter(child: HomeShimmer())
+                else
                   _buildContent(),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
               ],
@@ -280,7 +333,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 );
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -291,7 +345,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withOpacity(0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -328,7 +385,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
                 ),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -342,7 +400,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.location_on, size: 14, color: Color(0xFFE53935)),
+                      const Icon(Icons.location_on,
+                          size: 14, color: Color(0xFFE53935)),
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
@@ -355,7 +414,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         ),
                       ),
                       const SizedBox(width: 2),
-                      const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
+                      const Icon(Icons.keyboard_arrow_down,
+                          size: 14, color: Colors.grey),
                     ],
                   ),
                 ),
@@ -466,7 +526,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 MaterialPageRoute(builder: (_) => const SearchScreen()),
               ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(14),
@@ -511,9 +572,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         height: 180,
         margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
         child: PageView.builder(
-          itemCount: _featuredDeals.length > 3 ? 3 : _featuredDeals.length,
+          itemCount:
+              _bannerSectionDeals.length > 3 ? 3 : _bannerSectionDeals.length,
           itemBuilder: (context, index) {
-            final deal = _featuredDeals[index];
+            final deal = _bannerSectionDeals[index];
             return GestureDetector(
               onTap: () => _openDeal(deal),
               child: Container(
@@ -534,7 +596,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     fit: StackFit.expand,
                     children: [
                       // Background Image
-                      if (deal.imageDataString != null && deal.imageDataString!.isNotEmpty)
+                      if (deal.imageDataString != null &&
+                          deal.imageDataString!.isNotEmpty)
                         Image.network(
                           deal.imageDataString!,
                           fit: BoxFit.cover,
@@ -543,7 +606,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               gradient: LinearGradient(
                                 colors: [
                                   Theme.of(context).colorScheme.primary,
-                                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                  Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withOpacity(0.7),
                                 ],
                               ),
                             ),
@@ -555,7 +621,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             gradient: LinearGradient(
                               colors: [
                                 Theme.of(context).colorScheme.primary,
-                                Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                                Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.7),
                               ],
                             ),
                           ),
@@ -585,7 +654,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             // Discount Badge
                             if (deal.discount != null)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFFF5252),
                                   borderRadius: BorderRadius.circular(20),
@@ -622,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Featured Deal',
+                                  'Curated Banner',
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.9),
                                     fontSize: 12,
@@ -676,7 +746,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onTap: () => setState(() => _selectedCategory = categories[i]),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: selected
                       ? Theme.of(context).colorScheme.primary
@@ -695,7 +766,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     Icon(
                       icons[i],
                       size: 16,
-                      color: selected ? Colors.white : Theme.of(context).colorScheme.primary,
+                      color: selected
+                          ? Colors.white
+                          : Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 6),
                     Text(
@@ -703,7 +776,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: selected ? Colors.white : const Color(0xFF1A1A1A),
+                        color:
+                            selected ? Colors.white : const Color(0xFF1A1A1A),
                       ),
                     ),
                   ],
@@ -739,7 +813,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             TextButton(
               onPressed: _refresh,
-              child: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text('Retry',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -890,89 +965,93 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ],
 
         // Nearby Deals Section
-          if (_nearbyDeals.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            SectionHeader(
-              title: '📍 Near You',
-              subtitle: _locationName == 'Near You' ? 'Deals around your location' : 'Deals around $_locationName',
-              icon: Icons.location_on,
-              onSeeAll: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
+        if (_nearbyDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '📍 Near You',
+            subtitle: _locationName == 'Near You'
+                ? 'Deals around your location'
+                : 'Deals around $_locationName',
+            icon: Icons.location_on,
+            onSeeAll: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5E9),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.near_me,
+                              color: Color(0xFF2E7D32), size: 18),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Closest deals first',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _nearbyDeals.first.distance != null
+                                    ? 'Closest deal is ${(_nearbyDeals.first.distance! < 1000 ? '${_nearbyDeals.first.distance!.round()}m' : '${(_nearbyDeals.first.distance! / 1000).toStringAsFixed(1)}km')} away'
+                                    : 'Open the full nearby view for map and directions',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const NearbyDealsScreen()),
+                    ),
+                    icon: const Icon(Icons.map_outlined, size: 18),
+                    label: const Text('Map'),
+                  ),
+                ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F5E9),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.near_me, color: Color(0xFF2E7D32), size: 18),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Closest deals first',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _nearbyDeals.first.distance != null
-                                      ? 'Closest deal is ${( _nearbyDeals.first.distance! < 1000 ? '${_nearbyDeals.first.distance!.round()}m' : '${(_nearbyDeals.first.distance! / 1000).toStringAsFixed(1)}km')} away'
-                                      : 'Open the full nearby view for map and directions',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
-                      ),
-                      icon: const Icon(Icons.map_outlined, size: 18),
-                      label: const Text('Map'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: GridView.builder(
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -1029,7 +1108,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       if (_position != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Location enabled! Loading nearby deals...'),
+                            content: Text(
+                                'Location enabled! Loading nearby deals...'),
                             backgroundColor: Color(0xFF4CAF50),
                           ),
                         );
@@ -1146,7 +1226,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                side: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
+                side: BorderSide(
+                    color: Theme.of(context).colorScheme.primary, width: 2),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

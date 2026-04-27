@@ -647,6 +647,73 @@ class ApiService {
     }
   }
 
+  Future<Map<String, List<Promotion>>> fetchCuratedHomeSections() async {
+    final response = await http.get(
+      Uri.parse('${_baseUrl}promotions/sections'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 20));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load curated sections');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+    List<Promotion> parseList(String key) {
+      final raw = data[key];
+      if (raw is! List) return [];
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(Promotion.fromJson)
+          .toList();
+    }
+
+    return {
+      'banner': parseList('banner'),
+      'hotDeals': parseList('hotDeals'),
+      'newThisWeek': parseList('newThisWeek'),
+    };
+  }
+
+  Future<List<Promotion>> fetchCuratedSection(
+    String sectionKey, {
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+  }) async {
+    final query = <String, String>{};
+    if (latitude != null) query['latitude'] = latitude.toString();
+    if (longitude != null) query['longitude'] = longitude.toString();
+    if (radiusKm != null) query['radius'] = radiusKm.toString();
+
+    final uri = Uri.parse('${_baseUrl}promotions/sections/$sectionKey')
+        .replace(queryParameters: query.isEmpty ? null : query);
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load curated section');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final items = data['items'];
+    if (items is! List) return [];
+
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(Promotion.fromJson)
+        .toList();
+  }
+
   // Notification API methods
   Future<Map<String, dynamic>> getNotificationPreferences() async {
     final response = await _authGet('${_baseUrl}notifications/preferences');

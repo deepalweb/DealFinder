@@ -106,6 +106,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const googleMapsRoutes = require('./routes/googleMapsRoutes'); // Import the new routes
 const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes');
 const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes');
+const adminSectionRoutes = require('./routes/adminRoutes/adminSectionRoutes');
 const pushRoutes = require('./routes/pushRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 
@@ -125,6 +126,7 @@ app.use('/api/images', imageRoutes);
 const adminRouter = express.Router();
 adminRouter.use('/', adminPromotionRoutes); // Mounted at /api/admin/promotions (due to internal routing)
 adminRouter.use('/', adminDashboardRoutes); // Mounted at /api/admin/dashboard/stats (due to internal routing)
+adminRouter.use('/', adminSectionRoutes);
 app.use('/api/admin', adminRouter);
 
 // Serve static files - IMPORTANT: These must come BEFORE the catch-all routes

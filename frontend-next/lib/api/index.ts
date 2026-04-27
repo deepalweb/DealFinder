@@ -71,6 +71,16 @@ export const PromotionAPI = {
     return fetchAPI<any[]>(`promotions${q ? `?${q}` : ''}`);
   },
   getHomepage: () => fetchAPI<{ featured: any[]; latest: any[] }>('promotions/homepage', { cache: 'no-store' }),
+  getSections: () => fetchAPI<any>('promotions/sections', { cache: 'no-store' }),
+  getSection: (sectionKey: string, params?: Record<string, string | number | undefined>) => {
+    const query = new URLSearchParams(
+      Object.entries(params || {}).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (value !== undefined && value !== null && value !== '') acc[key] = String(value);
+        return acc;
+      }, {})
+    ).toString();
+    return fetchAPI<any>(`promotions/sections/${sectionKey}${query ? `?${query}` : ''}`, { cache: 'no-store' });
+  },
   getById: (id: string) => fetchAPI<any>(`promotions/${id}`),
   getByMerchant: (merchantId: string) => fetchAPI<any[]>(`promotions/merchant/${merchantId}`),
   getNearby: (lat: number, lon: number, radius = 10) =>
@@ -124,6 +134,17 @@ export const AdminAPI = {
     const q = new URLSearchParams(filters as any).toString();
     return fetchAPI<any>(`admin/promotions${q ? `?${q}` : ''}`).then((res: any) => Array.isArray(res) ? res : (res?.data || []));
   },
+  getSections: () => fetchAPI<any[]>('admin/sections', { cache: 'no-store' }),
+  getSectionConflicts: () => fetchAPI<any[]>('admin/sections/conflicts', { cache: 'no-store' }),
+  saveSectionAssignment: (data: any) =>
+    fetchAPI<any>('admin/sections/assignments', { method: 'POST', body: JSON.stringify(data) })
+      .then((res) => { invalidateCache('admin/sections'); invalidateCache('promotions'); return res; }),
+  deleteSectionAssignment: (id: string) =>
+    fetchAPI<any>(`admin/sections/assignments/${id}`, { method: 'DELETE' })
+      .then((res) => { invalidateCache('admin/sections'); invalidateCache('promotions'); return res; }),
+  publishSections: () =>
+    fetchAPI<any>('admin/sections/publish', { method: 'POST' })
+      .then((res) => { invalidateCache('admin/sections'); invalidateCache('promotions'); return res; }),
 };
 
 // Notifications
