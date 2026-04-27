@@ -93,6 +93,7 @@ router.get('/homepage', async (req, res) => {
       banner: sections.banner,
       hotDeals: sections.hotDeals,
       newThisWeek: sections.newThisWeek,
+      flashSales: sections.flashSales,
       sections: sections.sections,
     };
     homepageCacheTs = Date.now();
@@ -326,7 +327,7 @@ router.get('/sections', async (_req, res) => {
 router.get('/sections/:sectionKey', async (req, res) => {
   try {
     const { sectionKey } = req.params;
-    if (!['banner', 'hot_deals', 'new_this_week', 'nearby'].includes(sectionKey)) {
+    if (!['banner', 'hot_deals', 'new_this_week', 'flash_sales', 'nearby'].includes(sectionKey)) {
       return res.status(400).json({ message: 'Invalid section key.' });
     }
 
