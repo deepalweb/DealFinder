@@ -110,21 +110,27 @@ function fmtDate(value?: string | null) {
 export default function AdminSectionsPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeSectionKey, setActiveSectionKey] = useState('banner');
   const [form, setForm] = useState<SectionForm>({ ...emptyForm });
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [promotionSearch, setPromotionSearch] = useState('');
+  const [merchantFilter, setMerchantFilter] = useState('all');
+  const [promotionStatusFilter, setPromotionStatusFilter] = useState('active');
 
   const load = async () => {
     setLoading(true);
     try {
-      const [sectionData, conflictData] = await Promise.all([
+      const [sectionData, conflictData, promotionData] = await Promise.all([
         AdminAPI.getSections(),
         AdminAPI.getSectionConflicts(),
+        AdminAPI.getAllPromotions(),
       ]);
       setSections(sectionData || []);
       setConflicts(conflictData || []);
+      setPromotions(Array.isArray(promotionData) ? promotionData : []);
       const firstKey = (sectionData?.[0]?.key as string | undefined) || 'banner';
       setActiveSectionKey((current) =>
         sectionData?.some((section: Section) => section.key === current) ? current : firstKey
@@ -144,6 +150,57 @@ export default function AdminSectionsPage() {
   const activeSection = useMemo(
     () => sections.find((section) => section.key === activeSectionKey) || sections[0],
     [sections, activeSectionKey]
+  );
+
+  const assignedPromotionIds = useMemo(
+    () =>
+      new Set(
+        sections.flatMap((section) =>
+          section.assignments
+            .map((assignment) => assignment.promotion?._id)
+            .filter((promotionId): promotionId is string => Boolean(promotionId))
+        )
+      ),
+    [sections]
+  );
+
+  const merchantOptions = useMemo(
+    () =>
+      [...new Set(promotions.map((promotion) => promotion.merchant?.name).filter(Boolean))]
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    [promotions]
+  );
+
+  const promotionStatusOptions = useMemo(
+    () =>
+      [...new Set(promotions.map((promotion) => promotion.status).filter(Boolean))]
+        .sort((a, b) => String(a).localeCompare(String(b))),
+    [promotions]
+  );
+
+  const filteredPromotions = useMemo(() => {
+    const term = promotionSearch.trim().toLowerCase();
+    return promotions.filter((promotion) => {
+      const merchantName = promotion.merchant?.name || '';
+      const matchesSearch =
+        !term ||
+        promotion.title?.toLowerCase().includes(term) ||
+        merchantName.toLowerCase().includes(term) ||
+        promotion.category?.toLowerCase().includes(term);
+      const matchesMerchant =
+        merchantFilter === 'all' || merchantName === merchantFilter;
+      const matchesStatus =
+        promotionStatusFilter === 'all' || promotion.status === promotionStatusFilter;
+
+      return matchesSearch && matchesMerchant && matchesStatus;
+    });
+  }, [merchantFilter, promotionSearch, promotionStatusFilter, promotions]);
+
+  const selectedPromotion = useMemo(
+    () =>
+      promotions.find((promotion) => promotion._id === form.promotionId) ||
+      activeSection?.assignments.find((assignment) => assignment.promotion?._id === form.promotionId)?.promotion,
+    [activeSection?.assignments, form.promotionId, promotions]
   );
 
   useEffect(() => {
@@ -321,7 +378,7 @@ export default function AdminSectionsPage() {
                         </div>
                         <h2 style={{ marginTop: 0, marginBottom: '0.4rem', fontWeight: 800 }}>No assignments yet</h2>
                         <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                          Add a promotion ID below to start curating this section.
+                          Select a merchant-created deal below to start curating this section.
                         </p>
                       </div>
                     ) : (
@@ -401,15 +458,185 @@ export default function AdminSectionsPage() {
                     Assign Deal to {activeSection.label}
                   </h3>
                   <div style={{ display: 'grid', gap: '0.85rem' }}>
-                    <label>
-                      <div style={{ marginBottom: '0.35rem', fontSize: '0.85rem', fontWeight: 700 }}>Promotion ID</div>
-                      <input
-                        className="modern-input"
-                        placeholder="Paste Mongo promotion ID"
-                        value={form.promotionId}
-                        onChange={(e) => setForm((current) => ({ ...current, promotionId: e.target.value }))}
-                      />
-                    </label>
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
+                      <div style={{ marginBottom: '0.1rem', fontSize: '0.85rem', fontWeight: 700 }}>Select Deal</div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="input-with-icon">
+                          <i className="fas fa-search"></i>
+                          <input
+                            className="modern-input"
+                            placeholder="Search by deal, merchant, or category"
+                            value={promotionSearch}
+                            onChange={(e) => setPromotionSearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <select
+                            className="modern-select"
+                            value={merchantFilter}
+                            onChange={(e) => setMerchantFilter(e.target.value)}
+                          >
+                            <option value="all">All merchants</option>
+                            {merchantOptions.map((merchantName) => (
+                              <option key={merchantName} value={merchantName}>
+                                {merchantName}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            className="modern-select"
+                            value={promotionStatusFilter}
+                            onChange={(e) => setPromotionStatusFilter(e.target.value)}
+                          >
+                            <option value="all">All statuses</option>
+                            {promotionStatusOptions.map((status) => (
+                              <option key={status} value={status}>
+                                {status?.replace(/_/g, ' ')}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          maxHeight: '280px',
+                          overflowY: 'auto',
+                          display: 'grid',
+                          gap: '0.7rem',
+                          paddingRight: '0.2rem',
+                        }}
+                      >
+                        {filteredPromotions.length === 0 ? (
+                          <div
+                            style={{
+                              padding: '1rem',
+                              borderRadius: '0.9rem',
+                              border: '1px dashed var(--border-color)',
+                              color: 'var(--text-secondary)',
+                              textAlign: 'center',
+                            }}
+                          >
+                            No promotions match your filters.
+                          </div>
+                        ) : (
+                          filteredPromotions.slice(0, 30).map((promotion) => {
+                            const promotionId = promotion._id || '';
+                            const isSelected = form.promotionId === promotionId;
+                            const alreadyAssigned = assignedPromotionIds.has(promotionId);
+
+                            return (
+                              <button
+                                key={promotionId}
+                                type="button"
+                                onClick={() =>
+                                  setForm((current) => ({
+                                    ...current,
+                                    promotionId,
+                                  }))
+                                }
+                                style={{
+                                  textAlign: 'left',
+                                  borderRadius: '1rem',
+                                  border: isSelected
+                                    ? '2px solid var(--primary-color)'
+                                    : '1px solid var(--border-color)',
+                                  background: isSelected
+                                    ? 'rgba(37,99,235,0.06)'
+                                    : 'var(--card-bg)',
+                                  padding: '0.85rem',
+                                  cursor: 'pointer',
+                                  display: 'grid',
+                                  gridTemplateColumns: '56px 1fr',
+                                  gap: '0.8rem',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    borderRadius: '0.85rem',
+                                    overflow: 'hidden',
+                                    background: 'var(--light-gray)',
+                                    display: 'grid',
+                                    placeItems: 'center',
+                                  }}
+                                >
+                                  {promotion.image ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                      src={promotion.image}
+                                      alt={promotion.title || 'Promotion'}
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                    />
+                                  ) : (
+                                    <i className="fas fa-image" style={{ color: 'var(--text-secondary)' }}></i>
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: '0.2rem' }}>
+                                    <strong style={{ color: 'var(--text-primary)' }}>
+                                      {promotion.title || 'Untitled deal'}
+                                    </strong>
+                                    {alreadyAssigned ? (
+                                      <span
+                                        className="status-chip"
+                                        style={{
+                                          background: 'rgba(245,158,11,0.1)',
+                                          color: '#d97706',
+                                        }}
+                                      >
+                                        Already in a section
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.84rem' }}>
+                                    {promotion.merchant?.name || 'Unknown merchant'}
+                                    {promotion.category ? ` • ${promotion.category}` : ''}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: '0.35rem' }}>
+                                    {promotion.discount ? (
+                                      <span className="discount-badge" style={{ position: 'static', fontSize: '0.68rem' }}>
+                                        {promotion.discount} OFF
+                                      </span>
+                                    ) : null}
+                                    {promotion.status ? (
+                                      <span className="status-chip">
+                                        {promotion.status.replace(/_/g, ' ')}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedPromotion ? (
+                      <div
+                        style={{
+                          padding: '0.9rem 1rem',
+                          borderRadius: '1rem',
+                          border: '1px solid rgba(37,99,235,0.18)',
+                          background: 'rgba(37,99,235,0.05)',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-color)', marginBottom: '0.35rem' }}>
+                          Selected deal
+                        </div>
+                        <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                          {selectedPromotion.title || 'Untitled deal'}
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.84rem', marginTop: '0.2rem' }}>
+                          {selectedPromotion.merchant?.name || 'Unknown merchant'}
+                          {selectedPromotion.category ? ` • ${selectedPromotion.category}` : ''}
+                          {selectedPromotion.status ? ` • ${selectedPromotion.status.replace(/_/g, ' ')}` : ''}
+                        </div>
+                      </div>
+                    ) : null}
 
                     <div className="grid grid-cols-2 gap-3">
                       <label>
