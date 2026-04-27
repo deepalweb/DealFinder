@@ -1,146 +1,152 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:qr_flutter/qr_flutter.dart';
-import 'package:share_plus/share_plus.dart';
-import '../services/api_service.dart';
 import '../models/promotion.dart';
+import '../services/api_service.dart';
 import 'create_promotion_screen.dart';
-import 'edit_merchant_screen.dart';
 import 'deal_detail_screen.dart';
+import 'edit_merchant_screen.dart';
 
 class MerchantDashboardScreen extends StatefulWidget {
   const MerchantDashboardScreen({super.key});
 
   @override
-  State<MerchantDashboardScreen> createState() => _MerchantDashboardScreenState();
+  State<MerchantDashboardScreen> createState() =>
+      _MerchantDashboardScreenState();
 }
 
 class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   final ApiService _apiService = ApiService();
+  final DateFormat _dateFormat = DateFormat('MMM d, yyyy');
+
   String? _merchantId;
   String? _token;
   String? _merchantName;
+  String? _userId;
   bool _isLoading = true;
-  List<Promotion> _myPromotions = [];
+  String _activeTab = 'active';
+
   Map<String, dynamic>? _merchantData;
-  Map<String, dynamic> _analytics = {
-    'totalViews': 0,
-    'totalClicks': 0,
-    'totalSaves': 0,
-    'followers': 0,
-  };
+  List<Promotion> _promotions = [];
+
+  bool get _hasValidMerchantId =>
+      _merchantId != null &&
+      RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(_merchantId!);
+
+  bool get _isDemoMerchantSession =>
+      (_token?.startsWith('demo-') ?? false) ||
+      (_merchantId?.startsWith('demo-') ?? false);
+
+  bool get _hasProfileContent {
+    final profile = (_merchantData?['profile'] ?? '').toString().trim();
+    final contactInfo = (_merchantData?['contactInfo'] ?? '').toString().trim();
+    return profile.isNotEmpty && contactInfo.isNotEmpty;
+  }
+
+  bool get _hasLocation {
+    final location = _merchantData?['location'];
+    return location is Map &&
+        location['coordinates'] is List &&
+        (location['coordinates'] as List).length == 2;
+  }
+
+  int get _activeCount => _promotions
+      .where((promotion) => _isActiveLikeStatus(promotion.status))
+      .length;
+
+  int get _pendingCount => _promotions
+      .where((promotion) => promotion.status == 'pending_approval')
+      .length;
+
+  int get _expiredCount => _promotions
+      .where((promotion) => _isExpiredLikeStatus(promotion.status))
+      .length;
+
+  List<Promotion> get _filteredPromotions {
+    final filtered = _promotions.where((promotion) {
+      switch (_activeTab) {
+        case 'active':
+          return _isActiveLikeStatus(promotion.status);
+        case 'expired':
+          return _isExpiredLikeStatus(promotion.status);
+        default:
+          return true;
+      }
+    }).toList();
+
+    filtered.sort((a, b) {
+      final aDate = a.createdAt ?? a.startDate ?? DateTime(1970);
+      final bDate = b.createdAt ?? b.startDate ?? DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
+    return filtered;
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadMerchantData();
+    _loadDashboard();
   }
 
-  Future<void> _loadMerchantData() async {
-    setState(() => _isLoading = true);
-    
+  Future<void> _loadDashboard() async {
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
     final prefs = await SharedPreferences.getInstance();
     _merchantId = prefs.getString('merchantId');
     _token = prefs.getString('userToken');
     _merchantName = prefs.getString('userBusinessName');
-    final userId = prefs.getString('userId');
-    
-    print('🔍 Merchant Dashboard - Loading data:');
-    print('   merchantId: $_merchantId');
-    print('   token: ${_token != null ? "exists" : "null"}');
-    print('   merchantName: $_merchantName');
-    print('   userId: $userId');
-    print('   All keys: ${prefs.getKeys()}');
+    _userId = prefs.getString('userId');
 
-    // If merchantId is null, try to fetch it from the backend
-    if (_merchantId == null && userId != null && _token != null) {
-      print('🔄 Fetching user profile to get merchantId...');
+    if ((_merchantId == null || !_hasValidMerchantId) &&
+        _userId != null &&
+        _token != null &&
+        !_isDemoMerchantSession) {
       try {
-        final userProfile = await _apiService.fetchUserProfile(userId, _token!);
+        final userProfile =
+            await _apiService.fetchUserProfile(_userId!, _token!);
         final fetchedMerchantId = userProfile['merchantId'] as String?;
         if (fetchedMerchantId != null) {
-          print('✅ Found merchantId in user profile: $fetchedMerchantId');
           await prefs.setString('merchantId', fetchedMerchantId);
           _merchantId = fetchedMerchantId;
-        } else {
-          print('❌ No merchantId in user profile');
+        }
+      } catch (_) {}
+    }
+
+    if (_hasValidMerchantId) {
+      try {
+        final results = await Future.wait([
+          _apiService.fetchMerchantById(_merchantId!),
+          _apiService.fetchMerchantPromotions(_merchantId!),
+        ]);
+        _merchantData = results[0] as Map<String, dynamic>;
+        _promotions = results[1] as List<Promotion>;
+        final liveName = (_merchantData?['name'] ?? '').toString().trim();
+        if (liveName.isNotEmpty) {
+          _merchantName = liveName;
+          await prefs.setString('userBusinessName', liveName);
         }
       } catch (e) {
-        print('❌ Error fetching user profile: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to load merchant dashboard: $e')),
+          );
+        }
       }
     }
 
-    if (_merchantId != null) {
-      await _fetchMerchantDetails();
-      await _fetchMyPromotions();
-    } else {
-      print('❌ No merchantId found in SharedPreferences or backend');
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
-
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _fetchMerchantDetails() async {
-    try {
-      final data = await _apiService.fetchMerchantById(_merchantId!);
-      setState(() => _merchantData = data);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load merchant details: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _fetchMyPromotions() async {
-    try {
-      final allPromotions = await _apiService.fetchPromotions();
-      setState(() {
-        _myPromotions = allPromotions
-            .where((p) => p.merchantId == _merchantId)
-            .toList();
-      });
-      _calculateAnalytics();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load promotions: $e')),
-        );
-      }
-    }
-  }
-
-  void _calculateAnalytics() {
-    int totalViews = 0;
-    int totalClicks = 0;
-    int totalSaves = 0;
-    
-    for (var promo in _myPromotions) {
-      // Mock data - in production, fetch from backend
-      totalViews += (promo.id.hashCode % 1000).abs();
-      totalClicks += (promo.id.hashCode % 500).abs();
-      totalSaves += (promo.id.hashCode % 100).abs();
-    }
-    
-    setState(() {
-      _analytics = {
-        'totalViews': totalViews,
-        'totalClicks': totalClicks,
-        'totalSaves': totalSaves,
-        'followers': _merchantData?['followers'] ?? 0,
-      };
-    });
-  }
-
-  Future<void> _refresh() async {
-    await _loadMerchantData();
   }
 
   Future<void> _initializeMerchantProfile() async {
-    if (_merchantName == null || _merchantName!.isEmpty) {
+    if (_merchantName == null ||
+        _merchantName!.trim().isEmpty ||
+        _token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business name is required')),
+        const SnackBar(content: Text('Business name and login are required.')),
       );
       return;
     }
@@ -150,241 +156,191 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final response = await _apiService.initializeMerchantProfile(
-        businessName: _merchantName!,
+        businessName: _merchantName!.trim(),
         token: _token!,
       );
 
-      // Save the new merchantId
-      final merchantId = response['merchantId'] as String?;
-      if (merchantId != null) {
-        await prefs.setString('merchantId', merchantId);
-        setState(() => _merchantId = merchantId);
-        
+      final refreshedToken = response['token'] as String?;
+      final refreshedMerchantId = response['merchantId'] as String?;
+      final refreshedBusinessName = response['businessName'] as String?;
+
+      if (refreshedToken != null) {
+        await prefs.setString('userToken', refreshedToken);
+        _token = refreshedToken;
+      }
+      if (refreshedMerchantId != null) {
+        await prefs.setString('merchantId', refreshedMerchantId);
+        _merchantId = refreshedMerchantId;
+      }
+      if (refreshedBusinessName != null && refreshedBusinessName.isNotEmpty) {
+        await prefs.setString('userBusinessName', refreshedBusinessName);
+        _merchantName = refreshedBusinessName;
+      }
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Store profile initialized successfully!'),
             backgroundColor: Colors.green,
           ),
         );
-        
-        await _loadMerchantData();
       }
+      await _loadDashboard();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to initialize profile: $e')),
+          SnackBar(content: Text('Failed to initialize store profile: $e')),
         );
       }
-    } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-  void _showQRCode(Promotion promo) {
-    final dealUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/deal/${promo.id}';
-    
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'QR Code',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                promo.title,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[300]!),
-                ),
-                child: QrImageView(
-                  data: dealUrl,
-                  version: QrVersions.auto,
-                  size: 200,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Scan to view deal',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Share.share('Check out this deal: ${promo.title}\n$dealUrl');
-                      },
-                      icon: const Icon(Icons.share),
-                      label: const Text('Share'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+  Future<void> _openEditProfile() async {
+    if (!_hasValidMerchantId) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EditMerchantScreen(
+          merchantId: _merchantId!,
+          merchantData: _merchantData,
         ),
       ),
     );
+    if (result == true) {
+      await _loadDashboard();
+    }
   }
 
-  Future<void> _duplicateDeal(Promotion promo) async {
+  Future<void> _openCreatePromotion() async {
+    if (!_ensureValidMerchantSession()) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreatePromotionScreen(merchantId: _merchantId!),
+      ),
+    );
+    if (result == true) {
+      await _loadDashboard();
+    }
+  }
+
+  Future<void> _openEditPromotion(Promotion promotion) async {
+    if (!_ensureValidMerchantSession()) return;
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CreatePromotionScreen(
           merchantId: _merchantId!,
-          duplicateFrom: promo,
+          existingPromotion: promotion,
         ),
       ),
     );
     if (result == true) {
-      _refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Deal duplicated! Edit and save to create.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      await _loadDashboard();
     }
   }
 
-  void _showDealOptions(Promotion promo) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.qr_code),
-              title: const Text('Generate QR Code'),
-              onTap: () {
-                Navigator.pop(context);
-                _showQRCode(promo);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: const Text('Duplicate Deal'),
-              onTap: () {
-                Navigator.pop(context);
-                _duplicateDeal(promo);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: const Text('Share Deal'),
-              onTap: () {
-                Navigator.pop(context);
-                final dealUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/deal/${promo.id}';
-                Share.share('Check out this deal: ${promo.title}\n$dealUrl');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text('View Analytics'),
-              onTap: () {
-                Navigator.pop(context);
-                _showDealAnalytics(promo);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.visibility),
-              title: const Text('View Deal'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DealDetailScreen(promotion: promo),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showDealAnalytics(Promotion promo) {
-    // Mock analytics data
-    final views = (promo.id.hashCode % 1000).abs();
-    final clicks = (promo.id.hashCode % 500).abs();
-    final saves = (promo.id.hashCode % 100).abs();
-    final ctr = clicks > 0 ? (clicks / views * 100).toStringAsFixed(1) : '0.0';
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(promo.title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildAnalyticRow(Icons.visibility, 'Views', '$views'),
-            const SizedBox(height: 12),
-            _buildAnalyticRow(Icons.touch_app, 'Clicks', '$clicks'),
-            const SizedBox(height: 12),
-            _buildAnalyticRow(Icons.favorite, 'Saves', '$saves'),
-            const SizedBox(height: 12),
-            _buildAnalyticRow(Icons.trending_up, 'CTR', '$ctr%'),
-            const Divider(height: 24),
-            Text(
-              'Note: Analytics data is simulated for demo purposes.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+  Future<void> _deletePromotion(Promotion promotion) async {
+    if (_token == null) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Promotion'),
+            content: Text(
+                'Delete "${promotion.title}"? This action cannot be undone.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        ) ??
+        false;
+
+    if (!confirmed) return;
+
+    try {
+      await _apiService.deletePromotion(promotion.id, _token!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Promotion deleted.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      await _loadDashboard();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete promotion: $e')),
+        );
+      }
+    }
   }
 
-  Widget _buildAnalyticRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+  bool _ensureValidMerchantSession() {
+    if (_token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please sign in again to manage promotions.')),
+      );
+      return false;
+    }
+    if (_isDemoMerchantSession) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Demo merchant accounts are read-only. Use a real merchant login to manage promotions.'),
         ),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      );
+      return false;
+    }
+    if (!_hasValidMerchantId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Merchant profile is not linked correctly. Sign out and sign back in, then try again.'),
         ),
-      ],
-    );
+      );
+      return false;
+    }
+    return true;
+  }
+
+  bool _isActiveLikeStatus(String? status) =>
+      ['active', 'approved', 'pending_approval', 'scheduled'].contains(status);
+
+  bool _isExpiredLikeStatus(String? status) =>
+      ['expired', 'rejected', 'admin_paused'].contains(status);
+
+  String _statusLabel(String? status) {
+    if (status == null || status.isEmpty) return 'Unknown';
+    return status
+        .split('_')
+        .map((part) => part.isEmpty
+            ? part
+            : '${part[0].toUpperCase()}${part.substring(1)}')
+        .join(' ');
+  }
+
+  Color _statusColor(String? status) {
+    if (_isActiveLikeStatus(status)) {
+      return status == 'pending_approval' ? Colors.orange : Colors.green;
+    }
+    if (_isExpiredLikeStatus(status)) {
+      return status == 'rejected' ? Colors.red : Colors.grey;
+    }
+    return Colors.blueGrey;
   }
 
   @override
@@ -395,7 +351,10 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       );
     }
 
-    if (_merchantId == null) {
+    if (_merchantId == null ||
+        (_merchantId != null &&
+            !_hasValidMerchantId &&
+            !_isDemoMerchantSession)) {
       return Scaffold(
         appBar: AppBar(title: const Text('Merchant Dashboard')),
         body: Center(
@@ -405,38 +364,23 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.store_outlined, size: 80, color: Colors.grey[400]),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 const Text(
-                  'Merchant Profile Not Set Up',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  'Merchant Profile Not Ready',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Your account is registered as a merchant, but your store profile needs to be initialized.',
+                  'Initialize your store profile first so the mobile dashboard can match the web merchant flow.',
                   style: TextStyle(color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
                 ElevatedButton.icon(
-                  onPressed: () async {
-                    await _initializeMerchantProfile();
-                  },
+                  onPressed: _initializeMerchantProfile,
                   icon: const Icon(Icons.store),
                   label: const Text('Initialize Store Profile'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Go Back'),
                 ),
               ],
             ),
@@ -450,280 +394,552 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         title: const Text('Merchant Dashboard'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Edit Store',
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditMerchantScreen(
-                    merchantId: _merchantId!,
-                    merchantData: _merchantData,
-                  ),
-                ),
-              );
-              if (result == true) {
-                _refresh();
-              }
-            },
+            onPressed: _loadDashboard,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: SingleChildScrollView(
+        onRefresh: _loadDashboard,
+        child: ListView(
           padding: const EdgeInsets.all(16),
-          child: Column(
+          children: [
+            _buildHeaderCard(context),
+            const SizedBox(height: 16),
+            if (_isDemoMerchantSession)
+              _buildBannerCard(
+                context,
+                icon: Icons.info_outline,
+                color: Colors.orange,
+                message:
+                    'Demo merchant mode is read-only. Sign in with a real merchant account to create, edit, or delete promotions.',
+              ),
+            if (_isDemoMerchantSession) const SizedBox(height: 16),
+            _buildStatsGrid(context),
+            const SizedBox(height: 20),
+            if (_promotions.isEmpty) ...[
+              _buildOnboardingCard(context),
+              const SizedBox(height: 20),
+            ],
+            _buildSectionHeader(context),
+            const SizedBox(height: 12),
+            _buildTabSelector(),
+            const SizedBox(height: 16),
+            if (_filteredPromotions.isEmpty)
+              _buildEmptyState(context)
+            else
+              ..._filteredPromotions.map((promotion) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildPromotionCard(context, promotion),
+                  )),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openCreatePromotion,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Promotion'),
+      ),
+    );
+  }
+
+  Widget _buildHeaderCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFF43F5E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Store Info Card
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child:
+                    const Icon(Icons.storefront, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      (_merchantData?['name'] ?? _merchantName ?? 'My Store')
+                          .toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$_activeCount active deals',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.84),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openEditProfile,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(color: Colors.white.withOpacity(0.35)),
+                    backgroundColor: Colors.white.withOpacity(0.12),
+                  ),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Edit Profile'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _openCreatePromotion,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF4F46E5),
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Promotion'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsGrid(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child:
+                  _buildStatCard('Total', '${_promotions.length}', Icons.sell),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child:
+                  _buildStatCard('Active', '$_activeCount', Icons.check_circle),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child:
+                  _buildStatCard('Pending', '$_pendingCount', Icons.schedule),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard('Expired', '$_expiredCount', Icons.history),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 12),
+            Text(
+              value,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOnboardingCard(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(Icons.rocket_launch, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                            child: Icon(
-                              Icons.store,
-                              size: 30,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _merchantName ?? 'My Store',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                if (_merchantData != null && _merchantData!['contactInfo'] != null)
-                                  Text(
-                                    _merchantData!['contactInfo'],
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      Text(
+                        "Welcome! Let's set up your store",
+                        style: TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 16),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Follow the same merchant checklist used on the web dashboard.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildChecklistItem(
+              label: 'Complete your store profile',
+              done: _hasProfileContent,
+              icon: Icons.person_outline,
+              actionLabel: 'Set Up Profile',
+              onTap: _openEditProfile,
+            ),
+            const SizedBox(height: 10),
+            _buildChecklistItem(
+              label: 'Add your location so customers can find nearby deals',
+              done: _hasLocation,
+              icon: Icons.location_on_outlined,
+              actionLabel: 'Add Location',
+              onTap: _openEditProfile,
+            ),
+            const SizedBox(height: 10),
+            _buildChecklistItem(
+              label: 'Create your first promotion',
+              done: _promotions.isNotEmpty,
+              icon: Icons.local_offer_outlined,
+              actionLabel: 'Create Deal',
+              onTap: _openCreatePromotion,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // Stats Cards
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Active Deals',
-                      '${_myPromotions.length}',
-                      Icons.local_offer,
-                      Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Total Views',
-                      '${_analytics['totalViews']}',
-                      Icons.visibility,
-                      Colors.green,
-                    ),
-                  ),
-                ],
+  Widget _buildChecklistItem({
+    required String label,
+    required bool done,
+    required IconData icon,
+    required String actionLabel,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: done ? Colors.green.withOpacity(0.06) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: done ? Colors.green.withOpacity(0.2) : Colors.grey.shade300,
+        ),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor:
+                done ? Colors.green.withOpacity(0.12) : Colors.grey.shade100,
+            foregroundColor:
+                done ? Colors.green : Theme.of(context).colorScheme.primary,
+            child: Icon(done ? Icons.check : icon),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: done ? Colors.green.shade700 : null,
+                decoration: done ? TextDecoration.lineThrough : null,
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Clicks',
-                      '${_analytics['totalClicks']}',
-                      Icons.touch_app,
-                      Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatCard(
-                      context,
-                      'Saves',
-                      '${_analytics['totalSaves']}',
-                      Icons.favorite,
-                      Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
+            ),
+          ),
+          if (!done)
+            TextButton(
+              onPressed: onTap,
+              child: Text(actionLabel),
+            ),
+        ],
+      ),
+    );
+  }
 
-              // Quick Actions
-              Text(
-                'Quick Actions',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+  Widget _buildSectionHeader(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Promotions',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
-              ),
-              const SizedBox(height: 12),
+          ),
+        ),
+        TextButton(
+          onPressed: _loadDashboard,
+          child: const Text('Refresh'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabSelector() {
+    final tabs = const [
+      ('active', 'Active'),
+      ('expired', 'Expired'),
+      ('all', 'All'),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tabs.map((tab) {
+          final selected = _activeTab == tab.$1;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(tab.$2),
+              selected: selected,
+              onSelected: (_) => setState(() => _activeTab = tab.$1),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          children: [
+            Icon(Icons.local_offer_outlined, size: 60, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              _promotions.isEmpty
+                  ? 'No promotions yet'
+                  : 'No promotions in this view',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _promotions.isEmpty
+                  ? 'Create your first promotion to start attracting customers.'
+                  : 'Try a different filter or refresh the dashboard.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _openCreatePromotion,
+              icon: const Icon(Icons.add),
+              label: const Text('Create Promotion'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPromotionCard(BuildContext context, Promotion promotion) {
+    final statusColor = _statusColor(promotion.status);
+    final image = promotion.imageDataString;
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DealDetailScreen(promotion: promotion),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CreatePromotionScreen(merchantId: _merchantId!),
-                          ),
-                        );
-                        if (result == true) {
-                          _refresh();
-                        }
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const Text('Create Deal'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      width: 64,
+                      height: 64,
+                      color: Colors.grey.shade200,
+                      child: image != null && image.isNotEmpty
+                          ? Image.network(
+                              image,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.local_offer),
+                            )
+                          : const Icon(Icons.local_offer),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => EditMerchantScreen(
-                              merchantId: _merchantId!,
-                              merchantData: _merchantData,
-                            ),
-                          ),
-                        );
-                        if (result == true) {
-                          _refresh();
-                        }
-                      },
-                      icon: const Icon(Icons.edit),
-                      label: const Text('Edit Store'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // My Promotions
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'My Deals',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _refresh,
-                    child: const Text('Refresh'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              
-              if (_myPromotions.isEmpty)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(Icons.local_offer_outlined, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          const Text('No deals yet'),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Create your first deal to attract customers!',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _myPromotions.length,
-                  itemBuilder: (context, index) {
-                    final promo = _myPromotions[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.local_offer),
-                        ),
-                        title: Text(
-                          promo.title,
-                          maxLines: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          promotion.title,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
-                            Text(
-                              promo.discount ?? 'No discount',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Icon(Icons.visibility, size: 14, color: Colors.grey[600]),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${(promo.id.hashCode % 1000).abs()} views',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                ),
-                              ],
+                            if ((promotion.discount ?? '').isNotEmpty)
+                              _buildMiniPill(
+                                promotion.discount!,
+                                background: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withOpacity(0.1),
+                                foreground:
+                                    Theme.of(context).colorScheme.primary,
+                              ),
+                            if ((promotion.code ?? '').isNotEmpty)
+                              _buildMiniPill(
+                                promotion.code!,
+                                background: Colors.grey.shade100,
+                                foreground: Colors.grey.shade800,
+                              ),
+                            _buildMiniPill(
+                              _statusLabel(promotion.status),
+                              background: statusColor.withOpacity(0.12),
+                              foreground: statusColor,
                             ),
                           ],
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.more_vert),
-                          onPressed: () => _showDealOptions(promo),
-                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                promotion.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.grey[700]),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.category_outlined,
+                      size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      _statusLabel(promotion.category),
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.event_outlined, size: 16, color: Colors.grey[600]),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${promotion.startDate != null ? _dateFormat.format(promotion.startDate!) : '—'} - ${promotion.endDate != null ? _dateFormat.format(promotion.endDate!) : '—'}',
+                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _openEditPromotion(promotion),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _deletePromotion(promotion),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.redAccent),
                       ),
-                    );
-                  },
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('Delete'),
+                    ),
+                  ),
+                ],
+              ),
+              if ((promotion.url ?? '').isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  promotion.url!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 12,
+                  ),
                 ),
+              ],
             ],
           ),
         ),
@@ -731,35 +947,52 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(
-    BuildContext context,
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
+  Widget _buildMiniPill(
+    String label, {
+    required Color background,
+    required Color foreground,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foreground,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
         ),
+      ),
+    );
+  }
+
+  Widget _buildBannerCard(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String message,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: color.withOpacity(0.95)),
+            ),
+          ),
+        ],
       ),
     );
   }

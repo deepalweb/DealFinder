@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
 import DealPageClient from './DealPageClient';
-
-const API = process.env.BACKEND_URL
-  ? `${process.env.BACKEND_URL}/api`
-  : 'http://localhost:8080/api';
+import { buildApiUrl } from '@/lib/config/api';
 
 export async function generateMetadata({ params }: { params: Promise<{ dealId: string }> }): Promise<Metadata> {
   try {
     const { dealId } = await params;
-    const res = await fetch(`${API}/promotions/${dealId}`, { next: { revalidate: 3600 } });
+    const res = await fetch(buildApiUrl(`promotions/${dealId}`), {
+      next: { revalidate: 3600 },
+    });
     if (!res.ok) throw new Error('Not found');
     const deal = await res.json();
 

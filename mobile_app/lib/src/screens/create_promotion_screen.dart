@@ -1,33 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
 import '../services/image_helper.dart';
-import '../models/category.dart';
 import '../models/promotion.dart';
+
+const List<String> _merchantCategories = [
+  'fashion',
+  'electronics',
+  'travel',
+  'health',
+  'entertainment',
+  'home',
+  'pets',
+  'food',
+  'education',
+];
 
 class CreatePromotionScreen extends StatefulWidget {
   final String merchantId;
   final Promotion? duplicateFrom;
+  final Promotion? existingPromotion;
 
   const CreatePromotionScreen({
     super.key,
     required this.merchantId,
     this.duplicateFrom,
+    this.existingPromotion,
   });
 
   @override
   State<CreatePromotionScreen> createState() => _CreatePromotionScreenState();
 }
 
-class _CreatePromotionScreenState extends State<CreatePromotionScreen> with SingleTickerProviderStateMixin {
+class _CreatePromotionScreenState extends State<CreatePromotionScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
   final ImagePicker _picker = ImagePicker();
   late TabController _tabController;
-  
+
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _discountController = TextEditingController();
@@ -36,7 +49,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
   final _originalPriceController = TextEditingController();
   final _discountedPriceController = TextEditingController();
   final _percentageOffController = TextEditingController();
-  
+
   String? _selectedCategory;
   DateTime? _startDate;
   DateTime? _endDate;
@@ -44,8 +57,17 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
   bool _isSubmitting = false;
   String? _token;
   String _dealType = 'percentage';
-  List<File> _imageFiles = [];
+  final List<File> _imageFiles = [];
   List<String> _uploadedImageUrls = [];
+
+  bool get _hasValidMerchantId =>
+      RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(widget.merchantId);
+
+  bool get _isDemoMerchantSession =>
+      (_token?.startsWith('demo-') ?? false) ||
+      widget.merchantId.startsWith('demo-');
+
+  bool get _isEditing => widget.existingPromotion != null;
 
   @override
   void initState() {
@@ -54,26 +76,30 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
     _loadToken();
     _startDate = DateTime.now();
     _endDate = DateTime.now().add(const Duration(days: 30));
-    
-    // Load data from duplicateFrom if provided
-    if (widget.duplicateFrom != null) {
-      _loadDuplicateData();
+
+    if (_isEditing) {
+      _loadPromotionData(widget.existingPromotion!, isDuplicate: false);
+    } else if (widget.duplicateFrom != null) {
+      _loadPromotionData(widget.duplicateFrom!, isDuplicate: true);
     }
-    
+
     _percentageOffController.addListener(_calculateDiscountedPrice);
     _originalPriceController.addListener(_calculateDiscountedPrice);
   }
 
-  void _loadDuplicateData() {
-    final promo = widget.duplicateFrom!;
-    _titleController.text = '${promo.title} (Copy)';
+  void _loadPromotionData(Promotion promo, {required bool isDuplicate}) {
+    _titleController.text = isDuplicate ? '${promo.title} (Copy)' : promo.title;
     _descriptionController.text = promo.description;
     _discountController.text = promo.discount ?? '';
     _codeController.text = promo.code ?? '';
     _urlController.text = promo.url ?? '';
     _selectedCategory = promo.category;
     _featured = promo.featured ?? false;
-    
+    _startDate = isDuplicate ? DateTime.now() : (promo.startDate ?? _startDate);
+    _endDate = isDuplicate
+        ? DateTime.now().add(const Duration(days: 30))
+        : (promo.endDate ?? _endDate);
+
     if (promo.originalPrice != null) {
       _originalPriceController.text = promo.originalPrice.toString();
     }
@@ -86,8 +112,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
   }
 
   void _calculateDiscountedPrice() {
-    if (_dealType == 'percentage' && 
-        _originalPriceController.text.isNotEmpty && 
+    if (_dealType == 'percentage' &&
+        _originalPriceController.text.isNotEmpty &&
         _percentageOffController.text.isNotEmpty) {
       try {
         final original = double.parse(_originalPriceController.text);
@@ -147,7 +173,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
 
   void _generateCode() {
     final words = _titleController.text.split(' ');
-    final code = words.map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join('');
+    final code =
+        words.map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join('');
     final random = (10 + (90 * (DateTime.now().millisecond / 1000))).toInt();
     _codeController.text = '${code.isEmpty ? "DEAL" : code}$random';
   }
@@ -155,11 +182,13 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartDate ? (_startDate ?? DateTime.now()) : (_endDate ?? DateTime.now().add(const Duration(days: 30))),
+      initialDate: isStartDate
+          ? (_startDate ?? DateTime.now())
+          : (_endDate ?? DateTime.now().add(const Duration(days: 30))),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    
+
     if (picked != null) {
       setState(() {
         if (isStartDate) {
@@ -176,6 +205,19 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
       return;
     }
 
+    if (!_hasValidMerchantId || _isDemoMerchantSession) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isDemoMerchantSession
+                ? 'Demo merchant accounts cannot create live promotions.'
+                : 'Merchant profile is invalid. Please sign out and sign back in.',
+          ),
+        ),
+      );
+      return;
+    }
+
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a category')),
@@ -186,7 +228,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
 
     if (_token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Authentication required. Please login again.')),
+        const SnackBar(
+            content: Text('Authentication required. Please login again.')),
       );
       return;
     }
@@ -205,7 +248,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
           );
           compressedFiles.add(compressed ?? file);
         }
-        
+
         _uploadedImageUrls = await _apiService.uploadMultipleImages(
           compressedFiles,
           _token!,
@@ -233,12 +276,24 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
         if (_uploadedImageUrls.isNotEmpty) 'images': _uploadedImageUrls,
       };
 
-      await _apiService.createPromotion(promotionData, _token!);
+      if (_isEditing) {
+        await _apiService.updatePromotion(
+          widget.existingPromotion!.id,
+          promotionData,
+          _token!,
+        );
+      } else {
+        await _apiService.createPromotion(promotionData, _token!);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Promotion created successfully!'),
+          SnackBar(
+            content: Text(
+              _isEditing
+                  ? 'Promotion updated successfully!'
+                  : 'Promotion created successfully!',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -247,7 +302,13 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create promotion: $e')),
+          SnackBar(
+            content: Text(
+              _isEditing
+                  ? 'Failed to update promotion: $e'
+                  : 'Failed to create promotion: $e',
+            ),
+          ),
         );
       }
     } finally {
@@ -265,7 +326,11 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.duplicateFrom != null ? 'Duplicate Deal' : 'Create New Deal'),
+        title: Text(_isEditing
+            ? 'Edit Promotion'
+            : widget.duplicateFrom != null
+                ? 'Duplicate Deal'
+                : 'Create New Deal'),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -320,7 +385,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                             color: Colors.white,
                           ),
                         )
-                      : const Text('Create Deal'),
+                      : Text(_isEditing ? 'Update Promotion' : 'Create Deal'),
                 ),
               ),
             ],
@@ -352,7 +417,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             },
           ),
           const SizedBox(height: 16),
-          
           TextFormField(
             controller: _descriptionController,
             decoration: const InputDecoration(
@@ -370,16 +434,16 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             },
           ),
           const SizedBox(height: 16),
-          
           DropdownButtonFormField<String>(
-            value: _dealType,
+            initialValue: _dealType,
             decoration: const InputDecoration(
               labelText: 'Deal Type *',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.local_offer),
             ),
             items: const [
-              DropdownMenuItem(value: 'percentage', child: Text('Percentage Discount')),
+              DropdownMenuItem(
+                  value: 'percentage', child: Text('Percentage Discount')),
               DropdownMenuItem(value: 'bogo', child: Text('Buy 1 Get 1 Free')),
               DropdownMenuItem(value: 'fixed', child: Text('Fixed Amount Off')),
               DropdownMenuItem(value: 'price_drop', child: Text('Price Drop')),
@@ -397,7 +461,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             },
           ),
           const SizedBox(height: 16),
-          
           if (_dealType == 'percentage') ...[
             Row(
               children: [
@@ -453,7 +516,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
               readOnly: true,
             ),
           ],
-          
           if (_dealType == 'bogo') ...[
             TextFormField(
               controller: _originalPriceController,
@@ -473,7 +535,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
               },
             ),
           ],
-          
           if (_dealType == 'price_drop') ...[
             Row(
               children: [
@@ -505,11 +566,17 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (value) {
-                      if (_originalPriceController.text.isNotEmpty && value.isNotEmpty) {
-                        final original = double.tryParse(_originalPriceController.text);
+                      if (_originalPriceController.text.isNotEmpty &&
+                          value.isNotEmpty) {
+                        final original =
+                            double.tryParse(_originalPriceController.text);
                         final now = double.tryParse(value);
-                        if (original != null && original > 0 && now != null && now < original) {
-                          final percent = ((original - now) / original * 100).toStringAsFixed(0);
+                        if (original != null &&
+                            original > 0 &&
+                            now != null &&
+                            now < original) {
+                          final percent = ((original - now) / original * 100)
+                              .toStringAsFixed(0);
                           _discountController.text = '$percent%';
                         }
                       }
@@ -523,8 +590,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
               ],
             ),
           ],
-          
-          if (_dealType == 'bundle' || _dealType == 'flash' || _dealType == 'fixed') ...[
+          if (_dealType == 'bundle' ||
+              _dealType == 'flash' ||
+              _dealType == 'fixed') ...[
             TextFormField(
               controller: _discountController,
               decoration: InputDecoration(
@@ -538,9 +606,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
               },
             ),
           ],
-          
           const SizedBox(height: 16),
-          
           Row(
             children: [
               Expanded(
@@ -568,18 +634,17 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             ],
           ),
           const SizedBox(height: 16),
-          
           DropdownButtonFormField<String>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             decoration: const InputDecoration(
               labelText: 'Category *',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.category),
             ),
-            items: predefinedCategories.map((category) {
+            items: _merchantCategories.map((category) {
               return DropdownMenuItem(
-                value: category.id,
-                child: Text(category.name),
+                value: category,
+                child: Text(_formatCategoryLabel(category)),
               );
             }).toList(),
             onChanged: (value) {
@@ -591,7 +656,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             },
           ),
           const SizedBox(height: 16),
-          
           TextFormField(
             controller: _urlController,
             decoration: const InputDecoration(
@@ -602,14 +666,13 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             ),
           ),
           const SizedBox(height: 16),
-          
           Row(
             children: [
               Expanded(
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Start Date'),
-                  subtitle: Text(_startDate != null 
+                  subtitle: Text(_startDate != null
                       ? '${_startDate!.day}/${_startDate!.month}/${_startDate!.year}'
                       : 'Not set'),
                   trailing: const Icon(Icons.calendar_today),
@@ -620,7 +683,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('End Date'),
-                  subtitle: Text(_endDate != null 
+                  subtitle: Text(_endDate != null
                       ? '${_endDate!.day}/${_endDate!.month}/${_endDate!.year}'
                       : 'Not set'),
                   trailing: const Icon(Icons.calendar_today),
@@ -650,7 +713,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          
           if (_imageFiles.isNotEmpty)
             GridView.builder(
               shrinkWrap: true,
@@ -681,13 +743,15 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                     ),
                   );
                 }
-                
+
                 return Stack(
                   children: [
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: index == 0 ? Theme.of(context).colorScheme.primary : Colors.grey,
+                          color: index == 0
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
                           width: index == 0 ? 2 : 1,
                         ),
                         borderRadius: BorderRadius.circular(8),
@@ -707,7 +771,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                         top: 4,
                         left: 4,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.primary,
                             borderRadius: BorderRadius.circular(4),
@@ -762,7 +827,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                     SizedBox(height: 12),
                     Text(
                       'Click to upload images',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 4),
                     Text(
@@ -789,17 +855,16 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 16),
-          
           SwitchListTile(
             title: const Text('⭐ Featured Deal'),
-            subtitle: const Text('Featured deals appear on the homepage and get more visibility'),
+            subtitle: const Text(
+                'Featured deals appear on the homepage and get more visibility'),
             value: _featured,
             onChanged: (value) {
               setState(() => _featured = value);
             },
           ),
           const SizedBox(height: 24),
-          
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -809,15 +874,28 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
                   Text(
                     'Promotion Summary',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   const Divider(),
-                  _buildSummaryRow('Title', _titleController.text.isEmpty ? '—' : _titleController.text),
-                  _buildSummaryRow('Discount', _discountController.text.isEmpty ? '—' : _discountController.text),
-                  _buildSummaryRow('Code', _codeController.text.isEmpty ? '—' : _codeController.text),
+                  _buildSummaryRow(
+                      'Title',
+                      _titleController.text.isEmpty
+                          ? '—'
+                          : _titleController.text),
+                  _buildSummaryRow(
+                      'Discount',
+                      _discountController.text.isEmpty
+                          ? '—'
+                          : _discountController.text),
+                  _buildSummaryRow(
+                      'Code',
+                      _codeController.text.isEmpty
+                          ? '—'
+                          : _codeController.text),
                   _buildSummaryRow('Category', _selectedCategory ?? '—'),
-                  _buildSummaryRow('Duration', daysLeft > 0 ? '$daysLeft days' : '—'),
+                  _buildSummaryRow(
+                      'Duration', daysLeft > 0 ? '$daysLeft days' : '—'),
                   _buildSummaryRow('Featured', _featured ? 'Yes ⭐' : 'No'),
                   _buildSummaryRow('Images', '${_imageFiles.length}/5'),
                 ],
@@ -846,5 +924,14 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> with Sing
         ],
       ),
     );
+  }
+
+  String _formatCategoryLabel(String value) {
+    return value
+        .split('_')
+        .map((part) => part.isEmpty
+            ? part
+            : '${part[0].toUpperCase()}${part.substring(1)}')
+        .join(' ');
   }
 }

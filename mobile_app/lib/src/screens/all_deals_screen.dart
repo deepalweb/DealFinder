@@ -633,8 +633,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                           );
                         },
                         borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -646,8 +646,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                                   fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                              SizedBox(width: 4),
+                              Icon(Icons.arrow_forward, color: Colors.white, size: 16),
                             ],
                           ),
                         ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 
 class DebugScreen extends StatefulWidget {
   const DebugScreen({super.key});
@@ -22,7 +23,7 @@ class _DebugScreenState extends State<DebugScreen> {
     try {
       // Test direct HTTP call first
       final response = await http.get(
-        Uri.parse('https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net/api/promotions'),
+        Uri.parse('${AppConfig.baseUrl}promotions'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 10));
 

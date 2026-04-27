@@ -4,9 +4,11 @@ class Promotion {
   final String id;
   final String title;
   final String description;
-  final String? merchantId; // Assuming it might be nullable or not always present
+  final String?
+      merchantId; // Assuming it might be nullable or not always present
   final String? merchantName; // Assuming it might be nullable
-  final String? imageDataString; // Changed from imageUrl to hold Base64 string or a regular URL
+  final String?
+      imageDataString; // Changed from imageUrl to hold Base64 string or a regular URL
   final String? code;
   final String? discount; // Could be "10% off", "$5", etc.
   final DateTime? startDate;
@@ -21,10 +23,13 @@ class Promotion {
   final double? discountedPrice;
   final String? location;
   final double? distance;
+  final double? latitude;
+  final double? longitude;
   final String? merchantLogoUrl;
   final int ratingsCount;
   final String? merchantCurrency;
   final DateTime? createdAt;
+  final String? status;
 
   Promotion({
     required this.id,
@@ -47,15 +52,20 @@ class Promotion {
     this.discountedPrice,
     this.location,
     this.distance,
+    this.latitude,
+    this.longitude,
     this.merchantLogoUrl,
     this.ratingsCount = 0,
     this.merchantCurrency,
     this.createdAt,
+    this.status,
   });
 
   // Safe discount percentage calculation
   int? get discountPercentage {
-    if (originalPrice == null || discountedPrice == null || originalPrice! <= 0) {
+    if (originalPrice == null ||
+        discountedPrice == null ||
+        originalPrice! <= 0) {
       return null;
     }
     return ((originalPrice! - discountedPrice!) / originalPrice! * 100).round();
@@ -78,7 +88,33 @@ class Promotion {
     }
 
     // Debug: Check merchant logo
-    String? logoUrl = (json['merchant'] is Map ? json['merchant']['logo'] as String? : null) ?? json['merchantLogoUrl'] as String?;
+    String? logoUrl = (json['merchant'] is Map
+            ? json['merchant']['logo'] as String?
+            : null) ??
+        json['merchantLogoUrl'] as String?;
+    final merchantData = json['merchant'] is Map<String, dynamic>
+        ? json['merchant'] as Map<String, dynamic>
+        : null;
+    final merchantLocation = merchantData?['location'] is Map<String, dynamic>
+        ? merchantData!['location'] as Map<String, dynamic>
+        : null;
+    final coordinates = merchantLocation?['coordinates'] is List
+        ? merchantLocation!['coordinates'] as List
+        : null;
+
+    double? latitude;
+    double? longitude;
+
+    if (coordinates != null && coordinates.length >= 2) {
+      longitude = (coordinates[0] as num?)?.toDouble();
+      latitude = (coordinates[1] as num?)?.toDouble();
+    } else {
+      latitude = (merchantLocation?['latitude'] as num?)?.toDouble() ??
+          (json['latitude'] as num?)?.toDouble();
+      longitude = (merchantLocation?['longitude'] as num?)?.toDouble() ??
+          (json['longitude'] as num?)?.toDouble();
+    }
+
     if (kDebugMode && logoUrl != null) {
       print('✅ Logo found for ${json['title']}: $logoUrl');
     } else if (kDebugMode) {
@@ -86,14 +122,25 @@ class Promotion {
     }
 
     return Promotion(
-      id: json['_id'] as String? ?? json['id'] as String? ?? 'unknown_id_${DateTime.now().millisecondsSinceEpoch}',
+      id: json['_id'] as String? ??
+          json['id'] as String? ??
+          'unknown_id_${DateTime.now().millisecondsSinceEpoch}',
       title: json['title'] as String? ?? 'No Title',
       description: json['description'] as String? ?? 'No Description',
-      merchantId: json['merchantId'] as String? ?? (json['merchant'] is Map ? json['merchant']['_id'] as String? : null),
-      merchantName: json['merchantName'] as String? ?? (json['merchant'] is Map ? json['merchant']['name'] as String? : null),
+      merchantId: json['merchantId'] as String? ??
+          (json['merchant'] is Map ? json['merchant']['_id'] as String? : null),
+      merchantName: json['merchantName'] as String? ??
+          (json['merchant'] is Map
+              ? json['merchant']['name'] as String?
+              : null),
       merchantLogoUrl: logoUrl,
-      merchantCurrency: json['merchantCurrency'] as String? ?? (json['merchant'] is Map ? json['merchant']['currency'] as String? : null),
-      imageDataString: _resizeUnsplash(json['imageUrl'] as String? ?? json['image'] as String? ?? json['imageDataString'] as String?),
+      merchantCurrency: json['merchantCurrency'] as String? ??
+          (json['merchant'] is Map
+              ? json['merchant']['currency'] as String?
+              : null),
+      imageDataString: _resizeUnsplash(json['imageUrl'] as String? ??
+          json['image'] as String? ??
+          json['imageDataString'] as String?),
       code: json['code'] as String?,
       discount: json['discount'] as String?,
       startDate: parseDate(json['startDate'] as String?),
@@ -107,18 +154,25 @@ class Promotion {
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
       discountedPrice: (json['discountedPrice'] as num?)?.toDouble(),
       location: json['location'] as String?,
-      distance: json['merchant'] is Map && json['merchant']['distance'] != null
-          ? (json['merchant']['distance'] as num?)?.toDouble()
+      distance: merchantData != null && merchantData['distance'] != null
+          ? (merchantData['distance'] as num?)?.toDouble()
           : null,
-      ratingsCount: json['ratings'] is List ? (json['ratings'] as List).length : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
+      latitude: latitude,
+      longitude: longitude,
+      ratingsCount: json['ratings'] is List
+          ? (json['ratings'] as List).length
+          : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
       createdAt: parseDate(json['createdAt'] as String?),
+      status: json['status'] as String?,
     );
   }
 
   static String? _resizeUnsplash(String? url) {
     if (url == null) return null;
     if (url.contains('unsplash.com')) {
-      return url.replaceAll(RegExp(r'w=\d+'), 'w=600').replaceAll(RegExp(r'q=\d+'), 'q=60');
+      return url
+          .replaceAll(RegExp(r'w=\d+'), 'w=600')
+          .replaceAll(RegExp(r'q=\d+'), 'q=60');
     }
     return url;
   }
@@ -147,8 +201,11 @@ class Promotion {
       'discountedPrice': discountedPrice,
       'location': location,
       'distance': distance,
+      'latitude': latitude,
+      'longitude': longitude,
       'ratings': List.generate(ratingsCount, (_) => {}),
       'createdAt': createdAt?.toIso8601String(),
+      'status': status,
     };
   }
 }

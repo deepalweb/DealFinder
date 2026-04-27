@@ -1,3 +1,5 @@
+import { buildApiUrl } from '@/lib/config/api';
+
 export const urlBase64ToUint8Array = (base64String: string): Uint8Array => {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -93,7 +95,7 @@ export const sendNotificationToServer = async (
   token: string
 ): Promise<boolean> => {
   try {
-    const response = await fetch('/api/notifications/subscribe', {
+    const response = await fetch(buildApiUrl('notifications/subscribe'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

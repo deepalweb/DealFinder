@@ -1,9 +1,19 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.google.gms.google-services")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val hasGoogleServicesFile =
+    file("google-services.json").exists() ||
+    file("src/debug/google-services.json").exists() ||
+    file("src/google-services.json").exists()
+
+if (hasGoogleServicesFile) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle("google-services.json not found; building Android app without Google Services plugin.")
 }
 
 android {

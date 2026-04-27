@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
 import '../services/image_helper.dart';
@@ -360,7 +359,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           const SizedBox(height: 16),
           
           DropdownButtonFormField<String>(
-            value: _categoryController.text.isEmpty ? null : _categoryController.text,
+            initialValue: _categoryController.text.isEmpty ? null : _categoryController.text,
             decoration: InputDecoration(
               labelText: 'Category',
               filled: true,

@@ -13,6 +13,8 @@ const { initializeNotificationJobs } = require('./jobs/notificationScheduler');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
+const APP_URL =
+  process.env.APP_URL || 'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
 
 // Enable gzip compression
 app.use(compression());
@@ -51,10 +53,10 @@ const allowedOrigins_DEV = [
   'http://127.0.0.1:3000',
   'http://localhost:8080',
   'http://127.0.0.1:8080',
-  'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net'
+  APP_URL
 ];
 const allowedOrigins_PROD = [
-  'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net',
+  APP_URL,
   'https://drstores.lk'
 ];
 const currentOrigins = process.env.NODE_ENV === 'production' ? allowedOrigins_PROD : allowedOrigins_DEV;

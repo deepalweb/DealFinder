@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const Promotion = require('../models/Promotion');
 const Merchant = require('../models/Merchant');
 const PromotionClick = require('../models/PromotionClick');
+const User = require('../models/User');
 const { authenticateJWT, authorizeAdmin, authorizePromotionOwnerOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 const { notifyFavoriteStoreFollowers } = require('../jobs/favoriteStoreNotifications');
 const { notifyFlashSale } = require('../jobs/flashSaleNotifications');
@@ -303,6 +305,51 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get public stats for a promotion
+router.get('/:id/stats', async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid promotion ID.' });
+    }
+
+    const promotion = await Promotion.findById(req.params.id)
+      .select('ratings comments')
+      .lean();
+
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promotion not found' });
+    }
+
+    const ratings = Array.isArray(promotion.ratings) ? promotion.ratings : [];
+    const comments = Array.isArray(promotion.comments) ? promotion.comments : [];
+
+    const [favoriteCount, totalClickCount, viewCount, directionCount] =
+        await Promise.all([
+          User.countDocuments({ favorites: promotion._id }),
+          PromotionClick.countDocuments({ promotion: promotion._id }),
+          PromotionClick.countDocuments({ promotion: promotion._id, type: 'view' }),
+          PromotionClick.countDocuments({ promotion: promotion._id, type: 'direction' }),
+        ]);
+
+    const averageRating = ratings.length
+      ? ratings.reduce((sum, rating) => sum + (rating.value || 0), 0) / ratings.length
+      : 0;
+
+    res.status(200).json({
+      commentCount: comments.length,
+      ratingsCount: ratings.length,
+      averageRating,
+      favoriteCount,
+      clickCount: totalClickCount,
+      viewCount,
+      directionCount,
+    });
+  } catch (error) {
+    console.error(`Error fetching promotion stats ${req.params.id}:`, error);
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Get a promotion by ID
 router.get('/:id', async (req, res) => {
   try {
@@ -378,6 +425,10 @@ router.post('/', authenticateJWT, [
     }
     // If admin, they can specify any merchantId, so no changes needed to merchantId from req.body
 
+    if (!mongoose.Types.ObjectId.isValid(merchantId)) {
+      return res.status(400).json({ message: 'Invalid merchant ID.' });
+    }
+
     // Validate merchant exists
     const merchant = await Merchant.findById(merchantId);
     if (!merchant) {
@@ -424,9 +475,13 @@ router.post('/', authenticateJWT, [
     const promotion = new Promotion(promotionData);
     const savedPromotion = await promotion.save();
     
-    // Add promotion to merchant's promotions array
-    merchant.promotions.push(savedPromotion._id);
-    await merchant.save();
+    // Link promotion to merchant without re-saving the whole merchant document.
+    // This avoids unrelated legacy merchant field validation failures from blocking promotion creation.
+    await Merchant.findByIdAndUpdate(
+      merchantId,
+      { $addToSet: { promotions: savedPromotion._id } },
+      { runValidators: false }
+    );
     
     // Trigger notifications asynchronously
     setImmediate(async () => {

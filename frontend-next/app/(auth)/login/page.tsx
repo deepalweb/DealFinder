@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI } from '@/lib/api';
+import { buildApiUrl } from '@/lib/config/api';
 import toast from 'react-hot-toast';
 
 declare global {
@@ -27,8 +28,7 @@ export default function LoginPage() {
 
   // Step 1: Fetch client ID
   useEffect(() => {
-    const configUrl = window.location.hostname === 'localhost' ? 'http://localhost:8080/api/config' : '/api/config';
-    fetch(configUrl)
+    fetch(buildApiUrl('config'))
       .then(r => r.json())
       .then(c => { googleClientIdRef.current = c.GOOGLE_CLIENT_ID; tryInitGoogle(); })
       .catch(() => {});

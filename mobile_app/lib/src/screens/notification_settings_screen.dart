@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/push_notification_service.dart';
 
@@ -261,7 +260,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Notify ${_expiringHours} hours before expiry'),
+                  Text('Notify $_expiringHours hours before expiry'),
                   Slider(
                     value: _expiringHours.toDouble(),
                     min: 6,

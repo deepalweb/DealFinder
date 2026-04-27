@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { buildApiUrl } from '@/lib/config/api';
 import toast from 'react-hot-toast';
 
 export default function NotificationAnalyticsPage() {
@@ -26,11 +27,14 @@ export default function NotificationAnalyticsPage() {
       const token = localStorage.getItem('dealFinderUser');
       const parsedToken = token ? JSON.parse(token).token : null;
 
-      const response = await fetch('/api/notifications/analytics/dashboard', {
+      const response = await fetch(
+        buildApiUrl('notifications/analytics/dashboard'),
+        {
         headers: {
           'Authorization': `Bearer ${parsedToken}`,
         },
-      });
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();

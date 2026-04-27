@@ -5,7 +5,7 @@
 const http = require('http');
 
 async function clearCaches() {
-  const baseUrl = 'https://dealfinder-h0hnh3emahabaahw.southindia-01.azurewebsites.net';
+  const baseUrl = 'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
   
   console.log('🔄 Attempting to clear backend caches...');
   console.log('Calling Azure app endpoints to trigger cache refresh\n');

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { UserAPI } from '@/lib/api';
+import { buildApiUrl } from '@/lib/config/api';
 import toast from 'react-hot-toast';
 
 export default function ResetPasswordPage() {
@@ -12,7 +12,7 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true);
     try {
-      await fetch('/api/users/reset-password', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email }) });
+      await fetch(buildApiUrl('users/reset-password'), { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email }) });
       setSent(true); toast.success('Reset link sent if email exists.');
     } catch { toast.error('Failed to send reset email.'); } finally { setLoading(false); }
   };

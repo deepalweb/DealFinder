@@ -1,10 +1,6 @@
-const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+import { getApiBase } from '@/lib/config/api';
 
-const API_BASE = typeof window === 'undefined'
-  ? (process.env.BACKEND_URL || 'http://localhost:8080') + '/api'
-  : isDev
-    ? 'http://localhost:8080/api'
-    : '/api';
+const API_BASE = getApiBase();
 
 // Simple in-memory cache for GET requests (client-side only)
 const cache = new Map<string, { data: any; ts: number }>();
