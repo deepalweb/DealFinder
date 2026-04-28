@@ -23,12 +23,6 @@ class _DealsListScreenState extends State<DealsListScreen> {
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
 
-  int _compareByRecent(Promotion a, Promotion b) {
-    final aDate = a.createdAt ?? a.startDate ?? DateTime(1970);
-    final bDate = b.createdAt ?? b.startDate ?? DateTime(1970);
-    return bDate.compareTo(aDate);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -166,7 +160,11 @@ class _DealsListScreenState extends State<DealsListScreen> {
       );
     }
     
-    final sortedPromotions = [...promotions]..sort(_compareByRecent);
+    final sortedPromotions = [...promotions]..sort((a, b) {
+      final aDate = a.startDate ?? DateTime(1970);
+      final bDate = b.startDate ?? DateTime(1970);
+      return bDate.compareTo(aDate);
+    });
     
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),

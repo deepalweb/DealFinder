@@ -69,12 +69,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   String _selectedSort = 'relevance';
   String? _selectedCategory;
 
-  int _compareByRecent(Promotion a, Promotion b) {
-    final aDate = a.createdAt ?? a.startDate ?? DateTime(1970);
-    final bDate = b.createdAt ?? b.startDate ?? DateTime(1970);
-    return bDate.compareTo(aDate);
-  }
-
   @override
   void initState() {
     super.initState();
@@ -85,7 +79,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   void _sortResults() {
     setState(() {
       if (_selectedSort == 'latest') {
-        _results.sort(_compareByRecent);
+        _results.sort((a, b) => (b.startDate ?? DateTime(1970)).compareTo(a.startDate ?? DateTime(1970)));
       } else if (_selectedSort == 'price_low') {
         _results.sort((a, b) => (a.price ?? 0).compareTo(b.price ?? 0));
       } else if (_selectedSort == 'price_high') {
