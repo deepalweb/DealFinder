@@ -59,6 +59,7 @@ jobs:
           cp package.json deploy/
           cp web.config deploy/
           cp .deployment deploy/
+          cp startup.sh deploy/
 
           echo "=== Deploy structure ==="
           echo "Root:"
