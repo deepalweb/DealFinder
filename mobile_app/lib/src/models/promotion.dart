@@ -138,9 +138,15 @@ class Promotion {
           (json['merchant'] is Map
               ? json['merchant']['currency'] as String?
               : null),
-      imageDataString: _resizeUnsplash(json['imageUrl'] as String? ??
-          json['image'] as String? ??
-          json['imageDataString'] as String?),
+      imageDataString: _resizeUnsplash(
+        json['sectionImage'] as String? ??
+            json['imageUrl'] as String? ??
+            json['image'] as String? ??
+            ((json['images'] is List && (json['images'] as List).isNotEmpty)
+                ? (json['images'] as List).first as String?
+                : null) ??
+            json['imageDataString'] as String?,
+      ),
       code: json['code'] as String?,
       discount: json['discount'] as String?,
       startDate: parseDate(json['startDate'] as String?),
