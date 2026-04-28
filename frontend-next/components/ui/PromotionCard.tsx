@@ -12,17 +12,6 @@ interface Props {
   onFavoriteToggle?: (id: string, isFav: boolean) => void;
 }
 
-function getPromotionImage(promotion: any) {
-  return (
-    promotion?.sectionImage ||
-    promotion?.image ||
-    promotion?.imageUrl ||
-    promotion?.imageDataString ||
-    (Array.isArray(promotion?.images) ? promotion.images.find((image: string) => Boolean(image)) : null) ||
-    'https://placehold.co/400x180?text=No+Image&bg=f3f4f6&textcolor=6b7280'
-  );
-}
-
 export default function PromotionCard({ promotion, isFavorite: initialFav = false, avgRating = null, onFavoriteToggle }: Props) {
   const router = useRouter();
   const { user } = useAuth();
@@ -61,7 +50,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
 
       {/* Image */}
       <div style={{ position: 'relative', overflow: 'hidden', height: '180px', flexShrink: 0 }}>
-        <img src={getPromotionImage(promotion)} alt={promotion.title}
+        <img src={promotion.image || 'https://placehold.co/400x180?text=No+Image&bg=f3f4f6&textcolor=6b7280'} alt={promotion.title}
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.4s ease' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.04)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />

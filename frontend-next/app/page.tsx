@@ -18,10 +18,6 @@ type Promotion = {
   featured?: boolean;
   url?: string;
   image?: string;
-  imageUrl?: string | null;
-  imageDataString?: string | null;
-  sectionImage?: string | null;
-  images?: string[];
   createdAt?: string;
   endDate?: string;
   merchant?: string | {
@@ -66,18 +62,6 @@ function getDiscountValue(discount: Promotion['discount']) {
 function getTimestamp(value?: string) {
   const time = value ? new Date(value).getTime() : 0;
   return Number.isFinite(time) ? time : 0;
-}
-
-function getPromotionImage(promotion?: Promotion | null) {
-  if (!promotion) return 'https://placehold.co/900x700?text=Featured+Deal';
-  return (
-    promotion.sectionImage ||
-    promotion.image ||
-    promotion.imageUrl ||
-    promotion.imageDataString ||
-    (Array.isArray(promotion.images) ? promotion.images.find((image) => Boolean(image)) : null) ||
-    'https://placehold.co/900x700?text=Featured+Deal'
-  );
 }
 
 function isActiveDeal(promotion: Promotion, now: number) {
@@ -206,10 +190,6 @@ export default function HomePage() {
   const [favoriteDeals, setFavoriteDeals] = useState<FavoritePromotion[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [nearbyDeals, setNearbyDeals] = useState<Promotion[]>([]);
-  const [bannerDeals, setBannerDeals] = useState<Promotion[]>([]);
-  const [hotDeals, setHotDeals] = useState<Promotion[]>([]);
-  const [newThisWeekDeals, setNewThisWeekDeals] = useState<Promotion[]>([]);
-  const [flashSalesDeals, setFlashSalesDeals] = useState<Promotion[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loadingDeals, setLoadingDeals] = useState(true);
   const [loadingNearby, setLoadingNearby] = useState(false);
@@ -221,19 +201,14 @@ export default function HomePage() {
       try {
         invalidateCache('promotions');
         const promotionsPromise = PromotionAPI.getAll({ limit: 48 });
-        const sectionsPromise = PromotionAPI.getSections().catch(() => null);
         const favoritesPromise = user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([]);
 
-        const [promotionsData, sectionsData, favoritesData] = await Promise.all([promotionsPromise, sectionsPromise, favoritesPromise]);
+        const [promotionsData, favoritesData] = await Promise.all([promotionsPromise, favoritesPromise]);
         const sortedPromotions = [...promotionsData].sort(
           (a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt)
         );
 
         setAllPromotions(sortedPromotions);
-        setBannerDeals(Array.isArray(sectionsData?.banner) ? sectionsData.banner : []);
-        setHotDeals(Array.isArray(sectionsData?.hotDeals) ? sectionsData.hotDeals : []);
-        setNewThisWeekDeals(Array.isArray(sectionsData?.newThisWeek) ? sectionsData.newThisWeek : []);
-        setFlashSalesDeals(Array.isArray(sectionsData?.flashSales) ? sectionsData.flashSales : []);
         setFavoriteDeals(favoritesData);
         setFavoriteIds(new Set(favoritesData.map((favorite: Promotion) => getPromotionId(favorite))));
       } catch (error) {
@@ -275,25 +250,21 @@ export default function HomePage() {
 
   const featuredDeals = useMemo(
     () =>
-      hotDeals.length > 0
-        ? hotDeals.slice(0, 6)
-        : [...activePromotions]
-            .sort((a, b) => {
-              if (Boolean(a.featured) !== Boolean(b.featured)) return a.featured ? -1 : 1;
-              return getDiscountValue(b.discount) - getDiscountValue(a.discount);
-            })
-            .slice(0, 6),
-    [activePromotions, hotDeals]
+      [...activePromotions]
+        .sort((a, b) => {
+          if (Boolean(a.featured) !== Boolean(b.featured)) return a.featured ? -1 : 1;
+          return getDiscountValue(b.discount) - getDiscountValue(a.discount);
+        })
+        .slice(0, 6),
+    [activePromotions]
   );
 
   const endingSoonDeals = useMemo(
     () =>
-      flashSalesDeals.length > 0
-        ? flashSalesDeals.slice(0, 3)
-        : [...activePromotions]
-            .sort((a, b) => getTimestamp(a.endDate) - getTimestamp(b.endDate))
-            .slice(0, 3),
-    [activePromotions, flashSalesDeals]
+      [...activePromotions]
+        .sort((a, b) => getTimestamp(a.endDate) - getTimestamp(b.endDate))
+        .slice(0, 3),
+    [activePromotions]
   );
 
   const favoriteMerchantIds = useMemo(
@@ -307,8 +278,6 @@ export default function HomePage() {
   );
 
   const recommendedDeals = useMemo(() => {
-    if (newThisWeekDeals.length > 0) return newThisWeekDeals.slice(0, 3);
-
     const source = activePromotions.filter((promotion) => !favoriteIds.has(getPromotionId(promotion)));
 
     if (favoriteDeals.length > 0) {
@@ -323,12 +292,12 @@ export default function HomePage() {
 
     if (nearbyDeals.length > 0) return nearbyDeals.slice(0, 3);
     return featuredDeals.slice(0, 3);
-  }, [activePromotions, currentTimestamp, favoriteCategories, favoriteDeals.length, favoriteIds, favoriteMerchantIds, featuredDeals, nearbyDeals, newThisWeekDeals]);
+  }, [activePromotions, currentTimestamp, favoriteCategories, favoriteDeals.length, favoriteIds, favoriteMerchantIds, featuredDeals, nearbyDeals]);
 
   const featuredDeal = useMemo(() => {
-    const pool = bannerDeals.length > 0 ? bannerDeals : featuredDeals.length > 0 ? featuredDeals : activePromotions;
+    const pool = featuredDeals.length > 0 ? featuredDeals : activePromotions;
     return pool[0] || null;
-  }, [activePromotions, bannerDeals, featuredDeals]);
+  }, [activePromotions, featuredDeals]);
 
   const searchResults = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -801,7 +770,7 @@ export default function HomePage() {
                 <div
                   style={{
                     minHeight: '320px',
-                    backgroundImage: `url(${getPromotionImage(featuredDeal)})`,
+                    backgroundImage: `url(${featuredDeal.image || 'https://placehold.co/900x700?text=Featured+Deal'})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
                   }}
