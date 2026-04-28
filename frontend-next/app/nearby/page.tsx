@@ -6,6 +6,7 @@ import { PromotionAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
+import { getPromotionImage } from '@/lib/utils/promotion-image';
 import toast from 'react-hot-toast';
 
 export default function NearbyPage() {
@@ -120,7 +121,7 @@ export default function NearbyPage() {
           .addTo(map)
           .bindPopup(`
             <div style="min-width:180px">
-              ${p.image ? `<img src="${p.image}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;margin-bottom:8px" />` : ''}
+              ${getPromotionImage(p, '') ? `<img src="${getPromotionImage(p)}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;margin-bottom:8px" />` : ''}
               <b style="font-size:13px">${p.title}</b><br/>
               <span style="color:#6366f1;font-weight:700">${p.discount} OFF</span>
               ${distKm ? `<br/><span style="color:#64748b;font-size:12px">📍 ${distKm} km away</span>` : ''}

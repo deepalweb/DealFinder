@@ -7,6 +7,7 @@ import { PromotionAPI, UserAPI } from '@/lib/api';
 import { getCurrencySymbol } from '@/lib/currency';
 import { useAuth } from '@/contexts/AuthContext';
 import PromotionCard from '@/components/ui/PromotionCard';
+import { getPromotionImage } from '@/lib/utils/promotion-image';
 import toast from 'react-hot-toast';
 
 export default function DealPageClient({ dealId }: { dealId: string }) {
@@ -180,11 +181,11 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <div className="promotion-card fade-in overflow-hidden">
-            {deal.image ? (
+            {getPromotionImage(deal, '') ? (
               <div style={{ position: 'relative', overflow: 'hidden' }}>
                 {/* Main image */}
                 <div style={{ position: 'relative', height: '300px', overflow: 'hidden' }}>
-                  <img src={deal.image} alt={deal.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={getPromotionImage(deal)} alt={deal.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)' }}></div>
                   <div style={{ position: 'absolute', top: '1rem', left: '1rem', display: 'flex', gap: '0.5rem' }}>
                     {deal.featured && <span style={{ background: 'linear-gradient(135deg,#fbbf24,#f59e0b)', color: '#fff', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.75rem', borderRadius: '9999px' }}>⭐ Featured</span>}
@@ -196,7 +197,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                   </div>
                 </div>
                 {/* Thumbnail strip for multiple images */}
-                {deal.images?.length > 1 && (
+                {(deal.images?.length || 0) > 1 && (
                   <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem', overflowX: 'auto', background: 'var(--light-gray)', scrollbarWidth: 'none' }}>
                     {deal.images.map((img: string, i: number) => (
                       <img key={i} src={img} alt={`Image ${i+1}`}
@@ -473,7 +474,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                     style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.625rem', borderRadius: '0.625rem', border: '1px solid var(--border-color)', textDecoration: 'none', transition: 'all 0.15s', background: 'var(--card-bg)' }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}>
-                    {p.image && <img src={p.image} alt={p.title} style={{ width: '40px', height: '40px', borderRadius: '0.375rem', objectFit: 'cover', flexShrink: 0 }} />}
+                    <img src={getPromotionImage(p)} alt={p.title} style={{ width: '40px', height: '40px', borderRadius: '0.375rem', objectFit: 'cover', flexShrink: 0 }} />
                     <div style={{ minWidth: 0 }}>
                       <p style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</p>
                       <p style={{ fontSize: '0.72rem', color: 'var(--primary-color)', margin: 0, fontWeight: 700 }}>{p.discount} OFF</p>

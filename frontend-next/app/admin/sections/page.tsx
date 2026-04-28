@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { AdminAPI } from '@/lib/api';
+import { getPromotionImage } from '@/lib/utils/promotion-image';
 
 type Promotion = {
   _id?: string;
@@ -426,11 +427,11 @@ export default function AdminSectionsPage() {
                               placeItems: 'center',
                             }}
                           >
-                            {assignment.promotion?.image ? (
+                            {getPromotionImage(assignment.promotion, '') ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
-                                src={assignment.bannerImageUrl || assignment.promotion.image}
-                                alt={assignment.promotion.title || 'Promotion'}
+                                src={assignment.bannerImageUrl || getPromotionImage(assignment.promotion)}
+                                alt={assignment.promotion?.title || 'Promotion'}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
                             ) : (
@@ -586,13 +587,13 @@ export default function AdminSectionsPage() {
                                     placeItems: 'center',
                                   }}
                                 >
-                                  {promotion.image ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
-                                      src={promotion.image}
-                                      alt={promotion.title || 'Promotion'}
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                    />
+                            {getPromotionImage(promotion, '') ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={getPromotionImage(promotion)}
+                                alt={promotion.title || 'Promotion'}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
                                   ) : (
                                     <i className="fas fa-image" style={{ color: 'var(--text-secondary)' }}></i>
                                   )}

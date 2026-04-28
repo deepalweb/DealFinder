@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { MerchantAPI, PromotionAPI } from '@/lib/api';
 import SkeletonCard from '@/components/ui/SkeletonCard';
+import { getPromotionImage } from '@/lib/utils/promotion-image';
 import toast from 'react-hot-toast';
 
 export default function MerchantProfilePage() {
@@ -97,7 +98,7 @@ export default function MerchantProfilePage() {
                             <span className="discount-badge" style={{ position: 'static', fontSize: '0.75rem' }}>{p.discount} OFF</span>
                           </div>
                         </div>
-                        {p.image && <img src={p.image} alt={p.title} style={{ width: '64px', height: '64px', borderRadius: '0.5rem', objectFit: 'cover', flexShrink: 0 }} />}
+                        <img src={getPromotionImage(p)} alt={p.title} style={{ width: '64px', height: '64px', borderRadius: '0.5rem', objectFit: 'cover', flexShrink: 0 }} />
                       </div>
                     </div>
                   ))}
