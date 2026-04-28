@@ -57,6 +57,8 @@ export default function Header() {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&size=100`;
   };
 
+  const isSvgAvatarUrl = (url?: string) => !!url && url.includes('ui-avatars.com/api/');
+
   const submitSearch = () => {
     const trimmed = searchQuery.trim();
     setMenuOpen(false);
@@ -280,6 +282,7 @@ export default function Header() {
                         alt="Profile"
                         fill
                         sizes="36px"
+                        unoptimized={isSvgAvatarUrl(getSafeImage(user.profilePicture, user.name))}
                         style={{ objectFit: 'cover' }}
                       />
                     </span>
