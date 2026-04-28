@@ -47,44 +47,6 @@ const SECTION_CONFIG = {
 const sectionCache = new Map();
 const SECTION_CACHE_TTL = 2 * 60 * 1000;
 
-function isInlineImage(value) {
-  return typeof value === 'string' && value.startsWith('data:image');
-}
-
-function sanitizeImageField(value) {
-  return isInlineImage(value) ? null : value || null;
-}
-
-function sanitizeMerchantPayload(merchantDoc) {
-  if (!merchantDoc) return merchantDoc;
-  const merchant = merchantDoc.toObject ? merchantDoc.toObject() : { ...merchantDoc };
-  merchant.logo = sanitizeImageField(merchant.logo);
-  if (merchant.banner !== undefined) {
-    merchant.banner = sanitizeImageField(merchant.banner);
-  }
-  return merchant;
-}
-
-function sanitizePromotionPayload(promotionDoc) {
-  if (!promotionDoc) return promotionDoc;
-  const promotion = promotionDoc.toObject ? promotionDoc.toObject() : { ...promotionDoc };
-
-  promotion.image = sanitizeImageField(promotion.image);
-  promotion.imageUrl = sanitizeImageField(promotion.imageUrl);
-  promotion.imageDataString = sanitizeImageField(promotion.imageDataString);
-  promotion.sectionImage = sanitizeImageField(promotion.sectionImage);
-
-  if (Array.isArray(promotion.images)) {
-    promotion.images = promotion.images.filter((image) => !isInlineImage(image));
-  }
-
-  if (promotion.merchant) {
-    promotion.merchant = sanitizeMerchantPayload(promotion.merchant);
-  }
-
-  return promotion;
-}
-
 function getSectionConfig(sectionKey) {
   return SECTION_CONFIG[sectionKey];
 }
@@ -138,7 +100,7 @@ function sortAssignments(a, b) {
 
 function withSectionFields(promotionDoc, assignment) {
   if (!promotionDoc) return null;
-  const promotion = sanitizePromotionPayload(promotionDoc);
+  const promotion = promotionDoc.toObject ? promotionDoc.toObject() : { ...promotionDoc };
   promotion.sectionAssignment = {
     id: assignment._id,
     sectionKey: assignment.sectionKey,
@@ -155,7 +117,7 @@ function withSectionFields(promotionDoc, assignment) {
     metadata: assignment.metadata || {},
   };
   if (assignment.bannerImageUrl) {
-    promotion.sectionImage = sanitizeImageField(assignment.bannerImageUrl);
+    promotion.sectionImage = assignment.bannerImageUrl;
   }
   return promotion;
 }
@@ -280,17 +242,16 @@ async function resolveHotDealsSection() {
   const autoItems = trendingDeals
     .filter((promotion) => !usedIds.has(String(promotion._id)) && !hiddenIds.has(String(promotion._id)))
     .slice(0, Math.max(config.maxItems - manualItems.length, 0))
-    .map((promotion) => {
-      const sanitizedPromotion = sanitizePromotionPayload(promotion);
-      sanitizedPromotion.sectionAssignment = {
+    .map((promotion) => ({
+      ...promotion,
+      sectionAssignment: {
         sectionKey: 'hot_deals',
         mode: 'auto',
         priority: 0,
         status: 'active',
         metadata: { source: 'trending', trendingMetrics: promotion.trendingMetrics },
-      };
-      return sanitizedPromotion;
-    });
+      },
+    }));
 
   const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
   const response = { section: config, items };
@@ -333,17 +294,16 @@ async function resolveNewThisWeekSection() {
   const usedIds = new Set(manualForcedItems.map((item) => String(item._id)));
   const autoItems = autoDeals
     .filter((promotion) => !usedIds.has(String(promotion._id)))
-    .map((promotion) => {
-      const sanitizedPromotion = sanitizePromotionPayload(promotion);
-      sanitizedPromotion.sectionAssignment = {
+    .map((promotion) => ({
+      ...promotion,
+      sectionAssignment: {
         sectionKey: 'new_this_week',
         mode: 'auto',
         priority: 0,
         status: 'active',
         metadata: { indicator: 'auto' },
-      };
-      return sanitizedPromotion;
-    })
+      },
+    }))
     .slice(0, Math.max(config.maxItems - manualForcedItems.length, 0));
 
   const items = [...manualForcedItems, ...autoItems].slice(0, config.maxItems);
@@ -389,17 +349,16 @@ async function resolveFlashSalesSection() {
   const autoItems = endingSoonDeals
     .filter((promotion) => !usedIds.has(String(promotion._id)))
     .slice(0, Math.max(config.maxItems - manualItems.length, 0))
-    .map((promotion) => {
-      const sanitizedPromotion = sanitizePromotionPayload(promotion);
-      sanitizedPromotion.sectionAssignment = {
+    .map((promotion) => ({
+      ...promotion,
+      sectionAssignment: {
         sectionKey: 'flash_sales',
         mode: 'auto',
         priority: 0,
         status: 'active',
         metadata: { source: 'ending_soon' },
-      };
-      return sanitizedPromotion;
-    });
+      },
+    }));
 
   const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
   const response = { section: config, items };
@@ -476,15 +435,16 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
 
   const ranked = merchants
     .map((promotion) => {
-      const sanitizedPromotion = sanitizePromotionPayload(promotion);
-      sanitizedPromotion.sectionAssignment = {
-        sectionKey: 'nearby',
-        mode: 'auto',
-        priority: 0,
-        status: 'active',
-        metadata: {},
+      return {
+        ...promotion,
+        sectionAssignment: {
+          sectionKey: 'nearby',
+          mode: 'auto',
+          priority: 0,
+          status: 'active',
+          metadata: {},
+        },
       };
-      return sanitizedPromotion;
     })
     .filter(Boolean)
     .sort((a, b) => (a.merchant?.distance || 0) - (b.merchant?.distance || 0))
@@ -611,5 +571,4 @@ module.exports = {
   resolveHomepageSections,
   getSectionManagerSnapshot,
   getConflicts,
-  sanitizePromotionPayload,
 };

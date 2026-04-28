@@ -14,7 +14,6 @@ const {
   invalidateSectionCaches,
   resolveSection,
   resolveHomepageSections,
-  sanitizePromotionPayload,
 } = require('../services/sectionService');
 
 // Add safeError helper
@@ -90,7 +89,7 @@ router.get('/homepage', async (req, res) => {
 
     homepageCache = {
       featured: sections.banner,
-      latest: latest.map((promotion) => sanitizePromotionPayload(promotion)),
+      latest,
       banner: sections.banner,
       hotDeals: sections.hotDeals,
       newThisWeek: sections.newThisWeek,
@@ -246,12 +245,9 @@ router.get('/nearby', async (req, res) => {
       ]);
 
       // Cache the result
-      const sanitizedPromotions = promotions.map((promotion) =>
-        sanitizePromotionPayload(promotion)
-      );
-      setNearbyCache(lat, lon, searchRadiusKm, sanitizedPromotions);
+      setNearbyCache(lat, lon, searchRadiusKm, promotions);
 
-      res.status(200).json(sanitizedPromotions);
+      res.status(200).json(promotions);
 
     } catch (geoErr) {
       console.error('[Nearby API] Aggregation error:', geoErr.message);
@@ -311,7 +307,7 @@ router.get('/', async (req, res) => {
     }
     
     const promotions = await promotionsQuery;
-    res.status(200).json(promotions.map((promotion) => sanitizePromotionPayload(promotion)));
+    res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
     res.status(500).json(safeError(error));
