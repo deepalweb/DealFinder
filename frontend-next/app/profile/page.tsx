@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI } from '@/lib/api';
-import { getPromotionImage } from '@/lib/utils/promotion-image';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -158,7 +157,7 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {favorites.map((p:any) => (
                       <div key={p._id||p.id} style={{ border:'1px solid rgba(148,163,184,0.16)', borderRadius:'1rem', padding:'0.95rem', display:'flex', gap:'0.875rem', alignItems:'center', background:'rgba(255,255,255,0.72)' }}>
-                        <img src={getPromotionImage(p)} alt={p.title} style={{ width:'52px', height:'52px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />
+                        {p.image && <img src={p.image} alt={p.title} style={{ width:'52px', height:'52px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />}
                         <div className="flex-1" style={{ minWidth:0 }}>
                           <p style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-primary)', margin:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.title}</p>
                           <p style={{ fontSize:'0.75rem', color:'var(--primary-color)', margin:'0.1rem 0', fontWeight:600 }}>{p.discount} OFF</p>

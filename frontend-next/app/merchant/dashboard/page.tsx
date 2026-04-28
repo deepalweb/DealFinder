@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { PromotionAPI, MerchantAPI } from '@/lib/api';
-import { getPromotionImage } from '@/lib/utils/promotion-image';
 import toast from 'react-hot-toast';
 
 const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','education'];
@@ -155,7 +154,7 @@ export default function MerchantDashboard() {
                     <tr key={p.id} style={{ borderBottom:'1px solid var(--border-color)' }} onMouseEnter={e=>(e.currentTarget.style.background='var(--light-gray)')} onMouseLeave={e=>(e.currentTarget.style.background='transparent')}>
                       <td style={{ padding:'0.75rem 1rem' }}>
                         <div className="flex items-center gap-3">
-                          <img src={getPromotionImage(p)} alt={p.title} style={{ width:'40px', height:'40px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />
+                          {p.image && <img src={p.image} alt={p.title} style={{ width:'40px', height:'40px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />}
                           <div><div style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-primary)' }}>{p.title}</div><div style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>{p.category}</div></div>
                         </div>
                       </td>

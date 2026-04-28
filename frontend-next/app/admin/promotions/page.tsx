@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { AdminAPI, PromotionAPI } from '@/lib/api';
-import { getPromotionImage } from '@/lib/utils/promotion-image';
 import toast from 'react-hot-toast';
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
@@ -131,7 +130,7 @@ export default function AdminPromotionsPage() {
                   <tr key={id}>
                     <td>
                       <div className="flex items-center gap-3">
-                        <img src={getPromotionImage(p)} alt={p.title} style={{ width:'36px', height:'36px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />
+                        {p.image && <img src={p.image} alt={p.title} style={{ width:'36px', height:'36px', borderRadius:'0.5rem', objectFit:'cover', flexShrink:0 }} />}
                         <div>
                           <p style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-primary)', margin:0 }}>{p.title}</p>
                           <p style={{ fontSize:'0.75rem', color:'var(--text-secondary)', margin:0 }}>{p.category}</p>
