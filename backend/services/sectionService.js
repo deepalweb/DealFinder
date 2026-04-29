@@ -140,13 +140,17 @@ async function resolveBannerSection() {
   if (cached) return cached;
 
   const config = getSectionConfig('banner');
-  const assignments = (await getAssignmentsForSection('banner'))
+  const activeAssignments = (await getAssignmentsForSection('banner'))
     .filter((assignment) => isAssignmentActive(assignment) && assignment.promotion)
     .sort(sortAssignments)
     .slice(0, config.maxItems);
 
-  const items = assignments.map((assignment) => withSectionFields(assignment.promotion, assignment));
-  const response = { section: config, items };
+  const items = activeAssignments.map((assignment) => withSectionFields(assignment.promotion, assignment));
+  const response = {
+    section: config,
+    items,
+    hasActiveAssignments: activeAssignments.length > 0,
+  };
   setCached(cacheKey, response);
   return response;
 }
@@ -254,7 +258,11 @@ async function resolveHotDealsSection() {
     }));
 
   const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
-  const response = { section: config, items };
+  const response = {
+    section: config,
+    items,
+    hasActiveAssignments: activeAssignments.length > 0,
+  };
   setCached(cacheKey, response);
   return response;
 }
@@ -307,7 +315,11 @@ async function resolveNewThisWeekSection() {
     .slice(0, Math.max(config.maxItems - manualForcedItems.length, 0));
 
   const items = [...manualForcedItems, ...autoItems].slice(0, config.maxItems);
-  const response = { section: config, items };
+  const response = {
+    section: config,
+    items,
+    hasActiveAssignments: activeAssignments.length > 0,
+  };
   setCached(cacheKey, response);
   return response;
 }
@@ -361,7 +373,11 @@ async function resolveFlashSalesSection() {
     }));
 
   const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
-  const response = { section: config, items };
+  const response = {
+    section: config,
+    items,
+    hasActiveAssignments: activeAssignments.length > 0,
+  };
   setCached(cacheKey, response);
   return response;
 }
@@ -450,7 +466,7 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
     .sort((a, b) => (a.merchant?.distance || 0) - (b.merchant?.distance || 0))
     .slice(0, config.maxItems);
 
-  const response = { section: config, items: ranked };
+  const response = { section: config, items: ranked, hasActiveAssignments: false };
   setCached(cacheKey, response);
   return response;
 }

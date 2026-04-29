@@ -303,7 +303,10 @@ export default function AdminSectionsPage() {
               Section Manager
             </h1>
             <p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)' }}>
-              Curate banner, hot deals, new-this-week, and flash sales without touching the all-deals or nearby feeds.
+              Curate banner, hot deals, new-this-week, and flash sales for the mobile home page without touching the all-deals or nearby feeds.
+            </p>
+            <p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Saved assignments go live on the next mobile refresh. The cache refresh button is only for forcing a faster sync.
             </p>
           </div>
           <button
@@ -313,7 +316,7 @@ export default function AdminSectionsPage() {
             style={{ minWidth: '180px', justifyContent: 'center' }}
           >
             <i className="fas fa-cloud-upload-alt"></i>
-            {publishing ? 'Publishing...' : 'Publish Changes'}
+            {publishing ? 'Refreshing...' : 'Refresh Live Cache'}
           </button>
         </div>
       </div>
@@ -397,7 +400,7 @@ export default function AdminSectionsPage() {
                         </div>
                         <h2 style={{ marginTop: 0, marginBottom: '0.4rem', fontWeight: 800 }}>No assignments yet</h2>
                         <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                          Select a merchant-created deal below to start curating this section.
+                          Select a merchant-created deal below to start curating this section. If you leave it empty, the mobile app can still fall back to automatic content.
                         </p>
                       </div>
                     ) : (
@@ -758,6 +761,8 @@ export default function AdminSectionsPage() {
                     <div>Hot Deals fills empty slots with trending deals when curated slots are not enough.</div>
                     <div>New This Week auto-includes fresh deals from the last seven days unless they are explicitly hidden.</div>
                     <div>Flash Sales can be curated manually, and the app can auto-fill with deals ending within the next 24 hours.</div>
+                    <div>Banner image override is used by the mobile banner carousel when provided.</div>
+                    <div>Deals that are not currently active can be assigned ahead of time, but they will not appear live until the promotion itself becomes active.</div>
                   </div>
               </div>
             </>

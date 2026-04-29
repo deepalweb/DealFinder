@@ -9,6 +9,28 @@ import '../models/promotion.dart';
 import '../config/app_config.dart';
 import 'cache_service.dart';
 
+class CuratedHomeSectionsResponse {
+  final List<Promotion> banner;
+  final List<Promotion> hotDeals;
+  final List<Promotion> newThisWeek;
+  final List<Promotion> flashSales;
+  final bool bannerManaged;
+  final bool hotDealsManaged;
+  final bool newThisWeekManaged;
+  final bool flashSalesManaged;
+
+  const CuratedHomeSectionsResponse({
+    required this.banner,
+    required this.hotDeals,
+    required this.newThisWeek,
+    required this.flashSales,
+    required this.bannerManaged,
+    required this.hotDealsManaged,
+    required this.newThisWeekManaged,
+    required this.flashSalesManaged,
+  });
+}
+
 class ApiService {
   static String get _baseUrl => AppConfig.baseUrl;
 
@@ -647,7 +669,7 @@ class ApiService {
     }
   }
 
-  Future<Map<String, List<Promotion>>> fetchCuratedHomeSections() async {
+  Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async {
     final response = await http.get(
       Uri.parse('${_baseUrl}promotions/sections'),
       headers: {
@@ -661,6 +683,9 @@ class ApiService {
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final sections = data['sections'] is Map<String, dynamic>
+        ? data['sections'] as Map<String, dynamic>
+        : const <String, dynamic>{};
 
     List<Promotion> parseList(String key) {
       final raw = data[key];
@@ -671,12 +696,24 @@ class ApiService {
           .toList();
     }
 
-    return {
-      'banner': parseList('banner'),
-      'hotDeals': parseList('hotDeals'),
-      'newThisWeek': parseList('newThisWeek'),
-      'flashSales': parseList('flashSales'),
-    };
+    bool parseManaged(String key) {
+      final raw = sections[key];
+      if (raw is! Map<String, dynamic>) {
+        return false;
+      }
+      return raw['hasActiveAssignments'] == true;
+    }
+
+    return CuratedHomeSectionsResponse(
+      banner: parseList('banner'),
+      hotDeals: parseList('hotDeals'),
+      newThisWeek: parseList('newThisWeek'),
+      flashSales: parseList('flashSales'),
+      bannerManaged: parseManaged('banner'),
+      hotDealsManaged: parseManaged('hot_deals'),
+      newThisWeekManaged: parseManaged('new_this_week'),
+      flashSalesManaged: parseManaged('flash_sales'),
+    );
   }
 
   Future<List<Promotion>> fetchCuratedSection(

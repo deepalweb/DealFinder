@@ -38,6 +38,10 @@ class _HomeScreenState extends State<HomeScreen>
   List<Promotion> _hotDeals = [];
   List<Promotion> _newThisWeekDeals = [];
   List<Promotion> _flashSalesDeals = [];
+  bool _bannerManaged = false;
+  bool _hotDealsManaged = false;
+  bool _newThisWeekManaged = false;
+  bool _flashSalesManaged = false;
   List<Promotion> _nearbyDealsFromLocation = [];
   bool _loading = true;
   bool _isOffline = false;
@@ -150,10 +154,14 @@ class _HomeScreenState extends State<HomeScreen>
       final sections = await _api.fetchCuratedHomeSections();
       if (!mounted) return;
       setState(() {
-        _bannerDeals = sections['banner'] ?? [];
-        _hotDeals = sections['hotDeals'] ?? [];
-        _newThisWeekDeals = sections['newThisWeek'] ?? [];
-        _flashSalesDeals = sections['flashSales'] ?? [];
+        _bannerDeals = sections.banner;
+        _hotDeals = sections.hotDeals;
+        _newThisWeekDeals = sections.newThisWeek;
+        _flashSalesDeals = sections.flashSales;
+        _bannerManaged = sections.bannerManaged;
+        _hotDealsManaged = sections.hotDealsManaged;
+        _newThisWeekManaged = sections.newThisWeekManaged;
+        _flashSalesManaged = sections.flashSalesManaged;
       });
     } catch (_) {
       // Fall back to local heuristics if curated sections are unavailable
@@ -236,7 +244,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Promotion> get _flashSales {
-    if (_flashSalesDeals.isNotEmpty) return _flashSalesDeals.take(10).toList();
+    if (_flashSalesDeals.isNotEmpty || _flashSalesManaged) {
+      return _flashSalesDeals.take(10).toList();
+    }
     final now = DateTime.now();
     final cutoff = now.add(const Duration(hours: 24));
     return _filteredDeals
@@ -267,18 +277,23 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Promotion> get _featuredDeals {
-    if (_hotDeals.isNotEmpty) return _hotDeals.take(5).toList();
+    if (_hotDeals.isNotEmpty || _hotDealsManaged) {
+      return _hotDeals.take(5).toList();
+    }
     return _filteredDeals.where((p) => p.featured == true).take(5).toList();
   }
 
   List<Promotion> get _newDeals {
-    if (_newThisWeekDeals.isNotEmpty)
+    if (_newThisWeekDeals.isNotEmpty || _newThisWeekManaged) {
       return _newThisWeekDeals.take(10).toList();
+    }
     return _filteredDeals.take(10).toList();
   }
 
   List<Promotion> get _bannerSectionDeals {
-    if (_bannerDeals.isNotEmpty) return _bannerDeals.take(5).toList();
+    if (_bannerDeals.isNotEmpty || _bannerManaged) {
+      return _bannerDeals.take(5).toList();
+    }
     return _featuredDeals;
   }
 
