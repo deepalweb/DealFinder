@@ -24,6 +24,24 @@ function safeError(error) {
   return { message: error.message, stack: error.stack };
 }
 
+function stripBase64Media(value) {
+  return typeof value === 'string' && value.startsWith('data:image') ? null : value;
+}
+
+function sanitizePromotionPayload(promotion) {
+  if (!promotion || typeof promotion !== 'object') return promotion;
+
+  const sanitized = { ...promotion };
+  if (sanitized.merchant && typeof sanitized.merchant === 'object') {
+    sanitized.merchant = {
+      ...sanitized.merchant,
+      logo: stripBase64Media(sanitized.merchant.logo),
+    };
+  }
+
+  return sanitized;
+}
+
 // --- Move analytics routes to the top to avoid /:id conflicts ---
 // Get analytics for a merchant (Protected: merchant self or admin)
 // This requires a different auth logic: authorizeMerchantSelfOrAdmin, but applied to merchantId in params
@@ -89,7 +107,7 @@ router.get('/homepage', async (req, res) => {
 
     homepageCache = {
       featured: sections.banner,
-      latest,
+      latest: latest.map(sanitizePromotionPayload),
       banner: sections.banner,
       hotDeals: sections.hotDeals,
       newThisWeek: sections.newThisWeek,
@@ -306,7 +324,7 @@ router.get('/', async (req, res) => {
       promotionsQuery = promotionsQuery.limit(limit).skip(skip);
     }
     
-    const promotions = await promotionsQuery;
+    const promotions = (await promotionsQuery).map(sanitizePromotionPayload);
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);

@@ -47,6 +47,24 @@ const SECTION_CONFIG = {
 const sectionCache = new Map();
 const SECTION_CACHE_TTL = 2 * 60 * 1000;
 
+function stripBase64Media(value) {
+  return typeof value === 'string' && value.startsWith('data:image') ? null : value;
+}
+
+function sanitizePromotionPayload(promotionDoc) {
+  if (!promotionDoc) return null;
+  const promotion = promotionDoc.toObject ? promotionDoc.toObject() : { ...promotionDoc };
+
+  if (promotion.merchant && typeof promotion.merchant === 'object') {
+    promotion.merchant = {
+      ...promotion.merchant,
+      logo: stripBase64Media(promotion.merchant.logo),
+    };
+  }
+
+  return promotion;
+}
+
 function getSectionConfig(sectionKey) {
   return SECTION_CONFIG[sectionKey];
 }
@@ -100,7 +118,7 @@ function sortAssignments(a, b) {
 
 function withSectionFields(promotionDoc, assignment) {
   if (!promotionDoc) return null;
-  const promotion = promotionDoc.toObject ? promotionDoc.toObject() : { ...promotionDoc };
+  const promotion = sanitizePromotionPayload(promotionDoc);
   promotion.sectionAssignment = {
     id: assignment._id,
     sectionKey: assignment.sectionKey,
@@ -247,7 +265,7 @@ async function resolveHotDealsSection() {
     .filter((promotion) => !usedIds.has(String(promotion._id)) && !hiddenIds.has(String(promotion._id)))
     .slice(0, Math.max(config.maxItems - manualItems.length, 0))
     .map((promotion) => ({
-      ...promotion,
+      ...sanitizePromotionPayload(promotion),
       sectionAssignment: {
         sectionKey: 'hot_deals',
         mode: 'auto',
@@ -303,7 +321,7 @@ async function resolveNewThisWeekSection() {
   const autoItems = autoDeals
     .filter((promotion) => !usedIds.has(String(promotion._id)))
     .map((promotion) => ({
-      ...promotion,
+      ...sanitizePromotionPayload(promotion),
       sectionAssignment: {
         sectionKey: 'new_this_week',
         mode: 'auto',
@@ -362,7 +380,7 @@ async function resolveFlashSalesSection() {
     .filter((promotion) => !usedIds.has(String(promotion._id)))
     .slice(0, Math.max(config.maxItems - manualItems.length, 0))
     .map((promotion) => ({
-      ...promotion,
+      ...sanitizePromotionPayload(promotion),
       sectionAssignment: {
         sectionKey: 'flash_sales',
         mode: 'auto',
@@ -452,7 +470,7 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
   const ranked = merchants
     .map((promotion) => {
       return {
-        ...promotion,
+        ...sanitizePromotionPayload(promotion),
         sectionAssignment: {
           sectionKey: 'nearby',
           mode: 'auto',
