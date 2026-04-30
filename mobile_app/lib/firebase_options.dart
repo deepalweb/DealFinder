@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDhrwfaWw7GqBX_z6Ffy6AykYf_u2sEhnQ',
-    appId: '1:434034339931:android:c239bb790917de18208f7e',
+    appId: '1:434034339931:android:e55bfb9d0f840f93208f7e',
     messagingSenderId: '434034339931',
     projectId: 'dealfinder-71526',
     storageBucket: 'dealfinder-71526.firebasestorage.app',

@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:latlong2/latlong.dart' as latlng;
 import 'package:url_launcher/url_launcher.dart';
 import '../models/promotion.dart';
 import '../services/location_service.dart';
@@ -21,6 +22,7 @@ class NearbyDealsScreen extends StatefulWidget {
 class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   final ApiService _apiService = ApiService();
   final TextEditingController _searchController = TextEditingController();
+  final MapController _mapController = MapController();
 
   List<Promotion> _nearbyDeals = [];
   bool _isLoading = false;
@@ -32,6 +34,10 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   String _viewMode = 'list';
   String _activeFilter = 'all';
   Promotion? _selectedMapDeal;
+
+  List<Promotion> get _mappableDeals => _filteredDeals
+      .where((deal) => deal.latitude != null && deal.longitude != null)
+      .toList();
 
   @override
   void initState() {
@@ -132,7 +138,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       setState(() {
         _nearbyDeals = nearbyDeals;
         _sortDeals(_nearbyDeals);
-        _selectedMapDeal = _filteredDeals.isNotEmpty ? _filteredDeals.first : null;
+        _focusFirstMapDeal();
         _isLoading = false;
         _error = null;
       });
@@ -198,6 +204,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
 
   Future<void> _changeRadius(double newRadius) async {
     setState(() => _selectedRadius = newRadius);
+  }
+
+  Future<void> _applyRadiusFilter(double newRadius) async {
     await _persistPreference('nearby_radius', newRadius);
 
     if (_currentPosition != null) {
@@ -215,9 +224,21 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     setState(() {
       _sortBy = mode;
       _sortDeals(_nearbyDeals);
-      _selectedMapDeal = _filteredDeals.isNotEmpty ? _filteredDeals.first : null;
+      _focusFirstMapDeal();
     });
     await _persistPreference('nearby_sort_mode', mode);
+  }
+
+  void _focusFirstMapDeal() {
+    _selectedMapDeal = _mappableDeals.isNotEmpty ? _mappableDeals.first : null;
+  }
+
+  void _focusMapOnDeal(Promotion deal, {double zoom = 14}) {
+    if (deal.latitude == null || deal.longitude == null) return;
+    _mapController.move(
+      latlng.LatLng(deal.latitude!, deal.longitude!),
+      zoom,
+    );
   }
 
   List<Promotion> get _filteredDeals {
@@ -263,23 +284,102 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         .toList();
   }
 
-  Set<Marker> get _markers {
-    return _filteredDeals
-        .where((deal) => deal.latitude != null && deal.longitude != null)
-        .map(
-          (deal) => Marker(
-            markerId: MarkerId(deal.id),
-            position: LatLng(deal.latitude!, deal.longitude!),
-            infoWindow: InfoWindow(
-              title: deal.merchantName ?? deal.title,
-              snippet: deal.discount ?? _formatDistance(deal.distance),
-            ),
-            onTap: () {
-              setState(() => _selectedMapDeal = deal);
-            },
+  List<Marker> get _markers {
+    final markers = _mappableDeals.map((deal) {
+      final selected = _selectedMapDeal?.id == deal.id;
+      return Marker(
+        point: latlng.LatLng(deal.latitude!, deal.longitude!),
+        width: 52,
+        height: 64,
+        child: GestureDetector(
+          onTap: () {
+            setState(() => _selectedMapDeal = deal);
+            _focusMapOnDeal(deal);
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFF0D47A1)
+                      : const Color(0xFF1E88E5),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  deal.discount?.isNotEmpty == true ? deal.discount! : 'Deal',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.location_on,
+                color: selected ? const Color(0xFF0D47A1) : Colors.red.shade600,
+                size: 30,
+              ),
+            ],
           ),
-        )
-        .toSet();
+        ),
+      );
+    }).toList();
+
+    if (_currentPosition != null) {
+      markers.add(
+        Marker(
+          point: latlng.LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          ),
+          width: 24,
+          height: 24,
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E88E5),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return markers;
+  }
+
+  List<CircleMarker> get _mapCircles {
+    if (_currentPosition == null) return const <CircleMarker>[];
+
+    return [
+      CircleMarker(
+        point: latlng.LatLng(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+        ),
+        radius: _selectedRadius * 1000,
+        useRadiusInMeter: true,
+        color: const Color(0x221E88E5),
+        borderStrokeWidth: 2,
+        borderColor: const Color(0xFF1E88E5),
+      ),
+    ];
   }
 
   Future<void> _openDirections(Promotion deal) async {
@@ -407,6 +507,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     labelController.dispose();
   }
 
+  Future<void> _openLocationSettings() async {
+    final opened = await LocationService.openLocationSettings();
+    if (!opened && mounted) {
+      await LocationService.openAppSettings();
+    }
+  }
+
   Widget _buildFilterChip({
     required String id,
     required String label,
@@ -414,7 +521,10 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }) {
     final selected = _activeFilter == id;
     return GestureDetector(
-      onTap: () => setState(() => _activeFilter = id),
+      onTap: () => setState(() {
+        _activeFilter = id;
+        _focusFirstMapDeal();
+      }),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -760,26 +870,38 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       return _buildEmptyLocationState();
     }
 
-    if (_markers.isEmpty) {
+    if (_mappableDeals.isEmpty) {
       return _buildEmptyDealsState();
     }
 
-    final initialTarget = _selectedMapDeal?.latitude != null && _selectedMapDeal?.longitude != null
-        ? LatLng(_selectedMapDeal!.latitude!, _selectedMapDeal!.longitude!)
-        : LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+    final initialTarget =
+        _selectedMapDeal?.latitude != null && _selectedMapDeal?.longitude != null
+            ? latlng.LatLng(
+                _selectedMapDeal!.latitude!,
+                _selectedMapDeal!.longitude!,
+              )
+            : latlng.LatLng(
+                _currentPosition!.latitude,
+                _currentPosition!.longitude,
+              );
 
     return Stack(
       children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: initialTarget,
-            zoom: 13.5,
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: initialTarget,
+            initialZoom: 13.5,
+            onTap: (_, __) => setState(() => _selectedMapDeal = null),
           ),
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          zoomControlsEnabled: false,
-          markers: _markers,
-          onTap: (_) => setState(() => _selectedMapDeal = null),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.deal_finder_mobile',
+            ),
+            CircleLayer(circles: _mapCircles),
+            MarkerLayer(markers: _markers),
+          ],
         ),
         if (_selectedMapDeal != null)
           Positioned(
@@ -953,6 +1075,12 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
               icon: const Icon(Icons.my_location),
               label: const Text('Enable Location'),
             ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _openLocationSettings,
+              icon: const Icon(Icons.settings),
+              label: const Text('Open Settings'),
+            ),
           ],
         ),
       ),
@@ -1054,7 +1182,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                   const SizedBox(height: 14),
                   TextField(
                     controller: _searchController,
-                    onChanged: (_) => setState(() => _selectedMapDeal = _filteredDeals.isNotEmpty ? _filteredDeals.first : null),
+                    onChanged: (_) => setState(_focusFirstMapDeal),
                     decoration: InputDecoration(
                       hintText: 'Search nearby deals...',
                       prefixIcon: const Icon(Icons.search),
@@ -1063,7 +1191,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           : IconButton(
                               onPressed: () {
                                 _searchController.clear();
-                                setState(() => _selectedMapDeal = _filteredDeals.isNotEmpty ? _filteredDeals.first : null);
+                                setState(_focusFirstMapDeal);
                               },
                               icon: const Icon(Icons.close),
                             ),
@@ -1157,13 +1285,14 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           max: 50,
                           divisions: 49,
                           label: '${_selectedRadius.round()} km',
-                          onChanged: (value) => _changeRadius(value),
+                          onChanged: _changeRadius,
+                          onChangeEnd: _applyRadiusFilter,
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

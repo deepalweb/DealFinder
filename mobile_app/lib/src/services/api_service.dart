@@ -98,8 +98,9 @@ class ApiService {
     if (!forceRefresh) {
       final cached = await CacheService.loadPromotions();
       if (cached != null && cached.isNotEmpty) {
-        if (kDebugMode)
+        if (kDebugMode) {
           print('✅ Loaded ${cached.length} promotions from cache');
+        }
         return cached;
       }
     }
@@ -115,8 +116,9 @@ class ApiService {
         final promotions = body.map((e) => Promotion.fromJson(e)).toList();
         try {
           await CacheService.savePromotions(promotions);
-          if (kDebugMode)
+          if (kDebugMode) {
             print('💾 Saved ${promotions.length} promotions to cache');
+          }
         } catch (_) {}
         return promotions;
       }
@@ -126,8 +128,9 @@ class ApiService {
       if (kDebugMode) print('❌ Network error: $e');
       final cached = await CacheService.loadPromotions(forceStale: true);
       if (cached != null) {
-        if (kDebugMode)
+        if (kDebugMode) {
           print('📦 Using stale cache (${cached.length} promotions)');
+        }
         return cached;
       }
       rethrow;
@@ -294,8 +297,9 @@ class ApiService {
         final merchants = data.cast<Map<String, dynamic>>();
         try {
           await CacheService.saveMerchants(merchants);
-          if (kDebugMode)
+          if (kDebugMode) {
             print('💾 Saved ${merchants.length} merchants to cache');
+          }
         } catch (_) {}
         return merchants;
       }
@@ -304,8 +308,9 @@ class ApiService {
       if (kDebugMode) print('❌ Network error: $e');
       final cached = await CacheService.loadMerchants(forceStale: true);
       if (cached != null) {
-        if (kDebugMode)
+        if (kDebugMode) {
           print('📦 Using stale cache (${cached.length} merchants)');
+        }
         return cached;
       }
       rethrow;
@@ -431,7 +436,7 @@ class ApiService {
   }
 
   // Post or update a rating for a promotion (requires auth)
-  Future<Map<String, dynamic>> postPromotionRating(
+  Future<List<Map<String, dynamic>>> postPromotionRating(
       String promotionId, double value, String token) async {
     final response = await http.post(
       Uri.parse('${_baseUrl}promotions/$promotionId/ratings'),
@@ -442,7 +447,14 @@ class ApiService {
       body: jsonEncode({'value': value}),
     );
     if (response.statusCode == 201 || response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final dynamic data = jsonDecode(response.body);
+      if (data is List) {
+        return data.cast<Map<String, dynamic>>();
+      }
+      if (data is Map<String, dynamic>) {
+        return [data];
+      }
+      return [];
     } else {
       throw Exception('Failed to post rating: ${response.body}');
     }
@@ -619,9 +631,10 @@ class ApiService {
   Future<List<Promotion>> fetchNearbyPromotions(double lat, double lng,
       {double radiusKm = 10}) async {
     try {
-      if (kDebugMode)
+      if (kDebugMode) {
         print(
             '🌐 Fetching nearby deals: lat=$lat, lng=$lng, radius=${radiusKm}km');
+      }
 
       final url =
           '${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm';
@@ -656,8 +669,9 @@ class ApiService {
         return body.map((item) => Promotion.fromJson(item)).toList();
       }
 
-      if (kDebugMode)
+      if (kDebugMode) {
         print('❌ Nearby API returned ${response.statusCode}: ${response.body}');
+      }
       throw Exception('Server returned error: ${response.statusCode}');
     } on TimeoutException catch (e) {
       if (kDebugMode) print('⏱️ Timeout: $e');

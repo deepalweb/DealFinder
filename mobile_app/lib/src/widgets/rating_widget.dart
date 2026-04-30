@@ -22,7 +22,7 @@ class RatingWidget extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(starCount, (index) {
         double starRating = rating - index;
-        
+
         if (starRating >= 1) {
           return Icon(Icons.star, size: size, color: color);
         } else if (starRating >= 0.5 && allowHalfRating) {
@@ -41,6 +41,7 @@ class InteractiveRatingWidget extends StatefulWidget {
   final int starCount;
   final double size;
   final Color color;
+  final bool enabled;
 
   const InteractiveRatingWidget({
     super.key,
@@ -49,10 +50,12 @@ class InteractiveRatingWidget extends StatefulWidget {
     this.starCount = 5,
     this.size = 30,
     this.color = Colors.amber,
+    this.enabled = true,
   });
 
   @override
-  State<InteractiveRatingWidget> createState() => _InteractiveRatingWidgetState();
+  State<InteractiveRatingWidget> createState() =>
+      _InteractiveRatingWidgetState();
 }
 
 class _InteractiveRatingWidgetState extends State<InteractiveRatingWidget> {
@@ -65,12 +68,21 @@ class _InteractiveRatingWidgetState extends State<InteractiveRatingWidget> {
   }
 
   @override
+  void didUpdateWidget(covariant InteractiveRatingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialRating != widget.initialRating) {
+      _currentRating = widget.initialRating;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(widget.starCount, (index) {
         return GestureDetector(
           onTap: () {
+            if (!widget.enabled) return;
             setState(() {
               _currentRating = index + 1.0;
             });

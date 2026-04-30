@@ -791,7 +791,10 @@ router.post('/:id/comments', authenticateJWT, async (req, res) => {
 // Get comments for a promotion
 router.get('/:id/comments', async (req, res) => {
   try {
-    const promotion = await Promotion.findById(req.params.id).populate('comments.user', 'name email');
+    const promotion = await Promotion.findById(req.params.id).populate(
+      'comments.user',
+      'name email profilePicture',
+    );
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json(promotion.comments);
   } catch (error) {
@@ -827,7 +830,10 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
 // Get ratings for a promotion
 router.get('/:id/ratings', async (req, res) => {
   try {
-    const promotion = await Promotion.findById(req.params.id).populate('ratings.user', 'name email');
+    const promotion = await Promotion.findById(req.params.id).populate(
+      'ratings.user',
+      'name email profilePicture',
+    );
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json(promotion.ratings);
   } catch (error) {

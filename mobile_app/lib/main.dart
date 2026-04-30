@@ -16,21 +16,40 @@ final _navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (_) {}
+  await _loadEnvironment();
   await ApiService.warmUp();
-  try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    await PushNotificationService.initialize(navKey: _navigatorKey);
-  } catch (_) {}
+  await _initializeRemoteServices();
   runApp(const MyApp());
 }
 
+Future<void> _loadEnvironment() async {
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (_) {}
+}
+
+Future<void> _initializeRemoteServices() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    await PushNotificationService.initialize(navKey: _navigatorKey);
+  } catch (_) {}
+}
+
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({
+    super.key,
+    this.authLoader,
+  });
+
+  final Future<Map<String, String?>> Function()? authLoader;
 
   Future<Map<String, String?>> _getAuth() async {
+    if (authLoader != null) {
+      return authLoader!();
+    }
+
     final prefs = await SharedPreferences.getInstance();
     return {
       'userToken': prefs.getString('userToken'),

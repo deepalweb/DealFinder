@@ -15,6 +15,7 @@ import '../services/recommendation_service.dart';
 import '../services/deal_history_service.dart';
 import '../config/app_config.dart';
 import '../screens/merchant_profile_screen.dart';
+import '../widgets/rating_widget.dart';
 
 class DealDetailScreen extends StatefulWidget {
   final Promotion promotion;
@@ -30,9 +31,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   List<Map<String, dynamic>> _comments = [];
   List<Map<String, dynamic>> _ratings = [];
   bool _loadingComments = true;
+  bool _submittingComment = false;
+  bool _submittingRating = false;
   double _averageRating = 0;
+  double _userRating = 0;
   int _reviewCount = 0;
   final ApiService _apiService = ApiService();
+  final TextEditingController _commentController = TextEditingController();
   // TODO: Replace with your actual auth logic
   String? _userToken; // Set this from your auth provider
   String? _userId;
@@ -58,6 +63,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     _trackView();
   }
 
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
   Future<void> _trackView() async {
     await DealHistoryService.addToHistory(widget.promotion.id);
     await RecommendationService.trackView(
@@ -73,6 +84,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     setState(() {
       _userToken = prefs.getString('userToken');
       _userId = prefs.getString('userId');
+      _userRating = _findUserRating(_ratings);
     });
   }
 
@@ -219,12 +231,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       _loadingComments = true;
     });
     try {
-      final results = await Future.wait([
+      final results = await Future.wait<List<Map<String, dynamic>>>([
         _apiService.fetchPromotionComments(widget.promotion.id),
         _apiService.fetchPromotionRatings(widget.promotion.id),
       ]);
-      final comments = results[0] as List<Map<String, dynamic>>;
-      final ratings = results[1] as List<Map<String, dynamic>>;
+      final comments = results[0];
+      final ratings = results[1];
       final ratingValues = ratings
           .map((rating) => (rating['value'] as num?)?.toDouble())
           .whereType<double>()
@@ -234,6 +246,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         _ratings = ratings;
         _commentCount = comments.length;
         _reviewCount = ratings.length;
+        _userRating = _findUserRating(ratings);
         _averageRating = ratingValues.isNotEmpty
             ? ratingValues.reduce((a, b) => a + b) / ratingValues.length
             : 0;
@@ -275,27 +288,128 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
   }
 
-  Future<void> _submitReview(double rating, String review) async {
+  String _normalizeId(dynamic value) {
+    if (value is String) return value;
+    if (value is Map<String, dynamic>) {
+      final nestedId = value['_id'] ?? value['id'];
+      if (nestedId is String) return nestedId;
+    }
+    return '';
+  }
+
+  double _findUserRating(List<Map<String, dynamic>> ratings) {
+    if (_userId == null || _userId!.isEmpty) return 0;
+
+    for (final rating in ratings) {
+      final ratingUserId = _normalizeId(rating['user']);
+      if (ratingUserId == _userId) {
+        return (rating['value'] as num?)?.toDouble() ?? 0;
+      }
+    }
+
+    return 0;
+  }
+
+  void _showAuthRequiredMessage(String action) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Please log in to $action.')),
+    );
+  }
+
+  String _formatReviewDate(dynamic value) {
+    if (value is! String || value.isEmpty) return '';
+    try {
+      return DateFormat.yMMMd().format(DateTime.parse(value).toLocal());
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<void> _submitRating(double rating) async {
     if (_userToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('You must be logged in to submit a review.')),
-      );
+      _showAuthRequiredMessage('rate this deal');
       return;
     }
+
+    setState(() => _submittingRating = true);
     try {
-      await _apiService.postPromotionComment(
-          widget.promotion.id, review, _userToken!);
-      await _apiService.postPromotionRating(
-          widget.promotion.id, rating, _userToken!);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Review submitted!')),
+      final ratings = await _apiService.postPromotionRating(
+        widget.promotion.id,
+        rating,
+        _userToken!,
       );
-      _loadReviewsAndStats();
+      final ratingValues = ratings
+          .map((entry) => (entry['value'] as num?)?.toDouble())
+          .whereType<double>()
+          .toList();
+
+      setState(() {
+        _ratings = ratings;
+        _userRating = rating;
+        _reviewCount = ratings.length;
+        _averageRating = ratingValues.isNotEmpty
+            ? ratingValues.reduce((a, b) => a + b) / ratingValues.length
+            : 0;
+      });
+
+      await _fetchPromotionStats();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rating saved!')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit review: $e')),
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save rating: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submittingRating = false);
+      }
+    }
+  }
+
+  Future<void> _submitComment() async {
+    if (_userToken == null) {
+      _showAuthRequiredMessage('comment on this deal');
+      return;
+    }
+
+    final text = _commentController.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() => _submittingComment = true);
+    try {
+      final comment = await _apiService.postPromotionComment(
+        widget.promotion.id,
+        text,
+        _userToken!,
       );
+
+      setState(() {
+        _comments = [..._comments, comment];
+        _commentCount = _comments.length;
+      });
+      _commentController.clear();
+
+      await _fetchPromotionStats();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Comment posted!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to post comment: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submittingComment = false);
+      }
     }
   }
 
@@ -951,39 +1065,71 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12.0),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
                       children: [
-                        _averageRating > 0
-                            ? Row(
-                                children: List.generate(
-                                    5,
-                                    (i) => Icon(
-                                          i < _averageRating.round()
-                                              ? Icons.star
-                                              : Icons.star_border,
-                                          color: Colors.amber,
-                                          size: 24,
-                                        )),
-                              )
-                            : const Icon(Icons.star_border,
-                                color: Colors.grey, size: 24),
-                        const SizedBox(width: 8),
-                        Text(_averageRating.toStringAsFixed(1),
-                            style: theme.textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 8),
-                        Text('($_reviewCount ratings)',
-                            style: theme.textTheme.bodyMedium),
+                        RatingWidget(
+                          rating: _averageRating,
+                          size: 24,
+                          allowHalfRating: true,
+                        ),
+                        Text(
+                          _averageRating.toStringAsFixed(1),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '($_reviewCount ${_reviewCount == 1 ? 'rating' : 'ratings'})',
+                          style: theme.textTheme.bodyMedium,
+                        ),
                       ],
+                    ),
+                    const SizedBox(height: 16.0),
+                    Text(
+                      'Rate this deal',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8.0),
+                    InteractiveRatingWidget(
+                      initialRating: _userRating,
+                      onRatingChanged: _submitRating,
+                      size: 32,
+                      enabled: _userToken != null && !_submittingRating,
+                    ),
+                    const SizedBox(height: 8.0),
+                    if (_userRating > 0)
+                      Text(
+                        'Your rating: ${_userRating.toStringAsFixed(0)}/5',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    if (_submittingRating) ...[
+                      const SizedBox(height: 8.0),
+                      const LinearProgressIndicator(minHeight: 2),
+                    ],
+                    if (_userToken == null) ...[
+                      const SizedBox(height: 8.0),
+                      Text(
+                        'Log in to rate this deal.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16.0),
+                    Text(
+                      'Comments ($_commentCount)',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 8.0),
                     if (_loadingComments)
                       const Center(child: CircularProgressIndicator()),
                     if (!_loadingComments && _comments.isEmpty)
                       Text(
-                        _reviewCount > 0
-                            ? 'No written reviews yet. Be the first to add one!'
-                            : 'No reviews yet. Be the first to review!',
+                        'No comments yet. Be the first to comment!',
                         style: theme.textTheme.bodyMedium,
                       ),
                     if (!_loadingComments && _comments.isNotEmpty)
@@ -996,101 +1142,98 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8)),
                                   child: ListTile(
-                                    leading: c['user']?['avatar'] != null &&
-                                            c['user']!['avatar']
+                                    leading: c['user']?['profilePicture'] !=
+                                                null &&
+                                            c['user']!['profilePicture']
                                                 .toString()
                                                 .isNotEmpty
                                         ? CircleAvatar(
                                             backgroundImage: NetworkImage(
-                                                c['user']!['avatar']),
+                                                c['user']!['profilePicture']),
                                             backgroundColor: Colors.grey[200],
                                           )
-                                        : const Icon(Icons.account_circle,
-                                            size: 32),
-                                    title: Text(
-                                      c['user']?['name'] ?? 'User',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.primary,
+                                        : CircleAvatar(
+                                            backgroundColor: theme
+                                                .colorScheme.primaryContainer,
+                                            child: Text(
+                                              ((c['user']?['name'] ?? 'U')
+                                                          .toString()
+                                                          .trim()
+                                                          .isNotEmpty
+                                                      ? (c['user']?['name'] ??
+                                                              'U')
+                                                          .toString()
+                                                          .trim()[0]
+                                                      : 'U')
+                                                  .toUpperCase(),
+                                              style: TextStyle(
+                                                color: theme.colorScheme
+                                                    .onPrimaryContainer,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                    title: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            c['user']?['name'] ?? 'User',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                        if (_formatReviewDate(c['createdAt'])
+                                            .isNotEmpty)
+                                          Text(
+                                            _formatReviewDate(c['createdAt']),
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                      ],
+                                    ),
+                                    subtitle: Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        c['text'] ?? '',
+                                        style: theme.textTheme.bodyMedium,
                                       ),
                                     ),
-                                    subtitle: Text(c['text'] ?? '',
-                                        style: theme.textTheme.bodyMedium),
                                   ),
                                 ))
                             .toList(),
                       ),
                     const SizedBox(height: 12.0),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.rate_review_outlined),
-                      label: const Text('Write a Review'),
-                      onPressed: () async {
-                        double rating = 5;
-                        TextEditingController reviewController =
-                            TextEditingController();
-                        final result = await showDialog<Map<String, dynamic>>(
-                          context: context,
-                          builder: (context) {
-                            return StatefulBuilder(
-                              builder: (context, setState) {
-                                return AlertDialog(
-                                  title: const Text('Write a Review'),
-                                  content: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: List.generate(
-                                            5,
-                                            (index) => IconButton(
-                                                  icon: Icon(
-                                                    index < rating
-                                                        ? Icons.star
-                                                        : Icons.star_border,
-                                                    color: Colors.amber,
-                                                  ),
-                                                  onPressed: () {
-                                                    setState(() {
-                                                      rating = index + 1.0;
-                                                    });
-                                                  },
-                                                )),
-                                      ),
-                                      TextField(
-                                        controller: reviewController,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Your review',
-                                        ),
-                                        maxLines: 3,
-                                      ),
-                                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _commentController,
+                            enabled: _userToken != null && !_submittingComment,
+                            minLines: 1,
+                            maxLines: 3,
+                            decoration: InputDecoration(
+                              hintText: _userToken == null
+                                  ? 'Log in to write a comment'
+                                  : 'Write a comment...',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton(
+                          onPressed: _submittingComment ? null : _submitComment,
+                          child: _submittingComment
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                   ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.of(context).pop({
-                                          'rating': rating,
-                                          'review': reviewController.text,
-                                        });
-                                      },
-                                      child: const Text('Submit'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        );
-                        if (result != null) {
-                          _submitReview(result['rating'], result['review']);
-                        }
-                      },
+                                )
+                              : const Text('Post'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1129,19 +1272,31 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                           _merchantData!['longitude'] != null)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12.0),
-                          child: Image.network(
-                            'https://maps.googleapis.com/maps/api/staticmap?center=${_merchantData!['latitude']},${_merchantData!['longitude']}&zoom=15&size=600x200&markers=color:red%7C${_merchantData!['latitude']},${_merchantData!['longitude']}&key=${AppConfig.googleMapsApiKey}',
-                            height: 120,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                              height: 120,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                  child: Icon(Icons.map, color: Colors.grey)),
-                            ),
-                          ),
+                          child: AppConfig.hasGoogleMapsApiKey
+                              ? Image.network(
+                                  'https://maps.googleapis.com/maps/api/staticmap?center=${_merchantData!['latitude']},${_merchantData!['longitude']}&zoom=15&size=600x200&markers=color:red%7C${_merchantData!['latitude']},${_merchantData!['longitude']}&key=${AppConfig.googleMapsApiKey}',
+                                  height: 120,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                    height: 120,
+                                    color: Colors.grey[200],
+                                    child: const Center(
+                                      child: Icon(Icons.map,
+                                          color: Colors.grey),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  height: 120,
+                                  color: Colors.grey[200],
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    'Add GOOGLE_MAPS_API_KEY to show the map preview.',
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                         ),
                       OutlinedButton.icon(
                         icon: const Icon(Icons.directions),
@@ -1162,9 +1317,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Widget _buildImageErrorPlaceholder(BuildContext context, {Object? error}) {
-    if (error != null) {
-      print("DetailScreen Image loading/decoding error: $error");
-    }
     return Container(
       height: 250,
       width: double.infinity,
@@ -1213,7 +1365,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           child: image,
         );
       } catch (e) {
-        print('Error decoding Base64 image for DetailScreen: $e');
         return _buildImageErrorPlaceholder(context, error: e);
       }
     } else if (imageDataString.startsWith('http')) {

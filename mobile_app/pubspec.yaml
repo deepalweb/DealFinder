@@ -1,5 +1,5 @@
 name: deal_finder_mobile
-description: A new Flutter project to find deals.
+description: DealFinder mobile app for discovering promotions and nearby deals.
 
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
@@ -34,6 +34,8 @@ dependencies:
   cached_network_image: ^3.3.1
   qr_flutter: ^4.1.0
   flutter_image_compress: ^2.1.0
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
 
 dev_dependencies:
   flutter_test:

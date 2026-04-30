@@ -4,7 +4,8 @@
   "description": "DealFinder Application",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "mobile:secrets": "node scripts/generate-mobile-secrets.js"
   },
   "engines": {
     "node": "20.x"

@@ -154,6 +154,12 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     if (msg.contains('too-many-requests')) return 'Too many attempts. Try again later.';
     if (msg.contains('network-request-failed')) return 'No internet connection.';
+    if (msg.contains('Google Sign-In is not configured yet')) {
+      return 'Google Sign-In is not configured for this mobile build yet.';
+    }
+    if (msg.contains('configuration mismatch')) {
+      return 'Google Sign-In app configuration mismatch. Please update the Firebase mobile config files.';
+    }
     return msg;
   }
 
@@ -307,9 +313,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   side: BorderSide(color: Colors.grey[300]!),
                 ),
                 onPressed: _isLoading ? null : _googleSignIn,
-                icon: Image.network(
-                  'https://developers.google.com/identity/images/g-logo.png',
-                  height: 20, width: 20,
+                icon: Container(
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(11),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: const Text(
+                    'G',
+                    style: TextStyle(
+                      color: Color(0xFF4285F4),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
                 label: const Text('Continue with Google', style: TextStyle(color: Colors.black87)),
               ),

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as latlng;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/api_service.dart';
 
@@ -369,24 +370,46 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                             ),
                           ),
                           // Map
-                          if (_merchant!['latitude'] != null && _merchant!['longitude'] != null)
+                          if (_merchant!['latitude'] != null &&
+                              _merchant!['longitude'] != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                               child: SizedBox(
                                 height: 180,
-                                child: GoogleMap(
-                                  initialCameraPosition: CameraPosition(
-                                    target: LatLng(_merchant!['latitude'], _merchant!['longitude']),
-                                    zoom: 15,
-                                  ),
-                                  markers: {
-                                    Marker(
-                                      markerId: const MarkerId('merchant'),
-                                      position: LatLng(_merchant!['latitude'], _merchant!['longitude']),
-                                      infoWindow: InfoWindow(title: _merchant!['name']),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: FlutterMap(
+                                    options: MapOptions(
+                                      initialCenter: latlng.LatLng(
+                                        _merchant!['latitude'],
+                                        _merchant!['longitude'],
+                                      ),
+                                      initialZoom: 15,
                                     ),
-                                  },
-                                  zoomControlsEnabled: false,
+                                    children: [
+                                      TileLayer(
+                                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                        userAgentPackageName: 'com.example.deal_finder_mobile',
+                                      ),
+                                      MarkerLayer(
+                                        markers: [
+                                          Marker(
+                                            point: latlng.LatLng(
+                                              _merchant!['latitude'],
+                                              _merchant!['longitude'],
+                                            ),
+                                            width: 44,
+                                            height: 44,
+                                            child: Icon(
+                                              Icons.location_on,
+                                              color: Theme.of(context).colorScheme.primary,
+                                              size: 36,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

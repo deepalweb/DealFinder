@@ -1,15 +1,27 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class LocationService {
-  static Future<Position?> getCurrentLocation() async {
-    final permission = await Permission.location.request();
-    if (permission != PermissionStatus.granted) return null;
+  static Future<bool> isLocationServiceEnabled() async {
+    return Geolocator.isLocationServiceEnabled();
+  }
 
-    if (!await Geolocator.isLocationServiceEnabled()) return null;
+  static Future<bool> requestLocationPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+  }
+
+  static Future<Position?> getCurrentLocation() async {
+    if (!await isLocationServiceEnabled()) return null;
+    final hasPermission = await requestLocationPermission();
+    if (!hasPermission) return null;
 
     try {
       return await Geolocator.getCurrentPosition(
@@ -66,9 +78,7 @@ class LocationService {
         
         return locationName;
       }
-    } catch (e) {
-      print('Error getting location name: $e');
-    }
+    } catch (_) {}
     return null;
   }
 
@@ -77,6 +87,16 @@ class LocationService {
   }
 
   static Future<bool> hasLocationPermission() async {
-    return await Permission.location.isGranted;
+    final permission = await Geolocator.checkPermission();
+    return permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always;
+  }
+
+  static Future<bool> openAppSettings() async {
+    return Geolocator.openAppSettings();
+  }
+
+  static Future<bool> openLocationSettings() async {
+    return Geolocator.openLocationSettings();
   }
 }

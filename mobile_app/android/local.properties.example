@@ -1,0 +1,6 @@
+# Copy this file to android/local.properties on a machine that does not already
+# have one, or add the key below to your existing local.properties file.
+#
+# Flutter usually manages sdk.dir in local.properties, so keep any existing
+# entries and add only the map key line.
+GOOGLE_MAPS_API_KEY=your-google-maps-api-key

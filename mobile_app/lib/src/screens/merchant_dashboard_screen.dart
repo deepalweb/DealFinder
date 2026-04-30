@@ -724,7 +724,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   }
 
   Widget _buildTabSelector() {
-    final tabs = const [
+    const tabs = [
       ('active', 'Active'),
       ('expired', 'Expired'),
       ('all', 'All'),
