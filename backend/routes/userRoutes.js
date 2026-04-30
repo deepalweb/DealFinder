@@ -38,6 +38,50 @@ function generateRefreshToken(user) {
   );
 }
 
+async function ensureMerchantProfileForUser(user, overrides = {}) {
+  if (!user || user.role !== 'merchant' || user.merchantId) {
+    return user;
+  }
+
+  const contactInfo = overrides.contactInfo || user.email;
+  const baseName = (
+    overrides.businessName ||
+    user.businessName ||
+    user.name ||
+    'Merchant'
+  ).trim();
+
+  let merchant = await Merchant.findOne({ contactInfo });
+
+  if (!merchant) {
+    let candidateName = baseName;
+    let suffix = 2;
+
+    while (await Merchant.findOne({ name: candidateName })) {
+      candidateName = `${baseName} ${suffix}`;
+      suffix += 1;
+    }
+
+    merchant = await Merchant.create({
+      name: candidateName,
+      contactInfo,
+      logo: overrides.logo || user.logo || '',
+      profile: overrides.profile || '',
+      address: overrides.address || '',
+      contactNumber: overrides.contactNumber || '',
+      socialMedia: overrides.socialMedia || {},
+      promotions: [],
+    });
+  }
+
+  user.merchantId = merchant._id;
+  if (!user.businessName || !user.businessName.trim()) {
+    user.businessName = merchant.name;
+  }
+  await user.save();
+  return user;
+}
+
 // Middleware to protect routes
 function protectRoute(req, res, next) {
   const openRoutes = [
@@ -108,6 +152,11 @@ router.post('/firebase-auth', async (req, res) => {
         user = savedUser;
       }
     }
+
+    user = await ensureMerchantProfileForUser(user, {
+      businessName,
+      contactInfo: email,
+    });
 
     const userResponse = user.toObject();
     delete userResponse.password;
@@ -397,7 +446,7 @@ router.put('/:id', authorizeSelfOrAdmin, [
       return res.status(400).json({ message: 'Password cannot be updated through this endpoint. Use /change-password instead.' });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
+    let updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       { $set: updateData }, // Use $set to only update provided fields
       { new: true }
@@ -405,6 +454,15 @@ router.put('/:id', authorizeSelfOrAdmin, [
     if (!updatedUser) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    if (updatedUser.role === 'merchant' && !updatedUser.merchantId) {
+      updatedUser = await ensureMerchantProfileForUser(updatedUser, {
+        businessName: businessName || updatedUser.businessName || updatedUser.name,
+        contactInfo: email || updatedUser.email,
+        logo: logo || updatedUser.logo,
+      });
+    }
+
     // If user is a merchant, update merchant name and logo too
     if (updatedUser.role === 'merchant' && updatedUser.merchantId) {
       await Merchant.findByIdAndUpdate(
@@ -564,6 +622,10 @@ router.post('/google-signin', async (req, res) => {
             });
             await user.save();
         }
+
+        user = await ensureMerchantProfileForUser(user, {
+            contactInfo: email,
+        });
 
         const userResponse = user.toObject();
         delete userResponse.password;
