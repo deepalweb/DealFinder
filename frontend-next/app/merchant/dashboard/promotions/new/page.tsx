@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PromotionAPI, ImageAPI } from '@/lib/api';
+import { PromotionAPI, ImageAPI, MerchantAPI, UserAPI } from '@/lib/api';
 import { getCurrencySymbol } from '@/lib/currency';
 import toast from 'react-hot-toast';
 
 const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','education'];
 
 function NewPromotionContent() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get('edit');
@@ -33,22 +33,41 @@ function NewPromotionContent() {
   const [original, setOriginal] = useState(defaultForm);
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    if (user.role !== 'merchant') { router.push('/'); return; }
-    // Load merchant currency
-    import('@/lib/api').then(({ MerchantAPI }) => {
-      MerchantAPI.getById(user.merchantId!).then(m => {
+    const loadPage = async () => {
+      if (!user) { router.push('/login'); return; }
+      if (user.role !== 'merchant') { router.push('/'); return; }
+
+      let merchantId = user.merchantId;
+      if (!merchantId) {
+        try {
+          const refreshedUser = await UserAPI.getProfile(user._id);
+          merchantId = refreshedUser.merchantId?.toString();
+          if (merchantId) {
+            updateUser({ merchantId });
+          }
+        } catch {}
+      }
+
+      if (!merchantId) {
+        toast.error('Merchant profile is still syncing. Please sign out and sign in again.');
+        return;
+      }
+
+      MerchantAPI.getById(merchantId).then(m => {
         setCurrencySymbol(getCurrencySymbol(m.currency));
       }).catch(() => {});
-    });
-    if (editId) {
-      PromotionAPI.getById(editId).then(p => {
-        const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
-        const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'', dealType:'percentage', percentageOff:'' };
-        setForm(data); setOriginal(data); setImagePreviews(p.images?.length ? p.images : (p.image ? [p.image] : []));
-      }).catch(() => toast.error('Failed to load promotion.'));
-    }
-  }, [user, editId]);
+
+      if (editId) {
+        PromotionAPI.getById(editId).then(p => {
+          const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
+          const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'', dealType:'percentage', percentageOff:'' };
+          setForm(data); setOriginal(data); setImagePreviews(p.images?.length ? p.images : (p.image ? [p.image] : []));
+        }).catch(() => toast.error('Failed to load promotion.'));
+      }
+    };
+
+    loadPage();
+  }, [editId, router, updateUser, user]);
 
   useEffect(() => { setHasChanges(JSON.stringify(form) !== JSON.stringify(original)); }, [form, original]);
   useEffect(() => { if (form.image && form.image.startsWith('http')) setImagePreviews(prev => prev.length ? prev : [form.image]); }, [form.image]);

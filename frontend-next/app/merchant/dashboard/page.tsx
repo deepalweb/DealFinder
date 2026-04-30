@@ -2,13 +2,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PromotionAPI, MerchantAPI } from '@/lib/api';
+import { PromotionAPI, MerchantAPI, UserAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','education'];
 
 export default function MerchantDashboard() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const router = useRouter();
   const [merchant, setMerchant] = useState<any>(null);
   const [promotions, setPromotions] = useState<any[]>([]);
@@ -21,13 +21,35 @@ export default function MerchantDashboard() {
   const [profileForm, setProfileForm] = useState({ name:'', profile:'', contactInfo:'', contactNumber:'', address:'', logo:'', socialMedia:{ facebook:'', instagram:'', twitter:'', tiktok:'' } });
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    if (user.role !== 'merchant') { router.push('/'); return; }
-    Promise.all([MerchantAPI.getById(user.merchantId!), PromotionAPI.getByMerchant(user.merchantId!)])
-      .then(([m, p]) => { setMerchant(m); setPromotions(Array.isArray(p) ? p.map((x:any) => ({...x, id: x._id})) : []); })
-      .catch(() => toast.error('Failed to load dashboard.'))
-      .finally(() => setLoading(false));
-  }, [user]);
+    const loadDashboard = async () => {
+      if (!user) { router.push('/login'); return; }
+      if (user.role !== 'merchant') { router.push('/'); return; }
+
+      let merchantId = user.merchantId;
+      if (!merchantId) {
+        try {
+          const refreshedUser = await UserAPI.getProfile(user._id);
+          merchantId = refreshedUser.merchantId?.toString();
+          if (merchantId) {
+            updateUser({ merchantId });
+          }
+        } catch {}
+      }
+
+      if (!merchantId) {
+        toast.error('Merchant profile is still syncing. Please sign out and sign in again.');
+        setLoading(false);
+        return;
+      }
+
+      Promise.all([MerchantAPI.getById(merchantId), PromotionAPI.getByMerchant(merchantId)])
+        .then(([m, p]) => { setMerchant(m); setPromotions(Array.isArray(p) ? p.map((x:any) => ({...x, id: x._id})) : []); })
+        .catch(() => toast.error('Failed to load dashboard.'))
+        .finally(() => setLoading(false));
+    };
+
+    loadDashboard();
+  }, [router, updateUser, user]);
 
   useEffect(() => {
     if (merchant && profileModalOpen) setProfileForm({ name: merchant.name||'', profile: merchant.profile||'', contactInfo: merchant.contactInfo||'', contactNumber: merchant.contactNumber||'', address: merchant.address||'', logo: merchant.logo||'', socialMedia: { facebook: merchant.socialMedia?.facebook||'', instagram: merchant.socialMedia?.instagram||'', twitter: merchant.socialMedia?.twitter||'', tiktok: merchant.socialMedia?.tiktok||'' } });

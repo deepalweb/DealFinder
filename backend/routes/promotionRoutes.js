@@ -421,6 +421,9 @@ router.get('/:id', async (req, res) => {
 // Get promotions by merchant ID
 router.get('/merchant/:merchantId', async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.merchantId)) {
+      return res.status(400).json({ message: 'Valid merchant ID is required' });
+    }
     const promotions = await Promotion.find({ merchant: req.params.merchantId })
       .select('-comments -ratings')
       .sort({ createdAt: -1 })

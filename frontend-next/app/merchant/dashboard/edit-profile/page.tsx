@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { MerchantAPI } from '@/lib/api';
+import { MerchantAPI, UserAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 import MapPicker from '@/components/ui/MapPicker';
@@ -27,7 +27,7 @@ const SOCIAL_PLATFORMS = [
 const CATEGORIES = ['fashion','electronics','travel','health','entertainment','home','pets','food','education','other'];
 
 export default function EditProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const router = useRouter();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -54,27 +54,49 @@ export default function EditProfilePage() {
   });
 
   useEffect(() => {
-    if (!user) { router.push('/login'); return; }
-    if (user.role !== 'merchant') { router.push('/'); return; }
-    MerchantAPI.getById(user.merchantId!).then(m => {
-      const data = {
-        name: m.name || '',
-        profile: m.profile || '',
-        category: m.category || '',
-        website: m.website || '',
-        contactInfo: m.contactInfo || '',
-        contactNumber: m.contactNumber || '',
-        address: m.address || '',
-        logo: m.logo || '',
-        banner: m.banner || '',
-        socialMedia: { facebook: m.socialMedia?.facebook || '', instagram: m.socialMedia?.instagram || '', twitter: m.socialMedia?.twitter || '', tiktok: m.socialMedia?.tiktok || '' },
-        location: m.location?.coordinates ? { lat: m.location.coordinates[1], lng: m.location.coordinates[0] } : null,
-        currency: m.currency || 'USD',
-      };
-      setForm(data);
-      setOriginalData(data);
-    }).catch(() => toast.error('Failed to load profile.')).finally(() => setLoading(false));
-  }, [user]);
+    const loadProfile = async () => {
+      if (!user) { router.push('/login'); return; }
+      if (user.role !== 'merchant') { router.push('/'); return; }
+
+      let merchantId = user.merchantId;
+      if (!merchantId) {
+        try {
+          const refreshedUser = await UserAPI.getProfile(user._id);
+          merchantId = refreshedUser.merchantId?.toString();
+          if (merchantId) {
+            updateUser({ merchantId });
+          }
+        } catch {}
+      }
+
+      if (!merchantId) {
+        toast.error('Merchant profile is still syncing. Please sign out and sign in again.');
+        setLoading(false);
+        return;
+      }
+
+      MerchantAPI.getById(merchantId).then(m => {
+        const data = {
+          name: m.name || '',
+          profile: m.profile || '',
+          category: m.category || '',
+          website: m.website || '',
+          contactInfo: m.contactInfo || '',
+          contactNumber: m.contactNumber || '',
+          address: m.address || '',
+          logo: m.logo || '',
+          banner: m.banner || '',
+          socialMedia: { facebook: m.socialMedia?.facebook || '', instagram: m.socialMedia?.instagram || '', twitter: m.socialMedia?.twitter || '', tiktok: m.socialMedia?.tiktok || '' },
+          location: m.location?.coordinates ? { lat: m.location.coordinates[1], lng: m.location.coordinates[0] } : null,
+          currency: m.currency || 'USD',
+        };
+        setForm(data);
+        setOriginalData(data);
+      }).catch(() => toast.error('Failed to load profile.')).finally(() => setLoading(false));
+    };
+
+    loadProfile();
+  }, [router, updateUser, user]);
 
   // Track unsaved changes
   useEffect(() => {
