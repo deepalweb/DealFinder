@@ -28,6 +28,62 @@ function stripBase64Media(value) {
   return typeof value === 'string' && value.startsWith('data:image') ? null : value;
 }
 
+const COLOMBO_TIME_ZONE = 'Asia/Colombo';
+const COLOMBO_OFFSET = '+05:30';
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function getColomboDateKey(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: COLOMBO_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  return `${year}-${month}-${day}`;
+}
+
+function getColomboDayRange(value = new Date()) {
+  const dateKey = getColomboDateKey(value);
+  const start = new Date(`${dateKey}T00:00:00.000${COLOMBO_OFFSET}`);
+  const endExclusive = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, endExclusive };
+}
+
+function normalizePromotionDateInput(value, boundary = 'start') {
+  if (!value) return value;
+  if (value instanceof Date) return value;
+
+  if (typeof value === 'string' && DATE_ONLY_PATTERN.test(value)) {
+    const time = boundary === 'end' ? '23:59:59.999' : '00:00:00.000';
+    return new Date(`${value}T${time}${COLOMBO_OFFSET}`);
+  }
+
+  return new Date(value);
+}
+
+function buildActivePromotionQuery(value = new Date()) {
+  const { start, endExclusive } = getColomboDayRange(value);
+
+  return {
+    status: { $in: ['active', 'approved'] },
+    startDate: { $lt: endExclusive },
+    endDate: { $gte: start },
+  };
+}
+
+function resolveLifecycleStatus(startDate, endDate, value = new Date()) {
+  const { start, endExclusive } = getColomboDayRange(value);
+
+  if (endDate < start) return 'expired';
+  if (startDate >= endExclusive) return 'scheduled';
+  return 'active';
+}
+
 function sanitizePromotionPayload(promotion) {
   if (!promotion || typeof promotion !== 'object') return promotion;
 
@@ -88,12 +144,7 @@ router.get('/homepage', async (req, res) => {
       return res.status(200).json(homepageCache);
     }
 
-    const now = new Date();
-    const query = {
-      status: { $in: ['active', 'approved'] },
-      startDate: { $lte: now },
-      endDate: { $gte: now }
-    };
+    const query = buildActivePromotionQuery();
 
     const [sections, latest] = await Promise.all([
       resolveHomepageSections(),
@@ -175,7 +226,7 @@ router.get('/nearby', async (req, res) => {
     const merchantLimit = parseInt(req.query.limit) || 30; // Reduced for faster geo query
     const promotionLimit = parseInt(req.query.promotionLimit) || 100;
 
-    const now = new Date();
+    const { start, endExclusive } = getColomboDayRange();
 
     try {
       // Single optimized aggregation pipeline
@@ -199,8 +250,8 @@ router.get('/nearby', async (req, res) => {
                 $match: {
                   $expr: { $eq: ['$merchant', '$$merchantId'] },
                   status: { $in: ['active', 'approved'] },
-                  startDate: { $lte: now },
-                  endDate: { $gte: now }
+                  startDate: { $lt: endExclusive },
+                  endDate: { $gte: start }
                 }
               },
               { $sort: { createdAt: -1, _id: -1 } },
@@ -304,15 +355,10 @@ router.post('/admin/clear-cache', authenticateJWT, authorizeAdmin, async (req, r
 // Get all promotions
 router.get('/', async (req, res) => {
   try {
-    const now = new Date();
     const limit = parseInt(req.query.limit) || 0; // 0 means no limit
     const skip = parseInt(req.query.skip) || 0;
-    
-    const query = {
-      status: { $in: ['active', 'approved'] },
-      startDate: { $lte: now },
-      endDate: { $gte: now }
-    };
+
+    const query = buildActivePromotionQuery();
     
     let promotionsQuery = Promotion.find(query)
       .select('-comments -ratings')
@@ -466,6 +512,8 @@ router.post('/', authenticateJWT, [
   }
   try {
     let { title, description, discount, code, category, startDate, endDate, image, images, url, merchantId, featured, originalPrice, discountedPrice } = req.body;
+    const normalizedStartDate = normalizePromotionDateInput(startDate, 'start');
+    const normalizedEndDate = normalizePromotionDateInput(endDate, 'end');
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
@@ -494,9 +542,9 @@ router.post('/', authenticateJWT, [
       return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
     }
 
-    let initialStatus = 'active'; // Default for merchant submissions
-    if (req.user.role === 'admin') {
-      initialStatus = req.body.status && ['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft'].includes(req.body.status) ? req.body.status : 'approved';
+    let initialStatus = resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
+    if (req.user.role === 'admin' && ['pending_approval', 'rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
+      initialStatus = req.body.status;
     }
     
     const promotionData = {
@@ -505,8 +553,8 @@ router.post('/', authenticateJWT, [
       discount,
       code,
       category,
-      startDate,
-      endDate,
+      startDate: normalizedStartDate,
+      endDate: normalizedEndDate,
       image,
       images: images || [],
       url,
@@ -517,20 +565,6 @@ router.post('/', authenticateJWT, [
       status: initialStatus
     };
 
-    // If status is 'approved', then determine if 'active', 'scheduled', or 'expired' based on dates
-    if (promotionData.status === 'approved') {
-      const now = new Date();
-      const sDate = new Date(startDate);
-      const eDate = new Date(endDate);
-      if (eDate < now) {
-        promotionData.status = 'expired';
-      } else if (sDate > now) {
-        promotionData.status = 'scheduled';
-      } else {
-        promotionData.status = 'active';
-      }
-    }
-    
     const promotion = new Promotion(promotionData);
     const savedPromotion = await promotion.save();
     
@@ -602,26 +636,27 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
   }
   try {
     const { title, description, discount, code, category, startDate, endDate, image, images, url, featured, originalPrice, discountedPrice } = req.body;
-    
+    const normalizedStartDate = startDate !== undefined ? normalizePromotionDateInput(startDate, 'start') : undefined;
+    const normalizedEndDate = endDate !== undefined ? normalizePromotionDateInput(endDate, 'end') : undefined;
+
     const updateData = {
-      title, description, discount, code, category, startDate, endDate, image, url,
+      title, description, discount, code, category, image, url,
       featured: featured === true || featured === 'true'
     };
+    if (normalizedStartDate !== undefined) updateData.startDate = normalizedStartDate;
+    if (normalizedEndDate !== undefined) updateData.endDate = normalizedEndDate;
     if (images !== undefined) updateData.images = images;
 
     // Properly calculate status based on dates
     if (startDate || endDate) {
-      const now = new Date();
-      const sDate = new Date(startDate || (await Promotion.findById(req.params.id)).startDate);
-      const eDate = new Date(endDate || (await Promotion.findById(req.params.id)).endDate);
-      
-      if (eDate < now) {
-        updateData.status = 'expired';
-      } else if (sDate > now) {
-        updateData.status = 'scheduled';
-      } else {
-        updateData.status = 'active';
+      const existingPromotion = await Promotion.findById(req.params.id).select('startDate endDate');
+      if (!existingPromotion) {
+        return res.status(404).json({ message: 'Promotion not found' });
       }
+
+      const sDate = normalizedStartDate || existingPromotion.startDate;
+      const eDate = normalizedEndDate || existingPromotion.endDate;
+      updateData.status = resolveLifecycleStatus(sDate, eDate);
     }
 
 
@@ -652,14 +687,16 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
         if (allowedAdminStatuses.includes(req.body.status)) {
             updateData.status = req.body.status;
 
-            // If admin sets to 'approved', re-evaluate active/scheduled/expired based on dates
-            if (updateData.status === 'approved') {
-                const sDate = new Date(updateData.startDate || (await Promotion.findById(req.params.id)).startDate);
-                const eDate = new Date(updateData.endDate || (await Promotion.findById(req.params.id)).endDate);
-                const now = new Date();
-                if (eDate < now) updateData.status = 'expired';
-                else if (sDate > now) updateData.status = 'scheduled';
-                else updateData.status = 'active';
+            // Re-evaluate live lifecycle when admin wants the promotion publicly visible.
+            if (['approved', 'active', 'scheduled', 'expired'].includes(updateData.status)) {
+                const existingPromotion = await Promotion.findById(req.params.id).select('startDate endDate');
+                if (!existingPromotion) {
+                    return res.status(404).json({ message: 'Promotion not found' });
+                }
+
+                const sDate = updateData.startDate || existingPromotion.startDate;
+                const eDate = updateData.endDate || existingPromotion.endDate;
+                updateData.status = resolveLifecycleStatus(sDate, eDate);
             }
         } else {
             return res.status(400).json({ message: 'Invalid status value for admin update.' });
