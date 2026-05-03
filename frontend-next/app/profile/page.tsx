@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserAPI } from '@/lib/api';
+import { NotificationAPI, UserAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -16,13 +16,34 @@ export default function ProfilePage() {
   const [following, setFollowing] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', profilePicture: '' });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [notifications, setNotifications] = useState({ email: true, expiringDeals: true, favoriteStores: true, recommendations: true });
+  const [notifications, setNotifications] = useState({
+    email: true,
+    nearbyDeals: true,
+    expiringDeals: true,
+    favoriteStores: true,
+    priceDrops: true,
+    flashSales: true,
+    weeklyDigest: true,
+  });
 
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
     setForm({ name: user.name || '', profilePicture: user.profilePicture || '' });
     UserAPI.getFavorites(user._id).then(setFavorites).catch(() => {});
     try { setFollowing(JSON.parse(localStorage.getItem('dealFinderFollowing') || '[]')); } catch {}
+    NotificationAPI.getPreferences()
+      .then((prefs) => {
+        setNotifications({
+          email: prefs?.channels?.email?.enabled ?? true,
+          nearbyDeals: prefs?.preferences?.nearbyDeals?.enabled ?? true,
+          expiringDeals: prefs?.preferences?.expiringDeals?.enabled ?? true,
+          favoriteStores: prefs?.preferences?.favoriteStores?.enabled ?? true,
+          priceDrops: prefs?.preferences?.priceDrops?.enabled ?? true,
+          flashSales: prefs?.preferences?.flashSales?.enabled ?? true,
+          weeklyDigest: prefs?.preferences?.weeklyDigest?.enabled ?? true,
+        });
+      })
+      .catch(() => {});
   }, [user]);
 
   const handleProfileSave = async (e: React.FormEvent) => {
@@ -42,6 +63,30 @@ export default function ProfilePage() {
     if (pwForm.newPassword !== pwForm.confirmPassword) { toast.error('Passwords do not match.'); return; }
     setSaving(true);
     try { await UserAPI.changePassword(user!._id, { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }); setPwForm({ currentPassword:'', newPassword:'', confirmPassword:'' }); toast.success('Password updated!'); } catch { toast.error('Failed to update password.'); } finally { setSaving(false); }
+  };
+
+  const handleNotificationSave = async () => {
+    setSaving(true);
+    try {
+      await NotificationAPI.updatePreferences({
+        channels: {
+          email: { enabled: notifications.email },
+        },
+        preferences: {
+          nearbyDeals: { enabled: notifications.nearbyDeals },
+          expiringDeals: { enabled: notifications.expiringDeals },
+          favoriteStores: { enabled: notifications.favoriteStores },
+          priceDrops: { enabled: notifications.priceDrops },
+          flashSales: { enabled: notifications.flashSales },
+          weeklyDigest: { enabled: notifications.weeklyDigest },
+        },
+      });
+      toast.success('Notification preferences saved!');
+    } catch {
+      toast.error('Failed to save notification preferences.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUnfollow = (id: string) => { const updated = following.filter(m => m.id !== id); setFollowing(updated); localStorage.setItem('dealFinderFollowing', JSON.stringify(updated)); };
@@ -147,7 +192,7 @@ export default function ProfilePage() {
                     </label>
                   ))}
                 </div>
-                <button className="btn btn-primary" onClick={() => toast.success('Preferences saved!')}>Save Preferences</button>
+                <button className="btn btn-primary" onClick={handleNotificationSave} disabled={saving}>{saving ? 'Saving...' : 'Save Preferences'}</button>
               </div>
             )}
             {activeTab === 'favorites' && (

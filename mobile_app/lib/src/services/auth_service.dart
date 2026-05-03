@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'push_notification_service.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -111,5 +112,7 @@ class AuthService {
       await prefs.remove('userBusinessName');
       await prefs.remove('merchantId');
     }
+
+    await PushNotificationService.syncTokenWithServer();
   }
 }

@@ -28,8 +28,14 @@ class PushNotificationService {
     );
 
     final token = await _messaging.getToken();
-    if (token != null) await _saveTokenToPrefs(token);
-    _messaging.onTokenRefresh.listen(_saveTokenToPrefs);
+    if (token != null) {
+      await _saveTokenToPrefs(token);
+      await syncTokenWithServer(token);
+    }
+    _messaging.onTokenRefresh.listen((token) async {
+      await _saveTokenToPrefs(token);
+      await syncTokenWithServer(token);
+    });
 
     // Foreground FCM messages → show local notification
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
@@ -52,6 +58,23 @@ class PushNotificationService {
   static Future<void> _saveTokenToPrefs(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('fcm_token', token);
+  }
+
+  static Future<void> syncTokenWithServer([String? token]) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final currentToken = token ?? prefs.getString('fcm_token');
+      final userToken = prefs.getString('userToken');
+
+      if (currentToken == null ||
+          currentToken.isEmpty ||
+          userToken == null ||
+          userToken.isEmpty) {
+        return;
+      }
+
+      await ApiService().subscribeToNotifications(currentToken, 'push');
+    } catch (_) {}
   }
 
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {

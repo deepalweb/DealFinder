@@ -806,11 +806,12 @@ class ApiService {
   Future<void> subscribeToNotifications(String token, String type) async {
     final prefs = await SharedPreferences.getInstance();
     final authToken = prefs.getString('userToken');
+    final bearerToken = authToken ?? token;
     final response = await http.post(
       Uri.parse('${_baseUrl}notifications/subscribe'),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer $authToken',
+        'Authorization': 'Bearer $bearerToken',
       },
       body: jsonEncode({'subscription': token, 'type': type}),
     );
