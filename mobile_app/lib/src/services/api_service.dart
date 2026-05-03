@@ -513,10 +513,21 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchPromotionsByMerchant(
       String merchantId) async {
     final response = await http
-        .get(Uri.parse('${_baseUrl}promotions?merchantId=$merchantId'));
+        .get(Uri.parse('${_baseUrl}promotions/merchant/$merchantId'))
+        .timeout(const Duration(seconds: 30));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
+      return data
+          .whereType<Map<String, dynamic>>()
+          .where((promotion) {
+            final merchant = promotion['merchant'];
+            if (merchant is Map<String, dynamic>) {
+              return merchant['_id']?.toString() == merchantId;
+            }
+            return merchant?.toString() == merchantId ||
+                promotion['merchantId']?.toString() == merchantId;
+          })
+          .toList();
     } else {
       throw Exception('Failed to load promotions for merchant');
     }

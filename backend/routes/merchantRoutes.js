@@ -172,6 +172,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('profile').optional().isString(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
+  body('banner').optional().isString(),
   body('address').optional().isString(),
   body('contactNumber').optional().isString(),
   body('socialMedia').optional().isObject(),
@@ -190,13 +191,14 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   }
   try {
     console.log(`PUT /api/merchants/${req.params.id} - Request Body:`, JSON.stringify(req.body, null, 2));
-    const { name, profile, contactInfo, logo, address, contactNumber, socialMedia, status, location } = req.body;
+    const { name, profile, contactInfo, logo, banner, address, contactNumber, socialMedia, status, location } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (profile !== undefined) updateData.profile = profile;
     if (contactInfo !== undefined) updateData.contactInfo = contactInfo;
     if (logo !== undefined) updateData.logo = logo;
+    if (banner !== undefined) updateData.banner = banner;
     if (address !== undefined) updateData.address = address;
     if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
     if (socialMedia !== undefined) updateData.socialMedia = socialMedia;
