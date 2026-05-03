@@ -29,12 +29,27 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
   }
 };
 
+export const getExistingPushSubscription = async (): Promise<PushSubscription | null> => {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    return registration.pushManager.getSubscription();
+  } catch (error) {
+    console.error('Failed to get existing push subscription:', error);
+    return null;
+  }
+};
+
 export const subscribeToPushNotifications = async (
   vapidPublicKey: string
 ): Promise<PushSubscription | null> => {
   try {
     const registration = await navigator.serviceWorker.ready;
-    
+
+    const existingSubscription = await registration.pushManager.getSubscription();
+    if (existingSubscription) {
+      return existingSubscription;
+    }
+
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as BufferSource,
@@ -46,6 +61,34 @@ export const subscribeToPushNotifications = async (
     console.error('Failed to subscribe to push notifications:', error);
     return null;
   }
+};
+
+export const syncWebPushSubscription = async (
+  token: string,
+  vapidPublicKey: string
+): Promise<boolean> => {
+  if (!token || !vapidPublicKey) {
+    return false;
+  }
+
+  const registration = await registerServiceWorker();
+  if (!registration) {
+    return false;
+  }
+
+  const permission = await requestNotificationPermission();
+  if (permission !== 'granted') {
+    return false;
+  }
+
+  const subscription =
+    (await getExistingPushSubscription()) || (await subscribeToPushNotifications(vapidPublicKey));
+
+  if (!subscription) {
+    return false;
+  }
+
+  return sendNotificationToServer(subscription, token);
 };
 
 export const unsubscribeFromPushNotifications = async (): Promise<boolean> => {

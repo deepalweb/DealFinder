@@ -11,7 +11,6 @@ class NotificationSettingsScreen extends StatefulWidget {
 
 class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
   bool _loading = true;
-  Map<String, dynamic> _preferences = {};
   
   // Channel settings
   bool _pushEnabled = false;
@@ -54,8 +53,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     try {
       final prefs = await ApiService().getNotificationPreferences();
       setState(() {
-        _preferences = prefs;
-        
         // Load channel settings
         _pushEnabled = prefs['channels']?['push']?['enabled'] ?? false;
         _emailEnabled = prefs['channels']?['email']?['enabled'] ?? true;

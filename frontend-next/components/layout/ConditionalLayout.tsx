@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Header from './Header';
 import Footer from './Footer';
+import WebPushBootstrap from '@/components/providers/WebPushBootstrap';
 
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,6 +15,7 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
 
   return (
     <>
+      <WebPushBootstrap />
       <Header />
       <main className="page-container">{children}</main>
       <Footer />

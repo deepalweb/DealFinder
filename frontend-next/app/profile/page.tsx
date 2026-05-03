@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { NotificationAPI, UserAPI } from '@/lib/api';
+import { buildApiUrl } from '@/lib/config/api';
+import {
+  requestNotificationPermission,
+  syncWebPushSubscription,
+  unsubscribeFromPushNotifications,
+} from '@/lib/webPush';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
@@ -18,6 +24,7 @@ export default function ProfilePage() {
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [notifications, setNotifications] = useState({
     email: true,
+    web: false,
     nearbyDeals: true,
     expiringDeals: true,
     favoriteStores: true,
@@ -35,6 +42,7 @@ export default function ProfilePage() {
       .then((prefs) => {
         setNotifications({
           email: prefs?.channels?.email?.enabled ?? true,
+          web: prefs?.channels?.web?.enabled ?? false,
           nearbyDeals: prefs?.preferences?.nearbyDeals?.enabled ?? true,
           expiringDeals: prefs?.preferences?.expiringDeals?.enabled ?? true,
           favoriteStores: prefs?.preferences?.favoriteStores?.enabled ?? true,
@@ -68,9 +76,17 @@ export default function ProfilePage() {
   const handleNotificationSave = async () => {
     setSaving(true);
     try {
+      if (notifications.web) {
+        const permission = await requestNotificationPermission();
+        if (permission !== 'granted') {
+          throw new Error('Browser notification permission was not granted.');
+        }
+      }
+
       await NotificationAPI.updatePreferences({
         channels: {
           email: { enabled: notifications.email },
+          web: { enabled: notifications.web },
         },
         preferences: {
           nearbyDeals: { enabled: notifications.nearbyDeals },
@@ -81,9 +97,32 @@ export default function ProfilePage() {
           weeklyDigest: { enabled: notifications.weeklyDigest },
         },
       });
+
+      if (notifications.web && user?.token) {
+        const configResponse = await fetch(buildApiUrl('config'));
+        const config = await configResponse.json();
+        const vapidPublicKey = config?.VAPID_PUBLIC_KEY;
+
+        if (!vapidPublicKey) {
+          throw new Error('Web push is not configured on the server yet.');
+        }
+
+        const subscribed = await syncWebPushSubscription(user.token, vapidPublicKey);
+        if (!subscribed) {
+          throw new Error('Unable to register this browser for web notifications.');
+        }
+      }
+
+      if (!notifications.web) {
+        await Promise.allSettled([
+          NotificationAPI.unsubscribe('web'),
+          unsubscribeFromPushNotifications(),
+        ]);
+      }
+
       toast.success('Notification preferences saved!');
-    } catch {
-      toast.error('Failed to save notification preferences.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to save notification preferences.');
     } finally {
       setSaving(false);
     }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const Notification = require('../models/Notification');
+const NotificationLog = require('../models/NotificationLog');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
 const NotificationAnalyticsService = require('../services/NotificationAnalyticsService');
@@ -55,7 +55,6 @@ router.patch('/:id/read', authenticateJWT, async (req, res) => {
 // Delete notification
 router.delete('/:id', authenticateJWT, async (req, res) => {
   try {
-    const NotificationLog = require('../models/NotificationLog');
     const result = await NotificationLog.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
     if (!result) {
       return res.status(404).json({ message: 'Notification not found' });
@@ -134,8 +133,8 @@ router.post('/unsubscribe', authenticateJWT, async (req, res) => {
       { userId: req.user.id },
       { 
         $set: type === 'web' 
-          ? { 'channels.web.enabled': false }
-          : { 'channels.push.enabled': false }
+          ? { 'channels.web.enabled': false, 'channels.web.subscription': null }
+          : { 'channels.push.enabled': false, 'channels.push.token': null }
       },
       { new: true }
     );
@@ -270,7 +269,7 @@ router.get('/analytics/volume', authenticateJWT, authorizeAdmin, async (req, res
 // Legacy routes for backward compatibility
 router.get('/admin/all', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {
-    const notifications = await Notification.find();
+    const notifications = await NotificationLog.find().sort({ createdAt: -1 });
     res.status(200).json(notifications);
   } catch (error) {
     res.status(500).json(safeError(error));

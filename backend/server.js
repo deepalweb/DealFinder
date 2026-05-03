@@ -94,7 +94,8 @@ app.get('/api/status', (req, res) => {
 // Config endpoint
 app.get('/api/config', (req, res) => {
   res.json({
-    GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID
+    GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID,
+    VAPID_PUBLIC_KEY: config.VAPID_PUBLIC_KEY
   });
 });
 

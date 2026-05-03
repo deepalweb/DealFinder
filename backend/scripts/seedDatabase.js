@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const User = require('../models/User');
 const Merchant = require('../models/Merchant');
 const Promotion = require('../models/Promotion');
-const Notification = require('../models/Notification');
+const NotificationLog = require('../models/NotificationLog');
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -82,7 +82,7 @@ async function seedDatabase() {
     await User.deleteMany({});
     await Merchant.deleteMany({});
     await Promotion.deleteMany({});
-    await Notification.deleteMany({});
+    await NotificationLog.deleteMany({});
     
     console.log('Cleared existing data');
     

@@ -1,9 +1,4 @@
 /* eslint-disable no-restricted-globals */
-const API_BASE =
-  self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1'
-    ? 'http://localhost:8080/api'
-    : 'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net/api';
-
 self.addEventListener('install', (event) => {
   console.log('Service Worker installing.');
   self.skipWaiting();
@@ -67,16 +62,18 @@ self.addEventListener('notificationclick', (event) => {
 
 self.addEventListener('pushsubscriptionchange', (event) => {
   console.log('Push subscription changed');
-  event.waitUntil(
-    self.registration.pushManager.subscribe(event.oldSubscription.options)
-      .then((subscription) => {
-        console.log('Resubscribed:', subscription);
-        // Send new subscription to server
-        return fetch(`${API_BASE}/notifications/subscribe`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subscription, type: 'web' })
-        });
-      })
-  );
+  event.waitUntil((async () => {
+    try {
+      if (event.oldSubscription?.options) {
+        await self.registration.pushManager.subscribe(event.oldSubscription.options);
+      }
+    } catch (error) {
+      console.error('Failed to resubscribe in service worker:', error);
+    }
+
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clientList.forEach((client) => {
+      client.postMessage({ type: 'web-push-subscription-changed' });
+    });
+  })());
 });
