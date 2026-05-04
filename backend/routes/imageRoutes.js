@@ -4,11 +4,21 @@ const multer = require('multer');
 const azureBlobService = require('../services/azureBlobService');
 const { authenticateJWT } = require('../middleware/auth');
 
+const allowedImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif']);
+
+function hasAllowedImageExtension(filename = '') {
+  const normalized = filename.toLowerCase();
+  return Array.from(allowedImageExtensions).some((ext) => normalized.endsWith(ext));
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    const isImageMime = typeof file.mimetype === 'string' && file.mimetype.startsWith('image/');
+    const isImageByName = hasAllowedImageExtension(file.originalname);
+
+    if (isImageMime || isImageByName) {
       cb(null, true);
     } else {
       cb(new Error('Only image files allowed'));

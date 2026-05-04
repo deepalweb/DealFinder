@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../config/app_config.dart';
@@ -30,6 +31,16 @@ String _extractErrorMessage(http.Response response, {String fallback = 'Request 
   }
 
   return fallback;
+}
+
+MediaType _imageContentTypeForPath(String path) {
+  final lower = path.toLowerCase();
+  if (lower.endsWith('.png')) return MediaType('image', 'png');
+  if (lower.endsWith('.gif')) return MediaType('image', 'gif');
+  if (lower.endsWith('.webp')) return MediaType('image', 'webp');
+  if (lower.endsWith('.heic')) return MediaType('image', 'heic');
+  if (lower.endsWith('.heif')) return MediaType('image', 'heif');
+  return MediaType('image', 'jpeg');
 }
 
 class CuratedHomeSectionsResponse {
@@ -1056,8 +1067,11 @@ class ApiService {
         http.MultipartRequest('POST', Uri.parse('${_baseUrl}images/upload'));
     request.headers['Authorization'] = 'Bearer $token';
     request.fields['folder'] = folder;
-    request.files
-        .add(await http.MultipartFile.fromPath('image', imageFile.path));
+    request.files.add(await http.MultipartFile.fromPath(
+      'image',
+      imageFile.path,
+      contentType: _imageContentTypeForPath(imageFile.path),
+    ));
 
     final streamedResponse =
         await request.send().timeout(const Duration(seconds: 60));
@@ -1083,7 +1097,11 @@ class ApiService {
     request.fields['folder'] = folder;
 
     for (final file in imageFiles) {
-      request.files.add(await http.MultipartFile.fromPath('images', file.path));
+      request.files.add(await http.MultipartFile.fromPath(
+        'images',
+        file.path,
+        contentType: _imageContentTypeForPath(file.path),
+      ));
     }
 
     final streamedResponse =
