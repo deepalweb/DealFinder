@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { NotificationAPI } from '@/lib/api';
+import { invalidateCache, NotificationAPI } from '@/lib/api';
 import { unsubscribeFromPushNotifications } from '@/lib/webPush';
 
 interface User {
@@ -41,6 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== 'dealFinderUser') return;
+
+      try {
+        setUser(event.newValue ? JSON.parse(event.newValue) : null);
+      } catch {
+        setUser(null);
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const login = (userData: User) => {
     const normalized = { ...userData, merchantId: userData.merchantId?.toString() };
     localStorage.setItem('dealFinderUser', JSON.stringify(normalized));
@@ -56,8 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {}
 
     localStorage.removeItem('dealFinderUser');
+    invalidateCache();
     setUser(null);
-    router.push('/');
+    router.replace('/login');
+    router.refresh();
   };
 
   const updateUser = (data: Partial<User>) => {
