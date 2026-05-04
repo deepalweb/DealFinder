@@ -6,7 +6,7 @@ const { authenticateJWT } = require('../middleware/auth');
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -16,9 +16,46 @@ const upload = multer({
   }
 });
 
+function runSingleUpload(req, res) {
+  return new Promise((resolve, reject) => {
+    upload.single('image')(req, res, (error) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve();
+    });
+  });
+}
+
+function runMultipleUpload(req, res) {
+  return new Promise((resolve, reject) => {
+    upload.array('images', 5)(req, res, (error) => {
+      if (error) {
+        return reject(error);
+      }
+      resolve();
+    });
+  });
+}
+
+function handleUploadError(res, error) {
+  console.error('❌ Upload middleware error:', error);
+
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'Image file is too large. Please choose an image smaller than 20MB.' });
+    }
+    return res.status(400).json({ message: error.message });
+  }
+
+  return res.status(400).json({ message: error.message || 'Invalid image upload request' });
+}
+
 // Upload single image
-router.post('/upload', authenticateJWT, upload.single('image'), async (req, res) => {
+router.post('/upload', authenticateJWT, async (req, res) => {
   try {
+    await runSingleUpload(req, res);
+
     console.log('📤 Image upload request received');
     console.log('User:', req.user?.id, 'Role:', req.user?.role);
     console.log('File:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'No file');
@@ -41,14 +78,19 @@ router.post('/upload', authenticateJWT, upload.single('image'), async (req, res)
     console.log('✅ Upload successful:', imageUrl);
     res.json({ imageUrl });
   } catch (error) {
+    if (error instanceof multer.MulterError || error.message === 'Only image files allowed') {
+      return handleUploadError(res, error);
+    }
     console.error('❌ Image upload error:', error);
     res.status(500).json({ message: 'Failed to upload image', error: error.message });
   }
 });
 
 // Upload multiple images
-router.post('/upload-multiple', authenticateJWT, upload.array('images', 5), async (req, res) => {
+router.post('/upload-multiple', authenticateJWT, async (req, res) => {
   try {
+    await runMultipleUpload(req, res);
+
     console.log('📤 Multiple images upload request received');
     console.log('User:', req.user?.id, 'Role:', req.user?.role);
     console.log('Files:', req.files ? `${req.files.length} files` : 'No files');
@@ -75,9 +117,12 @@ router.post('/upload-multiple', authenticateJWT, upload.array('images', 5), asyn
     
     console.log('✅ All uploads successful');
     imageUrls.forEach((url, i) => console.log(`  ${i + 1}. ${url}`));
-    
+
     res.json({ imageUrls });
   } catch (error) {
+    if (error instanceof multer.MulterError || error.message === 'Only image files allowed') {
+      return handleUploadError(res, error);
+    }
     console.error('❌ Multiple image upload error:', error);
     res.status(500).json({ message: 'Failed to upload images', error: error.message });
   }

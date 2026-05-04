@@ -9,6 +9,29 @@ import '../models/promotion.dart';
 import '../config/app_config.dart';
 import 'cache_service.dart';
 
+String _extractErrorMessage(http.Response response, {String fallback = 'Request failed'}) {
+  try {
+    final errorBody = jsonDecode(response.body);
+    if (errorBody is Map<String, dynamic>) {
+      final message = errorBody['message'];
+      if (message is String && message.isNotEmpty) {
+        return message;
+      }
+      final error = errorBody['error'];
+      if (error is String && error.isNotEmpty) {
+        return error;
+      }
+    }
+  } catch (_) {}
+
+  final trimmed = response.body.trim();
+  if (trimmed.isNotEmpty) {
+    return trimmed;
+  }
+
+  return fallback;
+}
+
 class CuratedHomeSectionsResponse {
   final List<Promotion> banner;
   final List<Promotion> hotDeals;
@@ -969,8 +992,10 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['message'] ?? 'Failed to update merchant');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to update merchant',
+      ));
     }
   }
 
@@ -1042,8 +1067,10 @@ class ApiService {
       final data = jsonDecode(response.body);
       return data['imageUrl'] as String;
     } else {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['message'] ?? 'Failed to upload image');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to upload image',
+      ));
     }
   }
 
@@ -1067,8 +1094,10 @@ class ApiService {
       final data = jsonDecode(response.body);
       return (data['imageUrls'] as List).cast<String>();
     } else {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['message'] ?? 'Failed to upload images');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to upload images',
+      ));
     }
   }
 
@@ -1086,8 +1115,10 @@ class ApiService {
         .timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {
-      final errorBody = jsonDecode(response.body);
-      throw Exception(errorBody['message'] ?? 'Failed to delete image');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to delete image',
+      ));
     }
   }
 }

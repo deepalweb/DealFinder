@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Merchant = require('../models/Merchant');
 const User = require('../models/User');
+const azureBlobService = require('../services/azureBlobService');
 const { body, validationResult } = require('express-validator');
 const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin } = require('../middleware/auth');
 
@@ -25,6 +26,12 @@ const MERCHANTS_CACHE_TTL = 5 * 60 * 1000;
 
 // Invalidate merchants cache
 function invalidateMerchantsCache() { merchantsCache = null; merchantsCacheTs = 0; }
+
+function isBlobImageUrl(url) {
+  return typeof url === 'string' &&
+    url.startsWith('http') &&
+    url.includes('/merchants/');
+}
 
 // Get all merchants (optimized)
 router.get('/', async (req, res) => {
@@ -119,6 +126,8 @@ router.post('/', authenticateJWT, authorizeAdmin, [
   body('category').optional().isString(),
   body('website').optional().isString(),
   body('contactInfo').optional().isString(),
+  body('logo').optional().isString(),
+  body('banner').optional().isString(),
   body('userId').optional().isString(), // For admin to link to existing user
   body('address').optional().isString(),
   body('contactNumber').optional().isString(),
@@ -140,6 +149,8 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       category,
       website,
       contactInfo,
+      logo,
+      banner,
       userId,
       address,
       contactNumber,
@@ -154,6 +165,8 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       category,
       website,
       contactInfo,
+      logo,
+      banner,
       promotions: [],
       address,
       contactNumber,
@@ -227,6 +240,11 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       status,
       location,
     } = req.body;
+
+    const existingMerchant = await Merchant.findById(req.params.id).select('logo banner');
+    if (!existingMerchant) {
+      return res.status(404).json({ message: 'Merchant not found' });
+    }
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -313,6 +331,19 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       console.log(`PUT /api/merchants/${req.params.id} - Merchant not found after update attempt.`);
       return res.status(404).json({ message: 'Merchant not found' });
     }
+
+    const cleanupTasks = [];
+    if (logo !== undefined && existingMerchant.logo && existingMerchant.logo !== updatedMerchant.logo && isBlobImageUrl(existingMerchant.logo)) {
+      cleanupTasks.push(azureBlobService.deleteImage(existingMerchant.logo));
+    }
+    if (banner !== undefined && existingMerchant.banner && existingMerchant.banner !== updatedMerchant.banner && isBlobImageUrl(existingMerchant.banner)) {
+      cleanupTasks.push(azureBlobService.deleteImage(existingMerchant.banner));
+    }
+    if (cleanupTasks.length > 0) {
+      await Promise.allSettled(cleanupTasks);
+    }
+
+    invalidateMerchantsCache();
     console.log(`PUT /api/merchants/${req.params.id} - Update successful.`);
     res.status(200).json(updatedMerchant);
   } catch (error) {
@@ -337,8 +368,20 @@ router.delete('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, async (req,
       { merchantId: merchant._id },
       { $unset: { merchantId: "" }, role: 'user' }
     );
+
+    const cleanupTasks = [];
+    if (isBlobImageUrl(merchant.logo)) {
+      cleanupTasks.push(azureBlobService.deleteImage(merchant.logo));
+    }
+    if (isBlobImageUrl(merchant.banner)) {
+      cleanupTasks.push(azureBlobService.deleteImage(merchant.banner));
+    }
+    if (cleanupTasks.length > 0) {
+      await Promise.allSettled(cleanupTasks);
+    }
     
     await Merchant.findByIdAndDelete(req.params.id);
+    invalidateMerchantsCache();
     res.status(200).json({ message: 'Merchant deleted successfully' });
   } catch (error) {
     res.status(500).json(safeError(error));
