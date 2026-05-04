@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { NotificationAPI } from '@/lib/api';
+import { unsubscribeFromPushNotifications } from '@/lib/webPush';
 
 interface User {
   _id: string;
@@ -17,13 +19,13 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (userData: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null, loading: true,
-  login: () => {}, logout: () => {}, updateUser: () => {}
+  login: () => {}, logout: async () => {}, updateUser: () => {}
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -45,7 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(normalized);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await Promise.allSettled([
+        NotificationAPI.unsubscribe('web'),
+        unsubscribeFromPushNotifications(),
+      ]);
+    } catch {}
+
     localStorage.removeItem('dealFinderUser');
     setUser(null);
     router.push('/');

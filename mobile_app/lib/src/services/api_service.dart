@@ -851,6 +851,21 @@ class ApiService {
     }
   }
 
+  Future<void> deleteNotification(String notificationId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    final response = await http.delete(
+      Uri.parse('${_baseUrl}notifications/$notificationId'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete notification');
+    }
+  }
+
   // Create a new promotion (merchant only)
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String token) async {

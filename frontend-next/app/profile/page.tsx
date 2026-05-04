@@ -76,10 +76,23 @@ export default function ProfilePage() {
   const handleNotificationSave = async () => {
     setSaving(true);
     try {
-      if (notifications.web) {
+      if (notifications.web && user?.token) {
         const permission = await requestNotificationPermission();
         if (permission !== 'granted') {
           throw new Error('Browser notification permission was not granted.');
+        }
+
+        const configResponse = await fetch(buildApiUrl('config'));
+        const config = await configResponse.json();
+        const vapidPublicKey = config?.VAPID_PUBLIC_KEY;
+
+        if (!vapidPublicKey) {
+          throw new Error('Web push is not configured on the server yet.');
+        }
+
+        const subscribed = await syncWebPushSubscription(user.token, vapidPublicKey);
+        if (!subscribed) {
+          throw new Error('Unable to register this browser for web notifications.');
         }
       }
 
@@ -97,21 +110,6 @@ export default function ProfilePage() {
           weeklyDigest: { enabled: notifications.weeklyDigest },
         },
       });
-
-      if (notifications.web && user?.token) {
-        const configResponse = await fetch(buildApiUrl('config'));
-        const config = await configResponse.json();
-        const vapidPublicKey = config?.VAPID_PUBLIC_KEY;
-
-        if (!vapidPublicKey) {
-          throw new Error('Web push is not configured on the server yet.');
-        }
-
-        const subscribed = await syncWebPushSubscription(user.token, vapidPublicKey);
-        if (!subscribed) {
-          throw new Error('Unable to register this browser for web notifications.');
-        }
-      }
 
       if (!notifications.web) {
         await Promise.allSettled([

@@ -104,9 +104,18 @@ class NotificationService {
         throw new Error('No FCM token');
       }
 
+      const normalizedData = Object.entries(data || {}).reduce((acc, [key, value]) => {
+        if (value === undefined || value === null) {
+          return acc;
+        }
+
+        acc[key] = typeof value === 'string' ? value : JSON.stringify(value);
+        return acc;
+      }, {});
+
       const message = {
         notification: { title, body },
-        data: data || {},
+        data: normalizedData,
         token: prefs.channels.push.token
       };
 
@@ -135,8 +144,8 @@ class NotificationService {
       const payload = JSON.stringify({
         title,
         body,
-        icon: '/icon-192x192.png',
-        badge: '/badge-72x72.png',
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
         data: data || {}
       });
 

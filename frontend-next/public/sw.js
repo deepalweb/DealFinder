@@ -22,8 +22,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'DealFinder';
   const options = {
     body: data.body || 'You have a new notification',
-    icon: data.icon || '/icon-192x192.png',
-    badge: data.badge || '/badge-72x72.png',
+    icon: data.icon || '/favicon.ico',
+    badge: data.badge || '/favicon.ico',
     data: data.data || {},
     tag: data.tag || 'dealfinder-notification',
     requireInteraction: false,

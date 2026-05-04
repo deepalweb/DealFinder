@@ -15,6 +15,24 @@ function safeError(error) {
   return { message: error.message, stack: error.stack };
 }
 
+function flattenForSet(input, prefix = '') {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return prefix ? { [prefix]: input } : {};
+  }
+
+  return Object.entries(input).reduce((acc, [key, value]) => {
+    const nextPrefix = prefix ? `${prefix}.${key}` : key;
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(acc, flattenForSet(value, nextPrefix));
+    } else {
+      acc[nextPrefix] = value;
+    }
+
+    return acc;
+  }, {});
+}
+
 // Get user's notifications
 router.get('/', authenticateJWT, async (req, res) => {
   try {
@@ -83,9 +101,12 @@ router.get('/preferences', authenticateJWT, async (req, res) => {
 // Update notification preferences
 router.put('/preferences', authenticateJWT, async (req, res) => {
   try {
+    const updates = flattenForSet(req.body);
+    updates.updatedAt = new Date();
+
     const prefs = await NotificationPreference.findOneAndUpdate(
       { userId: req.user.id },
-      { $set: req.body },
+      { $set: updates },
       { new: true, upsert: true }
     );
     res.status(200).json(prefs);

@@ -31,6 +31,13 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     _loadFollowStatus();
   }
 
+  String _previewValue(dynamic value, {int maxLength = 50}) {
+    final text = value?.toString() ?? '';
+    if (text.isEmpty) return '';
+    if (text.length <= maxLength) return text;
+    return '${text.substring(0, maxLength)}...';
+  }
+
   Future<void> _fetchMerchant() async {
     setState(() { _loading = true; _error = null; });
     try {
@@ -41,8 +48,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       if (kDebugMode) {
         print('=== MERCHANT DATA ===');
         print('Name: ${merchant['name']}');
-        print('Logo: ${merchant['logo']?.toString().substring(0, 50)}...');
-        print('Banner: ${merchant['banner']?.toString().substring(0, 50)}...');
+        print('Logo: ${_previewValue(merchant['logo'])}');
+        print('Banner: ${_previewValue(merchant['banner'])}');
         print('Has logo: ${merchant['logo'] != null}');
         print('Has banner: ${merchant['banner'] != null}');
       }
@@ -150,12 +157,6 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
-  String _getSafeLogo(dynamic logo, String name) {
-    if (logo is String && logo.startsWith('data:image')) return logo;
-    if (logo is String && logo.startsWith('http')) return logo;
-    return 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(name)}&background=random&size=300';
-  }
-
   List<Map<String, dynamic>> get _filteredDeals {
     final now = DateTime.now();
     if (_activeTab == 'active') {
@@ -214,9 +215,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     final hasBanner = bannerUrl != null && bannerUrl.toString().isNotEmpty;
     
     if (kDebugMode && _merchant != null) {
-      print('Building merchant profile:');
-      print('Banner URL: $bannerUrl');
-      print('Has banner: $hasBanner');
+      debugPrint('Building merchant profile:');
+      debugPrint('Banner URL: $bannerUrl');
+      debugPrint('Has banner: $hasBanner');
     }
     
     return Scaffold(
@@ -258,7 +259,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                             Container(
                               width: double.infinity,
                               height: 80,
-                              color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                             ),
                           // Merchant Card
                           Padding(
@@ -311,7 +312,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                         final url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
                                                         if (await canLaunchUrl(Uri.parse(url))) {
                                                           await launchUrl(Uri.parse(url));
-                                                        } else {
+                                                        } else if (context.mounted) {
                                                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open Maps.')));
                                                         }
                                                       },

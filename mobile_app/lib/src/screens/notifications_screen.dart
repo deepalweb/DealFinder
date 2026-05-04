@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/push_notification_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   final String userId;
@@ -13,7 +13,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late Future<List<Map<String, dynamic>>> _notificationsFuture;
-  bool _notificationsEnabled = true;
+  bool _notificationsEnabled = false;
 
   @override
   void initState() {
@@ -23,23 +23,63 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _loadNotificationSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-    });
+    try {
+      final prefs = await ApiService().getNotificationPreferences();
+      if (!mounted) return;
+      setState(() {
+        _notificationsEnabled = prefs['channels']?['push']?['enabled'] ?? false;
+      });
+    } catch (_) {}
   }
 
   Future<void> _toggleNotifications(bool value) async {
+    try {
+      if (value) {
+        final token = await PushNotificationService.getToken();
+        if (token == null || token.isEmpty) {
+          throw Exception('Push token is not available on this device yet.');
+        }
+        await ApiService().subscribeToNotifications(token, 'push');
+      } else {
+        await ApiService().unsubscribeFromNotifications('push');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _notificationsEnabled = value;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(value ? 'Notifications enabled' : 'Notifications disabled')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update notification setting: $e')),
+      );
+    }
+  }
+
+  Future<void> _refreshNotifications() async {
     setState(() {
-      _notificationsEnabled = value;
+      _notificationsFuture = ApiService().fetchNotifications(widget.userId, widget.token);
     });
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('notifications_enabled', value);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value ? 'Notifications enabled' : 'Notifications disabled')),
-    );
+  }
+
+  Future<void> _deleteNotification(String id) async {
+    try {
+      await ApiService().deleteNotification(id);
+      await _refreshNotifications();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Notification deleted')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete notification: $e')),
+      );
+    }
   }
 
   @override
@@ -76,11 +116,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         backgroundColor: Colors.blue,
                         child: Icon(Icons.notifications, color: Colors.white, size: 20),
                       ),
-                      title: Text(notification['message'] ?? 'No message'),
-                      subtitle: Text(notification['type'] ?? ''),
+                      title: Text(notification['title'] ?? 'No title'),
+                      subtitle: Text(notification['body'] ?? notification['type'] ?? ''),
                       trailing: IconButton(
                         icon: const Icon(Icons.close, size: 20),
-                        onPressed: () {},
+                        onPressed: () {
+                          final id = notification['_id'] as String?;
+                          if (id != null && id.isNotEmpty) {
+                            _deleteNotification(id);
+                          }
+                        },
                       ),
                     );
                   },

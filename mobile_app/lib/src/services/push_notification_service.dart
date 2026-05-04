@@ -77,6 +77,12 @@ class PushNotificationService {
     } catch (_) {}
   }
 
+  static Future<void> unsubscribeFromServer() async {
+    try {
+      await ApiService().unsubscribeFromNotifications('push');
+    } catch (_) {}
+  }
+
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
     await _showLocalNotification(
       title: message.notification?.title ?? 'New Deal',
