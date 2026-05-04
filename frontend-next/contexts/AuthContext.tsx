@@ -28,6 +28,15 @@ const AuthContext = createContext<AuthContextType>({
   login: () => {}, logout: async () => {}, updateUser: () => {}
 });
 
+const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | null> => {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => {
+      window.setTimeout(() => resolve(null), ms);
+    }),
+  ]);
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,12 +72,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    try {
-      await Promise.allSettled([
-        NotificationAPI.unsubscribe('web'),
-        unsubscribeFromPushNotifications(),
-      ]);
-    } catch {}
+    void (async () => {
+      try {
+        await Promise.allSettled([
+          withTimeout(NotificationAPI.unsubscribe('web'), 1500),
+          withTimeout(unsubscribeFromPushNotifications(), 1500),
+        ]);
+      } catch {}
+    })();
 
     localStorage.removeItem('dealFinderUser');
     invalidateCache();
