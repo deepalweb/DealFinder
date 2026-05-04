@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
+  const [sendingTestNotification, setSendingTestNotification] = useState(false);
   const [favorites, setFavorites] = useState<any[]>([]);
   const [following, setFollowing] = useState<any[]>([]);
   const [form, setForm] = useState({ name: '', profilePicture: '' });
@@ -126,6 +127,18 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSendTestNotification = async () => {
+    setSendingTestNotification(true);
+    try {
+      await NotificationAPI.sendTest();
+      toast.success('Test notification sent. Check this browser and your mobile device.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to send test notification.');
+    } finally {
+      setSendingTestNotification(false);
+    }
+  };
+
   const handleUnfollow = (id: string) => { const updated = following.filter(m => m.id !== id); setFollowing(updated); localStorage.setItem('dealFinderFollowing', JSON.stringify(updated)); };
 
   const getSafeImage = (url?: string, name?: string) => (url && (url.startsWith('data:') || url.startsWith('http'))) ? url : `https://ui-avatars.com/api/?name=${encodeURIComponent(name||'U')}&background=random&size=100`;
@@ -229,7 +242,26 @@ export default function ProfilePage() {
                     </label>
                   ))}
                 </div>
-                <button className="btn btn-primary" onClick={handleNotificationSave} disabled={saving}>{saving ? 'Saving...' : 'Save Preferences'}</button>
+                <div className="flex flex-wrap gap-3 items-center">
+                  <button className="btn btn-primary" onClick={handleNotificationSave} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Preferences'}
+                  </button>
+                  <button
+                    className="btn"
+                    onClick={handleSendTestNotification}
+                    disabled={sendingTestNotification}
+                    style={{
+                      border: '1.5px solid var(--border-color)',
+                      background: 'var(--card-bg)',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    {sendingTestNotification ? 'Sending Test...' : 'Send Test Notification'}
+                  </button>
+                </div>
+                <p style={{ fontSize:'0.8rem', color:'var(--text-secondary)', marginTop:'0.75rem' }}>
+                  Use this after saving to confirm web and mobile delivery for your current account.
+                </p>
               </div>
             )}
             {activeTab === 'favorites' && (
