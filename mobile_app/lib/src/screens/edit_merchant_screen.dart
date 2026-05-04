@@ -51,9 +51,17 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   double? _latitude;
   double? _longitude;
 
-  final List<String> _categories = [
-    'Fashion', 'Electronics', 'Travel', 'Health', 'Entertainment',
-    'Home', 'Pets', 'Food', 'Education', 'Other'
+  final List<Map<String, String>> _categories = const [
+    {'id': 'fashion', 'label': 'Fashion'},
+    {'id': 'electronics', 'label': 'Electronics'},
+    {'id': 'travel', 'label': 'Travel'},
+    {'id': 'health', 'label': 'Health'},
+    {'id': 'entertainment', 'label': 'Entertainment'},
+    {'id': 'home', 'label': 'Home'},
+    {'id': 'pets', 'label': 'Pets'},
+    {'id': 'food', 'label': 'Food'},
+    {'id': 'education', 'label': 'Education'},
+    {'id': 'other', 'label': 'Other'},
   ];
 
   @override
@@ -72,11 +80,14 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   void _loadMerchantData() {
     if (widget.merchantData != null) {
       _nameController.text = widget.merchantData!['name'] ?? '';
-      _profileController.text = widget.merchantData!['profile'] ?? '';
-      _categoryController.text = widget.merchantData!['category'] ?? '';
+      _profileController.text =
+          widget.merchantData!['profile'] ?? widget.merchantData!['description'] ?? '';
+      _categoryController.text =
+          (widget.merchantData!['category'] ?? '').toString().toLowerCase();
       _websiteController.text = widget.merchantData!['website'] ?? '';
       _contactInfoController.text = widget.merchantData!['contactInfo'] ?? '';
-      _contactNumberController.text = widget.merchantData!['contactNumber'] ?? '';
+      _contactNumberController.text =
+          widget.merchantData!['contactNumber'] ?? widget.merchantData!['phone'] ?? '';
       _addressController.text = widget.merchantData!['address'] ?? '';
       _logoUrlController.text = widget.merchantData!['logo'] ?? '';
       _bannerUrlController.text = widget.merchantData!['banner'] ?? '';
@@ -182,6 +193,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
       final merchantData = <String, dynamic>{
         'name': _nameController.text.trim(),
         'profile': _profileController.text.trim(),
+        'description': _profileController.text.trim(),
         'category': _categoryController.text.trim(),
         'website': _websiteController.text.trim(),
         'contactInfo': _contactInfoController.text.trim(),
@@ -375,8 +387,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
             items: _categories.map((category) {
               return DropdownMenuItem(
-                value: category,
-                child: Text(category),
+                value: category['id'],
+                child: Text(category['label']!),
               );
             }).toList(),
             onChanged: (value) {

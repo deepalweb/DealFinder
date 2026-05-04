@@ -17,6 +17,7 @@ const merchantSchema = new mongoose.Schema({
   profile: { type: String }, // Description of the merchant
   description: { type: String }, // Merchant description
   category: { type: String, index: true }, // Add category field with index
+  website: { type: String }, // Merchant website URL
   contactInfo: { type: String }, // General contact like email or phone
   promotions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' }],
   logo: { type: String }, // URL or path to merchant's logo

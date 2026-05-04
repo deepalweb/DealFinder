@@ -87,6 +87,68 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     setState(() { _isFollowing = !_isFollowing; });
   }
 
+  String _merchantText(String primaryKey, {String? fallbackKey}) {
+    final primary = (_merchant?[primaryKey] ?? '').toString().trim();
+    if (primary.isNotEmpty) return primary;
+    if (fallbackKey == null) return '';
+    return (_merchant?[fallbackKey] ?? '').toString().trim();
+  }
+
+  double? get _merchantLatitude {
+    final direct = _merchant?['latitude'];
+    if (direct is num) return direct.toDouble();
+    final coords = _merchant?['location']?['coordinates'];
+    if (coords is List && coords.length >= 2 && coords[1] is num) {
+      return (coords[1] as num).toDouble();
+    }
+    return null;
+  }
+
+  double? get _merchantLongitude {
+    final direct = _merchant?['longitude'];
+    if (direct is num) return direct.toDouble();
+    final coords = _merchant?['location']?['coordinates'];
+    if (coords is List && coords.length >= 2 && coords[0] is num) {
+      return (coords[0] as num).toDouble();
+    }
+    return null;
+  }
+
+  String _normalizeSocialHandle(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) return '';
+    if (text.startsWith('http://') || text.startsWith('https://')) return text;
+    return text.replaceFirst(RegExp(r'^@+'), '');
+  }
+
+  String _buildSocialUrl(String platform, dynamic value) {
+    final normalized = _normalizeSocialHandle(value);
+    if (normalized.isEmpty) return '';
+    if (normalized.startsWith('http://') || normalized.startsWith('https://')) {
+      return normalized;
+    }
+
+    switch (platform) {
+      case 'facebook':
+        return 'https://facebook.com/$normalized';
+      case 'instagram':
+        return 'https://instagram.com/$normalized';
+      case 'twitter':
+        return 'https://twitter.com/$normalized';
+      case 'tiktok':
+        return 'https://tiktok.com/@$normalized';
+      default:
+        return normalized;
+    }
+  }
+
+  String _normalizeWebsite(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    if (text.isEmpty) return '';
+    if (text.startsWith('http://') || text.startsWith('https://')) return text;
+    return 'https://$text';
+  }
+
   Widget _buildImageWidget(String? imageUrl, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
     if (imageUrl == null || imageUrl.isEmpty) {
       return Container(
@@ -176,16 +238,20 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     if (social == null) return const SizedBox.shrink();
     final List<Widget> links = [];
     if (social['facebook'] != null && social['facebook'].toString().isNotEmpty) {
-      links.add(_socialIcon('facebook', 'https://facebook.com/${social['facebook']}', Colors.blue[800]!));
+      final url = _buildSocialUrl('facebook', social['facebook']);
+      if (url.isNotEmpty) links.add(_socialIcon('facebook', url, Colors.blue[800]!));
     }
     if (social['instagram'] != null && social['instagram'].toString().isNotEmpty) {
-      links.add(_socialIcon('instagram', 'https://instagram.com/${social['instagram']}', Colors.purple));
+      final url = _buildSocialUrl('instagram', social['instagram']);
+      if (url.isNotEmpty) links.add(_socialIcon('instagram', url, Colors.purple));
     }
     if (social['twitter'] != null && social['twitter'].toString().isNotEmpty) {
-      links.add(_socialIcon('twitter', 'https://twitter.com/${social['twitter']}', Colors.blue));
+      final url = _buildSocialUrl('twitter', social['twitter']);
+      if (url.isNotEmpty) links.add(_socialIcon('twitter', url, Colors.blue));
     }
     if (social['tiktok'] != null && social['tiktok'].toString().isNotEmpty) {
-      links.add(_socialIcon('tiktok', 'https://tiktok.com/@${social['tiktok']}', Colors.black));
+      final url = _buildSocialUrl('tiktok', social['tiktok']);
+      if (url.isNotEmpty) links.add(_socialIcon('tiktok', url, Colors.black));
     }
     return Row(children: links.map((w) => Padding(padding: const EdgeInsets.only(right: 8), child: w)).toList());
   }
@@ -213,6 +279,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   Widget build(BuildContext context) {
     final bannerUrl = _merchant?['banner'];
     final hasBanner = bannerUrl != null && bannerUrl.toString().isNotEmpty;
+    final merchantDescription = _merchantText('description', fallbackKey: 'profile');
+    final merchantPhone = _merchantText('phone', fallbackKey: 'contactNumber');
+    final merchantWebsite = _normalizeWebsite(_merchant?['website']);
+    final latitude = _merchantLatitude;
+    final longitude = _merchantLongitude;
     
     if (kDebugMode && _merchant != null) {
       debugPrint('Building merchant profile:');
@@ -289,11 +360,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                           Text(_merchant!['category'] ?? 'Other', style: const TextStyle(fontSize: 14, color: Colors.grey)),
                                           const SizedBox(height: 4),
                                           Text('${_merchant!['followers'] ?? 0} followers', style: const TextStyle(fontSize: 14, color: Colors.grey)),
-                                          if ((_merchant!['description'] ?? '').isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 8.0),
-                                              child: Text(_merchant!['description'], style: Theme.of(context).textTheme.bodyMedium),
-                                            ),
+                                           if (merchantDescription.isNotEmpty)
+                                             Padding(
+                                               padding: const EdgeInsets.only(top: 8.0),
+                                               child: Text(merchantDescription, style: Theme.of(context).textTheme.bodyMedium),
+                                             ),
                                           if ((_merchant!['address'] ?? '').isNotEmpty)
                                             Padding(
                                               padding: const EdgeInsets.only(top: 8.0),
@@ -302,14 +373,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                   Icon(Icons.location_on, color: Theme.of(context).colorScheme.primary, size: 18),
                                                   const SizedBox(width: 6),
                                                   Expanded(child: Text(_merchant!['address'], style: const TextStyle(fontSize: 14))),
-                                                  if (_merchant!['latitude'] != null && _merchant!['longitude'] != null)
+                                                  if (latitude != null && longitude != null)
                                                     TextButton.icon(
                                                       icon: const Icon(Icons.directions),
                                                       label: const Text('Get Directions'),
                                                       onPressed: () async {
-                                                        final lat = _merchant!['latitude'];
-                                                        final lng = _merchant!['longitude'];
-                                                        final url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+                                                        final url = 'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude';
                                                         if (await canLaunchUrl(Uri.parse(url))) {
                                                           await launchUrl(Uri.parse(url));
                                                         } else if (context.mounted) {
@@ -320,12 +389,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 ],
                                               ),
                                             ),
-                                          if ((_merchant!['website'] ?? '').isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 8.0),
-                                              child: InkWell(
-                                                onTap: () => launchUrl(Uri.parse(_merchant!['website'])),
-                                                child: Row(
+                                           if (merchantWebsite.isNotEmpty)
+                                             Padding(
+                                               padding: const EdgeInsets.only(top: 8.0),
+                                               child: InkWell(
+                                                 onTap: () => launchUrl(Uri.parse(merchantWebsite)),
+                                                 child: Row(
                                                   children: [
                                                     Icon(Icons.link, color: Theme.of(context).colorScheme.primary, size: 18),
                                                     const SizedBox(width: 6),
@@ -339,15 +408,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                               padding: const EdgeInsets.only(top: 8.0),
                                               child: _buildSocialLinks(_merchant!['socialMedia']),
                                             ),
-                                          if ((_merchant!['phone'] ?? '').isNotEmpty)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 8.0),
-                                              child: TextButton.icon(
-                                                icon: const Icon(Icons.phone),
-                                                label: const Text('Contact'),
-                                                onPressed: () => launchUrl(Uri.parse('tel:${_merchant!['phone']}')),
-                                              ),
-                                            ),
+                                           if (merchantPhone.isNotEmpty)
+                                             Padding(
+                                               padding: const EdgeInsets.only(top: 8.0),
+                                               child: TextButton.icon(
+                                                 icon: const Icon(Icons.phone),
+                                                 label: const Text('Contact'),
+                                                 onPressed: () => launchUrl(Uri.parse('tel:$merchantPhone')),
+                                               ),
+                                             ),
                                         ],
                                       ),
                                     ),
@@ -371,8 +440,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                             ),
                           ),
                           // Map
-                          if (_merchant!['latitude'] != null &&
-                              _merchant!['longitude'] != null)
+                          if (latitude != null && longitude != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                               child: SizedBox(
@@ -381,9 +449,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                   borderRadius: BorderRadius.circular(16),
                                   child: FlutterMap(
                                     options: MapOptions(
-                                      initialCenter: latlng.LatLng(
-                                        _merchant!['latitude'],
-                                        _merchant!['longitude'],
+                                       initialCenter: latlng.LatLng(
+                                        latitude,
+                                        longitude,
                                       ),
                                       initialZoom: 15,
                                     ),
@@ -396,8 +464,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                         markers: [
                                           Marker(
                                             point: latlng.LatLng(
-                                              _merchant!['latitude'],
-                                              _merchant!['longitude'],
+                                              latitude,
+                                              longitude,
                                             ),
                                             width: 44,
                                             height: 44,

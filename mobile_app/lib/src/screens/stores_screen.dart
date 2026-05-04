@@ -107,7 +107,8 @@ class _StoresScreenState extends State<StoresScreen> {
 
     if (_selectedCategory != 'all') {
       results = results
-          .where((merchant) => merchant['category'] == _selectedCategory)
+          .where((merchant) =>
+              _normalizedMerchantCategory(merchant) == _selectedCategory)
           .toList();
     }
 
@@ -163,6 +164,9 @@ class _StoresScreenState extends State<StoresScreen> {
   String _merchantIdOf(Map<String, dynamic> merchant) =>
       (merchant['id'] ?? merchant['_id'] ?? '').toString();
 
+  String _normalizedMerchantCategory(Map<String, dynamic> merchant) =>
+      (merchant['category'] ?? '').toString().trim().toLowerCase();
+
   List<Map<String, dynamic>> get _featuredMerchants {
     final ranked = [..._allMerchants];
     ranked.sort(_compareByPopularity);
@@ -173,7 +177,8 @@ class _StoresScreenState extends State<StoresScreen> {
       _selectedCategory == 'all'
           ? _allMerchants.length
           : _allMerchants
-              .where((merchant) => merchant['category'] == _selectedCategory)
+              .where((merchant) =>
+                  _normalizedMerchantCategory(merchant) == _selectedCategory)
               .length;
 
   Future<void> _toggleFollow(String merchantId) async {

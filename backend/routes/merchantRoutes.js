@@ -115,6 +115,9 @@ router.get('/:id', async (req, res) => {
 router.post('/', authenticateJWT, authorizeAdmin, [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('profile').optional().isString(),
+  body('description').optional().isString(),
+  body('category').optional().isString(),
+  body('website').optional().isString(),
   body('contactInfo').optional().isString(),
   body('userId').optional().isString(), // For admin to link to existing user
   body('address').optional().isString(),
@@ -130,11 +133,26 @@ router.post('/', authenticateJWT, authorizeAdmin, [
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { name, profile, contactInfo, userId, address, contactNumber, socialMedia, location } = req.body;
+    const {
+      name,
+      profile,
+      description,
+      category,
+      website,
+      contactInfo,
+      userId,
+      address,
+      contactNumber,
+      socialMedia,
+      location,
+    } = req.body;
     
     const merchantData = {
       name,
       profile,
+      description,
+      category,
+      website,
       contactInfo,
       promotions: [],
       address,
@@ -170,6 +188,9 @@ router.post('/', authenticateJWT, authorizeAdmin, [
 router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
   body('profile').optional().isString(),
+  body('description').optional().isString(),
+  body('category').optional().isString(),
+  body('website').optional().isString(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
@@ -191,11 +212,28 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   }
   try {
     console.log(`PUT /api/merchants/${req.params.id} - Request Body:`, JSON.stringify(req.body, null, 2));
-    const { name, profile, contactInfo, logo, banner, address, contactNumber, socialMedia, status, location } = req.body;
+    const {
+      name,
+      profile,
+      description,
+      category,
+      website,
+      contactInfo,
+      logo,
+      banner,
+      address,
+      contactNumber,
+      socialMedia,
+      status,
+      location,
+    } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (profile !== undefined) updateData.profile = profile;
+    if (description !== undefined) updateData.description = description;
+    if (category !== undefined) updateData.category = category;
+    if (website !== undefined) updateData.website = website;
     if (contactInfo !== undefined) updateData.contactInfo = contactInfo;
     if (logo !== undefined) updateData.logo = logo;
     if (banner !== undefined) updateData.banner = banner;
