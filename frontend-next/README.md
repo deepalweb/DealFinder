@@ -2,6 +2,15 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Create `frontend-next/.env.local` for local environment variables when needed.
+
+Example:
+
+```bash
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+NEXT_PUBLIC_GA_ID=G-KW321NZHVV
+```
+
 First, run the development server:
 
 ```bash

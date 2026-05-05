@@ -41,7 +41,7 @@ The mobile app now tries Firebase-backed Google auth first, then falls back to t
 
 Important:
 
-- Android must be registered in Firebase/Google Cloud with the exact application ID currently used by the app: `com.example.deal_finder_mobile`
+- Android must be registered in Firebase/Google Cloud with the exact application ID currently used by the app: `com.dealfinder.mobile`
 - iOS must be registered with the exact bundle ID currently used by the app: `com.example.dealFinderMobile`
 - If Android is failing with a configuration error, you usually need the correct SHA-1 and SHA-256 fingerprints added in Firebase before downloading a fresh `google-services.json`
 

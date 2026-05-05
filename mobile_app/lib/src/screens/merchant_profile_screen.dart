@@ -458,7 +458,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                     children: [
                                       TileLayer(
                                         urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                        userAgentPackageName: 'com.example.deal_finder_mobile',
+                                        userAgentPackageName: 'com.dealfinder.mobile',
                                       ),
                                       MarkerLayer(
                                         markers: [

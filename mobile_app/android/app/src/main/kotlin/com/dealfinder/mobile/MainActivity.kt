@@ -1,4 +1,4 @@
-package com.example.deal_finder_mobile
+package com.dealfinder.mobile
 
 import io.flutter.embedding.android.FlutterActivity
 

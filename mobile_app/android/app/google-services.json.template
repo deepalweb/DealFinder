@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "FIREBASE_MOBILESDK_APP_ID",
         "android_client_info": {
-          "package_name": "com.example.deal_finder_mobile"
+          "package_name": "com.dealfinder.mobile"
         }
       },
       "oauth_client": [

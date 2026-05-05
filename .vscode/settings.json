@@ -2,5 +2,11 @@
   "liveServer.settings.port": 5001,
   "liveServer.settings.root": "/frontend",
   "liveServer.settings.file": "index.html",
-  "liveServer.settings.mount": [["/", "./frontend"]]
+  "liveServer.settings.mount": [
+    [
+      "/",
+      "./frontend"
+    ]
+  ],
+  "java.configuration.updateBuildConfiguration": "automatic"
 }

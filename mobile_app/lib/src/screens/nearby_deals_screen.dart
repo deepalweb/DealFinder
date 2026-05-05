@@ -897,7 +897,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.deal_finder_mobile',
+              userAgentPackageName: 'com.dealfinder.mobile',
             ),
             CircleLayer(circles: _mapCircles),
             MarkerLayer(markers: _markers),
