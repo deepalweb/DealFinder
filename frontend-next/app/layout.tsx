@@ -5,24 +5,60 @@ import { Toaster } from 'react-hot-toast';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_OG_IMAGE,
+  DEFAULT_TITLE,
+  SITE_NAME,
+  SITE_URL,
+} from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'DealFinder - Sri Lanka\'s Smartest Way to Find Deals',
-  description: 'Discover exclusive discounts from top stores near you. Smart search, real-time updates, personalized recommendations. Find the best deals in Sri Lanka.',
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: DEFAULT_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
   keywords: 'deals, discounts, promotions, Sri Lanka, shopping, offers, coupons, sales',
+  alternates: {
+    canonical: '/',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
-    title: 'DealFinder - Sri Lanka\'s Smartest Way to Find Deals',
-    description: 'Discover exclusive discounts from top stores near you with smart search and real-time updates.',
-    url: 'https://dealfinderapp.lk',
-    siteName: 'DealFinder',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_NAME,
     locale: 'en_LK',
     type: 'website',
+    images: [
+      {
+        url: DEFAULT_OG_IMAGE,
+        width: 512,
+        height: 512,
+        alt: `${SITE_NAME} app icon`,
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DealFinder - Find the Best Deals in Sri Lanka',
-    description: 'Smart deal discovery with location search, real-time updates, and personalized recommendations.',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    images: [DEFAULT_OG_IMAGE],
   },
+  category: 'shopping',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -1,3 +1,14 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'About DealFinder',
+  description:
+    'Learn how DealFinder helps shoppers discover better deals and helps merchants reach the right customers in Sri Lanka.',
+  alternates: {
+    canonical: '/about',
+  },
+};
+
 export default function AboutPage() {
   return (
     <div className="page-shell compact">
