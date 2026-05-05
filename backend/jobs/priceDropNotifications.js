@@ -82,28 +82,50 @@ async function checkPriceDrops() {
 /**
  * Notify about a specific price drop (called when promotion is updated)
  */
-async function notifyPriceDrop(promotionId, oldDiscount, newDiscount) {
+async function notifyPriceDrop(promotionId, changeDetailsOrOldDiscount, maybeNewDiscount) {
   try {
+    const changeDetails =
+      changeDetailsOrOldDiscount &&
+      typeof changeDetailsOrOldDiscount === 'object' &&
+      !Array.isArray(changeDetailsOrOldDiscount)
+        ? changeDetailsOrOldDiscount
+        : {
+            oldDiscount: changeDetailsOrOldDiscount,
+            newDiscount: maybeNewDiscount,
+          };
+
+    const {
+      oldDiscount = null,
+      newDiscount = null,
+      oldDiscountedPrice = null,
+      newDiscountedPrice = null,
+      oldOriginalPrice = null,
+      newOriginalPrice = null,
+    } = changeDetails;
+
     console.log('[Price Drop] Checking for promotion:', promotionId);
     console.log('[Price Drop] Old discount:', oldDiscount);
     console.log('[Price Drop] New discount:', newDiscount);
+    console.log('[Price Drop] Old discounted price:', oldDiscountedPrice);
+    console.log('[Price Drop] New discounted price:', newDiscountedPrice);
 
     // Parse discount percentages
     const oldPercent = parseInt(oldDiscount?.match(/\d+/)?.[0] || '0');
     const newPercent = parseInt(newDiscount?.match(/\d+/)?.[0] || '0');
+    const hasDiscountIncrease = newPercent > oldPercent && (newPercent - oldPercent) >= 10;
+    const hasPriceDecrease =
+      Number.isFinite(oldDiscountedPrice) &&
+      Number.isFinite(newDiscountedPrice) &&
+      newDiscountedPrice < oldDiscountedPrice;
 
     console.log('[Price Drop] Old percent:', oldPercent);
     console.log('[Price Drop] New percent:', newPercent);
     console.log('[Price Drop] Difference:', newPercent - oldPercent);
+    console.log('[Price Drop] Has discount increase:', hasDiscountIncrease);
+    console.log('[Price Drop] Has price decrease:', hasPriceDecrease);
 
-    // Only notify if discount increased by at least 10%
-    if (newPercent <= oldPercent) {
-      console.log('[Price Drop] Discount did not increase, skipping notification');
-      return 0;
-    }
-    
-    if ((newPercent - oldPercent) < 10) {
-      console.log('[Price Drop] Discount increase less than 10%, skipping notification');
+    if (!hasDiscountIncrease && !hasPriceDecrease) {
+      console.log('[Price Drop] No meaningful price-drop signal detected, skipping notification');
       return 0;
     }
 
@@ -141,6 +163,9 @@ async function notifyPriceDrop(promotionId, oldDiscount, newDiscount) {
     const merchantName = typeof promotion.merchant === 'object' 
       ? promotion.merchant.name 
       : 'a store';
+    const priceDropBody = hasPriceDecrease
+      ? `"${promotion.title}" at ${merchantName} dropped from ${oldDiscountedPrice} to ${newDiscountedPrice}!`
+      : `"${promotion.title}" at ${merchantName} - Discount increased from ${oldDiscount} to ${newDiscount}!`;
 
     let notificationsSent = 0;
 
@@ -152,11 +177,15 @@ async function notifyPriceDrop(promotionId, oldDiscount, newDiscount) {
           dealId: promotion._id.toString(),
           merchantId: typeof promotion.merchant === 'object' ? promotion.merchant._id.toString() : promotion.merchant,
           oldDiscount,
-          newDiscount
+          newDiscount,
+          oldDiscountedPrice,
+          newDiscountedPrice,
+          oldOriginalPrice,
+          newOriginalPrice
         },
         {
           title: '💰 Price Drop Alert!',
-          body: `"${promotion.title}" at ${merchantName} - Discount increased from ${oldDiscount} to ${newDiscount}!`,
+          body: priceDropBody,
           channels: ['push', 'web'],
           priority: 'high'
         }

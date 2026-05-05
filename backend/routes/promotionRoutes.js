@@ -721,12 +721,36 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       return res.status(404).json({ message: 'Promotion not found' });
     }
     
-    // Check for price drop notification (discount field changed)
-    if (discount && oldPromotion && discount !== oldPromotion.discount) {
+    const oldDiscountedPrice =
+      typeof oldPromotion?.discountedPrice === 'number' ? oldPromotion.discountedPrice : null;
+    const newDiscountedPrice =
+      typeof updatedPromotion.discountedPrice === 'number' ? updatedPromotion.discountedPrice : null;
+    const discountChanged =
+      oldPromotion && updatedPromotion.discount !== oldPromotion.discount;
+    const discountedPriceDropped =
+      oldDiscountedPrice !== null &&
+      newDiscountedPrice !== null &&
+      newDiscountedPrice < oldDiscountedPrice;
+
+    // Check for price drop notification (discount label changed or discounted price decreased)
+    if (oldPromotion && (discountChanged || discountedPriceDropped)) {
       setImmediate(async () => {
         try {
-          console.log(`[Price Drop] Discount changed from "${oldPromotion.discount}" to "${discount}"`);
-          await notifyPriceDrop(req.params.id, oldPromotion.discount, discount);
+          console.log(
+            `[Price Drop] Triggering notification check. Discount: "${oldPromotion.discount}" -> "${updatedPromotion.discount}", discountedPrice: ${oldDiscountedPrice} -> ${newDiscountedPrice}`
+          );
+          await notifyPriceDrop(req.params.id, {
+            oldDiscount: oldPromotion.discount,
+            newDiscount: updatedPromotion.discount,
+            oldDiscountedPrice,
+            newDiscountedPrice,
+            oldOriginalPrice:
+              typeof oldPromotion.originalPrice === 'number' ? oldPromotion.originalPrice : null,
+            newOriginalPrice:
+              typeof updatedPromotion.originalPrice === 'number'
+                ? updatedPromotion.originalPrice
+                : null,
+          });
         } catch (err) {
           console.error('Error sending price drop notification:', err);
         }
