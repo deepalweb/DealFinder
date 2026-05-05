@@ -14,7 +14,7 @@ const { initializeNotificationJobs } = require('./jobs/notificationScheduler');
 const app = express();
 const PORT = process.env.PORT || 8080;
 const APP_URL =
-  process.env.APP_URL || 'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
+  process.env.APP_URL || 'https://dealfinderapp.lk';
 
 // Enable gzip compression
 app.use(compression());
@@ -57,7 +57,8 @@ const allowedOrigins_DEV = [
 ];
 const allowedOrigins_PROD = [
   APP_URL,
-  'https://drstores.lk'
+  'https://www.dealfinderapp.lk',
+  'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net'
 ];
 const currentOrigins = process.env.NODE_ENV === 'production' ? allowedOrigins_PROD : allowedOrigins_DEV;
 
@@ -257,7 +258,7 @@ app.listen(PORT, () => {
 // Setup web-push
 if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
     webpush.setVapidDetails(
-        `mailto:${process.env.CONTACT_EMAIL || 'admin@dealfinder.com'}`,
+        `mailto:${process.env.CONTACT_EMAIL || 'admin@dealfinderapp.lk'}`,
         config.VAPID_PUBLIC_KEY,
         config.VAPID_PRIVATE_KEY
     );

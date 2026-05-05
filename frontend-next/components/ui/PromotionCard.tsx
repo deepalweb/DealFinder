@@ -16,10 +16,11 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
   const router = useRouter();
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(initialFav);
+  const [renderedAt] = useState(() => Date.now());
 
   const id = promotion._id || promotion.id;
   const merchantName = typeof promotion.merchant === 'object' ? promotion.merchant?.name : promotion.merchant || '';
-  const daysLeft = Math.ceil((new Date(promotion.endDate).getTime() - Date.now()) / 86400000);
+  const daysLeft = Math.ceil((new Date(promotion.endDate).getTime() - renderedAt) / 86400000);
   const expiryText = daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Ends today' : `${daysLeft}d left`;
   const coords = promotion.merchant?.location?.coordinates;
   const directionsUrl = coords ? `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}` : null;

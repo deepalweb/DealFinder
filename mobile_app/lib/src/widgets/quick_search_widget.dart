@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/search_service.dart';
 import '../screens/advanced_search_screen.dart';
 
 class QuickSearchWidget extends StatefulWidget {
@@ -11,40 +10,11 @@ class QuickSearchWidget extends StatefulWidget {
 
 class _QuickSearchWidgetState extends State<QuickSearchWidget> {
   final _searchController = TextEditingController();
-  List<String> _suggestions = [];
-  bool _showSuggestions = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
 
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _onSearchChanged() {
-    final query = _searchController.text;
-    if (query.length >= 2) {
-      _getSuggestions(query);
-    } else {
-      setState(() {
-        _suggestions = [];
-        _showSuggestions = false;
-      });
-    }
-  }
-
-  Future<void> _getSuggestions(String query) async {
-    final suggestions = await SearchService.getSuggestions(query);
-    setState(() {
-      _suggestions = suggestions;
-      _showSuggestions = true;
-    });
   }
 
   void _performQuickSearch(String query) {
@@ -70,10 +40,7 @@ class _QuickSearchWidgetState extends State<QuickSearchWidget> {
                     icon: const Icon(Icons.clear),
                     onPressed: () {
                       _searchController.clear();
-                      setState(() {
-                        _suggestions = [];
-                        _showSuggestions = false;
-                      });
+                      setState(() {});
                     },
                   )
                 : null,
@@ -89,21 +56,20 @@ class _QuickSearchWidgetState extends State<QuickSearchWidget> {
         ),
         
         // Quick search chips
-        if (!_showSuggestions)
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            height: 40,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildQuickSearchChip('Food & Drinks', Icons.restaurant),
-                _buildQuickSearchChip('Electronics', Icons.devices),
-                _buildQuickSearchChip('Fashion', Icons.checkroom),
-                _buildQuickSearchChip('Travel', Icons.flight),
-                _buildQuickSearchChip('Beauty', Icons.spa),
-              ],
-            ),
+        Container(
+          margin: const EdgeInsets.only(top: 12),
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildQuickSearchChip('Food & Drinks', Icons.restaurant),
+              _buildQuickSearchChip('Electronics', Icons.devices),
+              _buildQuickSearchChip('Fashion', Icons.checkroom),
+              _buildQuickSearchChip('Travel', Icons.flight),
+              _buildQuickSearchChip('Beauty', Icons.spa),
+            ],
           ),
+        ),
       ],
     );
   }

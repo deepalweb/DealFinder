@@ -4,15 +4,24 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AdminAPI } from '@/lib/api';
 
-export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    AdminAPI.getDashboardStats().then(setStats).catch(() => {}).finally(() => setLoading(false));
-  }, []);
-
-  const StatCard = ({ title, value, icon, color, href, sub }: any) => (
+function StatCard({
+  title,
+  value,
+  icon,
+  color,
+  href,
+  sub,
+  loading,
+}: {
+  title: string;
+  value: number | string | undefined;
+  icon: string;
+  color: string;
+  href?: string;
+  sub?: string;
+  loading: boolean;
+}) {
+  return (
     <div className="promotion-card" style={{ padding: '1.5rem' }}>
       <div className="flex items-center justify-between mb-3">
         <div style={{ width: '48px', height: '48px', borderRadius: '0.875rem', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.25rem' }}>
@@ -27,12 +36,22 @@ export default function AdminDashboardPage() {
       {sub && !loading && <p style={{ fontSize: '0.75rem', color, marginTop: '0.5rem', fontWeight: 600 }}>{sub}</p>}
     </div>
   );
+}
+
+export default function AdminDashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [renderedAt] = useState(() => Date.now());
+
+  useEffect(() => {
+    AdminAPI.getDashboardStats().then(setStats).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   const pendingMerchants = stats?.merchantsByStatus?.pending_approval || 0;
   const pendingPromotions = stats?.promotionsByStatus?.pending_approval || 0;
 
   const daysLeft = (date: string) => {
-    const diff = new Date(date).getTime() - Date.now();
+    const diff = new Date(date).getTime() - renderedAt;
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
@@ -44,7 +63,7 @@ export default function AdminDashboardPage() {
           <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>Welcome back! Here&apos;s what&apos;s happening.</p>
         </div>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.45rem 0.9rem', borderRadius: '9999px', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(148,163,184,0.2)' }}>
-          <i className="fas fa-clock mr-1"></i> {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+          <i className="fas fa-clock mr-1"></i> {new Date(renderedAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
         </div>
       </div>
 
@@ -66,11 +85,11 @@ export default function AdminDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-        <StatCard title="Total Users" value={stats?.totalUsers} icon="fa-users" color="#6366f1" href="/admin/users" />
-        <StatCard title="Total Merchants" value={stats?.totalMerchants} icon="fa-store" color="#10b981" href="/admin/merchants" sub={pendingMerchants > 0 ? `${pendingMerchants} pending approval` : undefined} />
-        <StatCard title="Total Promotions" value={stats?.totalPromotions} icon="fa-tags" color="#f43f5e" href="/admin/promotions" sub={pendingPromotions > 0 ? `${pendingPromotions} pending approval` : undefined} />
+        <StatCard title="Total Users" value={stats?.totalUsers} icon="fa-users" color="#6366f1" href="/admin/users" loading={loading} />
+        <StatCard title="Total Merchants" value={stats?.totalMerchants} icon="fa-store" color="#10b981" href="/admin/merchants" sub={pendingMerchants > 0 ? `${pendingMerchants} pending approval` : undefined} loading={loading} />
+        <StatCard title="Total Promotions" value={stats?.totalPromotions} icon="fa-tags" color="#f43f5e" href="/admin/promotions" sub={pendingPromotions > 0 ? `${pendingPromotions} pending approval` : undefined} loading={loading} />
         <StatCard title="Active Promotions" value={stats?.activePromotions} icon="fa-check-circle" color="#10b981"
-          sub={stats?.activePromotions > 0 ? 'Live & within date range' : 'No active deals right now'} />
+          sub={stats?.activePromotions > 0 ? 'Live & within date range' : 'No active deals right now'} loading={loading} />
       </div>
 
       {/* Bottom row */}
@@ -159,7 +178,7 @@ export default function AdminDashboardPage() {
               const colors: Record<string, string> = { user: '#6366f1', merchant: '#10b981', promotion: '#f43f5e' };
               const color = colors[item.type] || '#94a3b8';
               const timeAgo = (date: string) => {
-                const diff = Date.now() - new Date(date).getTime();
+                const diff = renderedAt - new Date(date).getTime();
                 const m = Math.floor(diff / 60000);
                 const h = Math.floor(m / 60);
                 const d = Math.floor(h / 24);

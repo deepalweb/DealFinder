@@ -47,13 +47,13 @@ class _LoginScreenState extends State<LoginScreen> {
       final password = _passwordController.text;
       
       // Check for demo credentials
-      if (email == 'demo@dealfinder.com' && password == 'demo123') {
+      if (email == 'demo@dealfinderapp.lk' && password == 'demo123') {
         // Use demo credentials
         final demoResult = {
           'id': 'demo-user-123',
           'token': 'demo-token-xyz',
           'name': 'Demo User',
-          'email': 'demo@dealfinder.com',
+          'email': 'demo@dealfinderapp.lk',
           'role': 'user',
         };
         await AuthService.saveSession(demoResult);
@@ -62,14 +62,14 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       
       // Check for demo merchant credentials
-      if (email == 'merchant@dealfinder.com' && password == 'merchant123') {
+      if (email == 'merchant@dealfinderapp.lk' && password == 'merchant123') {
         // Use demo merchant credentials
         final demoMerchantResult = {
           'id': 'demo-merchant-user-123',
           '_id': 'demo-merchant-user-123',
           'token': 'demo-merchant-token-xyz',
           'name': 'Demo Merchant',
-          'email': 'merchant@dealfinder.com',
+          'email': 'merchant@dealfinderapp.lk',
           'role': 'merchant',
           'businessName': 'Demo Store',
           'merchantId': 'demo-merchant-123',
@@ -210,11 +210,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'User: demo@dealfinder.com / demo123',
+                      'User: demo@dealfinderapp.lk / demo123',
                       style: TextStyle(fontSize: 13, color: Colors.blue[900]),
                     ),
                     Text(
-                      'Merchant: merchant@dealfinder.com / merchant123',
+                      'Merchant: merchant@dealfinderapp.lk / merchant123',
                       style: TextStyle(fontSize: 13, color: Colors.blue[900]),
                     ),
                   ],

@@ -11,6 +11,7 @@ import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';
 import 'login_screen.dart';
 import 'merchant_dashboard_screen.dart';
+import 'notification_settings_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
   const UserProfileScreen({super.key});
@@ -35,15 +36,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   final ImagePicker _picker = ImagePicker();
   List<Map<String, dynamic>> _followingMerchants = [];
   bool _loadingFollowing = false;
-  
-  // Notification preferences
-  Map<String, bool> _notifications = {
-    'email': true,
-    'expiringDeals': true,
-    'favoriteStores': true,
-    'recommendations': true,
-  };
-  
+
   // Password change
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
@@ -80,6 +73,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       _isLoading = true;
     });
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     _name = prefs.getString('userName') ?? 'N/A';
     _email = prefs.getString('userEmail') ?? 'N/A';
     _role = prefs.getString('userRole') ?? 'user';
@@ -94,14 +88,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       _businessName = prefs.getString('userBusinessName');
       _businessController.text = _businessName ?? '';
     }
-    
-    // Load notification preferences
-    _notifications = {
-      'email': prefs.getBool('notif_email') ?? true,
-      'expiringDeals': prefs.getBool('notif_expiring') ?? true,
-      'favoriteStores': prefs.getBool('notif_favorites') ?? true,
-      'recommendations': prefs.getBool('notif_recommendations') ?? true,
-    };
     
     setState(() {
       _isLoading = false;
@@ -146,23 +132,24 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
         maxHeight: 512,
         imageQuality: 70,
       );
-      
+      if (!mounted) return;
       if (image != null) {
         final bytes = await File(image.path).readAsBytes();
         final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
-        
+        if (!mounted) return;
         setState(() {
           _profilePicture = base64Image;
         });
         
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('userProfilePicture', base64Image);
-        
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile picture updated!')),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update picture: $e')),
       );
@@ -183,12 +170,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       // Save locally first
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userName', _nameController.text.trim());
-      
-      // Save notification preferences
-      for (var entry in _notifications.entries) {
-        await prefs.setBool('notif_${entry.key}', entry.value);
-      }
-      
+      if (!mounted) return;
+
       setState(() {
         _name = _nameController.text.trim();
       });
@@ -197,11 +180,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
         const SnackBar(content: Text('Profile updated successfully!')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to update profile: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
   
@@ -235,6 +221,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   
   Future<void> _removeFavorite(String dealId) async {
     await FavoritesManager.removeFavorite(dealId);
+    if (!mounted) return;
     setState(() {
       _favoriteDeals.removeWhere((deal) => deal.id == dealId);
     });
@@ -273,6 +260,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   
   Future<void> _unfollowMerchant(String merchantId) async {
     await MerchantFollowingManager.unfollowMerchant(merchantId);
+    if (!mounted) return;
     setState(() {
       _followingMerchants.removeWhere((merchant) => (merchant['_id'] ?? merchant['id']) == merchantId);
     });
@@ -352,7 +340,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     backgroundImage: _profilePicture != null 
                         ? MemoryImage(base64Decode(_profilePicture!.split(',')[1]))
                         : null,
@@ -614,40 +602,37 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Notification Preferences',
+                'Notifications',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 20),
-              SwitchListTile(
-                title: const Text('Nearby Deals'),
-                subtitle: const Text('Get notified when deals are available near you'),
-                value: _notifications['nearbyDeals'] ?? true,
-                onChanged: (value) {
-                  setState(() {
-                    _notifications['nearbyDeals'] = value;
-                  });
-                },
+              Text(
+                'Manage push notifications, email alerts, categories, quiet hours, and device testing from the full notification settings screen.',
+                style: Theme.of(context).textTheme.bodyMedium,
               ),
-              ..._notifications.entries.map((entry) => SwitchListTile(
-                title: Text(_formatNotificationTitle(entry.key)),
-                subtitle: Text(_getNotificationDescription(entry.key)),
-                value: entry.value,
-                onChanged: (value) {
-                  setState(() {
-                    _notifications[entry.key] = value;
-                  });
-                },
-              )),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _updateProfile,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationSettingsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.tune),
+                  label: const Text('Open Notification Settings'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Save Preferences'),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Use that screen to enable push on this device and send test notifications.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ),
@@ -822,26 +807,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     );
   }
   
-  String _formatNotificationTitle(String key) {
-    switch (key) {
-      case 'email': return 'Email Notifications';
-      case 'expiringDeals': return 'Expiring Deals';
-      case 'favoriteStores': return 'Favorite Stores';
-      case 'recommendations': return 'Recommendations';
-      default: return key;
-    }
-  }
-  
-  String _getNotificationDescription(String key) {
-    switch (key) {
-      case 'email': return 'Receive notifications via email';
-      case 'expiringDeals': return 'Get notified when deals are about to expire';
-      case 'favoriteStores': return 'Updates from your favorite stores';
-      case 'recommendations': return 'Personalized deal recommendations';
-      default: return '';
-    }
-  }
-  
+
   Widget _buildFollowingTab() {
     if (_loadingFollowing) {
       return const Center(child: CircularProgressIndicator());

@@ -128,7 +128,7 @@ export default function MerchantDashboard() {
                 <i className="fas fa-rocket"></i>
               </div>
               <div>
-                <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>Welcome! Let's get your store ready 🎉</h3>
+                <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>Welcome! Let&apos;s get your store ready 🎉</h3>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Complete these steps to start attracting customers</p>
               </div>
             </div>

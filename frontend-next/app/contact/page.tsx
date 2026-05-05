@@ -26,7 +26,7 @@ export default function ContactPage() {
           <div className="stat-tile">
             <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', color:'var(--text-primary)' }}>
               <i className="fas fa-envelope" style={{ color:'var(--primary-color)', width:'1.25rem' }}></i>
-              <a href="mailto:support@dealfinder.com" style={{ color:'var(--text-primary)', textDecoration:'none' }}>support@dealfinder.com</a>
+              <a href="mailto:support@dealfinderapp.lk" style={{ color:'var(--text-primary)', textDecoration:'none' }}>support@dealfinderapp.lk</a>
             </div>
           </div>
           <div className="stat-tile">

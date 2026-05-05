@@ -62,9 +62,9 @@ export default function Footer() {
             </p>
 
             <div className="grid grid-cols-1 gap-2" style={{ fontSize: '0.88rem' }}>
-              <a href="mailto:support@dealfinder.com" style={{ color: '#dbe4ee', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
+              <a href="mailto:support@dealfinderapp.lk" style={{ color: '#dbe4ee', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
                 <i className="fas fa-envelope" style={{ color: '#f59e0b' }}></i>
-                support@dealfinder.com
+                support@dealfinderapp.lk
               </a>
               <a href="tel:+94760846996" style={{ color: '#dbe4ee', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.55rem' }}>
                 <i className="fas fa-phone" style={{ color: '#22c55e' }}></i>

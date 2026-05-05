@@ -10,7 +10,7 @@ class NotificationService {
     // Configure web-push VAPID keys
     if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
       webpush.setVapidDetails(
-        'mailto:' + (process.env.M365_EMAIL || 'noreply@dealfinder.com'),
+        'mailto:' + (process.env.M365_EMAIL || 'noreply@dealfinderapp.lk'),
         process.env.VAPID_PUBLIC_KEY,
         process.env.VAPID_PRIVATE_KEY
       );
@@ -22,7 +22,13 @@ class NotificationService {
    */
   async sendNotification(userId, type, data, options = {}) {
     try {
-      const { title, body, channels = ['push', 'email', 'web'], priority = 'normal' } = options;
+      const {
+        title,
+        body,
+        channels = ['push', 'email', 'web'],
+        priority = 'normal',
+        ignoreQuietHours = false,
+      } = options;
 
       // Get user preferences
       const prefs = await NotificationPreference.findOne({ userId });
@@ -38,7 +44,7 @@ class NotificationService {
       }
 
       // Check quiet hours
-      if (this._isQuietHours(prefs)) {
+      if (!ignoreQuietHours && this._isQuietHours(prefs)) {
         console.log(`Quiet hours active for user ${userId}`);
         return null;
       }
@@ -226,8 +232,8 @@ class NotificationService {
    */
   _generateEmailTemplate(title, body, data) {
     const dealLink = data.dealId 
-      ? `${process.env.APP_URL || 'https://dealfinderlk.com'}/deal/${data.dealId}`
-      : process.env.APP_URL || 'https://dealfinderlk.com';
+      ? `${process.env.APP_URL || 'https://dealfinderapp.lk'}/deal/${data.dealId}`
+      : process.env.APP_URL || 'https://dealfinderapp.lk';
 
     return `
       <!DOCTYPE html>
@@ -252,7 +258,7 @@ class NotificationService {
             <div style="margin-top:32px;padding-top:24px;border-top:1px solid #e2e8f0">
               <p style="color:#94a3b8;font-size:14px;margin:0">
                 You're receiving this because you enabled notifications in your DealFinder account.
-                <a href="${process.env.APP_URL || 'https://dealfinderlk.com'}/profile" style="color:#6366f1">Manage preferences</a>
+                <a href="${process.env.APP_URL || 'https://dealfinderapp.lk'}/profile" style="color:#6366f1">Manage preferences</a>
               </p>
             </div>
           </div>

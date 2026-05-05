@@ -29,7 +29,6 @@ class RecommendationService {
         }
         
         // Favorite merchant scoring
-        final merchantDeals = allDeals.where((d) => d.merchantId == deal.merchantId).length;
         if (favorites.any((fav) => allDeals.any((d) => d.id == fav && d.merchantId == deal.merchantId))) {
           score += 4;
         }

@@ -269,7 +269,7 @@ function NewPromotionContent() {
                         <option value="bundle">Bundle Deal</option>
                         <option value="flash">Flash Sale</option>
                       </select>
-                      <p style={hintStyle}>Select the type of discount you're offering</p>
+                      <p style={hintStyle}>Select the type of discount you&apos;re offering</p>
                     </div>
 
                     {/* Conditional Fields Based on Deal Type */}
@@ -393,7 +393,7 @@ function NewPromotionContent() {
                         <i className="fas fa-link" style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', pointerEvents:'none' }}></i>
                         <input type="url" style={{ ...inputStyle, paddingLeft:'2.5rem' }} value={form.url} onChange={e => update('url', e.target.value)} placeholder="https://yourstore.com/deal" onFocus={focus} onBlur={blur} />
                       </div>
-                      <p style={hintStyle}>Customers will be redirected here when they click "Get This Deal"</p>
+                      <p style={hintStyle}>Customers will be redirected here when they click &quot;Get This Deal&quot;</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -477,7 +477,7 @@ function NewPromotionContent() {
 
                   <input style={inputStyle} value={form.image.startsWith('data:') ? '' : form.image}
                     onChange={e => { update('image', e.target.value); if (e.target.value) setImagePreviews(prev => prev.length ? [e.target.value, ...prev.slice(1)] : [e.target.value]); }}
-                    placeholder="https://example.com/image.jpg" onFocus={focus} onBlur={blur} />
+                    placeholder="https://dealfinderapp.lk/images/promo.jpg" onFocus={focus} onBlur={blur} />
                 </div>
               )}
 

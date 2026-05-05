@@ -38,17 +38,17 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | nul
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
-
-  useEffect(() => {
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
     try {
       const stored = localStorage.getItem('dealFinderUser');
-      if (stored) setUser(JSON.parse(stored));
-    } catch {}
-    setLoading(false);
-  }, []);
+      return stored ? JSON.parse(stored) as User : null;
+    } catch {
+      return null;
+    }
+  });
+  const [loading] = useState(() => typeof window !== 'undefined' ? false : true);
+  const router = useRouter();
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {

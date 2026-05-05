@@ -98,7 +98,7 @@ async function sendWeeklyDigest() {
  * Generate HTML email for weekly digest
  */
 function generateDigestEmail(userName, deals) {
-  const appUrl = process.env.APP_URL || 'https://dealfinderlk.com';
+  const appUrl = process.env.APP_URL || 'https://dealfinderapp.lk';
   
   const dealsHtml = deals.map(deal => {
     const merchantName = typeof deal.merchant === 'object' ? deal.merchant.name : 'Store';

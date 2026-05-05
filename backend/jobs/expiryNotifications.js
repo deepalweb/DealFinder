@@ -43,7 +43,7 @@ async function sendExpiryNotifications() {
               <code style="background:#f1f5f9;padding:2px 8px;border-radius:4px">${deal.code}</code>
               will expire on <strong>${new Date(deal.endDate).toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}</strong>.
             </p>
-            <a href="${process.env.APP_URL || 'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net'}/merchant/dashboard"
+            <a href="${process.env.APP_URL || 'https://dealfinderapp.lk'}/merchant/dashboard"
               style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">
               Renew or Create New Deal →
             </a>

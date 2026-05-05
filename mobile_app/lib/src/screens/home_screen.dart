@@ -48,7 +48,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _userName = 'there';
   String _userId = '';
-  String _userToken = '';
   int _notificationCount = 0;
 
   String _locationName = 'Near You';
@@ -95,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen>
     setState(() {
       _userName = prefs.getString('userName') ?? 'there';
       _userId = prefs.getString('userId') ?? '';
-      _userToken = prefs.getString('userToken') ?? '';
     });
     // Load notification count in background (don't block UI)
     _loadNotificationCount();
@@ -104,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadNotificationCount() async {
     if (_userId.isEmpty) return;
     try {
-      final n = await _api.fetchNotifications(_userId, _userToken);
+      final n = await _api.fetchNotifications();
       if (mounted) setState(() => _notificationCount = n.length);
     } catch (_) {}
   }
@@ -300,6 +298,15 @@ class _HomeScreenState extends State<HomeScreen>
   void _openDeal(Promotion p) => Navigator.push(context,
       MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: p)));
 
+  void _openNotifications() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NotificationsScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -356,7 +363,7 @@ class _HomeScreenState extends State<HomeScreen>
                   gradient: LinearGradient(
                     colors: [
                       Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withOpacity(0.8),
+                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -365,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen>
                       color: Theme.of(context)
                           .colorScheme
                           .primary
-                          .withOpacity(0.3),
+                          .withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -409,7 +416,7 @@ class _HomeScreenState extends State<HomeScreen>
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 8,
                       ),
                     ],
@@ -440,57 +447,63 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(width: 8),
             // Notification bell
-            Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined, size: 26),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NotificationsScreen(
-                        userId: _userId,
-                        token: _userToken,
+            SizedBox(
+              width: 48,
+              height: 48,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(24),
+                  onTap: _openNotifications,
+                  child: Stack(
+                    children: [
+                      const Center(
+                        child: Icon(Icons.notifications_outlined, size: 26),
                       ),
-                    ),
+                      if (_notificationCount > 0)
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: IgnorePointer(
+                            child: TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              duration: const Duration(milliseconds: 400),
+                              curve: Curves.elasticOut,
+                              builder: (context, value, child) {
+                                return Transform.scale(
+                                  scale: value,
+                                  child: child,
+                                );
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE53935),
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  minHeight: 16,
+                                ),
+                                child: Text(
+                                  _notificationCount > 9
+                                      ? '9+'
+                                      : '$_notificationCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                if (_notificationCount > 0)
-                  Positioned(
-                    right: 8,
-                    top: 8,
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.elasticOut,
-                      builder: (context, value, child) {
-                        return Transform.scale(
-                          scale: value,
-                          child: child,
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE53935),
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          _notificationCount > 9 ? '9+' : '$_notificationCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
           ],
         ),
@@ -551,7 +564,7 @@ class _HomeScreenState extends State<HomeScreen>
                   border: Border.all(color: Colors.grey[300]!, width: 1),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 12,
                       offset: const Offset(0, 2),
                     ),
@@ -601,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen>
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -626,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   Theme.of(context)
                                       .colorScheme
                                       .primary
-                                      .withOpacity(0.7),
+                                      .withValues(alpha: 0.7),
                                 ],
                               ),
                             ),
@@ -641,7 +654,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 Theme.of(context)
                                     .colorScheme
                                     .primary
-                                    .withOpacity(0.7),
+                                    .withValues(alpha: 0.7),
                               ],
                             ),
                           ),
@@ -654,7 +667,7 @@ class _HomeScreenState extends State<HomeScreen>
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.7),
+                              Colors.black.withValues(alpha: 0.7),
                             ],
                           ),
                         ),
@@ -711,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 Text(
                                   'Curated Banner',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 0.9),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -772,7 +785,7 @@ class _HomeScreenState extends State<HomeScreen>
                   borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 8,
                     ),
                   ],
@@ -905,7 +918,7 @@ class _HomeScreenState extends State<HomeScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 4,
                             ),
                           ],
@@ -963,7 +976,7 @@ class _HomeScreenState extends State<HomeScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 4,
                             ),
                           ],
@@ -1004,7 +1017,7 @@ class _HomeScreenState extends State<HomeScreen>
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -1122,6 +1135,7 @@ class _HomeScreenState extends State<HomeScreen>
                   ElevatedButton.icon(
                     onPressed: () async {
                       await _loadLocation();
+                      if (!mounted) return;
                       if (_position != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -1185,7 +1199,7 @@ class _HomeScreenState extends State<HomeScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 4,
                             ),
                           ],

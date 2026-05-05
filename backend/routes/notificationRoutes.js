@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { body, validationResult } = require('express-validator');
 const NotificationLog = require('../models/NotificationLog');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
@@ -13,6 +12,45 @@ function safeError(error) {
     return { message: 'An error occurred' };
   }
   return { message: error.message, stack: error.stack };
+}
+
+function buildChannelSummary(notification) {
+  if (!notification) {
+    return {
+      push: { attempted: false, success: false, error: 'Notification was not created' },
+      web: { attempted: false, success: false, error: 'Notification was not created' },
+      email: { attempted: false, success: false, error: 'Notification was not created' },
+    };
+  }
+
+  const attemptedChannels = new Set(notification.channels || []);
+  const status = notification.status || {};
+
+  return {
+    push: {
+      attempted: attemptedChannels.has('push'),
+      success: status.push?.sent === true || status.push?.delivered === true,
+      error: status.push?.error || null,
+    },
+    web: {
+      attempted: attemptedChannels.has('web'),
+      success: status.web?.sent === true,
+      error: status.web?.error || null,
+    },
+    email: {
+      attempted: attemptedChannels.has('email'),
+      success: status.email?.sent === true,
+      error: status.email?.error || null,
+    },
+  };
+}
+
+function buildSkippedSummary(reason) {
+  return {
+    push: { attempted: false, success: false, error: reason },
+    web: { attempted: false, success: false, error: reason },
+    email: { attempted: false, success: false, error: reason },
+  };
 }
 
 function flattenForSet(input, prefix = '') {
@@ -168,6 +206,12 @@ router.post('/unsubscribe', authenticateJWT, async (req, res) => {
 // Send test notification
 router.post('/test', authenticateJWT, async (req, res) => {
   try {
+    let prefs = await NotificationPreference.findOne({ userId: req.user.id });
+    if (!prefs) {
+      prefs = new NotificationPreference({ userId: req.user.id });
+      await prefs.save();
+    }
+
     const notification = await NotificationService.sendNotification(
       req.user.id,
       'account_activity',
@@ -175,10 +219,38 @@ router.post('/test', authenticateJWT, async (req, res) => {
       {
         title: '🎉 Test Notification',
         body: 'This is a test notification from DealFinder!',
-        channels: ['push', 'web', 'email']
+        channels: ['push', 'web', 'email'],
+        ignoreQuietHours: true,
       }
     );
-    res.status(200).json({ message: 'Test notification sent', notification });
+
+    const enabledChannels = {
+      push: prefs.channels?.push?.enabled === true,
+      web: prefs.channels?.web?.enabled === true,
+      email: prefs.channels?.email?.enabled === true,
+    };
+
+    const noEnabledChannels = !enabledChannels.push && !enabledChannels.web && !enabledChannels.email;
+    const summary = notification
+      ? buildChannelSummary(notification)
+      : buildSkippedSummary(
+          noEnabledChannels
+            ? 'No notification channels are enabled for this account'
+            : 'Notification was skipped before delivery'
+        );
+    const pushWorked = summary.push.success;
+    const webWorked = summary.web.success;
+    const emailWorked = summary.email.success;
+
+    res.status(200).json({
+      message:
+        pushWorked || webWorked || emailWorked
+          ? 'Test notification processed'
+          : 'Test notification did not reach any delivery channel',
+      notification,
+      summary,
+      enabledChannels,
+    });
   } catch (error) {
     res.status(500).json(safeError(error));
   }

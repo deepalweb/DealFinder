@@ -133,7 +133,7 @@ class ApiService {
       final cached = await CacheService.loadPromotions();
       if (cached != null && cached.isNotEmpty) {
         if (kDebugMode) {
-          print('✅ Loaded ${cached.length} promotions from cache');
+          debugPrint('Loaded ${cached.length} promotions from cache');
         }
         return cached;
       }
@@ -141,7 +141,7 @@ class ApiService {
 
     // Fetch from network
     try {
-      if (kDebugMode) print('🌐 Fetching promotions from network...');
+      if (kDebugMode) debugPrint('Fetching promotions from network...');
       final response = await http
           .get(Uri.parse('${_baseUrl}promotions?limit=50'))
           .timeout(const Duration(seconds: 15));
@@ -151,7 +151,7 @@ class ApiService {
         try {
           await CacheService.savePromotions(promotions);
           if (kDebugMode) {
-            print('💾 Saved ${promotions.length} promotions to cache');
+            debugPrint('Saved ${promotions.length} promotions to cache');
           }
         } catch (_) {}
         return promotions;
@@ -159,11 +159,11 @@ class ApiService {
       throw Exception(
           'Failed to load promotions. Status code: ${response.statusCode}');
     } catch (e) {
-      if (kDebugMode) print('❌ Network error: $e');
+      if (kDebugMode) debugPrint('Network error: $e');
       final cached = await CacheService.loadPromotions(forceStale: true);
       if (cached != null) {
         if (kDebugMode) {
-          print('📦 Using stale cache (${cached.length} promotions)');
+          debugPrint('Using stale cache (${cached.length} promotions)');
         }
         return cached;
       }
@@ -234,7 +234,9 @@ class ApiService {
   Future<Map<String, dynamic>> directLogin(
       {required String email, required String password}) async {
     try {
-      if (kDebugMode) print('🔐 Attempting direct backend login for: $email');
+      if (kDebugMode) {
+        debugPrint('Attempting direct backend login for: $email');
+      }
 
       final response = await http
           .post(
@@ -250,7 +252,7 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        if (kDebugMode) print('✅ Direct login successful');
+        if (kDebugMode) debugPrint('Direct login successful');
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 400 || response.statusCode == 401) {
         final errorBody = jsonDecode(response.body);
@@ -261,7 +263,7 @@ class ApiService {
     } on TimeoutException {
       throw Exception('Connection timed out. Is the backend running?');
     } catch (e) {
-      if (kDebugMode) print('❌ Direct login error: $e');
+      if (kDebugMode) debugPrint('Direct login error: $e');
       rethrow;
     }
   }
@@ -292,12 +294,10 @@ class ApiService {
     }
   }
 
-  // Fetch notifications for the user (assumes /notifications?userId=...)
-  Future<List<Map<String, dynamic>>> fetchNotifications(
-      String userId, String token) async {
+  // Fetch notifications for the authenticated user
+  Future<List<Map<String, dynamic>>> fetchNotifications() async {
     try {
-      final response =
-          await _authGet('${_baseUrl}notifications?userId=$userId');
+      final response = await _authGet('${_baseUrl}notifications');
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         return data.cast<Map<String, dynamic>>();
@@ -315,14 +315,14 @@ class ApiService {
     if (!forceRefresh) {
       final cached = await CacheService.loadMerchants();
       if (cached != null && cached.isNotEmpty) {
-        if (kDebugMode) print('✅ Loaded ${cached.length} merchants from cache');
+        if (kDebugMode) debugPrint('Loaded ${cached.length} merchants from cache');
         return cached;
       }
     }
 
     // Fetch from network
     try {
-      if (kDebugMode) print('🌐 Fetching merchants from network...');
+      if (kDebugMode) debugPrint('Fetching merchants from network...');
       final response = await http
           .get(Uri.parse('${_baseUrl}merchants'))
           .timeout(const Duration(seconds: 10));
@@ -332,18 +332,18 @@ class ApiService {
         try {
           await CacheService.saveMerchants(merchants);
           if (kDebugMode) {
-            print('💾 Saved ${merchants.length} merchants to cache');
+            debugPrint('Saved ${merchants.length} merchants to cache');
           }
         } catch (_) {}
         return merchants;
       }
       throw Exception('Failed to load merchants');
     } catch (e) {
-      if (kDebugMode) print('❌ Network error: $e');
+      if (kDebugMode) debugPrint('Network error: $e');
       final cached = await CacheService.loadMerchants(forceStale: true);
       if (cached != null) {
         if (kDebugMode) {
-          print('📦 Using stale cache (${cached.length} merchants)');
+          debugPrint('Using stale cache (${cached.length} merchants)');
         }
         return cached;
       }
@@ -677,13 +677,13 @@ class ApiService {
       {double radiusKm = 10}) async {
     try {
       if (kDebugMode) {
-        print(
-            '🌐 Fetching nearby deals: lat=$lat, lng=$lng, radius=${radiusKm}km');
+        debugPrint(
+            'Fetching nearby deals: lat=$lat, lng=$lng, radius=${radiusKm}km');
       }
 
       final url =
           '${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm';
-      if (kDebugMode) print('📍 URL: $url');
+      if (kDebugMode) debugPrint('Nearby URL: $url');
 
       final response = await http.get(
         Uri.parse(url),
@@ -696,34 +696,37 @@ class ApiService {
             seconds:
                 30), // Reduced from 60 to 30 seconds (backend now optimized)
         onTimeout: () {
-          if (kDebugMode) print('⏱️ Nearby request timed out after 30 seconds');
+          if (kDebugMode) {
+            debugPrint('Nearby request timed out after 30 seconds');
+          }
           throw TimeoutException('The server took too long to respond');
         },
       );
 
       if (kDebugMode) {
-        print('📡 Nearby API response: ${response.statusCode}');
-        print('📦 Response body length: ${response.body.length}');
-        print(
-            '📄 Response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+        debugPrint('Nearby API response: ${response.statusCode}');
+        debugPrint('Nearby response body length: ${response.body.length}');
+        debugPrint(
+            'Nearby response body: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
       }
 
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
-        if (kDebugMode) print('✅ Loaded ${body.length} nearby promotions');
+        if (kDebugMode) debugPrint('Loaded ${body.length} nearby promotions');
         return body.map((item) => Promotion.fromJson(item)).toList();
       }
 
       if (kDebugMode) {
-        print('❌ Nearby API returned ${response.statusCode}: ${response.body}');
+        debugPrint(
+            'Nearby API returned ${response.statusCode}: ${response.body}');
       }
       throw Exception('Server returned error: ${response.statusCode}');
     } on TimeoutException catch (e) {
-      if (kDebugMode) print('⏱️ Timeout: $e');
+      if (kDebugMode) debugPrint('Nearby timeout: $e');
       throw Exception(
           'Request timed out. The server might be slow or there are too many merchants to process.');
     } catch (e) {
-      if (kDebugMode) print('❌ Nearby deals error: $e');
+      if (kDebugMode) debugPrint('Nearby deals error: $e');
       rethrow;
     }
   }
@@ -870,7 +873,7 @@ class ApiService {
     }
   }
 
-  Future<void> sendTestNotification() async {
+  Future<Map<String, dynamic>> sendTestNotification() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('userToken');
     final response = await http.post(
@@ -883,6 +886,7 @@ class ApiService {
     if (response.statusCode != 200) {
       throw Exception('Failed to send test notification');
     }
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<void> deleteNotification(String notificationId) async {

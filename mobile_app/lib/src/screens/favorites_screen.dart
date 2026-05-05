@@ -15,8 +15,6 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   late Future<List<Promotion>> _favoritesFuture;
-  String? _error;
-  final bool _isLocalFallback = false;
 
   @override
   void initState() {
@@ -37,11 +35,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       
       final allPromos = await ApiService().fetchPromotions();
       final favorites = allPromos.where((promo) => ids.contains(promo.id)).toList();
-      
-      _error = null;
       return favorites;
     } catch (e) {
-      _error = e.toString();
       return [];
     }
   }

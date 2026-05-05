@@ -27,6 +27,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   const [analytics, setAnalytics] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [distance, setDistance] = useState<number | null>(null);
+  const [renderedAt] = useState(() => Date.now());
 
   useEffect(() => {
     setLoading(true);
@@ -149,7 +150,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   const merchantName = deal ? (typeof deal.merchant === 'object' ? deal.merchant?.name : deal.merchant) : '';
   const merchantId = deal ? (typeof deal.merchant === 'object' ? deal.merchant?._id : deal.merchant) : null;
   const currencySymbol = deal ? getCurrencySymbol(deal.merchant?.currency) : '$';
-  const daysLeft = deal ? Math.ceil((new Date(deal.endDate).getTime() - Date.now()) / 86400000) : 0;
+  const daysLeft = deal ? Math.ceil((new Date(deal.endDate).getTime() - renderedAt) / 86400000) : 0;
   const isExpired = daysLeft < 0;
 
   if (loading) return (

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'DealFinder - Sri Lanka\'s Smartest Way to Find Deals',
     description: 'Discover exclusive discounts from top stores near you with smart search and real-time updates.',
-    url: 'https://dealfinderlk.com',
+    url: 'https://dealfinderapp.lk',
     siteName: 'DealFinder',
     locale: 'en_LK',
     type: 'website',

@@ -6,7 +6,7 @@ class AppConfig {
   // ─────────────────────────────────────────────────────────────────────────
 
   static const _productionOrigin =
-      'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
+      'https://dealfinderapp.lk';
 
   static const _urls = {
     _Env.device:     'http://192.168.8.102:8080/api/',

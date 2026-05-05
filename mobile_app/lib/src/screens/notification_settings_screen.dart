@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/push_notification_service.dart';
@@ -10,7 +11,12 @@ class NotificationSettingsScreen extends StatefulWidget {
 }
 
 class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+  static const bool _showPushDebugSection = false;
   bool _loading = true;
+  bool _sendingTestNotification = false;
+  bool _syncingPushToken = false;
+  String? _fcmToken;
+  String? _pushDebugStatus;
   
   // Channel settings
   bool _pushEnabled = false;
@@ -47,6 +53,18 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   void initState() {
     super.initState();
     _loadPreferences();
+    _loadPushDebugState();
+  }
+
+  Future<void> _loadPushDebugState() async {
+    final token = await PushNotificationService.getToken();
+    if (!mounted) return;
+    setState(() {
+      _fcmToken = token;
+      _pushDebugStatus = token == null || token.isEmpty
+          ? 'No FCM token found on this device yet.'
+          : 'FCM token is available on this device.';
+    });
   }
 
   Future<void> _loadPreferences() async {
@@ -140,21 +158,104 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
       final token = await PushNotificationService.getToken();
       if (token != null) {
         await ApiService().subscribeToNotifications(token, 'push');
-        setState(() => _pushEnabled = true);
+        if (!mounted) return;
+        setState(() {
+          _pushEnabled = true;
+          _fcmToken = token;
+          _pushDebugStatus = 'Push enabled and token synced to backend.';
+        });
       }
     } else {
       // Unsubscribe
       await ApiService().unsubscribeFromNotifications('push');
-      setState(() => _pushEnabled = false);
+      if (!mounted) return;
+      setState(() {
+        _pushEnabled = false;
+        _pushDebugStatus = 'Push disabled for this account.';
+      });
     }
   }
 
-  Future<void> _sendTestNotification() async {
+  Future<void> _syncPushTokenToBackend() async {
+    if (_syncingPushToken) return;
+
+    setState(() => _syncingPushToken = true);
     try {
-      await ApiService().sendTestNotification();
+      final token = await PushNotificationService.getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('No FCM token found on this device.');
+      }
+
+      await PushNotificationService.syncTokenWithServer(token);
+
+      if (!mounted) return;
+      setState(() {
+        _fcmToken = token;
+        _pushDebugStatus = 'FCM token synced to backend successfully.';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Push token synced to backend')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _pushDebugStatus = 'Push token sync failed: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to sync push token: $e')),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Test notification sent!')),
+        setState(() => _syncingPushToken = false);
+      }
+    }
+  }
+
+  Future<void> _copyToken() async {
+    final token = _fcmToken;
+    if (token == null || token.isEmpty) return;
+
+    await Clipboard.setData(ClipboardData(text: token));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('FCM token copied')),
+    );
+  }
+
+  Future<void> _sendTestNotification() async {
+    if (_sendingTestNotification) return;
+
+    setState(() => _sendingTestNotification = true);
+    try {
+      final result = await ApiService().sendTestNotification();
+      final summary = (result['summary'] as Map<String, dynamic>?) ?? const {};
+      final push = (summary['push'] as Map<String, dynamic>?) ?? const {};
+      final web = (summary['web'] as Map<String, dynamic>?) ?? const {};
+      final email = (summary['email'] as Map<String, dynamic>?) ?? const {};
+
+      final debugLines = [
+        'Push: ${_formatChannelStatus(push)}',
+        'Web: ${_formatChannelStatus(web)}',
+        'Email: ${_formatChannelStatus(email)}',
+      ].join('\n');
+
+      if (mounted) {
+        setState(() {
+          _pushDebugStatus = debugLines;
+        });
+
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Test Notification Result'),
+            content: SelectableText(debugLines),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
         );
       }
     } catch (e) {
@@ -163,7 +264,31 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           SnackBar(content: Text('Failed to send test: $e')),
         );
       }
+    } finally {
+      if (mounted) {
+        setState(() => _sendingTestNotification = false);
+      }
     }
+  }
+
+  String _formatChannelStatus(Map<String, dynamic> status) {
+    final attempted = status['attempted'] == true;
+    final success = status['success'] == true;
+    final error = status['error'];
+
+    if (!attempted) {
+      return 'not attempted';
+    }
+
+    if (success) {
+      return 'success';
+    }
+
+    if (error is String && error.isNotEmpty) {
+      return 'failed ($error)';
+    }
+
+    return 'failed';
   }
 
   @override
@@ -294,7 +419,58 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             icon: Icons.email_outlined,
           ),
           
-          const Divider(height: 32),
+          if (_showPushDebugSection) ...[
+            const Divider(height: 32),
+            _buildSectionHeader('Push Debug'),
+            Card(
+              elevation: 0,
+              color: Colors.grey.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _pushDebugStatus ?? 'Checking push registration state...',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      _fcmToken == null || _fcmToken!.isEmpty
+                          ? 'FCM token: not available'
+                          : 'FCM token:\n$_fcmToken',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _loadPushDebugState,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Refresh Token'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _syncingPushToken ? null : _syncPushTokenToBackend,
+                          icon: const Icon(Icons.cloud_upload),
+                          label: Text(
+                            _syncingPushToken ? 'Syncing...' : 'Sync Token to Backend',
+                          ),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: (_fcmToken == null || _fcmToken!.isEmpty) ? null : _copyToken,
+                          icon: const Icon(Icons.copy),
+                          label: const Text('Copy Token'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(height: 32),
+          ],
           
           // Categories Section
           _buildSectionHeader('Interested Categories'),
@@ -364,9 +540,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           
           // Test Notification Button
           ElevatedButton.icon(
-            onPressed: _sendTestNotification,
+            onPressed: _sendingTestNotification ? null : _sendTestNotification,
             icon: const Icon(Icons.send),
-            label: const Text('Send Test Notification'),
+            label: Text(
+              _sendingTestNotification
+                  ? 'Sending Test Notification...'
+                  : 'Send Test Notification',
+            ),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.all(16),
             ),

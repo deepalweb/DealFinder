@@ -1,6 +1,6 @@
 const LOCAL_BACKEND_ORIGIN = 'http://localhost:8080';
 const PRODUCTION_BACKEND_ORIGIN =
-  'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
+  'https://dealfinderapp.lk';
 
 function isLocalHostname(hostname: string) {
   return hostname === 'localhost' || hostname === '127.0.0.1';
@@ -29,4 +29,3 @@ export function getApiBase() {
 export function buildApiUrl(path: string) {
   return `${getApiBase()}/${path.replace(/^\/+/, '')}`;
 }
-

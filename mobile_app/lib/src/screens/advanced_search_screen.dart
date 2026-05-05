@@ -25,7 +25,6 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   String? _selectedCategory;
   String? _selectedMerchant;
   String _sortBy = 'relevance';
-  final double _maxDistance = 50;
   bool _hasDiscountOnly = false;
   DateTime? _expiresAfter;
   
@@ -45,6 +44,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   
   Future<void> _loadSearchHistory() async {
     final history = await SearchService.getSearchHistory();
+    if (!mounted) return;
     setState(() {
       _searchHistory = history;
     });
@@ -64,6 +64,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   
   Future<void> _getSuggestions(String query) async {
     final suggestions = await SearchService.getSuggestions(query);
+    if (!mounted) return;
     setState(() {
       _searchSuggestions = suggestions;
       _showSuggestions = true;
@@ -92,12 +93,13 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
         expiresAfter: _expiresAfter,
         sortBy: _sortBy,
       );
-      
+      if (!mounted) return;
       setState(() {
         _searchResults = results;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Search failed: $e')),
@@ -122,6 +124,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                   onPressed: () async {
                     await SearchService.clearSearchHistory();
                     _loadSearchHistory();
+                    if (!context.mounted) return;
                     Navigator.pop(context);
                   },
                   child: const Text('Clear'),
