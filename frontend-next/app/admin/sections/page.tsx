@@ -62,7 +62,7 @@ type SectionForm = {
 
 const SECTION_LABELS: Record<string, string> = {
   banner: 'Banner',
-  hot_deals: 'Hot Deals',
+  hot_deals: 'Ending Soon',
   new_this_week: 'New This Week',
   flash_sales: 'Flash Sales',
 };
@@ -303,7 +303,7 @@ export default function AdminSectionsPage() {
               Section Manager
             </h1>
             <p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)' }}>
-              Curate banner, hot deals, new-this-week, and flash sales for the mobile home page without touching the all-deals or nearby feeds.
+              Curate banner, ending-soon, new-this-week, and flash sales for the mobile home page without touching the all-deals or nearby feeds.
             </p>
             <p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               Saved assignments go live on the next mobile refresh. The cache refresh button is only for forcing a faster sync.
@@ -758,7 +758,7 @@ export default function AdminSectionsPage() {
                 <h3 style={{ marginTop: 0, marginBottom: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>Operational Notes</h3>
                   <div style={{ display: 'grid', gap: '0.7rem', color: 'var(--text-secondary)' }}>
                     <div>Banner is manual-only and capped at five items. Use priority to control display order.</div>
-                    <div>Hot Deals fills empty slots with trending deals when curated slots are not enough.</div>
+                    <div>Ending Soon fills empty slots with active deals that expire before today ends.</div>
                     <div>New This Week auto-includes fresh deals from the last seven days unless they are explicitly hidden.</div>
                     <div>Flash Sales can be curated manually, and the app can auto-fill with deals ending within the next 24 hours.</div>
                     <div>Banner image override is used by the mobile banner carousel when provided.</div>

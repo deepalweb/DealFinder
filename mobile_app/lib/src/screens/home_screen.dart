@@ -278,7 +278,20 @@ class _HomeScreenState extends State<HomeScreen>
     if (_hotDeals.isNotEmpty || _hotDealsManaged) {
       return _hotDeals.take(5).toList();
     }
-    return _filteredDeals.where((p) => p.featured == true).take(5).toList();
+    final now = DateTime.now();
+    final endOfToday = DateTime(now.year, now.month, now.day + 1);
+    final endingSoon = _filteredDeals
+        .where((p) =>
+            p.endDate != null &&
+            p.endDate!.isAfter(now) &&
+            p.endDate!.isBefore(endOfToday))
+        .toList()
+      ..sort((a, b) {
+        final byEndDate = a.endDate!.compareTo(b.endDate!);
+        if (byEndDate != 0) return byEndDate;
+        return _compareByRecent(a, b);
+      });
+    return endingSoon.take(5).toList();
   }
 
   List<Promotion> get _newDeals {
@@ -940,9 +953,9 @@ class _HomeScreenState extends State<HomeScreen>
         if (_featuredDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           const SectionHeader(
-            title: '🔥 Hot Deals',
-            subtitle: 'Trending now',
-            icon: Icons.local_fire_department,
+            title: '⏰ Ending Soon',
+            subtitle: 'Deals ending today',
+            icon: Icons.access_time,
           ),
           Stack(
             children: [

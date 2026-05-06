@@ -5,6 +5,8 @@ const User = require('../models/User');
 const Merchant = require('../models/Merchant');
 
 const SECTION_KEYS = ['banner', 'hot_deals', 'new_this_week', 'flash_sales'];
+const COLOMBO_TIME_ZONE = 'Asia/Colombo';
+const COLOMBO_OFFSET = '+05:30';
 
 const SECTION_CONFIG = {
   banner: {
@@ -16,10 +18,10 @@ const SECTION_CONFIG = {
   },
   hot_deals: {
     key: 'hot_deals',
-    label: 'Hot Deals',
+    label: 'Ending Soon',
     maxItems: 8,
     mode: 'hybrid',
-    description: 'Manual pins plus auto-fill from trending performance.',
+    description: 'Manual pins plus auto-fill from deals ending before today ends.',
   },
   new_this_week: {
     key: 'new_this_week',
@@ -93,6 +95,28 @@ function getNowActivePromotionQuery(now = new Date()) {
     startDate: { $lte: now },
     endDate: { $gte: now },
   };
+}
+
+function getColomboDateKey(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: COLOMBO_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+
+  const year = parts.find((part) => part.type === 'year')?.value;
+  const month = parts.find((part) => part.type === 'month')?.value;
+  const day = parts.find((part) => part.type === 'day')?.value;
+
+  return `${year}-${month}-${day}`;
+}
+
+function getColomboDayRange(value = new Date()) {
+  const dateKey = getColomboDateKey(value);
+  const start = new Date(`${dateKey}T00:00:00.000${COLOMBO_OFFSET}`);
+  const endExclusive = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+  return { start, endExclusive };
 }
 
 function isAssignmentActive(assignment, now = new Date()) {
@@ -240,20 +264,6 @@ async function getTrendingDeals(limit) {
     .slice(0, limit);
 }
 
-async function getFeaturedDeals(limit) {
-  if (!limit || limit <= 0) return [];
-
-  return Promotion.find({
-    ...getNowActivePromotionQuery(),
-    featured: true,
-  })
-    .select('-comments -ratings')
-    .populate('merchant', 'name logo currency location address contactInfo')
-    .sort({ createdAt: -1, _id: -1 })
-    .limit(limit)
-    .lean();
-}
-
 async function resolveHotDealsSection() {
   const cacheKey = 'section:hot_deals';
   const cached = getCached(cacheKey);
@@ -274,15 +284,22 @@ async function resolveHotDealsSection() {
     .map((assignment) => withSectionFields(assignment.promotion, assignment));
 
   const usedIds = new Set(manualItems.map((item) => String(item._id)));
-  const remainingSlots = Math.max(config.maxItems - manualItems.length, 0);
-  const [featuredDeals, trendingDeals] = await Promise.all([
-    getFeaturedDeals(config.maxItems * 2),
-    getTrendingDeals(config.maxItems * 2),
-  ]);
+  const { endExclusive } = getColomboDayRange();
+  const now = new Date();
+  const endingTodayDeals = await Promotion.find({
+    ...getNowActivePromotionQuery(now),
+    endDate: { $gte: now, $lt: endExclusive },
+    _id: { $nin: Array.from(hiddenIds) },
+  })
+    .select('-comments -ratings')
+    .populate('merchant', 'name logo currency location address contactInfo')
+    .sort({ endDate: 1, createdAt: -1 })
+    .limit(config.maxItems * 2)
+    .lean();
 
-  const featuredItems = featuredDeals
+  const autoItems = endingTodayDeals
     .filter((promotion) => !usedIds.has(String(promotion._id)) && !hiddenIds.has(String(promotion._id)))
-    .slice(0, remainingSlots)
+    .slice(0, Math.max(config.maxItems - manualItems.length, 0))
     .map((promotion) => ({
       ...sanitizePromotionPayload(promotion),
       sectionAssignment: {
@@ -290,27 +307,10 @@ async function resolveHotDealsSection() {
         mode: 'auto',
         priority: 0,
         status: 'active',
-        metadata: { source: 'featured' },
+        metadata: { source: 'ending_today' },
       },
     }));
 
-  featuredItems.forEach((item) => usedIds.add(String(item._id)));
-
-  const trendingItems = trendingDeals
-    .filter((promotion) => !usedIds.has(String(promotion._id)) && !hiddenIds.has(String(promotion._id)))
-    .slice(0, Math.max(config.maxItems - manualItems.length - featuredItems.length, 0))
-    .map((promotion) => ({
-      ...sanitizePromotionPayload(promotion),
-      sectionAssignment: {
-        sectionKey: 'hot_deals',
-        mode: 'auto',
-        priority: 0,
-        status: 'active',
-        metadata: { source: 'trending', trendingMetrics: promotion.trendingMetrics },
-      },
-    }));
-
-  const autoItems = [...featuredItems, ...trendingItems];
   const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
   const response = {
     section: config,
