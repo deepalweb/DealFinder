@@ -240,6 +240,20 @@ async function getTrendingDeals(limit) {
     .slice(0, limit);
 }
 
+async function getFeaturedDeals(limit) {
+  if (!limit || limit <= 0) return [];
+
+  return Promotion.find({
+    ...getNowActivePromotionQuery(),
+    featured: true,
+  })
+    .select('-comments -ratings')
+    .populate('merchant', 'name logo currency location address contactInfo')
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(limit)
+    .lean();
+}
+
 async function resolveHotDealsSection() {
   const cacheKey = 'section:hot_deals';
   const cached = getCached(cacheKey);
@@ -260,10 +274,31 @@ async function resolveHotDealsSection() {
     .map((assignment) => withSectionFields(assignment.promotion, assignment));
 
   const usedIds = new Set(manualItems.map((item) => String(item._id)));
-  const trendingDeals = await getTrendingDeals(config.maxItems * 2);
-  const autoItems = trendingDeals
+  const remainingSlots = Math.max(config.maxItems - manualItems.length, 0);
+  const [featuredDeals, trendingDeals] = await Promise.all([
+    getFeaturedDeals(config.maxItems * 2),
+    getTrendingDeals(config.maxItems * 2),
+  ]);
+
+  const featuredItems = featuredDeals
     .filter((promotion) => !usedIds.has(String(promotion._id)) && !hiddenIds.has(String(promotion._id)))
-    .slice(0, Math.max(config.maxItems - manualItems.length, 0))
+    .slice(0, remainingSlots)
+    .map((promotion) => ({
+      ...sanitizePromotionPayload(promotion),
+      sectionAssignment: {
+        sectionKey: 'hot_deals',
+        mode: 'auto',
+        priority: 0,
+        status: 'active',
+        metadata: { source: 'featured' },
+      },
+    }));
+
+  featuredItems.forEach((item) => usedIds.add(String(item._id)));
+
+  const trendingItems = trendingDeals
+    .filter((promotion) => !usedIds.has(String(promotion._id)) && !hiddenIds.has(String(promotion._id)))
+    .slice(0, Math.max(config.maxItems - manualItems.length - featuredItems.length, 0))
     .map((promotion) => ({
       ...sanitizePromotionPayload(promotion),
       sectionAssignment: {
@@ -275,6 +310,7 @@ async function resolveHotDealsSection() {
       },
     }));
 
+  const autoItems = [...featuredItems, ...trendingItems];
   const items = [...manualItems, ...autoItems].slice(0, config.maxItems);
   const response = {
     section: config,

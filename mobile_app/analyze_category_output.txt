@@ -1,0 +1,9 @@
+Analyzing 7 items...                                            
+
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\src\screens\create_promotion_screen.dart:349:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\src\screens\edit_merchant_screen.dart:285:35 - deprecated_member_use
+   info - 'red' is deprecated and shouldn't be used. Use (*.r * 255.0).round().clamp(0, 255) - lib\src\widgets\category_icon.dart:49:66 - deprecated_member_use
+   info - 'green' is deprecated and shouldn't be used. Use (*.g * 255.0).round().clamp(0, 255) - lib\src\widgets\category_icon.dart:49:98 - deprecated_member_use
+   info - 'blue' is deprecated and shouldn't be used. Use (*.b * 255.0).round().clamp(0, 255) - lib\src\widgets\category_icon.dart:49:132 - deprecated_member_use
+
+5 issues found. (ran in 40.8s)

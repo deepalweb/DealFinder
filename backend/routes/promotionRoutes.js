@@ -157,7 +157,7 @@ router.get('/homepage', async (req, res) => {
     ]);
 
     homepageCache = {
-      featured: sections.banner,
+      featured: sections.hotDeals,
       latest: latest.map(sanitizePromotionPayload),
       banner: sections.banner,
       hotDeals: sections.hotDeals,
