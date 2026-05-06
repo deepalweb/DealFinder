@@ -55,7 +55,15 @@ jobs:
 
       - name: Build Android APK
         working-directory: ./mobile_app
-        run: flutter build apk --release
+        run: |
+          BADGER_PATH="$HOME/.pub-cache/hosted/pub.dev/flutter_app_badger-1.5.0/android/build.gradle"
+          if [ -f "$BADGER_PATH" ]; then
+            sed -i '/apply plugin.*com.android.library/a \
+android {\
+    namespace '"'"'fr.g123k.flutterappbadge.flutterappbadger'"'"'' "$BADGER_PATH"
+            sed -i 's/compileSdkVersion 29/compileSdkVersion 33/' "$BADGER_PATH"
+          fi
+          flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
