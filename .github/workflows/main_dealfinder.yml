@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -34,8 +37,15 @@ jobs:
         working-directory: ./backend
         run: npm ci --omit=dev
 
+      - name: Verify Next.js standalone output
+        run: |
+          test -f frontend-next/.next/standalone/server.js
+          test -d frontend-next/.next/static
+
       - name: Build deployment package
         run: |
+          rm -rf deploy deploy.zip
+
           # Create deploy structure
           mkdir -p deploy/frontend-next/.next
 
@@ -57,8 +67,8 @@ jobs:
 
           # Root files
           cp package.json deploy/
-          cp web.config deploy/
-          cp .deployment deploy/
+          cp startup.sh deploy/
+          chmod +x deploy/startup.sh
 
           echo "=== Deploy structure ==="
           echo "Root:"
