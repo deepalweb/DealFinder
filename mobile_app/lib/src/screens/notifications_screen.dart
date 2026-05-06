@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/push_notification_service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -10,22 +11,41 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late Future<List<Map<String, dynamic>>> _notificationsFuture;
+  final ApiService _api = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _notificationsFuture = ApiService().fetchNotifications();
+    _notificationsFuture = _loadNotifications();
+  }
+
+  Future<List<Map<String, dynamic>>> _loadNotifications() async {
+    final notifications = await _api.fetchNotifications();
+    final unreadIds = notifications
+        .where((notification) => notification['read'] != true)
+        .map((notification) => notification['_id'] as String?)
+        .whereType<String>()
+        .toList();
+
+    if (unreadIds.isNotEmpty) {
+      await Future.wait(
+        unreadIds.map((id) => _api.markNotificationAsRead(id).catchError((_) {})),
+      );
+    }
+
+    await PushNotificationService.syncAppIconBadgeWithServer();
+    return await _api.fetchNotifications();
   }
 
   Future<void> _refreshNotifications() async {
     setState(() {
-      _notificationsFuture = ApiService().fetchNotifications();
+      _notificationsFuture = _loadNotifications();
     });
   }
 
   Future<void> _deleteNotification(String id) async {
     try {
-      await ApiService().deleteNotification(id);
+      await _api.deleteNotification(id);
       await _refreshNotifications();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

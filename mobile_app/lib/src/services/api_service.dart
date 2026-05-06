@@ -308,6 +308,48 @@ class ApiService {
     }
   }
 
+  Future<int> fetchUnreadNotificationCount() async {
+    try {
+      final response = await _authGet('${_baseUrl}notifications/unread-count');
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return (data['count'] as num?)?.toInt() ?? 0;
+      }
+      return 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> markNotificationAsRead(String notificationId) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('userToken');
+    var response = await http.patch(
+      Uri.parse('${_baseUrl}notifications/$notificationId/read'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 30));
+
+    if (response.statusCode == 401) {
+      token = await _refreshToken();
+      if (token != null) {
+        response = await http.patch(
+          Uri.parse('${_baseUrl}notifications/$notificationId/read'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        ).timeout(const Duration(seconds: 30));
+      }
+    }
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to mark notification as read');
+    }
+  }
+
   // Fetch all merchants/stores
   Future<List<Map<String, dynamic>>> fetchMerchants(
       {bool forceRefresh = false}) async {

@@ -66,6 +66,7 @@ class AuthService {
 
   static Future<void> signOut() async {
     await PushNotificationService.unsubscribeFromServer();
+    await PushNotificationService.clearAppIconBadge();
     await _auth.signOut();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userToken');

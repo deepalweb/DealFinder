@@ -8,6 +8,7 @@ import '../models/promotion.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/cache_service.dart';
+import '../services/push_notification_service.dart';
 import '../widgets/section_header.dart';
 import '../widgets/home_shimmer.dart';
 import '../widgets/flash_sale_card.dart';
@@ -102,8 +103,9 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadNotificationCount() async {
     if (_userId.isEmpty) return;
     try {
-      final n = await _api.fetchNotifications();
-      if (mounted) setState(() => _notificationCount = n.length);
+      final count = await _api.fetchUnreadNotificationCount();
+      await PushNotificationService.setAppIconBadgeCount(count);
+      if (mounted) setState(() => _notificationCount = count);
     } catch (_) {}
   }
 
@@ -317,7 +319,7 @@ class _HomeScreenState extends State<HomeScreen>
       MaterialPageRoute(
         builder: (_) => const NotificationsScreen(),
       ),
-    );
+    ).then((_) => _loadNotificationCount());
   }
 
   @override
