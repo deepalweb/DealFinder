@@ -3,20 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { PromotionAPI } from '@/lib/api';
+import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
-
-const CATEGORIES = [
-  { id: 'all', name: 'All Deals', icon: 'fa-th-large' },
-  { id: 'fashion', name: 'Fashion', icon: 'fa-tshirt' },
-  { id: 'electronics', name: 'Electronics', icon: 'fa-laptop' },
-  { id: 'food', name: 'Food', icon: 'fa-utensils' },
-  { id: 'travel', name: 'Travel', icon: 'fa-plane' },
-  { id: 'health', name: 'Health', icon: 'fa-heart-pulse' },
-  { id: 'entertainment', name: 'Entertainment', icon: 'fa-gamepad' },
-  { id: 'home', name: 'Home', icon: 'fa-home' },
-];
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest' },
@@ -64,37 +54,19 @@ export default function CategoryPageClient() {
   const [activeOnly, setActiveOnly] = useState(true);
   const [currentTimestamp] = useState(() => Date.now());
 
-  const currentCat = CATEGORIES.find(c => c.id === categoryId) || { name: 'All Deals', icon: 'fa-tag' };
+  const rawCategoryId = typeof categoryId === 'string' ? categoryId : 'all';
+  const currentCategoryId = normalizeCategoryId(rawCategoryId);
+  const currentCat = DEALFINDER_CATEGORIES.find((c) => c.id === currentCategoryId) || { id: currentCategoryId, name: 'All Deals', icon: 'fa-tag' };
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
 
     for (const promotion of promotions) {
-      const key = promotion.category || 'other';
+      const key = normalizeCategoryId(promotion.category);
       counts.set(key, (counts.get(key) || 0) + 1);
     }
 
     return counts;
   }, [promotions]);
-
-  const quickStats = useMemo(() => {
-    const liveDeals = promotions.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
-    const visibleDeals = categoryId === 'all'
-      ? liveDeals
-      : liveDeals.filter((promotion) => promotion.category === categoryId);
-    const merchantCount = new Set(visibleDeals.map((promotion) => getMerchantName(promotion))).size;
-    const featuredCount = visibleDeals.filter((promotion) => promotion.featured).length;
-    const endingSoonCount = visibleDeals.filter((promotion) => {
-      const timeLeft = getDateValue(promotion.endDate) - currentTimestamp;
-      return timeLeft >= 0 && timeLeft <= 3 * 24 * 60 * 60 * 1000;
-    }).length;
-
-    return [
-      { label: 'Live deals', value: visibleDeals.length },
-      { label: 'Merchants', value: merchantCount },
-      { label: 'Featured', value: featuredCount },
-      { label: 'Ending soon', value: endingSoonCount },
-    ];
-  }, [categoryId, currentTimestamp, promotions]);
 
   useEffect(() => {
     PromotionAPI.getAll().then(data => {
@@ -102,26 +74,39 @@ export default function CategoryPageClient() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const filtered = useMemo(() => {
-    let result = [...promotions];
-    if (categoryId !== 'all') result = result.filter(p => p.category === categoryId);
-    if (activeOnly) result = result.filter(p => getDateValue(p.endDate) >= currentTimestamp);
-    if (searchTerm) {
-      const t = searchTerm.toLowerCase();
-      result = result.filter(p =>
-        p.title?.toLowerCase().includes(t) ||
-        p.description?.toLowerCase().includes(t) ||
-        getMerchantName(p).toLowerCase().includes(t)
-      );
-    }
-    if (sortBy === 'newest') result.sort((a, b) => getDateValue(b.createdAt) - getDateValue(a.createdAt));
-    else if (sortBy === 'ending-soon') result.sort((a, b) => getDateValue(a.endDate) - getDateValue(b.endDate));
-    else if (sortBy === 'highest-discount') result.sort((a, b) => getDiscountValue(b.discount) - getDiscountValue(a.discount));
-    else if (sortBy === 'merchant') result.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
-    return result;
-  }, [promotions, categoryId, searchTerm, sortBy, activeOnly, currentTimestamp]);
+  const liveDeals = promotions.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
+  const visibleDeals = currentCategoryId === 'all'
+    ? liveDeals
+    : liveDeals.filter((promotion) => normalizeCategoryId(promotion.category) === currentCategoryId);
+  const quickStats = [
+    { label: 'Live deals', value: visibleDeals.length },
+    { label: 'Merchants', value: new Set(visibleDeals.map((promotion) => getMerchantName(promotion))).size },
+    { label: 'Featured', value: visibleDeals.filter((promotion) => promotion.featured).length },
+    {
+      label: 'Ending soon',
+      value: visibleDeals.filter((promotion) => {
+        const timeLeft = getDateValue(promotion.endDate) - currentTimestamp;
+        return timeLeft >= 0 && timeLeft <= 3 * 24 * 60 * 60 * 1000;
+      }).length,
+    },
+  ];
 
-  const featuredVisible = filtered.filter((promotion) => promotion.featured).length;
+  let filtered = [...promotions];
+  if (currentCategoryId !== 'all') filtered = filtered.filter((promotion) => normalizeCategoryId(promotion.category) === currentCategoryId);
+  if (activeOnly) filtered = filtered.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
+  if (searchTerm) {
+    const normalizedSearchTerm = searchTerm.toLowerCase();
+    filtered = filtered.filter((promotion) =>
+      promotion.title?.toLowerCase().includes(normalizedSearchTerm) ||
+      promotion.description?.toLowerCase().includes(normalizedSearchTerm) ||
+      getMerchantName(promotion).toLowerCase().includes(normalizedSearchTerm)
+    );
+  }
+  if (sortBy === 'newest') filtered.sort((a, b) => getDateValue(b.createdAt) - getDateValue(a.createdAt));
+  else if (sortBy === 'ending-soon') filtered.sort((a, b) => getDateValue(a.endDate) - getDateValue(b.endDate));
+  else if (sortBy === 'highest-discount') filtered.sort((a, b) => getDiscountValue(b.discount) - getDiscountValue(a.discount));
+  else if (sortBy === 'merchant') filtered.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
+
   const showingLabel = loading
     ? 'Loading deals...'
     : `${filtered.length} result${filtered.length === 1 ? '' : 's'}${searchTerm ? ` for "${searchTerm}"` : ''}`;
@@ -131,10 +116,10 @@ export default function CategoryPageClient() {
       <HeroSection
         icon={currentCat.icon}
         title={currentCat.name}
-        subtitle={categoryId === 'all'
+        subtitle={currentCategoryId === 'all'
           ? 'Browse the full marketplace with better sorting, quicker scanning, and fewer dead ends.'
-          : `Explore ${currentCat.name.toLowerCase()} offers with live filters and faster comparison.`}
-        gradient="linear-gradient(135deg, rgba(8,17,33,0.96) 0%, rgba(29,78,216,0.92) 48%, rgba(245,158,11,0.82) 100%)"
+          : `Explore ${currentCat.name.toLowerCase()} offers with local urgency, smarter filtering, and faster comparison.`}
+        gradient="linear-gradient(135deg, rgba(36,20,95,0.96) 0%, rgba(79,42,232,0.92) 48%, rgba(59,130,246,0.82) 100%)"
         bgImage="https://images.unsplash.com/photo-1481437156560-3205f6a55735?auto=format&fit=crop&w=1600&q=80"
         minHeight="320px"
       >
@@ -199,13 +184,13 @@ export default function CategoryPageClient() {
           </div>
           <div className="stat-tile" style={{ padding: '1rem 1.1rem' }}>
             <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--highlight-color)' }}>
-              Featured in view
+              Ending soon
             </div>
             <div style={{ marginTop: '0.35rem', fontSize: '1.6rem', fontWeight: 800 }}>
-              {loading ? '--' : featuredVisible}
+              {loading ? '--' : quickStats.find((stat) => stat.label === 'Ending soon')?.value}
             </div>
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Highlighted deals inside the current result set
+              Deals that need quick action
             </div>
           </div>
         </div>
@@ -213,11 +198,11 @@ export default function CategoryPageClient() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
-          {CATEGORIES.map(cat => (
+          {DEALFINDER_CATEGORIES.filter((cat) => cat.id !== 'other').map(cat => (
             <button
               key={cat.id}
               onClick={() => router.push(`/categories/${cat.id}`)}
-              className={`category-item ${categoryId === cat.id ? 'active' : ''}`}
+              className={`category-item ${currentCategoryId === cat.id ? 'active' : ''}`}
               style={{ flexShrink: 0 }}
             >
               <i className={`fas ${cat.icon}`}></i>
@@ -227,8 +212,8 @@ export default function CategoryPageClient() {
                   marginLeft: '0.2rem',
                   padding: '0.15rem 0.45rem',
                   borderRadius: '999px',
-                  background: categoryId === cat.id ? 'rgba(255,255,255,0.2)' : 'rgba(37,99,235,0.08)',
-                  color: categoryId === cat.id ? '#fff' : 'var(--primary-color)',
+                  background: currentCategoryId === cat.id ? 'rgba(255,255,255,0.2)' : 'rgba(108,59,255,0.08)',
+                  color: currentCategoryId === cat.id ? '#fff' : 'var(--primary-color)',
                   fontSize: '0.72rem',
                   fontWeight: 700,
                 }}

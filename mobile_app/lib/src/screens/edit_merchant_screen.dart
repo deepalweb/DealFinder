@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:io';
+import '../models/category.dart';
 import '../services/api_service.dart';
 import '../services/image_helper.dart';
 
@@ -51,19 +52,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   double? _latitude;
   double? _longitude;
 
-  final List<Map<String, String>> _categories = const [
-    {'id': 'fashion', 'label': 'Fashion'},
-    {'id': 'electronics', 'label': 'Electronics'},
-    {'id': 'travel', 'label': 'Travel'},
-    {'id': 'health', 'label': 'Health'},
-    {'id': 'entertainment', 'label': 'Entertainment'},
-    {'id': 'home', 'label': 'Home'},
-    {'id': 'pets', 'label': 'Pets'},
-    {'id': 'food', 'label': 'Food'},
-    {'id': 'education', 'label': 'Education'},
-    {'id': 'other', 'label': 'Other'},
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -83,7 +71,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
       _profileController.text =
           widget.merchantData!['profile'] ?? widget.merchantData!['description'] ?? '';
       _categoryController.text =
-          (widget.merchantData!['category'] ?? '').toString().toLowerCase();
+          normalizeCategoryId(widget.merchantData!['category']?.toString());
       _websiteController.text = widget.merchantData!['website'] ?? '';
       _contactInfoController.text = widget.merchantData!['contactInfo'] ?? '';
       _contactNumberController.text =
@@ -194,7 +182,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         'name': _nameController.text.trim(),
         'profile': _profileController.text.trim(),
         'description': _profileController.text.trim(),
-        'category': _categoryController.text.trim(),
+        'category': normalizeCategoryId(_categoryController.text.trim()),
         'website': _websiteController.text.trim(),
         'contactInfo': _contactInfoController.text.trim(),
         'contactNumber': _contactNumberController.text.trim(),
@@ -385,10 +373,10 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
               ),
               prefixIcon: const Icon(Icons.category),
             ),
-            items: _categories.map((category) {
+            items: predefinedCategories.map((category) {
               return DropdownMenuItem(
-                value: category['id'],
-                child: Text(category['label']!),
+                value: category.id,
+                child: Text(category.name),
               );
             }).toList(),
             onChanged: (value) {

@@ -24,6 +24,9 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
   const expiryText = daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Ends today' : `${daysLeft}d left`;
   const coords = promotion.merchant?.location?.coordinates;
   const directionsUrl = coords ? `https://www.google.com/maps/dir/?api=1&destination=${coords[1]},${coords[0]}` : null;
+  const urgencyText = daysLeft < 0 ? 'Expired' : daysLeft <= 1 ? 'Ending soon' : 'Live now';
+  const urgencyBg = daysLeft <= 1 ? 'var(--danger-soft)' : 'rgba(34,197,94,0.1)';
+  const urgencyColor = daysLeft <= 1 ? 'var(--danger-color)' : 'var(--success-color)';
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -57,6 +60,27 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')} />
         <div className="discount-badge" style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', border: '1px solid rgba(255,255,255,0.24)' }}>
           {promotion.discount} OFF
+        </div>
+        <div
+          style={{
+            position: 'absolute',
+            right: '0.75rem',
+            bottom: '0.75rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            padding: '0.32rem 0.58rem',
+            borderRadius: '999px',
+            background: urgencyBg,
+            color: urgencyColor,
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.34)',
+          }}
+        >
+          <i className={`fas ${daysLeft <= 1 ? 'fa-fire' : 'fa-bolt'}`}></i>
+          {urgencyText}
         </div>
       </div>
 
@@ -95,23 +119,23 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
             <a href={directionsUrl} target="_blank" rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
               className="btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', border: '1.5px solid rgba(22,163,74,0.28)', background: 'var(--success-soft)', color: 'var(--success-color)' }}>
-              <i className="fas fa-directions"></i> Directions
+              <i className="fas fa-location-dot"></i> View Nearby
             </a>
           ) : (
             <button disabled style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem', border: '1.5px solid var(--border-color)', background: 'var(--light-gray)', color: 'var(--text-secondary)', borderRadius: '0.625rem', cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.3rem', opacity: 0.5 }}>
-              <i className="fas fa-directions"></i> Directions
+              <i className="fas fa-location-dot"></i> View Nearby
             </button>
           )}
           {promotion.url ? (
             <a href={promotion.url} target="_blank" rel="noopener noreferrer"
               onClick={e => { e.stopPropagation(); PromotionAPI.recordClick(id, { type: 'click' }).catch(() => {}); }}
               className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem' }}>
-              <i className="fas fa-external-link-alt"></i> View Deal
+              <i className="fas fa-bolt"></i> Get Deal
             </a>
           ) : (
             <button onClick={handleClick}
               className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '0.4rem 0.5rem' }}>
-              <i className="fas fa-eye"></i> View Deal
+              <i className="fas fa-bolt"></i> Get Deal
             </button>
           )}
         </div>

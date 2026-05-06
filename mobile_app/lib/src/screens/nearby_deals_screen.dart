@@ -10,6 +10,7 @@ import '../models/promotion.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
 import '../services/background_location_service.dart';
+import '../services/search_matcher.dart';
 import 'deal_detail_screen.dart';
 
 class NearbyDealsScreen extends StatefulWidget {
@@ -242,23 +243,17 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   List<Promotion> get _filteredDeals {
-    final term = _searchController.text.trim().toLowerCase();
+    final term = _searchController.text.trim();
     final now = DateTime.now();
 
     final filtered = _nearbyDeals.where((deal) {
-      final category = deal.category?.toLowerCase() ?? '';
-      final title = deal.title.toLowerCase();
-      final merchant = (deal.merchantName ?? '').toLowerCase();
-
-      final matchesSearch = term.isEmpty ||
-          title.contains(term) ||
-          merchant.contains(term) ||
-          category.contains(term);
+      final normalizedCategory = SearchMatcher.normalizeCategory(deal.category);
+      final matchesSearch = term.isEmpty || SearchMatcher.matchesPromotion(deal, term);
 
       final matchesFilter = switch (_activeFilter) {
-        'food' => category.contains('food'),
-        'electronics' => category.contains('electronic'),
-        'fashion' => category.contains('fashion'),
+        'food' => normalizedCategory == 'food_bev',
+        'electronics' => normalizedCategory == 'electronics',
+        'fashion' => normalizedCategory == 'fashion',
         'discount50' => _extractDiscount(deal.discount) >= 50,
         'ending' => deal.endDate != null && deal.endDate!.difference(now).inHours <= 24,
         _ => true,
@@ -1184,7 +1179,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     controller: _searchController,
                     onChanged: (_) => setState(_focusFirstMapDeal),
                     decoration: InputDecoration(
-                      hintText: 'Search nearby deals...',
+                      hintText: 'Search nearby deals or Sinhala like කෑම...',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchController.text.isEmpty
                           ? null

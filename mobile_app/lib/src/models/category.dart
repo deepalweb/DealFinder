@@ -15,6 +15,28 @@ class Category {
   });
 }
 
+String normalizeCategoryId(String? rawCategory) {
+  final value = (rawCategory ?? '').trim().toLowerCase();
+  switch (value) {
+    case 'food':
+    case 'food bev':
+    case 'food beverage':
+      return 'food_bev';
+    case 'health':
+    case 'beauty':
+    case 'beauty and health':
+      return 'beauty_health';
+    case 'home':
+    case 'garden':
+    case 'home and garden':
+      return 'home_garden';
+    case 'service':
+      return 'services';
+    default:
+      return value;
+  }
+}
+
 // Predefined list of categories (as per user decision)
 // In a real app, this might come from an API or a more dynamic source.
 final List<Category> predefinedCategories = [
@@ -26,8 +48,37 @@ final List<Category> predefinedCategories = [
   Category(id: 'beauty_health', name: 'Beauty & Health', localIconPath: 'assets/icons/health.svg'),
   Category(id: 'entertainment', name: 'Entertainment', localIconPath: 'assets/icons/entertainment.svg'),
   Category(id: 'services', name: 'Services', localIconPath: 'assets/icons/services.svg'),
+  Category(id: 'pets', name: 'Pets', localIconPath: 'assets/icons/other.svg'),
+  Category(id: 'education', name: 'Education', localIconPath: 'assets/icons/other.svg'),
   Category(id: 'other', name: 'Other', localIconPath: 'assets/icons/other.svg'),
 ];
+
+Category? findCategory(String? categoryId) {
+  final normalized = normalizeCategoryId(categoryId);
+  for (final category in predefinedCategories) {
+    if (category.id == normalized) {
+      return category;
+    }
+  }
+  return null;
+}
+
+String getCategoryLabel(String? categoryId) {
+  final category = findCategory(categoryId);
+  if (category != null) {
+    return category.name;
+  }
+
+  final normalized = normalizeCategoryId(categoryId);
+  if (normalized.isEmpty) {
+    return 'Other';
+  }
+
+  return normalized
+      .split('_')
+      .map((part) => part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
+      .join(' ');
+}
 
 // Note: For localIconPath to work, you'd need to:
 // 1. Create an `assets/icons/` folder in your Flutter project root.

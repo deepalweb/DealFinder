@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { DEALFINDER_CATEGORIES, getCategoryIcon, getCategoryLabel, normalizeCategoryId } from '@/lib/categories';
 import { MerchantAPI } from '@/lib/api';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
@@ -21,13 +22,7 @@ type Merchant = {
 
 const CATEGORIES = [
   { id: 'all', name: 'All Stores', icon: 'fa-layer-group' },
-  { id: 'fashion', name: 'Fashion', icon: 'fa-shirt' },
-  { id: 'electronics', name: 'Electronics', icon: 'fa-laptop' },
-  { id: 'food', name: 'Food', icon: 'fa-utensils' },
-  { id: 'travel', name: 'Travel', icon: 'fa-plane' },
-  { id: 'health', name: 'Health', icon: 'fa-heart-pulse' },
-  { id: 'entertainment', name: 'Entertainment', icon: 'fa-gamepad' },
-  { id: 'home', name: 'Home', icon: 'fa-house' },
+  ...DEALFINDER_CATEGORIES.filter((category) => !['all', 'other'].includes(category.id)),
 ];
 
 const SORT_OPTIONS = [
@@ -36,17 +31,6 @@ const SORT_OPTIONS = [
   { id: 'a-z', label: 'Name A-Z' },
 ];
 
-const CAT_ICONS: Record<string, string> = {
-  fashion: 'fa-shirt',
-  electronics: 'fa-laptop',
-  travel: 'fa-plane',
-  health: 'fa-heart-pulse',
-  entertainment: 'fa-gamepad',
-  home: 'fa-house',
-  pets: 'fa-paw',
-  food: 'fa-utensils',
-};
-
 function getMerchantId(merchant: Merchant) {
   return merchant._id || merchant.id || '';
 }
@@ -54,11 +38,6 @@ function getMerchantId(merchant: Merchant) {
 function getSafeLogo(logo?: string, name?: string) {
   if (logo && (logo.startsWith('data:image') || logo.startsWith('http'))) return logo;
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=300`;
-}
-
-function getCategoryLabel(category?: string) {
-  if (!category) return 'Other';
-  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 export default function MerchantsPageClient() {
@@ -78,7 +57,7 @@ export default function MerchantsPageClient() {
     const counts = new Map<string, number>();
 
     for (const merchant of merchants) {
-      const key = merchant.category || 'other';
+      const key = normalizeCategoryId(merchant.category);
       counts.set(key, (counts.get(key) || 0) + 1);
     }
 
@@ -89,7 +68,7 @@ export default function MerchantsPageClient() {
     let result = [...merchants];
 
     if (selectedCat !== 'all') {
-      result = result.filter((merchant) => merchant.category === selectedCat);
+      result = result.filter((merchant) => normalizeCategoryId(merchant.category) === selectedCat);
     }
 
     if (searchTerm.trim()) {
@@ -136,7 +115,7 @@ export default function MerchantsPageClient() {
         titleAccent="Checking First"
         subtitle="Find the merchants with the strongest live offers, clearer category signals, and faster paths to the deals that matter."
         bgImage="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=60"
-        gradient="linear-gradient(135deg, rgba(8,17,33,0.96) 0%, rgba(29,78,216,0.9) 54%, rgba(245,158,11,0.8) 100%)"
+        gradient="linear-gradient(135deg, rgba(36,20,95,0.96) 0%, rgba(79,42,232,0.9) 54%, rgba(59,130,246,0.8) 100%)"
         minHeight="320px"
       >
         <div
@@ -179,7 +158,7 @@ export default function MerchantsPageClient() {
           ></i>
           <input
             type="text"
-            placeholder="Search stores, categories, or merchant types..."
+            placeholder="Search stores, nearby brands, or category types..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -435,7 +414,7 @@ export default function MerchantsPageClient() {
                             {merchant.name}
                           </h3>
                           <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-                            <i className={`fas ${CAT_ICONS[merchant.category || ''] || 'fa-store'}`}></i>
+                            <i className={`fas ${getCategoryIcon(merchant.category) || 'fa-store'}`}></i>
                             <span>{getCategoryLabel(merchant.category)}</span>
                           </div>
                         </div>
@@ -502,7 +481,7 @@ export default function MerchantsPageClient() {
                           {merchant.name}
                         </h2>
                         <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
-                          <i className={`fas ${CAT_ICONS[merchant.category || ''] || 'fa-store'}`}></i>
+                          <i className={`fas ${getCategoryIcon(merchant.category) || 'fa-store'}`}></i>
                           <span>{getCategoryLabel(merchant.category)}</span>
                           <span>•</span>
                           <span>{typeof merchant.followers === 'number' ? merchant.followers.toLocaleString() : '0'} followers</span>

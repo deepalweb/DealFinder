@@ -16,16 +16,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - name: Inject google-services.json from secret
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > mobile_app/android/app/google-services.json
-
-      - name: Inject .env from secret
-        run: echo '${{ secrets.MOBILE_ENV }}' > mobile_app/.env
+      - name: Generate mobile secret files
+        run: npm run mobile:secrets
+        env:
+          MOBILE_APP_ENV_CONTENT: ${{ secrets.MOBILE_ENV }}
+          GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+          FIREBASE_PROJECT_NUMBER: ${{ secrets.FIREBASE_PROJECT_NUMBER }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          FIREBASE_ANDROID_PACKAGE_NAME: ${{ secrets.FIREBASE_ANDROID_PACKAGE_NAME }}
+          FIREBASE_IOS_APP_ID: ${{ secrets.FIREBASE_IOS_APP_ID }}
+          FIREBASE_IOS_BUNDLE_ID: ${{ secrets.FIREBASE_IOS_BUNDLE_ID }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          GOOGLE_ANDROID_API_KEY: ${{ secrets.GOOGLE_ANDROID_API_KEY }}
+          GOOGLE_IOS_API_KEY: ${{ secrets.GOOGLE_IOS_API_KEY }}
+          GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          MOBILE_API_BASE_URL: ${{ secrets.MOBILE_API_BASE_URL }}
+          MOBILE_PUBLIC_BASE_URL: ${{ secrets.MOBILE_PUBLIC_BASE_URL }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
 
       - name: Install Flutter dependencies
         working-directory: ./mobile_app

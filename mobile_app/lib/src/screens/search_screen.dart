@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/category.dart';
 import '../models/promotion.dart';
-import '../services/api_service.dart';
+import '../services/search_service.dart';
+import '../services/search_matcher.dart';
 import 'deal_detail_screen.dart';
 import '../widgets/deal_card.dart';
 
@@ -34,7 +36,7 @@ class _SearchScreenState extends State<SearchScreen> {
               controller: _searchController,
               autofocus: true,
               decoration: const InputDecoration(
-                hintText: 'Enter product, category, or merchant...',
+                hintText: 'Search deals, stores, or try Sinhala like කෑම, ඇඳුම්...',
               ),
               onSubmitted: (value) {
                 if (value.trim().isNotEmpty) {
@@ -72,7 +74,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   @override
   void initState() {
     super.initState();
-    _futureResults = ApiService().searchPromotions(widget.query);
+    _futureResults = SearchService.performAdvancedSearch(query: widget.query);
     _futureResults.then((data) => setState(() => _results = data));
   }
 
@@ -98,10 +100,15 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           content: DropdownButton<String>(
             value: _selectedCategory,
             isExpanded: true,
-            items: <String?>[null, 'fashion', 'electronics', 'food', 'travel', 'health', 'entertainment', 'home', 'pets']
+            items: <String?>[
+              null,
+              ...predefinedCategories
+                  .where((category) => category.id != 'other')
+                  .map((category) => category.id),
+            ]
                 .map((cat) => DropdownMenuItem(
                       value: cat,
-                      child: Text(cat == null ? 'All' : cat[0].toUpperCase() + cat.substring(1)),
+                      child: Text(cat == null ? 'All' : getCategoryLabel(cat)),
                     ))
                 .toList(),
             onChanged: (value) {
@@ -149,10 +156,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           // Apply filter
           final filtered = _selectedCategory == null
               ? _results
-              : _results.where((p) => p.category == _selectedCategory).toList();
+              : _results
+                  .where((p) =>
+                      SearchMatcher.normalizeCategory(p.category) == _selectedCategory)
+                  .toList();
           return RefreshIndicator(
             onRefresh: () async {
-              setState(() { _futureResults = ApiService().searchPromotions(widget.query); });
+              setState(() { _futureResults = SearchService.performAdvancedSearch(query: widget.query); });
               final data = await _futureResults;
               setState(() => _results = data);
             },

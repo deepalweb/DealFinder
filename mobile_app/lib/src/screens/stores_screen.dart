@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../models/category.dart';
 import '../services/api_service.dart';
 import '../services/merchant_following_manager.dart';
+import '../services/search_matcher.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/merchant_card.dart';
 import '../widgets/merchant_card_shimmer.dart';
@@ -26,16 +28,15 @@ class _StoresScreenState extends State<StoresScreen> {
   String? _error;
   final Set<String> _followingMerchants = {};
 
-  final List<Map<String, String>> _categories = [
+  late final List<Map<String, String>> _categories = [
     {'id': 'all', 'name': 'All', 'icon': 'all_inclusive'},
-    {'id': 'fashion', 'name': 'Fashion', 'icon': 'checkroom'},
-    {'id': 'electronics', 'name': 'Electronics', 'icon': 'devices'},
-    {'id': 'food', 'name': 'Food', 'icon': 'restaurant'},
-    {'id': 'travel', 'name': 'Travel', 'icon': 'flight'},
-    {'id': 'health', 'name': 'Health', 'icon': 'spa'},
-    {'id': 'entertainment', 'name': 'Entertainment', 'icon': 'movie'},
-    {'id': 'home', 'name': 'Home', 'icon': 'home'},
-    {'id': 'pets', 'name': 'Pets', 'icon': 'pets'},
+    ...predefinedCategories
+        .where((category) => category.id != 'other')
+        .map((category) => {
+              'id': category.id,
+              'name': category.name,
+              'icon': category.id,
+            }),
   ];
 
   @override
@@ -87,22 +88,11 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   void _applyFilters() {
-    final term = _searchTerm.trim().toLowerCase();
+    final term = _searchTerm.trim();
     var results = [..._allMerchants];
 
     if (term.isNotEmpty) {
-      results = results.where((merchant) {
-        final name = (merchant['name'] ?? '').toString().toLowerCase();
-        final description =
-            (merchant['description'] ?? merchant['profile'] ?? '')
-                .toString()
-                .toLowerCase();
-        final category =
-            (merchant['category'] ?? '').toString().toLowerCase();
-        return name.contains(term) ||
-            description.contains(term) ||
-            category.contains(term);
-      }).toList();
+      results = results.where((merchant) => SearchMatcher.matchesMerchant(merchant, term)).toList();
     }
 
     if (_selectedCategory != 'all') {
@@ -165,7 +155,7 @@ class _StoresScreenState extends State<StoresScreen> {
       (merchant['id'] ?? merchant['_id'] ?? '').toString();
 
   String _normalizedMerchantCategory(Map<String, dynamic> merchant) =>
-      (merchant['category'] ?? '').toString().trim().toLowerCase();
+      SearchMatcher.normalizeCategory((merchant['category'] ?? '').toString());
 
   List<Map<String, dynamic>> get _featuredMerchants {
     final ranked = [..._allMerchants];
@@ -502,7 +492,7 @@ class _StoresScreenState extends State<StoresScreen> {
       ),
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Search stores, categories, or vibes',
+          hintText: 'Search stores or try Sinhala like කෑම, ඉලෙක්ට්‍රොනික්',
           hintStyle: TextStyle(color: Colors.grey[400]),
           prefixIcon: const Icon(Icons.search, color: Color(0xFF8B97A8)),
           suffixIcon: _searchTerm.isNotEmpty

@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
+import '../models/category.dart';
 
 IconData getCategoryIcon(String category) {
-  switch (category.toLowerCase()) {
+  switch (normalizeCategoryId(category)) {
     case 'fashion':
       return Icons.checkroom;
     case 'electronics':
       return Icons.devices;
-    case 'food':
+    case 'food_bev':
       return Icons.restaurant;
     case 'travel':
       return Icons.flight;
-    case 'health':
+    case 'beauty_health':
       return Icons.local_hospital;
     case 'entertainment':
       return Icons.movie;
-    case 'home':
+    case 'home_garden':
       return Icons.home;
+    case 'services':
+      return Icons.build;
     case 'pets':
       return Icons.pets;
+    case 'education':
+      return Icons.school;
     default:
       return Icons.store;
   }

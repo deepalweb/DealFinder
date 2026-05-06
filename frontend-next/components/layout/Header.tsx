@@ -135,7 +135,7 @@ export default function Header() {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  Search-first deal discovery
+                  Find the best deals near you
                 </span>
               </span>
             </Link>
@@ -162,7 +162,7 @@ export default function Header() {
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') submitSearch();
                   }}
-                  placeholder="Search deals..."
+                  placeholder="Search deals, stores, or nearby offers"
                   style={{
                     flex: 1,
                     minWidth: 0,
@@ -204,9 +204,9 @@ export default function Header() {
                       fontSize: '0.9rem',
                       fontWeight: 700,
                       color: active ? '#0f172a' : 'var(--text-secondary)',
-                      background: active ? 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.14), rgba(245,158,11,0.16))' : 'transparent',
-                      border: active ? '1px solid rgba(37,99,235,0.18)' : '1px solid transparent',
-                      boxShadow: active ? '0 10px 20px rgba(37,99,235,0.12)' : 'none',
+                      background: active ? 'linear-gradient(135deg, rgba(108,59,255,0.16), rgba(59,130,246,0.14))' : 'transparent',
+                      border: active ? '1px solid rgba(108,59,255,0.18)' : '1px solid transparent',
+                      boxShadow: active ? '0 10px 20px rgba(108,59,255,0.12)' : 'none',
                     }}
                   >
                     <i className={`fas ${icon}`} style={{ color: active ? 'var(--primary-color)' : 'var(--text-secondary)' }}></i>
@@ -390,7 +390,7 @@ export default function Header() {
                       boxShadow: '0 14px 28px rgba(37,99,235,0.2)',
                     }}
                   >
-                    Create Account
+                    Grab Deals
                   </Link>
                 </div>
               )}
@@ -482,7 +482,7 @@ export default function Header() {
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') submitSearch();
                   }}
-                  placeholder="Search deals..."
+                  placeholder="Search deals, stores, or nearby offers"
                   style={{
                     flex: 1,
                     minWidth: 0,
@@ -570,7 +570,7 @@ export default function Header() {
                       padding: '0.9rem 1rem',
                     }}
                   >
-                    Sign Up
+                    Grab Deals
                   </Link>
                 </div>
               )}

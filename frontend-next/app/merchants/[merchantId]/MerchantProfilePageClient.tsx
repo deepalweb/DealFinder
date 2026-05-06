@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { getCategoryIcon, getCategoryLabel } from '@/lib/categories';
 import { MerchantAPI, PromotionAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
@@ -12,6 +13,7 @@ export default function MerchantProfilePageClient() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('active');
   const [isFollowing, setIsFollowing] = useState(false);
+  const [renderedAt] = useState(() => Date.now());
 
   useEffect(() => {
     Promise.all([MerchantAPI.getById(merchantId), PromotionAPI.getByMerchant(merchantId)])
@@ -29,10 +31,18 @@ export default function MerchantProfilePageClient() {
     toast.success(next ? 'Following!' : 'Unfollowed');
   };
 
-  const filtered = promotions.filter(p => activeTab === 'active' ? new Date(p.endDate) >= new Date() : new Date(p.endDate) < new Date());
+  const getPromotionTime = (endDate?: string) => {
+    if (!endDate) return 0;
+    const time = new Date(endDate).getTime();
+    return Number.isFinite(time) ? time : 0;
+  };
+  const isPromotionActive = (promotion: any) => getPromotionTime(promotion.endDate) >= renderedAt;
+  const isEndingSoon = (promotion: any) => {
+    const endTime = getPromotionTime(promotion.endDate);
+    return endTime >= renderedAt && endTime <= renderedAt + 86400000;
+  };
+  const filtered = promotions.filter((promotion) => activeTab === 'active' ? isPromotionActive(promotion) : !isPromotionActive(promotion));
   const getSafeLogo = (logo: string, name: string) => (logo && (logo.startsWith('data:') || logo.startsWith('http'))) ? logo : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=300`;
-  const CAT_ICONS: Record<string, string> = { fashion: 'fa-tshirt', electronics: 'fa-laptop', travel: 'fa-plane', health: 'fa-heart-pulse', entertainment: 'fa-gamepad', home: 'fa-home', food: 'fa-utensils' };
-
   if (loading) return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="skeleton" style={{ height: '220px', borderRadius: '1rem', marginBottom: '1.5rem' }}></div>
@@ -44,17 +54,21 @@ export default function MerchantProfilePageClient() {
 
   return (
     <div>
-      <div style={{ height: '220px', backgroundImage: merchant.banner ? `url(${merchant.banner})` : 'linear-gradient(135deg,#6366f1,#8b5cf6,#f43f5e)', backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)' }}></div>
+      <div style={{ height: '260px', backgroundImage: merchant.banner ? `url(${merchant.banner})` : 'linear-gradient(135deg,#6c3bff,#3b82f6,#22c55e)', backgroundSize: 'cover', backgroundPosition: 'center', position: 'relative' }}>
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(15,23,42,0.22), rgba(15,23,42,0.7))' }}></div>
         <div className="max-w-7xl mx-auto px-4 h-full flex items-end pb-6" style={{ position: 'relative' }}>
           <div className="flex items-center gap-4">
             <img src={getSafeLogo(merchant.logo, merchant.name)} alt={merchant.name} style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid #fff', objectFit: 'cover', flexShrink: 0 }} />
             <div>
+              <div className="page-eyebrow" style={{ background: 'rgba(255,255,255,0.14)', borderColor: 'rgba(255,255,255,0.16)', color: '#fff', marginBottom: '0.55rem' }}>
+                <i className="fas fa-store"></i>
+                Local merchant
+              </div>
               <h1 style={{ color: '#fff', fontSize: '1.75rem', fontWeight: 800, margin: 0 }}>{merchant.name}</h1>
               <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.875rem', display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
-                <i className={`fas ${CAT_ICONS[merchant.category] || 'fa-store'}`}></i>
-                <span>{merchant.category || 'Other'}</span><span>•</span>
-                <span>{promotions.filter(p => new Date(p.endDate) >= new Date()).length} active deals</span>
+                <i className={`fas ${getCategoryIcon(merchant.category) || 'fa-store'}`}></i>
+                <span>{getCategoryLabel(merchant.category)}</span><span>•</span>
+                <span>{promotions.filter((promotion) => isPromotionActive(promotion)).length} active deals</span>
               </div>
             </div>
           </div>
@@ -68,6 +82,16 @@ export default function MerchantProfilePageClient() {
               <button onClick={handleFollow} className="btn w-full mb-4" style={{ width: '100%', justifyContent: 'center', background: isFollowing ? 'var(--light-gray)' : 'linear-gradient(135deg,var(--primary-color),var(--primary-dark))', color: isFollowing ? 'var(--text-primary)' : '#fff', border: isFollowing ? '1.5px solid var(--border-color)' : 'none' }}>
                 <i className={`fas ${isFollowing ? 'fa-user-check' : 'fa-user-plus'}`}></i> {isFollowing ? 'Following' : 'Follow Store'}
               </button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+                <div className="stat-tile" style={{ padding: '0.9rem' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>{promotions.filter((promotion) => isPromotionActive(promotion)).length}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Live deals</div>
+                </div>
+                <div className="stat-tile" style={{ padding: '0.9rem' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 900 }}>{getCategoryLabel(merchant.category)}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Category</div>
+                </div>
+              </div>
               {merchant.description && <><p style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>About</p><p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1rem' }}>{merchant.description}</p></>}
               {merchant.website && merchant.website !== '#' && <a href={merchant.website} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.825rem', color: 'var(--primary-color)', display: 'flex', alignItems: 'center', gap: '0.35rem', textDecoration: 'none' }}><i className="fas fa-external-link-alt"></i> Visit Website</a>}
             </div>
@@ -78,7 +102,7 @@ export default function MerchantProfilePageClient() {
               <div className="flex gap-1 mb-5 p-1 rounded-xl" style={{ background: 'var(--light-gray)', width: 'fit-content' }}>
                 {['active', 'expired'].map(tab => (
                   <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '0.4rem 1.25rem', borderRadius: '0.625rem', fontSize: '0.875rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: activeTab === tab ? 'var(--card-bg)' : 'transparent', color: activeTab === tab ? 'var(--primary-color)' : 'var(--text-secondary)', boxShadow: activeTab === tab ? 'var(--box-shadow)' : 'none' }}>
-                    {tab === 'active' ? '✅ Active' : '⏰ Expired'} ({promotions.filter(p => tab === 'active' ? new Date(p.endDate) >= new Date() : new Date(p.endDate) < new Date()).length})
+                    {tab === 'active' ? '🔥 Active' : '⏰ Expired'} ({promotions.filter((promotion) => tab === 'active' ? isPromotionActive(promotion) : !isPromotionActive(promotion)).length})
                   </button>
                 ))}
               </div>
@@ -94,6 +118,10 @@ export default function MerchantProfilePageClient() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <code className="promo-code">{p.code}</code>
                             <span className="discount-badge" style={{ position: 'static', fontSize: '0.75rem' }}>{p.discount} OFF</span>
+                            <span className="status-chip" style={{ background: isEndingSoon(p) ? 'var(--danger-soft)' : 'rgba(34,197,94,0.1)', color: isEndingSoon(p) ? 'var(--danger-color)' : 'var(--success-color)' }}>
+                              <i className={`fas ${isEndingSoon(p) ? 'fa-fire' : 'fa-bolt'}`}></i>
+                              {isEndingSoon(p) ? 'Ending soon' : 'Live now'}
+                            </span>
                           </div>
                         </div>
                         {p.image && <img src={p.image} alt={p.title} style={{ width: '64px', height: '64px', borderRadius: '0.5rem', objectFit: 'cover', flexShrink: 0 }} />}

@@ -53,12 +53,12 @@ export default function Footer() {
               </span>
               <div>
                 <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#fff' }}>DealFinder</div>
-                <div style={{ fontSize: '0.8rem', color: '#9fb3c8' }}>Deals, nearby offers, and smarter browsing</div>
+                <div style={{ fontSize: '0.8rem', color: '#9fb3c8' }}>Find the best deals near you — instantly</div>
               </div>
             </div>
 
             <p style={{ margin: 0, marginBottom: '1rem', lineHeight: 1.7, color: '#b8c7d8', fontSize: '0.92rem' }}>
-              Find current promotions faster, compare nearby options, and keep your shopping flow focused instead of scattered.
+              Fast, smart, and local-first deal discovery built for shoppers in Sri Lanka.
             </p>
 
             <div className="grid grid-cols-1 gap-2" style={{ fontSize: '0.88rem' }}>
@@ -121,7 +121,7 @@ export default function Footer() {
           >
             <div style={{ fontWeight: 800, color: '#fff', marginBottom: '0.7rem', fontSize: '1rem' }}>Stay in the loop</div>
             <p style={{ margin: 0, marginBottom: '1rem', lineHeight: 1.7, color: '#d7e3f0', fontSize: '0.9rem' }}>
-              Save the offers you care about and check back for the latest featured promotions and nearby picks.
+              Save offers, track urgency, and come back to the best local deals before they disappear.
             </p>
             <div className="flex flex-wrap gap-2">
               <Link
@@ -134,7 +134,7 @@ export default function Footer() {
                   padding: '0.85rem 1rem',
                 }}
               >
-                Create Free Account
+                Save Offers
               </Link>
               <Link
                 href="/categories/all"
@@ -146,7 +146,7 @@ export default function Footer() {
                   padding: '0.85rem 1rem',
                 }}
               >
-                Browse Deals
+                View Nearby
               </Link>
             </div>
           </section>
@@ -164,7 +164,7 @@ export default function Footer() {
           }}
         >
           <div style={{ color: '#8ca0b5', fontSize: '0.82rem' }}>
-            Copyright {new Date().getFullYear()} DealFinder. Built for cleaner deal discovery.
+            Copyright {new Date().getFullYear()} DealFinder. Fast local savings, without the clutter.
           </div>
           <div className="flex items-center gap-2">
             {socialLinks.map((social) => (

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { DEALFINDER_CATEGORIES, getCategoryLabel, normalizeCategoryId } from '@/lib/categories';
 import { PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 
 type Promotion = {
@@ -31,16 +32,13 @@ type Promotion = {
 
 type FavoritePromotion = Promotion;
 
-const CATEGORIES = [
-  { id: 'electronics', name: 'Electronics', icon: 'fa-laptop' },
-  { id: 'fashion', name: 'Fashion', icon: 'fa-shirt' },
-  { id: 'food', name: 'Food', icon: 'fa-utensils' },
-  { id: 'travel', name: 'Travel', icon: 'fa-plane' },
-  { id: 'health', name: 'Health', icon: 'fa-heart-pulse' },
-  { id: 'home', name: 'Home', icon: 'fa-house' },
-  { id: 'entertainment', name: 'Entertainment', icon: 'fa-gamepad' },
-  { id: 'all', name: 'More', icon: 'fa-ellipsis' },
-];
+const CATEGORIES = DEALFINDER_CATEGORIES.filter((category) =>
+  ['electronics', 'fashion', 'food_bev', 'travel', 'beauty_health', 'home_garden', 'entertainment', 'all'].includes(category.id)
+).map((category) => ({
+  id: category.id,
+  name: category.id === 'all' ? 'More' : category.name,
+  icon: category.icon,
+}));
 
 function getPromotionId(promotion: Promotion) {
   return promotion._id || promotion.id || '';
@@ -77,7 +75,7 @@ function scoreRecommendation(
   let score = 0;
 
   if (promotion.featured) score += 30;
-  if (favoriteCategories.has(promotion.category || '')) score += 35;
+  if (favoriteCategories.has(normalizeCategoryId(promotion.category || ''))) score += 35;
   if (favoriteMerchantIds.has(getMerchantId(promotion))) score += 40;
   score += Math.min(getDiscountValue(promotion.discount), 60);
 
@@ -273,7 +271,7 @@ export default function HomePage() {
   );
 
   const favoriteCategories = useMemo(
-    () => new Set(favoriteDeals.map((promotion) => promotion.category || '')),
+    () => new Set(favoriteDeals.map((promotion) => normalizeCategoryId(promotion.category || ''))),
     [favoriteDeals]
   );
 
@@ -366,7 +364,7 @@ export default function HomePage() {
           position: 'relative',
           overflow: 'hidden',
           background:
-            'radial-gradient(circle at top left, rgba(245,158,11,0.18), transparent 24%), radial-gradient(circle at top right, rgba(37,99,235,0.22), transparent 30%), linear-gradient(135deg, #07111f 0%, #0f2f5b 48%, #173f78 100%)',
+            'radial-gradient(circle at top left, rgba(108,59,255,0.24), transparent 24%), radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 30%), linear-gradient(135deg, #24145f 0%, #3f2aa3 44%, #215bc9 100%)',
           color: '#f8fafc',
         }}
       >
@@ -399,7 +397,7 @@ export default function HomePage() {
                 }}
               >
                 <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i>
-                Search is the fastest path
+                Fast. Smart. Local-first.
               </div>
 
               <h1
@@ -411,7 +409,7 @@ export default function HomePage() {
                   maxWidth: '10ch',
                 }}
               >
-                Find the best deals faster without endless scrolling
+                Find the best deals near you, instantly
               </h1>
 
               <p
@@ -424,7 +422,7 @@ export default function HomePage() {
                   color: 'rgba(248,250,252,0.86)',
                 }}
               >
-                Compare, save, and act on deals that actually matter. We bring urgency, ranking, and cleaner decision-making into one homepage.
+                Grab top local offers, track urgency, and move faster with clear Sri Lanka-first deal discovery built for action.
               </p>
 
               <div
@@ -455,7 +453,7 @@ export default function HomePage() {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') openDeals(searchTerm);
                     }}
-                    placeholder="Search deals, stores, categories..."
+                    placeholder="Search deals, stores, categories, nearby offers..."
                     style={{
                       flex: 1,
                       minWidth: '220px',
@@ -476,7 +474,7 @@ export default function HomePage() {
                       fontWeight: 800,
                     }}
                   >
-                    Search
+                    Grab now
                   </button>
                 </div>
 
@@ -492,7 +490,7 @@ export default function HomePage() {
                     }}
                   >
                     <i className="fas fa-fire"></i>
-                    Explore Deals
+                    Get Deal
                   </button>
                   <button
                     onClick={() => router.push('/nearby')}
@@ -504,8 +502,8 @@ export default function HomePage() {
                       padding: '0.9rem 1.3rem',
                     }}
                   >
-                    <i className="fas fa-bolt"></i>
-                    Quick Picks
+                    <i className="fas fa-location-dot"></i>
+                    View Nearby
                   </button>
                 </div>
               </div>
@@ -548,9 +546,9 @@ export default function HomePage() {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
                     <div>
                       <div style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary-color)' }}>
-                        Conversion focused
+                        Today on DealFinder
                       </div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>Today&apos;s decision board</div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>Best local savings, surfaced fast</div>
                     </div>
                     <div
                       style={{
@@ -675,7 +673,7 @@ export default function HomePage() {
               title="Best Deals Today"
               icon="fa-fire"
               meta="The strongest offers surfaced first"
-              actionLabel="Explore Deals"
+              actionLabel="Get Deal"
               onAction={() => router.push('/categories/all')}
               accent="var(--highlight-color)"
             />
@@ -691,8 +689,8 @@ export default function HomePage() {
               eyebrow="Urgency"
               title="Ending Soon"
               icon="fa-hourglass-half"
-              meta="Deals closest to expiry"
-              actionLabel="View All Deals"
+              meta="Grab now before they disappear"
+              actionLabel="Ending soon"
               onAction={() => router.push('/categories/all')}
               accent="var(--warning-color)"
             />
@@ -709,7 +707,7 @@ export default function HomePage() {
               title="Recommended For You"
               icon="fa-star"
               meta={user ? 'Based on what you save and revisit' : locationError || 'Smart picks to get you started'}
-              actionLabel={user ? 'Saved Deals' : 'Create Account'}
+              actionLabel={user ? 'Save Offer' : 'Create Account'}
               onAction={() => router.push(user ? '/favorites' : '/register')}
             />
             {loadingDeals || loadingNearby ? (
@@ -786,7 +784,7 @@ export default function HomePage() {
                     </span>
                     <span className="status-chip" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--warning-color)' }}>
                       <i className="fas fa-hourglass-half"></i>
-                      Limited-time pick
+                      Ending soon
                     </span>
                   </div>
                   <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.05 }}>
@@ -796,7 +794,7 @@ export default function HomePage() {
                     {featuredDeal.description || 'One standout offer with strong savings, clean urgency, and a faster path to action.'}
                   </p>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-                    {getMerchantName(featuredDeal)}{featuredDeal.category ? ` • ${featuredDeal.category}` : ''}
+                    {getMerchantName(featuredDeal)}{featuredDeal.category ? ` • ${getCategoryLabel(featuredDeal.category)}` : ''}
                   </div>
                   <div className="flex gap-3 flex-wrap">
                     <button
@@ -804,7 +802,7 @@ export default function HomePage() {
                       className="btn btn-primary"
                       style={{ padding: '0.9rem 1.2rem' }}
                     >
-                      <i className="fas fa-arrow-right"></i>
+                      <i className="fas fa-bolt"></i>
                       Get Deal
                     </button>
                     <button
@@ -818,7 +816,7 @@ export default function HomePage() {
                       }}
                     >
                       <i className="fas fa-heart"></i>
-                      Save
+                      Save Offer
                     </button>
                   </div>
                 </div>
@@ -891,9 +889,9 @@ export default function HomePage() {
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
-                { step: '1', title: 'Discover deals', text: 'Search, browse, and spot the strongest offers first.' },
-                { step: '2', title: 'Compare options', text: 'Use timing, discount, and category signals to decide faster.' },
-                { step: '3', title: 'Save or grab instantly', text: 'Keep the best deals close or open them right away.' },
+                { step: '1', title: 'Discover nearby deals', text: 'Search fast and surface the strongest offers around you.' },
+                { step: '2', title: 'Spot value instantly', text: 'See urgency, discounts, and categories without the clutter.' },
+                { step: '3', title: 'Grab now or save later', text: 'Take the deal now or keep it ready for the next step.' },
               ].map((item) => (
                 <div key={item.step} className="surface-panel panel-pad">
                   <div
@@ -963,13 +961,13 @@ export default function HomePage() {
                   Mobile app
                 </div>
                 <h2 style={{ marginTop: '1rem', marginBottom: '0.8rem', fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', lineHeight: 1.08 }}>
-                  Take deals with you
+                  Take DealFinder everywhere
                 </h2>
                 <p style={{ margin: 0, color: 'rgba(255,255,255,0.84)', lineHeight: 1.75, maxWidth: '34rem' }}>
-                  Stay close to nearby deals, offline-friendly browsing, and smarter alerts so the best offers stay within reach while you move.
+                  Stay close to nearby deals, savings alerts, and quick local discovery while you move.
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" style={{ marginTop: '1.4rem' }}>
-                  {['Nearby deals', 'Offline access', 'Smart alerts'].map((item) => (
+                  {['Nearby deals', 'Smart savings', 'Simple alerts'].map((item) => (
                     <div
                       key={item}
                       style={{
@@ -995,7 +993,7 @@ export default function HomePage() {
                     fontWeight: 800,
                   }}
                 >
-                  Download App
+                  Get the App
                 </button>
               </div>
               <div
@@ -1015,15 +1013,15 @@ export default function HomePage() {
               Final CTA
             </div>
             <h2 style={{ marginTop: '1rem', marginBottom: '0.75rem', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.08 }}>
-              Ready to grab your next deal?
+              Ready to find your next local deal?
             </h2>
             <p style={{ margin: '0 auto 1.5rem', maxWidth: '40rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              Start with the strongest offers, save what matters, and keep the decision path short.
+              Start with the strongest offers, save what matters, and act before the best ones end.
             </p>
             <div className="flex justify-center gap-3 flex-wrap">
               <button onClick={() => router.push('/categories/all')} className="btn btn-primary" style={{ padding: '0.95rem 1.3rem' }}>
                 <i className="fas fa-fire"></i>
-                Explore Deals
+                Get Deal
               </button>
               <button
                 onClick={() => router.push(user ? '/favorites' : '/register')}
@@ -1036,7 +1034,7 @@ export default function HomePage() {
                 }}
               >
                 <i className="fas fa-heart"></i>
-                Start Saving
+                Save Offer
               </button>
             </div>
           </section>

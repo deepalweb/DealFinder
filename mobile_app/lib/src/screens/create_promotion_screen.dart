@@ -4,19 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/api_service.dart';
 import '../services/image_helper.dart';
+import '../models/category.dart';
 import '../models/promotion.dart';
-
-const List<String> _merchantCategories = [
-  'fashion',
-  'electronics',
-  'travel',
-  'health',
-  'entertainment',
-  'home',
-  'pets',
-  'food',
-  'education',
-];
 
 class CreatePromotionScreen extends StatefulWidget {
   final String merchantId;
@@ -93,7 +82,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     _discountController.text = promo.discount ?? '';
     _codeController.text = promo.code ?? '';
     _urlController.text = promo.url ?? '';
-    _selectedCategory = promo.category;
+    _selectedCategory = normalizeCategoryId(promo.category);
     _featured = promo.featured ?? false;
     _startDate = isDuplicate ? DateTime.now() : (promo.startDate ?? _startDate);
     _endDate = isDuplicate
@@ -641,10 +630,12 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.category),
             ),
-            items: _merchantCategories.map((category) {
+            items: predefinedCategories
+                .where((category) => category.id != 'other')
+                .map((category) {
               return DropdownMenuItem(
-                value: category,
-                child: Text(_formatCategoryLabel(category)),
+                value: category.id,
+                child: Text(category.name),
               );
             }).toList(),
             onChanged: (value) {
@@ -893,7 +884,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       _codeController.text.isEmpty
                           ? '—'
                           : _codeController.text),
-                  _buildSummaryRow('Category', _selectedCategory ?? '—'),
+                  _buildSummaryRow('Category', getCategoryLabel(_selectedCategory)),
                   _buildSummaryRow(
                       'Duration', daysLeft > 0 ? '$daysLeft days' : '—'),
                   _buildSummaryRow('Featured', _featured ? 'Yes ⭐' : 'No'),
@@ -926,12 +917,4 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     );
   }
 
-  String _formatCategoryLabel(String value) {
-    return value
-        .split('_')
-        .map((part) => part.isEmpty
-            ? part
-            : '${part[0].toUpperCase()}${part.substring(1)}')
-        .join(' ');
-  }
 }

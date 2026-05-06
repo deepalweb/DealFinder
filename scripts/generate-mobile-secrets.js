@@ -64,7 +64,7 @@ function buildAndroidGoogleServicesJson() {
     androidAppId: readEnv('FIREBASE_ANDROID_APP_ID'),
     androidPackageName:
       readEnv('FIREBASE_ANDROID_PACKAGE_NAME') ||
-      'com.example.deal_finder_mobile',
+      'com.dealfinder.mobile',
     webClientId: readEnv('GOOGLE_WEB_CLIENT_ID'),
     androidApiKey:
       readEnv('GOOGLE_ANDROID_API_KEY') || readEnv('GOOGLE_API_KEY'),

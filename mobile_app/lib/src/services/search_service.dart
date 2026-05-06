@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
+import 'search_matcher.dart';
 
 class SearchService {
   static const String _searchHistoryKey = 'searchHistory';
@@ -12,13 +13,16 @@ class SearchService {
   }
 
   static Future<void> addToSearchHistory(String query) async {
-    if (query.trim().isEmpty) return;
+    final cleaned = query.trim();
+    if (cleaned.isEmpty) return;
     
     final prefs = await SharedPreferences.getInstance();
     final history = await getSearchHistory();
     
-    history.remove(query); // Remove if exists
-    history.insert(0, query); // Add to front
+    history.removeWhere(
+      (item) => SearchMatcher.normalize(item) == SearchMatcher.normalize(cleaned),
+    );
+    history.insert(0, cleaned); // Add to front
     
     if (history.length > 20) history.removeRange(20, history.length);
     await prefs.setStringList(_searchHistoryKey, history);
@@ -35,26 +39,23 @@ class SearchService {
     try {
       final allDeals = await ApiService().fetchPromotions();
       final suggestions = <String>{};
-      final lowerQuery = query.toLowerCase();
       
       // Add matching titles, merchants, and categories
       for (final deal in allDeals) {
-        if (deal.title.toLowerCase().contains(lowerQuery)) {
+        if (SearchMatcher.matchesPromotion(deal, query)) {
           suggestions.add(deal.title);
-        }
-        if (deal.merchantName != null && 
-            deal.merchantName!.toLowerCase().contains(lowerQuery)) {
-          suggestions.add(deal.merchantName!);
-        }
-        if (deal.category != null && 
-            deal.category!.toLowerCase().contains(lowerQuery)) {
-          suggestions.add(deal.category!);
+          if ((deal.merchantName ?? '').trim().isNotEmpty) {
+            suggestions.add(deal.merchantName!);
+          }
+          final aliases = SearchMatcher.categoryTerms(deal.category);
+          if (aliases.isNotEmpty) {
+            suggestions.add(aliases.first);
+          }
         }
       }
       
       return suggestions.take(8).toList();
     } catch (e) {
-      print('Error getting suggestions: $e');
       return [];
     }
   }
@@ -77,16 +78,14 @@ class SearchService {
       
       // Text search
       if (query.isNotEmpty) {
-        results = results.where((deal) =>
-          deal.title.toLowerCase().contains(query.toLowerCase()) ||
-          deal.description.toLowerCase().contains(query.toLowerCase()) ||
-          (deal.merchantName?.toLowerCase().contains(query.toLowerCase()) ?? false)
-        ).toList();
+        results = results.where((deal) => SearchMatcher.matchesPromotion(deal, query)).toList()
+          ..sort((a, b) => SearchMatcher.scorePromotion(b, query).compareTo(SearchMatcher.scorePromotion(a, query)));
       }
       
       // Category filter
       if (category != null && category.isNotEmpty) {
-        results = results.where((deal) => deal.category == category).toList();
+        final normalizedCategory = SearchMatcher.normalizeCategory(category);
+        results = results.where((deal) => SearchMatcher.normalizeCategory(deal.category) == normalizedCategory).toList();
       }
       
       // Price range filter
@@ -101,7 +100,10 @@ class SearchService {
       // Merchant filter
       if (merchant != null && merchant.isNotEmpty) {
         results = results.where((deal) => 
-          deal.merchantName?.toLowerCase().contains(merchant.toLowerCase()) ?? false
+          SearchMatcher.matchesText(
+            merchant,
+            fields: [deal.merchantName],
+          )
         ).toList();
       }
       
