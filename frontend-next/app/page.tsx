@@ -135,7 +135,7 @@ function SectionHeader({
             }}
           >
             {actionLabel}
-          </a>
+          </button>
         ) : null}
       </div>
     </div>
@@ -475,7 +475,7 @@ export default function HomePage() {
                     }}
                   >
                     Grab now
-                  </a>
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -491,7 +491,7 @@ export default function HomePage() {
                   >
                     <i className="fas fa-fire"></i>
                     Get Deal
-                  </a>
+                  </button>
                   <button
                     onClick={() => router.push('/nearby')}
                     className="btn"
@@ -504,7 +504,7 @@ export default function HomePage() {
                   >
                     <i className="fas fa-location-dot"></i>
                     View Nearby
-                  </a>
+                  </button>
                 </div>
               </div>
             </div>
@@ -631,7 +631,7 @@ export default function HomePage() {
               style={{ padding: '0.85rem 1.15rem' }}
             >
               Open Full Results
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -660,7 +660,7 @@ export default function HomePage() {
                 </p>
                 <button onClick={() => openDeals(searchTerm)} className="btn btn-primary">
                   Search All Deals
-                </a>
+                </button>
               </div>
             )}
           </section>
@@ -757,7 +757,7 @@ export default function HomePage() {
                     <i className={`fas ${category.icon}`}></i>
                   </div>
                   <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{category.name}</div>
-                </a>
+                </button>
               ))}
             </div>
           </section>
@@ -804,7 +804,7 @@ export default function HomePage() {
                     >
                       <i className="fas fa-bolt"></i>
                       Get Deal
-                    </a>
+                    </button>
                     <button
                       onClick={() => handleFavoriteToggle(getPromotionId(featuredDeal), !favoriteIds.has(getPromotionId(featuredDeal)))}
                       className="btn"
@@ -817,7 +817,7 @@ export default function HomePage() {
                     >
                       <i className="fas fa-heart"></i>
                       Save Offer
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -940,7 +940,7 @@ export default function HomePage() {
                   </p>
                   <button onClick={() => router.push('/categories/all')} className="btn btn-primary">
                     Start Saving
-                  </a>
+                  </button>
                 </div>
               )}
             </section>
@@ -1000,7 +1000,7 @@ export default function HomePage() {
               </div>
               <div
                 style={{
-                  minHeightminHeight: '280px',
+                  minHeight: '280px',
                   backgroundImage: 'url(https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?auto=format&fit=crop&w=1200&q=80)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
@@ -1024,7 +1024,7 @@ export default function HomePage() {
               <button onClick={() => router.push('/categories/all')} className="btn btn-primary" style={{ padding: '0.95rem 1.3rem' }}>
                 <i className="fas fa-fire"></i>
                 Get Deal
-              </a>
+              </button>
               <button
                 onClick={() => router.push(user ? '/favorites' : '/register')}
                 className="btn"
@@ -1037,7 +1037,7 @@ export default function HomePage() {
               >
                 <i className="fas fa-heart"></i>
                 Save Offer
-              </a>
+              </button>
             </div>
           </section>
         </div>
@@ -1089,7 +1089,7 @@ export default function HomePage() {
             >
               <i className={`fas ${item.icon}`}></i>
               <span style={{ fontSize: '0.76rem' }}>{item.label}</span>
-            </a>
+            </button>
           ))}
         </div>
       </div>
