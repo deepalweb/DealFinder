@@ -610,7 +610,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                       ],
                     ),
                   ),
-                  if (deals.length > 4)
+                  if (deals.length > 2)
                     Material(
                       color: categoryColor,
                       borderRadius: BorderRadius.circular(20),
@@ -635,11 +635,11 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
+                              child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'See All',
+                                'View More',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,

@@ -1,4 +1,5 @@
 import 'dart:convert'; // For base64Decode
+import 'dart:async';
 // For Uint8List
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Clipboard
@@ -49,6 +50,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   int _clickCount = 0;
   int _directionCount = 0;
   bool _loadingStats = true;
+  Timer? _countdownTimer;
 
   late Future<List<Promotion>> _recommendedDealsFuture;
 
@@ -61,12 +63,23 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     _fetchMerchantData();
     _recommendedDealsFuture = _fetchRecommendedDeals();
     _trackView();
+    _startCountdownTicker();
   }
 
   @override
   void dispose() {
+    _countdownTimer?.cancel();
     _commentController.dispose();
     super.dispose();
+  }
+
+  void _startCountdownTicker() {
+    if (widget.promotion.endDate == null) return;
+    _countdownTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _trackView() async {
@@ -186,6 +199,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
     if (!await launchUrl(Uri.parse(url),
         mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open Google Maps.')),
       );
@@ -206,9 +220,103 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       }
     } catch (_) {}
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not launch $urlString')),
       );
+    }
+  }
+
+  String _merchantText(String primaryKey, {String? fallbackKey}) {
+    final primary = (_merchantData?[primaryKey] ?? '').toString().trim();
+    if (primary.isNotEmpty) return primary;
+    if (fallbackKey == null) return '';
+    return (_merchantData?[fallbackKey] ?? '').toString().trim();
+  }
+
+  String get _merchantPhoneNumber {
+    final candidates = [
+      _merchantText('phone', fallbackKey: 'contactNumber'),
+      _merchantText('contactNumber'),
+      _merchantText('contactInfo'),
+    ];
+
+    for (final value in candidates) {
+      if (value.isEmpty) continue;
+      final sanitized = value.replaceAll(RegExp(r'[^0-9+]'), '');
+      final digitsOnly = sanitized.replaceAll('+', '');
+      if (digitsOnly.length >= 7) {
+        return sanitized;
+      }
+    }
+
+    return '';
+  }
+
+  String? get _countdownText {
+    final end = widget.promotion.endDate;
+    if (end == null) return null;
+
+    final diff = end.difference(DateTime.now());
+    if (diff.isNegative || diff.inSeconds <= 0) {
+      return 'Expired';
+    }
+    if (diff.inDays >= 1) {
+      return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} left';
+    }
+    if (diff.inHours >= 1) {
+      return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} left';
+    }
+    if (diff.inMinutes >= 1) {
+      return '${diff.inMinutes} min left';
+    }
+    return '${diff.inSeconds}s left';
+  }
+
+  Future<void> _launchPhoneCall() async {
+    final phone = _merchantPhoneNumber;
+    if (phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No merchant phone number available.')),
+        );
+      }
+      return;
+    }
+
+    final uri = Uri.parse('tel:$phone');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start the phone call.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp() async {
+    final phone = _merchantPhoneNumber;
+    if (phone.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No merchant phone number available.')),
+        );
+      }
+      return;
+    }
+
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final message = Uri.encodeComponent(
+      'Hi, I am contacting you about "${widget.promotion.title}" on DealFinder.',
+    );
+    final uri = Uri.parse('https://wa.me/$digits?text=$message');
+
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp.')),
+        );
+      }
     }
   }
 
@@ -418,6 +526,76 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final promotion = widget.promotion;
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
+    final callButton = _merchantPhoneNumber.isNotEmpty
+        ? ElevatedButton.icon(
+            icon: const Icon(Icons.call_outlined, size: 18),
+            label: const Text('Call'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _launchPhoneCall,
+          )
+        : null;
+    final whatsappButton = _merchantPhoneNumber.isNotEmpty
+        ? OutlinedButton.icon(
+            icon: const Icon(Icons.chat_outlined, size: 18),
+            label: const Text('WhatsApp'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.green.shade700,
+              backgroundColor: Colors.green.shade50,
+              side: BorderSide(color: Colors.green.shade300),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _launchWhatsApp,
+          )
+        : null;
+    final directionsButton = ElevatedButton.icon(
+      icon: const Icon(Icons.directions, size: 18),
+      label: const Text('Directions'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4285F4),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      onPressed: _openDirections,
+    );
+    final secondaryActionButtons = <Widget>[
+      if (promotion.url != null && promotion.url!.isNotEmpty)
+        ElevatedButton.icon(
+          icon: const Icon(Icons.launch, size: 18),
+          label: const Text('Go to Deal'),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          onPressed: () => _launchURL(promotion.url!),
+        ),
+      if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty)
+        OutlinedButton.icon(
+          icon: const Icon(Icons.public, size: 18),
+          label: const Text('Website'),
+          style: OutlinedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          onPressed: () => _launchURL(promotion.websiteUrl!),
+        ),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -464,6 +642,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       final link =
                           '${AppConfig.publicBaseUrl}/deal/${promotion.id}';
                       await Clipboard.setData(ClipboardData(text: link));
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Deal link copied!')),
                       );
@@ -490,41 +669,27 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   ),
                 ),
                 // Expiry Countdown
-                if (promotion.endDate != null)
-                  Builder(
-                    builder: (context) {
-                      final now = DateTime.now();
-                      final end = promotion.endDate!;
-                      final diff = end.difference(now);
-                      if (diff.inDays >= 1) {
-                        return Text(
-                          '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} left',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.red[700],
-                              fontWeight: FontWeight.bold),
-                        );
-                      } else if (diff.inHours > 0) {
-                        return Text(
-                          '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} left',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.red[700],
-                              fontWeight: FontWeight.bold),
-                        );
-                      } else if (diff.inMinutes > 0) {
-                        return Text(
-                          '${diff.inMinutes} min left',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.red[700],
-                              fontWeight: FontWeight.bold),
-                        );
-                      } else {
-                        return Text(
-                          'Expired',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey),
-                        );
-                      }
-                    },
+                if (_countdownText != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _countdownText == 'Expired'
+                          ? Colors.grey.shade200
+                          : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      _countdownText!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: _countdownText == 'Expired'
+                            ? Colors.grey.shade700
+                            : Colors.red.shade700,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -662,6 +827,48 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             if (promotion.merchantName != null &&
                 promotion.merchantName!.isNotEmpty)
               const SizedBox(height: 16.0),
+
+            if (_countdownText != null) ...[
+              Card(
+                elevation: 0.5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                color: _countdownText == 'Expired'
+                    ? Colors.grey.shade100
+                    : Colors.red.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(14.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _countdownText == 'Expired'
+                            ? Icons.event_busy
+                            : Icons.timer_outlined,
+                        color: _countdownText == 'Expired'
+                            ? Colors.grey.shade700
+                            : Colors.red.shade700,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _countdownText == 'Expired'
+                              ? 'This deal has expired.'
+                              : 'Offer ends in $_countdownText',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: _countdownText == 'Expired'
+                                ? Colors.grey.shade800
+                                : Colors.red.shade800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16.0),
+            ],
 
             // Discount & Code Section
             if (promotion.discount != null || promotion.code != null)
@@ -876,49 +1083,82 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             // Action Buttons
             SizedBox(
               width: double.infinity,
-              height: 48,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.directions, size: 18),
-                      label: const Text('Directions'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4285F4),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  const gap = 10.0;
+                  final fullWidth = constraints.maxWidth;
+                  final halfWidth = (fullWidth - gap) / 2;
+                  final rows = <Widget>[];
+
+                  if (callButton != null && whatsappButton != null) {
+                    rows.add(
+                      Row(
+                        children: [
+                          _buildActionButtonShell(
+                            width: halfWidth,
+                            child: callButton,
+                          ),
+                          const SizedBox(width: gap),
+                          _buildActionButtonShell(
+                            width: halfWidth,
+                            child: whatsappButton,
+                          ),
+                        ],
                       ),
-                      onPressed: _openDirections,
+                    );
+                  } else if (callButton != null || whatsappButton != null) {
+                    rows.add(
+                      _buildActionButtonShell(
+                        width: fullWidth,
+                        child: callButton ?? whatsappButton!,
+                      ),
+                    );
+                  }
+
+                  rows.add(
+                    _buildActionButtonShell(
+                      width: fullWidth,
+                      child: directionsButton,
                     ),
-                  ),
-                  if (promotion.url != null && promotion.url!.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.launch, size: 18),
-                        label: const Text('Go to Deal'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                  );
+
+                  for (var i = 0; i < secondaryActionButtons.length; i += 2) {
+                    final remaining = secondaryActionButtons.length - i;
+                    if (remaining == 1) {
+                      rows.add(
+                        _buildActionButtonShell(
+                          width: fullWidth,
+                          child: secondaryActionButtons[i],
                         ),
-                        onPressed: () => _launchURL(promotion.url!),
-                      ),
-                    ),
-                  ],
-                  if (promotion.websiteUrl != null &&
-                      promotion.websiteUrl!.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.public, size: 18),
-                        label: const Text('Website'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                      );
+                    } else {
+                      rows.add(
+                        Row(
+                          children: [
+                            _buildActionButtonShell(
+                              width: halfWidth,
+                              child: secondaryActionButtons[i],
+                            ),
+                            const SizedBox(width: gap),
+                            _buildActionButtonShell(
+                              width: halfWidth,
+                              child: secondaryActionButtons[i + 1],
+                            ),
+                          ],
                         ),
-                        onPressed: () => _launchURL(promotion.websiteUrl!),
-                      ),
-                    ),
-                  ],
-                ],
+                      );
+                    }
+                  }
+
+                  return Column(
+                    children: [
+                      for (var i = 0; i < rows.length; i++) ...[
+                        if (i > 0) const SizedBox(height: gap),
+                        rows[i],
+                      ],
+                    ],
+                  );
+                },
               ),
             ),
             const SizedBox(height: 20.0),
@@ -1448,6 +1688,17 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
+    );
+  }
+
+  Widget _buildActionButtonShell({
+    required Widget child,
+    required double width,
+  }) {
+    return SizedBox(
+      width: width,
+      height: 52,
+      child: child,
     );
   }
 }
