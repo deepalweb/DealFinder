@@ -1,8 +1,19 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import AdminFilterBar from '@/components/admin/AdminFilterBar';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusChip from '@/components/admin/AdminStatusChip';
 import { AdminAPI, PromotionAPI } from '@/lib/api';
-import { getCategoryLabel, normalizeCategoryId } from '@/lib/categories';
+import {
+  formatAdminDate,
+  getAdminCategoryLabel,
+  getEffectivePromotionStatus,
+  getMerchantName,
+  getNormalizedAdminCategory,
+  getPromotionId,
+  matchesAdminSearch,
+} from '@/lib/admin';
 import toast from 'react-hot-toast';
 
 type PromotionRecord = {
@@ -34,56 +45,6 @@ type EnrichedPromotion = PromotionRecord & {
   categoryLabel: string;
 };
 
-const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  active: { bg: 'rgba(16,185,129,0.1)', color: '#059669' },
-  pending_approval: { bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
-  scheduled: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
-  rejected: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
-  admin_paused: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
-  expired: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
-  draft: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
-};
-
-function getPromotionId(promotion: PromotionRecord) {
-  return promotion._id || promotion.id || '';
-}
-
-function getMerchantName(merchant: PromotionRecord['merchant']) {
-  return typeof merchant === 'object' ? merchant?.name || '—' : merchant || '—';
-}
-
-function getEffectiveStatus(promotion: PromotionRecord): EffectiveStatus {
-  const rawStatus = promotion.status || 'draft';
-  if (['pending_approval', 'rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
-    return rawStatus as EffectiveStatus;
-  }
-
-  const now = new Date();
-  const startDate = promotion.startDate ? new Date(promotion.startDate) : null;
-  const endDate = promotion.endDate ? new Date(promotion.endDate) : null;
-
-  if (endDate && !Number.isNaN(endDate.getTime()) && endDate < now) {
-    return 'expired';
-  }
-
-  if (startDate && !Number.isNaN(startDate.getTime()) && startDate > now) {
-    return 'scheduled';
-  }
-
-  return 'active';
-}
-
-function formatDate(value?: string) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
 export default function AdminPromotionsPage() {
   const [promotions, setPromotions] = useState<PromotionRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,9 +67,9 @@ export default function AdminPromotionsPage() {
     () =>
       promotions.map((promotion) => ({
         ...promotion,
-        effectiveStatus: getEffectiveStatus(promotion),
-        normalizedCategory: normalizeCategoryId(promotion.category),
-        categoryLabel: getCategoryLabel(promotion.category),
+        effectiveStatus: getEffectivePromotionStatus(promotion),
+        normalizedCategory: getNormalizedAdminCategory(promotion.category),
+        categoryLabel: getAdminCategoryLabel(promotion.category),
       })),
     [promotions]
   );
@@ -125,14 +86,8 @@ export default function AdminPromotionsPage() {
     }
 
     if (search.trim()) {
-      const term = search.trim().toLowerCase();
       result = result.filter((promotion) => {
-        const merchantName = getMerchantName(promotion.merchant).toLowerCase();
-        return (
-          promotion.title?.toLowerCase().includes(term) ||
-          merchantName.includes(term) ||
-          promotion.categoryLabel.toLowerCase().includes(term)
-        );
+        return matchesAdminSearch(search, promotion.title, getMerchantName(promotion.merchant), promotion.categoryLabel);
       });
     }
 
@@ -187,16 +142,7 @@ export default function AdminPromotionsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
-            Promotions
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
-            {filtered.length} of {enrichedPromotions.length} promotions
-          </p>
-        </div>
-      </div>
+      <AdminPageHeader title="Promotions" subtitle={`${filtered.length} of ${enrichedPromotions.length} promotions`} />
 
       {pendingCount > 0 && (
         <div
@@ -233,7 +179,7 @@ export default function AdminPromotionsPage() {
         </div>
       )}
 
-      <div className="glass-toolbar mb-5">
+      <AdminFilterBar>
         <div className="input-with-icon toolbar-grow" style={{ maxWidth: '400px' }}>
           <i className="fas fa-search"></i>
           <input
@@ -257,11 +203,11 @@ export default function AdminPromotionsPage() {
           <option value="all">All Categories</option>
           {categoryOptions.map((categoryId) => (
             <option key={categoryId} value={categoryId}>
-              {getCategoryLabel(categoryId)}
+              {getAdminCategoryLabel(categoryId)}
             </option>
           ))}
         </select>
-      </div>
+      </AdminFilterBar>
 
       <div className="surface-panel overflow-hidden">
         <div className="overflow-x-auto">
@@ -331,20 +277,12 @@ export default function AdminPromotionsPage() {
                         ) : null}
                       </td>
                       <td>
-                        <span
-                          className="status-chip"
-                          style={{
-                            background: STATUS_STYLES[promotion.effectiveStatus]?.bg || 'var(--light-gray)',
-                            color: STATUS_STYLES[promotion.effectiveStatus]?.color || 'var(--text-secondary)',
-                          }}
-                        >
-                          {promotion.effectiveStatus.replace(/_/g, ' ')}
-                        </span>
+                        <AdminStatusChip status={promotion.effectiveStatus} />
                       </td>
                       <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {formatDate(promotion.startDate)}
+                        {formatAdminDate(promotion.startDate)}
                         <br />
-                        {formatDate(promotion.endDate)}
+                        {formatAdminDate(promotion.endDate)}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="flex justify-end gap-2 flex-wrap">

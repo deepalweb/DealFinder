@@ -3,9 +3,9 @@ const router = express.Router();
 const User = require('../../models/User');
 const Merchant = require('../../models/Merchant');
 const Promotion = require('../../models/Promotion');
+const NotificationLog = require('../../models/NotificationLog');
 const { authenticateJWT, authorizeAdmin } = require('../../middleware/auth');
 
-// Add safeError helper
 function safeError(error) {
   if (process.env.NODE_ENV === 'production') {
     return { message: 'An error occurred' };
@@ -13,72 +13,330 @@ function safeError(error) {
   return { message: error.message, stack: error.stack };
 }
 
-// GET /api/admin/dashboard/stats - Fetch summary statistics for admin dashboard
-router.get('/dashboard/stats', authenticateJWT, authorizeAdmin, async (req, res) => {
-  try {
-    const now = new Date();
-    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+function startOfDay(value = new Date()) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+}
 
-    const totalUsers = await User.countDocuments();
-    const totalMerchants = await Merchant.countDocuments();
-    const pendingMerchants = await Merchant.countDocuments({ status: 'pending_approval' });
-    const activeMerchants = await Merchant.countDocuments({ status: 'active' });
+function endOfDay(value = new Date()) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate() + 1);
+}
 
-    const totalPromotions = await Promotion.countDocuments();
+function buildDateBuckets(days) {
+  const today = startOfDay(new Date());
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (days - 1 - index));
+    return date;
+  });
+}
 
-    const [pending, active, scheduled, expired, rejected, paused, draft, activePromotions] = await Promise.all([
-      Promotion.countDocuments({ status: 'pending_approval' }),
-      Promotion.countDocuments({ status: 'active' }),
-      Promotion.countDocuments({ status: 'scheduled' }),
-      Promotion.countDocuments({ status: 'expired' }),
-      Promotion.countDocuments({ status: 'rejected' }),
-      Promotion.countDocuments({ status: 'admin_paused' }),
-      Promotion.countDocuments({ status: 'draft' }),
-      Promotion.countDocuments({
-        status: { $in: ['active', 'approved'] },
-        startDate: { $lte: now },
-        endDate: { $gte: now },
-      }),
-    ]);
+function formatBucketKey(date) {
+  return date.toISOString().slice(0, 10);
+}
 
-    const expiringSoon = await Promotion.find({
+async function aggregateDailyCounts(Model, dateField, days, match = {}) {
+  const buckets = buildDateBuckets(days);
+  const start = buckets[0];
+  const results = await Model.aggregate([
+    {
+      $match: {
+        ...match,
+        [dateField]: { $gte: start },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: {
+            format: '%Y-%m-%d',
+            date: `$${dateField}`,
+          },
+        },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const map = new Map(results.map((entry) => [entry._id, entry.count]));
+  return buckets.map((date) => ({
+    label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    key: formatBucketKey(date),
+    count: map.get(formatBucketKey(date)) || 0,
+  }));
+}
+
+async function getOverviewData() {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  const weekAgo = new Date(todayStart);
+  weekAgo.setDate(weekAgo.getDate() - 6);
+
+  const [
+    totalUsers,
+    totalMerchants,
+    totalPromotions,
+    activePromotions,
+    pendingMerchants,
+    pendingPromotions,
+    usersThisWeek,
+    merchantsThisWeek,
+    promotionsThisWeek,
+    notificationsThisWeek,
+    deliveredPushThisWeek,
+    openedPushThisWeek,
+  ] = await Promise.all([
+    User.countDocuments(),
+    Merchant.countDocuments(),
+    Promotion.countDocuments(),
+    Promotion.countDocuments({
       status: { $in: ['active', 'approved'] },
       startDate: { $lte: now },
-      endDate: { $gte: now, $lte: in7Days },
-    }).populate('merchant', 'name').sort({ endDate: 1 }).limit(10).lean();
+      endDate: { $gte: now },
+    }),
+    Merchant.countDocuments({ status: 'pending_approval' }),
+    Promotion.countDocuments({ status: 'pending_approval' }),
+    User.countDocuments({ createdAt: { $gte: weekAgo } }),
+    Merchant.countDocuments({ createdAt: { $gte: weekAgo } }),
+    Promotion.countDocuments({ createdAt: { $gte: weekAgo } }),
+    NotificationLog.countDocuments({ createdAt: { $gte: weekAgo } }),
+    NotificationLog.countDocuments({
+      createdAt: { $gte: weekAgo },
+      'status.push.delivered': true,
+    }),
+    NotificationLog.countDocuments({
+      createdAt: { $gte: weekAgo },
+      'status.push.opened': true,
+    }),
+  ]);
 
-    // Recent activity — last 10 events across users, merchants, promotions
-    const [recentUsers, recentMerchants, recentPromotions] = await Promise.all([
-      User.find().sort({ createdAt: -1 }).limit(5).select('name email role createdAt').lean(),
-      Merchant.find().sort({ createdAt: -1 }).limit(5).select('name status createdAt').lean(),
-      Promotion.find().sort({ createdAt: -1 }).limit(5).select('title status createdAt merchant').populate('merchant', 'name').lean(),
+  const expiringToday = await Promotion.countDocuments({
+    status: { $in: ['active', 'approved'] },
+    startDate: { $lte: now },
+    endDate: { $gte: todayStart, $lt: todayEnd },
+  });
+
+  const deliveryRate = notificationsThisWeek > 0 ? Math.round((deliveredPushThisWeek / notificationsThisWeek) * 100) : 0;
+  const openRate = deliveredPushThisWeek > 0 ? Math.round((openedPushThisWeek / deliveredPushThisWeek) * 100) : 0;
+
+  return {
+    totals: {
+      users: totalUsers,
+      merchants: totalMerchants,
+      promotions: totalPromotions,
+      activePromotions,
+    },
+    thisWeek: {
+      users: usersThisWeek,
+      merchants: merchantsThisWeek,
+      promotions: promotionsThisWeek,
+      notifications: notificationsThisWeek,
+    },
+    pending: {
+      merchants: pendingMerchants,
+      promotions: pendingPromotions,
+    },
+    notifications: {
+      total: notificationsThisWeek,
+      delivered: deliveredPushThisWeek,
+      opened: openedPushThisWeek,
+      deliveryRate,
+      openRate,
+    },
+    expiringToday,
+  };
+}
+
+async function getTrendData() {
+  const [userTrend, merchantTrend, promotionTrend, notificationTrend] = await Promise.all([
+    aggregateDailyCounts(User, 'createdAt', 14),
+    aggregateDailyCounts(Merchant, 'createdAt', 14),
+    aggregateDailyCounts(Promotion, 'createdAt', 14),
+    aggregateDailyCounts(NotificationLog, 'createdAt', 14),
+  ]);
+
+  return {
+    users: userTrend,
+    merchants: merchantTrend,
+    promotions: promotionTrend,
+    notifications: notificationTrend,
+  };
+}
+
+async function getAlertData() {
+  const now = new Date();
+  const todayStart = startOfDay(now);
+  const todayEnd = endOfDay(now);
+  const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const [pendingMerchants, pendingPromotions, dormantMerchants, brokenPromotions, expiringSoon, pausedPromotions] = await Promise.all([
+    Merchant.find({ status: 'pending_approval' }).select('name createdAt status').sort({ createdAt: -1 }).limit(6).lean(),
+    Promotion.find({ status: 'pending_approval' }).select('title createdAt status merchant').populate('merchant', 'name').sort({ createdAt: -1 }).limit(6).lean(),
+    Merchant.find().select('name createdAt logo contactInfo').lean(),
+    Promotion.find({
+      $or: [
+        { image: { $in: [null, ''] } },
+        { url: { $in: [null, ''] } },
+      ],
+    }).select('title image url status merchant createdAt').populate('merchant', 'name').sort({ createdAt: -1 }).limit(8).lean(),
+    Promotion.find({
+      status: { $in: ['active', 'approved'] },
+      startDate: { $lte: now },
+      endDate: { $gte: todayStart, $lte: in7Days },
+    }).select('title endDate merchant').populate('merchant', 'name').sort({ endDate: 1 }).limit(8).lean(),
+    Promotion.find({ status: 'admin_paused' }).select('title updatedAt merchant').populate('merchant', 'name').sort({ updatedAt: -1 }).limit(8).lean(),
+  ]);
+
+  const dormantMerchantList = dormantMerchants.filter((merchant) => !merchant.logo && !merchant.contactInfo).slice(0, 6);
+
+  return {
+    pendingMerchants: {
+      count: pendingMerchants.length,
+      items: pendingMerchants,
+    },
+    pendingPromotions: {
+      count: pendingPromotions.length,
+      items: pendingPromotions,
+    },
+    brokenPromotions: {
+      count: brokenPromotions.length,
+      items: brokenPromotions.map((promotion) => ({
+        ...promotion,
+        issue: !promotion.image && !promotion.url ? 'Missing image and URL' : !promotion.image ? 'Missing image' : 'Missing URL',
+      })),
+    },
+    dormantMerchants: {
+      count: dormantMerchantList.length,
+      items: dormantMerchantList,
+    },
+    expiringSoon: {
+      count: expiringSoon.length,
+      items: expiringSoon,
+    },
+    pausedPromotions: {
+      count: pausedPromotions.length,
+      items: pausedPromotions,
+    },
+    expiringTodayCount: await Promotion.countDocuments({
+      status: { $in: ['active', 'approved'] },
+      startDate: { $lte: now },
+      endDate: { $gte: todayStart, $lt: todayEnd },
+    }),
+  };
+}
+
+async function getLegacyStats() {
+  const now = new Date();
+  const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const totalUsers = await User.countDocuments();
+  const totalMerchants = await Merchant.countDocuments();
+  const pendingMerchants = await Merchant.countDocuments({ status: 'pending_approval' });
+  const activeMerchants = await Merchant.countDocuments({ status: 'active' });
+  const totalPromotions = await Promotion.countDocuments();
+
+  const [pending, active, scheduled, expired, rejected, paused, draft, activePromotions] = await Promise.all([
+    Promotion.countDocuments({ status: 'pending_approval' }),
+    Promotion.countDocuments({ status: 'active' }),
+    Promotion.countDocuments({ status: 'scheduled' }),
+    Promotion.countDocuments({ status: 'expired' }),
+    Promotion.countDocuments({ status: 'rejected' }),
+    Promotion.countDocuments({ status: 'admin_paused' }),
+    Promotion.countDocuments({ status: 'draft' }),
+    Promotion.countDocuments({
+      status: { $in: ['active', 'approved'] },
+      startDate: { $lte: now },
+      endDate: { $gte: now },
+    }),
+  ]);
+
+  const expiringSoon = await Promotion.find({
+    status: { $in: ['active', 'approved'] },
+    startDate: { $lte: now },
+    endDate: { $gte: now, $lte: in7Days },
+  }).populate('merchant', 'name').sort({ endDate: 1 }).limit(10).lean();
+
+  const [recentUsers, recentMerchants, recentPromotions] = await Promise.all([
+    User.find().sort({ createdAt: -1 }).limit(5).select('name email role createdAt').lean(),
+    Merchant.find().sort({ createdAt: -1 }).limit(5).select('name status createdAt').lean(),
+    Promotion.find().sort({ createdAt: -1 }).limit(5).select('title status createdAt merchant').populate('merchant', 'name').lean(),
+  ]);
+
+  const activity = [
+    ...recentUsers.map((user) => ({ type: 'user', label: `${user.name} registered`, sub: user.role, time: user.createdAt })),
+    ...recentMerchants.map((merchant) => ({ type: 'merchant', label: `${merchant.name} joined`, sub: merchant.status, time: merchant.createdAt })),
+    ...recentPromotions.map((promotion) => ({
+      type: 'promotion',
+      label: promotion.title,
+      sub: `${promotion.status} · ${typeof promotion.merchant === 'object' ? promotion.merchant?.name : ''}`,
+      time: promotion.createdAt,
+    })),
+  ]
+    .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+    .slice(0, 10);
+
+  return {
+    totalUsers,
+    totalMerchants,
+    merchantsByStatus: { pending_approval: pendingMerchants, active: activeMerchants },
+    totalPromotions,
+    activePromotions,
+    promotionsByStatus: {
+      active,
+      scheduled,
+      pending_approval: pending,
+      expired,
+      rejected,
+      admin_paused: paused,
+      draft,
+    },
+    expiringSoon,
+    activity,
+  };
+}
+
+router.get('/dashboard/overview', authenticateJWT, authorizeAdmin, async (_req, res) => {
+  try {
+    res.status(200).json(await getOverviewData());
+  } catch (error) {
+    console.error('Error fetching admin dashboard overview:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/dashboard/trends', authenticateJWT, authorizeAdmin, async (_req, res) => {
+  try {
+    res.status(200).json(await getTrendData());
+  } catch (error) {
+    console.error('Error fetching admin dashboard trends:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/dashboard/alerts', authenticateJWT, authorizeAdmin, async (_req, res) => {
+  try {
+    res.status(200).json(await getAlertData());
+  } catch (error) {
+    console.error('Error fetching admin dashboard alerts:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/dashboard/stats', authenticateJWT, authorizeAdmin, async (_req, res) => {
+  try {
+    const [legacy, overview, trends, alerts] = await Promise.all([
+      getLegacyStats(),
+      getOverviewData(),
+      getTrendData(),
+      getAlertData(),
     ]);
 
-    const activity = [
-      ...recentUsers.map(u => ({ type: 'user', label: `${u.name} registered`, sub: u.role, time: u.createdAt })),
-      ...recentMerchants.map(m => ({ type: 'merchant', label: `${m.name} joined`, sub: m.status, time: m.createdAt })),
-      ...recentPromotions.map(p => ({ type: 'promotion', label: p.title, sub: `${p.status} · ${typeof p.merchant === 'object' ? p.merchant?.name : ''}`, time: p.createdAt })),
-    ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
-
     res.status(200).json({
-      totalUsers,
-      totalMerchants,
-      merchantsByStatus: { pending_approval: pendingMerchants, active: activeMerchants },
-      totalPromotions,
-      activePromotions,
-      promotionsByStatus: {
-        active,
-        scheduled,
-        pending_approval: pending,
-        expired,
-        rejected,
-        admin_paused: paused,
-        draft,
-      },
-      expiringSoon,
-      activity,
+      ...legacy,
+      overview,
+      trends,
+      alerts,
     });
-
   } catch (error) {
     console.error('Error fetching admin dashboard stats:', error);
     res.status(500).json(safeError(error));

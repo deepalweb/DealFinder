@@ -130,6 +130,9 @@ export const UserAPI = {
 // Admin
 export const AdminAPI = {
   getDashboardStats: () => fetchAPI<any>('admin/dashboard/stats'),
+  getDashboardOverview: () => fetchAPI<any>('admin/dashboard/overview'),
+  getDashboardTrends: () => fetchAPI<any>('admin/dashboard/trends'),
+  getDashboardAlerts: () => fetchAPI<any>('admin/dashboard/alerts'),
   getAllPromotions: (filters = {}) => {
     const q = new URLSearchParams(filters as any).toString();
     return fetchAPI<any>(`admin/promotions${q ? `?${q}` : ''}`).then((res: any) => Array.isArray(res) ? res : (res?.data || []));

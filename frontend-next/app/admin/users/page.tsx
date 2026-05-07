@@ -1,41 +1,48 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import AdminFilterBar from '@/components/admin/AdminFilterBar';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusChip from '@/components/admin/AdminStatusChip';
 import { UserAPI } from '@/lib/api';
+import { formatAdminDate, matchesAdminSearch } from '@/lib/admin';
 import toast from 'react-hot-toast';
 
-const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
-  admin: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
-  merchant: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
-  user: { bg: 'rgba(16,185,129,0.1)', color: '#10b981' },
+type UserRecord = {
+  _id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  createdAt?: string;
 };
 
 export default function AdminUsersPage() {
-  const [users, setUsers] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
-  const [editUser, setEditUser] = useState<any>(null);
+  const [editUser, setEditUser] = useState<UserRecord | null>(null);
   const [editRole, setEditRole] = useState('');
   const [saving, setSaving] = useState(false);
 
   const fetchUsers = () => {
     setLoading(true);
-    UserAPI.getAll().then(data => { setUsers(data); setFiltered(data); }).catch(() => toast.error('Failed to load users.')).finally(() => setLoading(false));
+    UserAPI.getAll().then(setUsers).catch(() => toast.error('Failed to load users.')).finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchUsers(); }, []);
 
-  useEffect(() => {
+  const filtered = useMemo(() => {
     let result = [...users];
-    if (roleFilter !== 'all') result = result.filter(u => u.role === roleFilter);
-    if (search) { const t = search.toLowerCase(); result = result.filter(u => u.name?.toLowerCase().includes(t) || u.email?.toLowerCase().includes(t)); }
-    setFiltered(result);
-  }, [users, search, roleFilter]);
+    if (roleFilter !== 'all') result = result.filter((user) => user.role === roleFilter);
+    if (search.trim()) {
+      result = result.filter((user) => matchesAdminSearch(search, user.name, user.email));
+    }
+    return result;
+  }, [roleFilter, search, users]);
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete user "${name}"? This cannot be undone.`)) return;
+  const handleDelete = async (id: string, name?: string) => {
+    if (!confirm(`Delete user "${name || 'Unknown user'}"? This cannot be undone.`)) return;
     try { await UserAPI.delete(id); setUsers(prev => prev.filter(u => u._id !== id)); toast.success('User deleted.'); } catch { toast.error('Failed to delete user.'); }
   };
 
@@ -47,15 +54,9 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 style={{ fontSize:'1.75rem', fontWeight:800, color:'var(--text-primary)', margin:0, letterSpacing:'-0.02em' }}>Users</h1>
-          <p style={{ color:'var(--text-secondary)', margin:0, fontSize:'0.875rem' }}>{filtered.length} of {users.length} users</p>
-        </div>
-      </div>
+      <AdminPageHeader title="Users" subtitle={`${filtered.length} of ${users.length} users`} />
 
-      {/* Filters */}
-      <div className="glass-toolbar mb-5">
+      <AdminFilterBar>
         <div className="input-with-icon toolbar-grow" style={{ maxWidth:'400px' }}>
           <i className="fas fa-search"></i>
           <input className="modern-input" placeholder="Search by name or email..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -66,9 +67,8 @@ export default function AdminUsersPage() {
           <option value="merchant">Merchants</option>
           <option value="admin">Admins</option>
         </select>
-      </div>
+      </AdminFilterBar>
 
-      {/* Table */}
       <div className="surface-panel overflow-hidden">
         <div className="overflow-x-auto">
           <table className="data-table">
@@ -94,16 +94,14 @@ export default function AdminUsersPage() {
                   </td>
                   <td style={{ fontSize:'0.875rem', color:'var(--text-secondary)' }}>{u.email}</td>
                   <td>
-                    <span className="status-chip" style={{ background: ROLE_COLORS[u.role]?.bg || 'var(--light-gray)', color: ROLE_COLORS[u.role]?.color || 'var(--text-secondary)' }}>
-                      {u.role}
-                    </span>
+                    <AdminStatusChip status={u.role} />
                   </td>
                   <td style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>
-                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—'}
+                    {formatAdminDate(u.createdAt)}
                   </td>
                   <td style={{ textAlign:'right' }}>
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => { setEditUser(u); setEditRole(u.role); }} style={{ padding:'0.3rem 0.75rem', borderRadius:'0.5rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--primary-color)', fontSize:'0.8rem', fontWeight:600, cursor:'pointer' }}>
+                      <button onClick={() => { setEditUser(u); setEditRole(u.role || 'user'); }} style={{ padding:'0.3rem 0.75rem', borderRadius:'0.5rem', border:'1.5px solid var(--border-color)', background:'var(--card-bg)', color:'var(--primary-color)', fontSize:'0.8rem', fontWeight:600, cursor:'pointer' }}>
                         <i className="fas fa-edit"></i> Edit
                       </button>
                       {u.role !== 'admin' && (

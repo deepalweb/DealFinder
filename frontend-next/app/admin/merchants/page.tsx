@@ -1,21 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import AdminFilterBar from '@/components/admin/AdminFilterBar';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminStatusChip from '@/components/admin/AdminStatusChip';
 import { MerchantAPI } from '@/lib/api';
+import { matchesAdminSearch } from '@/lib/admin';
 import toast from 'react-hot-toast';
 
-const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  active: { bg: 'rgba(16,185,129,0.1)', color: '#059669' },
-  pending_approval: { bg: 'rgba(245,158,11,0.1)', color: '#d97706' },
-  approved: { bg: 'rgba(16,185,129,0.1)', color: '#059669' },
-  rejected: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
-  suspended: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
-  needs_review: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
+type MerchantRecord = {
+  _id: string;
+  name?: string;
+  logo?: string;
+  contactInfo?: string;
+  status?: string;
+  promotions?: unknown[];
+  activeDeals?: number;
 };
 
 export default function AdminMerchantsPage() {
-  const [merchants, setMerchants] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
+  const [merchants, setMerchants] = useState<MerchantRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -23,16 +27,23 @@ export default function AdminMerchantsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    MerchantAPI.getAll().then(data => { setMerchants(data); setFiltered(data); }).catch(() => toast.error('Failed to load merchants.')).finally(() => setLoading(false));
+    MerchantAPI.getAll().then(setMerchants).catch(() => toast.error('Failed to load merchants.')).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
+  const getDealCount = (merchant: MerchantRecord) =>
+    typeof merchant.activeDeals === 'number'
+      ? merchant.activeDeals
+      : Array.isArray(merchant.promotions)
+        ? merchant.promotions.length
+        : 0;
+
+  const filtered = useMemo(() => {
     let result = [...merchants];
-    if (statusFilter !== 'all') result = result.filter(m => m.status === statusFilter);
-    if (dormantOnly) result = result.filter(m => !m.promotions || m.promotions.length === 0);
-    if (search) { const t = search.toLowerCase(); result = result.filter(m => m.name?.toLowerCase().includes(t)); }
-    setFiltered(result);
-  }, [merchants, search, statusFilter, dormantOnly]);
+    if (statusFilter !== 'all') result = result.filter((merchant) => merchant.status === statusFilter);
+    if (dormantOnly) result = result.filter((merchant) => getDealCount(merchant) === 0);
+    if (search.trim()) result = result.filter((merchant) => matchesAdminSearch(search, merchant.name, merchant.contactInfo));
+    return result;
+  }, [dormantOnly, merchants, search, statusFilter]);
 
   const updateStatus = async (id: string, status: string) => {
     setActionLoading(id + status);
@@ -44,20 +55,15 @@ export default function AdminMerchantsPage() {
     finally { setActionLoading(null); }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete merchant "${name}"? This cannot be undone.`)) return;
+  const handleDelete = async (id: string, name?: string) => {
+    if (!confirm(`Delete merchant "${name || 'Unknown merchant'}"? This cannot be undone.`)) return;
     try { await MerchantAPI.delete(id); setMerchants(prev => prev.filter(m => m._id !== id)); toast.success('Merchant deleted.'); } catch { toast.error('Failed to delete.'); }
   };
 
-  const getSafeLogo = (logo: string, name: string) => (logo && (logo.startsWith('data:') || logo.startsWith('http'))) ? logo : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=100`;
+  const getSafeLogo = (logo?: string, name?: string) => (logo && (logo.startsWith('data:') || logo.startsWith('http'))) ? logo : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=100`;
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <h1 style={{ fontSize:'1.75rem', fontWeight:800, color:'var(--text-primary)', margin:0, letterSpacing:'-0.02em' }}>Merchants</h1>
-          <p style={{ color:'var(--text-secondary)', margin:0, fontSize:'0.875rem' }}>{filtered.length} of {merchants.length} merchants</p>
-        </div>
-      </div>
+      <AdminPageHeader title="Merchants" subtitle={`${filtered.length} of ${merchants.length} merchants`} />
 
       {/* Pending alert */}
       {merchants.filter(m => m.status === 'pending_approval').length > 0 && (
@@ -72,8 +78,7 @@ export default function AdminMerchantsPage() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="glass-toolbar mb-5">
+      <AdminFilterBar>
         <div className="input-with-icon toolbar-grow" style={{ maxWidth:'400px' }}>
           <i className="fas fa-search"></i>
           <input className="modern-input" placeholder="Search merchants..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -89,9 +94,8 @@ export default function AdminMerchantsPage() {
         <button onClick={() => setDormantOnly(d => !d)} style={{ padding:'0.5rem 0.875rem', borderRadius:'0.625rem', border:`1.5px solid ${dormantOnly ? 'rgba(239,68,68,0.4)' : 'var(--border-color)'}`, background: dormantOnly ? 'rgba(239,68,68,0.08)' : 'var(--card-bg)', color: dormantOnly ? '#ef4444' : 'var(--text-secondary)', fontSize:'0.875rem', fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           <i className="fas fa-moon mr-1"></i> Dormant only {dormantOnly && `(${filtered.length})`}
         </button>
-      </div>
+      </AdminFilterBar>
 
-      {/* Table */}
       <div className="surface-panel overflow-hidden">
         <div className="overflow-x-auto">
           <table className="data-table">
@@ -108,7 +112,7 @@ export default function AdminMerchantsPage() {
                   <td>
                     <div className="flex items-center gap-3">
                       <img src={getSafeLogo(m.logo, m.name)} alt={m.name} style={{ width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', flexShrink:0, border:'1px solid var(--border-color)' }}
-                        onError={(e:any) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=random&size=100`; }} />
+                        onError={(e:any) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name || 'M')}&background=random&size=100`; }} />
                       <div>
                         <p style={{ fontWeight:600, fontSize:'0.875rem', color:'var(--text-primary)', margin:0 }}>{m.name}</p>
                         <p style={{ fontSize:'0.75rem', color:'var(--text-secondary)', margin:0 }}>{m.contactInfo || '—'}</p>
@@ -117,19 +121,17 @@ export default function AdminMerchantsPage() {
                   </td>
                   <td>
                     <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
-                      <span style={{ fontSize:'0.875rem', fontWeight:700, color: m.promotions?.length > 0 ? 'var(--text-primary)' : '#94a3b8' }}>
-                        {m.promotions?.length || 0}
+                      <span style={{ fontSize:'0.875rem', fontWeight:700, color: getDealCount(m) > 0 ? 'var(--text-primary)' : '#94a3b8' }}>
+                        {getDealCount(m)}
                       </span>
-                      <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>deal{m.promotions?.length !== 1 ? 's' : ''}</span>
-                      {(!m.promotions || m.promotions.length === 0) && (
+                      <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>deal{getDealCount(m) !== 1 ? 's' : ''}</span>
+                      {getDealCount(m) === 0 && (
                         <span style={{ fontSize:'0.7rem', color:'#ef4444', fontWeight:600, background:'rgba(239,68,68,0.08)', padding:'0.15rem 0.4rem', borderRadius:'9999px' }}>dormant</span>
                       )}
                     </div>
                   </td>
                   <td>
-                    <span className="status-chip" style={{ background: STATUS_STYLES[m.status]?.bg || 'var(--light-gray)', color: STATUS_STYLES[m.status]?.color || 'var(--text-secondary)' }}>
-                      {m.status?.replace(/_/g,' ') || 'active'}
-                    </span>
+                    <AdminStatusChip status={m.status || 'active'} />
                   </td>
                   <td style={{ textAlign:'right' }}>
                     <div className="flex justify-end gap-2 flex-wrap">
