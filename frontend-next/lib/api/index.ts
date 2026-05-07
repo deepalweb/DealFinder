@@ -30,6 +30,23 @@ function getToken(): string | null {
   } catch { return null; }
 }
 
+function getAiSessionId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const existing = localStorage.getItem('dealFinderAiSessionId');
+    if (existing) return existing;
+
+    const generated =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `ai-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem('dealFinderAiSessionId', generated);
+    return generated;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalidate?: number): Promise<T> {
   const isGet = !options.method || options.method === 'GET';
   const cacheKey = `${endpoint}`;
@@ -98,6 +115,59 @@ export const PromotionAPI = {
   addComment: (id: string, data: any) => fetchAPI<any>(`promotions/${id}/comments`, { method: 'POST', body: JSON.stringify(data) }),
   getRatings: (id: string) => fetchAPI<any[]>(`promotions/${id}/ratings`),
   addRating: (id: string, data: any) => fetchAPI<any>(`promotions/${id}/ratings`, { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// AI
+export const AiAPI = {
+  search: (data: {
+    query?: string;
+    filters?: Record<string, unknown>;
+    location?: { latitude: number; longitude: number; radiusKm?: number } | null;
+    limit?: number;
+    model?: string;
+  }) =>
+    fetchAPI<{
+      meta: {
+        query: string;
+        normalizedQuery: string;
+        aiUsed: boolean;
+        fallbackUsed: boolean;
+        source: string;
+        resultCount: number;
+        latencyMs: number;
+        filters: Record<string, unknown>;
+      };
+      results: any[];
+    }>('ai/search', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        sessionId: getAiSessionId(),
+      }),
+    }),
+  getSuggestions: (query: string) =>
+    fetchAPI<{ suggestions: string[] }>(`ai/search/suggestions?q=${encodeURIComponent(query)}`, { cache: 'no-store' }),
+  trackEvent: (data: {
+    eventType: string;
+    platform?: 'web' | 'mobile' | 'backend' | 'unknown';
+    query?: string;
+    category?: string;
+    filters?: Record<string, unknown>;
+    location?: { latitude?: number; longitude?: number; radiusKm?: number; label?: string };
+    promotionId?: string;
+    merchantId?: string;
+    metadata?: Record<string, unknown>;
+  }) =>
+    fetchAPI<{ message: string; eventId: string }>('ai/events', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...data,
+        sessionId: getAiSessionId(),
+        platform: data.platform || 'web',
+      }),
+    }),
+  getProfile: () => fetchAPI<any>('ai/profile/me', { cache: 'no-store' }),
+  getStatus: () => fetchAPI<any>('ai/status', { cache: 'no-store' }),
 };
 
 // Merchants

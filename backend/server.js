@@ -110,6 +110,7 @@ const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes'
 const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes');
 const adminSectionRoutes = require('./routes/adminRoutes/adminSectionRoutes');
 const imageRoutes = require('./routes/imageRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Use API Routes
 app.use('/api/users/login', loginLimiter);
@@ -121,6 +122,7 @@ app.use('/api/maps', googleMapsRoutes); // Use the new maps routes
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/images', imageRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Group admin routes under /api/admin
 const adminRouter = express.Router();

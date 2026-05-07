@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { PromotionAPI } from '@/lib/api';
+import { AiAPI } from '@/lib/api';
 import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
@@ -25,16 +25,16 @@ type Promotion = {
   createdAt?: string;
   discount?: string | number;
   featured?: boolean;
-  merchant?: string | { name?: string };
+  recommendationReasons?: string[];
+  aiMeta?: {
+    score?: number;
+    distanceKm?: number | null;
+  };
+  merchant?: string | { name?: string; _id?: string; location?: { coordinates?: [number, number] } };
 };
 
 function getMerchantName(promotion: Promotion) {
   return typeof promotion.merchant === 'object' ? promotion.merchant?.name || 'Unknown Merchant' : promotion.merchant || 'Unknown Merchant';
-}
-
-function getDiscountValue(discount: Promotion['discount']) {
-  const numeric = Number.parseFloat(String(discount ?? '').replace(/[^\d.]/g, ''));
-  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function getDateValue(value?: string) {
@@ -52,6 +52,13 @@ export default function CategoryPageClient() {
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
   const [sortBy, setSortBy] = useState('newest');
   const [activeOnly, setActiveOnly] = useState(true);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number; radiusKm?: number } | null>(null);
+  const [searchMeta, setSearchMeta] = useState<{
+    aiUsed?: boolean;
+    source?: string;
+    latencyMs?: number;
+    resultCount?: number;
+  } | null>(null);
   const [currentTimestamp] = useState(() => Date.now());
 
   const rawCategoryId = typeof categoryId === 'string' ? categoryId : 'all';
@@ -69,10 +76,70 @@ export default function CategoryPageClient() {
   }, [promotions]);
 
   useEffect(() => {
-    PromotionAPI.getAll().then(data => {
-      setPromotions(data);
-    }).finally(() => setLoading(false));
+    setSearchTerm(searchParams.get('q') || '');
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocation({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          radiusKm: 10,
+        });
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+    );
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const filters: Record<string, unknown> = {};
+        if (currentCategoryId !== 'all') {
+          filters.categories = [currentCategoryId];
+        }
+        if (sortBy === 'newest') filters.sortBy = 'newest';
+        else if (sortBy === 'ending-soon') filters.sortBy = 'ending_soon';
+        else if (sortBy === 'highest-discount') filters.sortBy = 'highest_discount';
+
+        const response = await AiAPI.search({
+          query: searchTerm.trim(),
+          filters,
+          location,
+          limit: 80,
+        });
+
+        if (cancelled) return;
+
+        setPromotions(response.results || []);
+        setSearchMeta({
+          aiUsed: response.meta?.aiUsed,
+          source: response.meta?.source,
+          latencyMs: response.meta?.latencyMs,
+          resultCount: response.meta?.resultCount,
+        });
+      } catch (error) {
+        console.error('Failed to load AI search results:', error);
+        if (!cancelled) {
+          setPromotions([]);
+          setSearchMeta(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void fetchResults();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentCategoryId, location, searchTerm, sortBy]);
 
   const liveDeals = promotions.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
   const visibleDeals = currentCategoryId === 'all'
@@ -94,18 +161,7 @@ export default function CategoryPageClient() {
   let filtered = [...promotions];
   if (currentCategoryId !== 'all') filtered = filtered.filter((promotion) => normalizeCategoryId(promotion.category) === currentCategoryId);
   if (activeOnly) filtered = filtered.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
-  if (searchTerm) {
-    const normalizedSearchTerm = searchTerm.toLowerCase();
-    filtered = filtered.filter((promotion) =>
-      promotion.title?.toLowerCase().includes(normalizedSearchTerm) ||
-      promotion.description?.toLowerCase().includes(normalizedSearchTerm) ||
-      getMerchantName(promotion).toLowerCase().includes(normalizedSearchTerm)
-    );
-  }
-  if (sortBy === 'newest') filtered.sort((a, b) => getDateValue(b.createdAt) - getDateValue(a.createdAt));
-  else if (sortBy === 'ending-soon') filtered.sort((a, b) => getDateValue(a.endDate) - getDateValue(b.endDate));
-  else if (sortBy === 'highest-discount') filtered.sort((a, b) => getDiscountValue(b.discount) - getDiscountValue(a.discount));
-  else if (sortBy === 'merchant') filtered.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
+  if (sortBy === 'merchant') filtered.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
 
   const showingLabel = loading
     ? 'Loading deals...'
@@ -168,7 +224,7 @@ export default function CategoryPageClient() {
               {showingLabel}
             </div>
             <p style={{ margin: '0.45rem 0 0', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Sort by urgency, discount, or merchant and keep expired offers out of the way until you need them.
+              Search is now ranked by the backend AI layer, then shaped by your current category and sort controls.
             </p>
           </div>
           <div className="stat-tile" style={{ padding: '1rem 1.1rem' }}>
@@ -328,6 +384,18 @@ export default function CategoryPageClient() {
                 {searchTerm}
               </span>
             ) : null}
+            {searchMeta?.aiUsed ? (
+              <span className="status-chip" style={{ background: 'rgba(37,99,235,0.08)', color: 'var(--primary-color)' }}>
+                <i className="fas fa-wand-magic-sparkles"></i>
+                AI ranked
+              </span>
+            ) : null}
+            {searchMeta?.latencyMs ? (
+              <span className="status-chip" style={{ background: 'rgba(15,23,42,0.06)', color: 'var(--text-secondary)' }}>
+                <i className="fas fa-gauge-high"></i>
+                {searchMeta.latencyMs} ms
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -357,7 +425,9 @@ export default function CategoryPageClient() {
                 </h2>
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-                Sorted by {SORT_OPTIONS.find((option) => option.id === sortBy)?.label?.toLowerCase()}
+                {sortBy === 'merchant'
+                  ? 'Merchant sorted after AI search'
+                  : `Sorted by ${SORT_OPTIONS.find((option) => option.id === sortBy)?.label?.toLowerCase()}`}
               </div>
             </div>
 

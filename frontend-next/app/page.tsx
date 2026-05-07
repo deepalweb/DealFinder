@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { DEALFINDER_CATEGORIES, getCategoryLabel, normalizeCategoryId } from '@/lib/categories';
-import { PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
+import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
+import { AiAPI, PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 
 type Promotion = {
   _id?: string;
@@ -21,6 +21,11 @@ type Promotion = {
   image?: string;
   createdAt?: string;
   endDate?: string;
+  recommendationReasons?: string[];
+  aiMeta?: {
+    score?: number;
+    distanceKm?: number | null;
+  };
   merchant?: string | {
     _id?: string;
     name?: string;
@@ -42,10 +47,6 @@ const CATEGORIES = DEALFINDER_CATEGORIES.filter((category) =>
 
 function getPromotionId(promotion: Promotion) {
   return promotion._id || promotion.id || '';
-}
-
-function getMerchantName(promotion: Promotion) {
-  return typeof promotion.merchant === 'object' ? promotion.merchant?.name || 'Unknown Merchant' : promotion.merchant || 'Unknown Merchant';
 }
 
 function getMerchantId(promotion: Promotion) {
@@ -195,6 +196,9 @@ export default function HomePage() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [nearbyDeals, setNearbyDeals] = useState<Promotion[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [aiSearchResults, setAiSearchResults] = useState<Promotion[]>([]);
+  const [loadingAiSearch, setLoadingAiSearch] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number; radiusKm?: number } | null>(null);
   const [loadingDeals, setLoadingDeals] = useState(true);
   const [loadingNearby, setLoadingNearby] = useState(false);
   const [locationError, setLocationError] = useState('');
@@ -232,6 +236,12 @@ export default function HomePage() {
     setLoadingNearby(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        const currentLocation = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          radiusKm: 10,
+        };
+        setUserLocation(currentLocation);
         PromotionAPI.getNearby(coords.latitude, coords.longitude, 10)
           .then((data: Promotion[]) => {
             const sorted = [...data].sort((a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt));
@@ -246,6 +256,44 @@ export default function HomePage() {
       }
     );
   }, []);
+
+  useEffect(() => {
+    const trimmed = searchTerm.trim();
+    if (!trimmed) {
+      setAiSearchResults([]);
+      setLoadingAiSearch(false);
+      return;
+    }
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(async () => {
+      setLoadingAiSearch(true);
+      try {
+        const response = await AiAPI.search({
+          query: trimmed,
+          location: userLocation,
+          limit: 6,
+        });
+        if (!cancelled) {
+          setAiSearchResults(response.results || []);
+        }
+      } catch (error) {
+        console.error('AI search preview failed:', error);
+        if (!cancelled) {
+          setAiSearchResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingAiSearch(false);
+        }
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [searchTerm, userLocation]);
 
   const activePromotions = useMemo(
     () => allPromotions.filter((promotion) => isActiveDeal(promotion, currentTimestamp)),
@@ -298,21 +346,7 @@ export default function HomePage() {
     return featuredDeals.slice(0, 3);
   }, [activePromotions, currentTimestamp, favoriteCategories, favoriteDeals.length, favoriteIds, favoriteMerchantIds, featuredDeals, nearbyDeals]);
 
-  const searchResults = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return [];
-
-    return activePromotions
-      .filter((promotion) => {
-        return (
-          promotion.title?.toLowerCase().includes(term) ||
-          promotion.description?.toLowerCase().includes(term) ||
-          promotion.category?.toLowerCase().includes(term) ||
-          getMerchantName(promotion).toLowerCase().includes(term)
-        );
-      })
-      .slice(0, 6);
-  }, [activePromotions, searchTerm]);
+  const searchResults = aiSearchResults;
 
   const savedPreview = useMemo(() => favoriteDeals.slice(0, 2), [favoriteDeals]);
 
@@ -623,7 +657,11 @@ export default function HomePage() {
                 Search preview
               </div>
               <div style={{ marginTop: '0.8rem', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {searchTerm.trim() ? `${searchResults.length} quick matches for "${searchTerm}"` : 'Search deals, stores, or categories to jump straight to the right results.'}
+                {searchTerm.trim()
+                  ? loadingAiSearch
+                    ? `Ranking matches for "${searchTerm}"...`
+                    : `${searchResults.length} AI-ranked matches for "${searchTerm}"`
+                  : 'Search deals, stores, or categories to jump straight to the right results.'}
               </div>
             </div>
             <button
@@ -644,11 +682,19 @@ export default function HomePage() {
               eyebrow="Search results"
               title="Fast matches"
               icon="fa-magnifying-glass"
-              meta={searchResults.length > 0 ? 'Quick preview from live deals' : 'No matching preview yet'}
+              meta={
+                loadingAiSearch
+                  ? 'AI is ranking live matches'
+                  : searchResults.length > 0
+                    ? 'Quick preview from backend-ranked results'
+                    : 'No matching preview yet'
+              }
               actionLabel="View All Deals"
               onAction={() => openDeals(searchTerm)}
             />
-            {searchResults.length > 0 ? (
+            {loadingAiSearch ? (
+              <SkeletonGrid count={3} />
+            ) : searchResults.length > 0 ? (
               <DealGrid deals={searchResults} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
             ) : (
               <div className="empty-state">
@@ -657,7 +703,7 @@ export default function HomePage() {
                 </div>
                 <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontWeight: 800 }}>No quick matches found</h2>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '1.2rem', maxWidth: '34rem', marginInline: 'auto', lineHeight: 1.7 }}>
-                  Try a store name, category, or broader keyword. The full deals page will still give you more room to explore.
+                  Try a store name, category, or broader keyword. The full results page will still give you more room to explore.
                 </p>
                 <button onClick={() => openDeals(searchTerm)} className="btn btn-primary">
                   Search All Deals
