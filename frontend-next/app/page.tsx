@@ -187,9 +187,9 @@ function FeaturedShowcase({
   if (!hero) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.45fr_1fr]">
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
       <div
-        className="promotion-card fade-in"
+        className="promotion-card fade-in xl:col-span-7"
         style={{
           overflow: 'hidden',
           display: 'flex',
@@ -226,13 +226,7 @@ function FeaturedShowcase({
             <i className="fas fa-star"></i>
             Main featured deal
           </div>
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(180deg, rgba(15,23,42,0.08) 0%, rgba(15,23,42,0.48) 100%)',
-            }}
-          />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(15,23,42,0.06) 0%, rgba(15,23,42,0.44) 100%)' }} />
         </div>
         <div
           style={{
@@ -289,7 +283,7 @@ function FeaturedShowcase({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:col-span-5">
         {secondary.map((promotion) => {
           const id = getPromotionId(promotion);
           const daysLeft = Math.ceil((getTimestamp(promotion.endDate) - Date.now()) / 86400000);
@@ -299,14 +293,13 @@ function FeaturedShowcase({
               className="promotion-card fade-in cursor-pointer"
               onClick={() => router.push(`/deal/${id}`)}
               style={{
-                overflow: 'hidden',
-                display: 'grid',
-                gridTemplateColumns: '96px 1fr',
-                alignItems: 'stretch',
-                minHeight: '160px',
+                  overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: '0',
               }}
             >
-              <div style={{ position: 'relative', height: '100%', minHeight: '160px', overflow: 'hidden' }}>
+              <div style={{ position: 'relative', height: '144px', overflow: 'hidden', flexShrink: 0 }}>
                 <img
                   src={promotion.image || 'https://placehold.co/500x300?text=Deal'}
                   alt={promotion.title || 'Featured deal'}
@@ -316,7 +309,7 @@ function FeaturedShowcase({
                   {promotion.discount || 'Top'} OFF
                 </div>
               </div>
-              <div style={{ padding: '0.85rem 0.9rem', display: 'grid', gap: '0.5rem', alignContent: 'start' }}>
+              <div style={{ padding: '0.85rem 0.9rem 0.95rem', display: 'grid', gap: '0.5rem', alignContent: 'start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
                   <span style={{ fontSize: '0.73rem', fontWeight: 800, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {getMerchantName(promotion)}
@@ -328,7 +321,7 @@ function FeaturedShowcase({
                 <h4 style={{ margin: 0, fontWeight: 800, fontSize: '0.96rem', color: 'var(--text-primary)', lineHeight: 1.28 }}>
                   {promotion.title || 'Untitled deal'}
                 </h4>
-                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.45, height: '2.2rem', overflow: 'hidden' }}>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.45, height: '2.5rem', overflow: 'hidden' }}>
                   {promotion.description || 'A strong deal worth a quick look.'}
                 </p>
               </div>
