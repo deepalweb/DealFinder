@@ -171,6 +171,156 @@ function DealGrid({
   );
 }
 
+function FeaturedShowcase({
+  deals,
+  favoriteIds,
+  onFavoriteToggle,
+}: {
+  deals: Promotion[];
+  favoriteIds: Set<string>;
+  onFavoriteToggle: (id: string, isFav: boolean) => void;
+}) {
+  const router = useRouter();
+  const hero = deals[0];
+  const secondary = deals.slice(1, 5);
+
+  if (!hero) return null;
+
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_1fr]">
+      <div
+        className="promotion-card fade-in"
+        style={{
+          minHeight: '100%',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <div style={{ position: 'relative', minHeight: '360px', flex: 1 }}>
+          <img
+            src={hero.image || 'https://placehold.co/900x700?text=Featured+Deal'}
+            alt={hero.title || 'Featured deal'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          <div className="discount-badge" style={{ position: 'absolute', top: '1rem', right: '1rem', border: '1px solid rgba(255,255,255,0.24)' }}>
+            {hero.discount || 'Top'} OFF
+          </div>
+          <div
+            style={{
+              position: 'absolute',
+              left: '1rem',
+              bottom: '1rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.45rem 0.7rem',
+              borderRadius: '999px',
+              background: 'rgba(15,23,42,0.72)',
+              color: '#fff',
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              backdropFilter: 'blur(10px)',
+            }}
+          >
+            <i className="fas fa-star"></i>
+            Main featured deal
+          </div>
+        </div>
+        <div style={{ padding: '1.1rem 1.1rem 1.2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+            <span className="page-eyebrow" style={{ margin: 0 }}>
+              <i className="fas fa-fire"></i>
+              Featured Deal
+            </span>
+            {hero.featured ? (
+              <span className="status-chip" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--warning-color)' }}>
+                <i className="fas fa-bolt"></i>
+                Top pick
+              </span>
+            ) : null}
+          </div>
+          <h3 style={{ margin: '0 0 0.55rem', fontSize: '1.55rem', lineHeight: 1.08 }}>{hero.title || 'Summer Mega Sale'}</h3>
+          <p style={{ margin: '0 0 0.9rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            {hero.description || 'One standout offer with strong savings, clean urgency, and a faster path to action.'}
+          </p>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+            {getMerchantName(hero)}{hero.category ? ` • ${getCategoryLabel(hero.category)}` : ''}
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <button
+              onClick={() => router.push(`/deal/${getPromotionId(hero)}`)}
+              className="btn btn-primary"
+              style={{ padding: '0.85rem 1.15rem' }}
+            >
+              <i className="fas fa-bolt"></i>
+              Get Deal
+            </button>
+            <button
+              onClick={() => onFavoriteToggle(getPromotionId(hero), !favoriteIds.has(getPromotionId(hero)))}
+              className="btn"
+              style={{
+                padding: '0.85rem 1.15rem',
+                background: 'var(--card-bg)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <i className="fas fa-heart"></i>
+              Save Offer
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {secondary.map((promotion) => {
+          const id = getPromotionId(promotion);
+          const daysLeft = Math.ceil((getTimestamp(promotion.endDate) - Date.now()) / 86400000);
+          return (
+            <div
+              key={id}
+              className="promotion-card fade-in cursor-pointer"
+              onClick={() => router.push(`/deal/${id}`)}
+              style={{
+                overflow: 'hidden',
+                minHeight: '0',
+              }}
+            >
+              <div style={{ position: 'relative', height: '155px', overflow: 'hidden' }}>
+                <img
+                  src={promotion.image || 'https://placehold.co/500x300?text=Deal'}
+                  alt={promotion.title || 'Featured deal'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                <div className="discount-badge" style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', border: '1px solid rgba(255,255,255,0.24)' }}>
+                  {promotion.discount || 'Top'} OFF
+                </div>
+              </div>
+              <div style={{ padding: '0.9rem 1rem 1rem', display: 'grid', gap: '0.55rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '0.73rem', fontWeight: 800, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {getMerchantName(promotion)}
+                  </span>
+                  <span style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', borderRadius: '9999px', background: daysLeft <= 1 ? 'var(--warning-soft)' : 'var(--light-gray)', color: daysLeft <= 1 ? 'var(--warning-color)' : 'var(--text-secondary)' }}>
+                    {daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Ends today' : `${daysLeft}d left`}
+                  </span>
+                </div>
+                <h4 style={{ margin: 0, fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                  {promotion.title || 'Untitled deal'}
+                </h4>
+                <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.5, height: '2.45rem', overflow: 'hidden' }}>
+                  {promotion.description || 'A strong deal worth a quick look.'}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function SkeletonGrid({ count }: { count: number }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -291,11 +441,6 @@ export default function HomePage() {
     if (nearbyDeals.length > 0) return nearbyDeals.slice(0, 3);
     return featuredDeals.slice(0, 3);
   }, [activePromotions, currentTimestamp, favoriteCategories, favoriteDeals.length, favoriteIds, favoriteMerchantIds, featuredDeals, nearbyDeals]);
-
-  const featuredDeal = useMemo(() => {
-    const pool = featuredDeals.length > 0 ? featuredDeals : activePromotions;
-    return pool[0] || null;
-  }, [activePromotions, featuredDeals]);
 
   const searchResults = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -672,15 +817,22 @@ export default function HomePage() {
               eyebrow="High conversion"
               title="Best Deals Today"
               icon="fa-fire"
-              meta="The strongest offers surfaced first"
+              meta="One hero deal plus four supporting picks"
               actionLabel="Get Deal"
               onAction={() => router.push('/categories/all')}
               accent="var(--highlight-color)"
             />
             {loadingDeals ? (
-              <SkeletonGrid count={3} />
+              <div className="grid grid-cols-1 lg:grid-cols-[1.35fr_1fr] gap-4">
+                <div className="skeleton" style={{ minHeight: '520px' }}></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="skeleton" style={{ minHeight: '248px' }}></div>
+                  ))}
+                </div>
+              </div>
             ) : (
-              <DealGrid deals={featuredDeals.slice(0, 3)} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
+              <FeaturedShowcase deals={featuredDeals.slice(0, 5)} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
             )}
           </section>
 
@@ -761,68 +913,6 @@ export default function HomePage() {
               ))}
             </div>
           </section>
-
-          {featuredDeal ? (
-            <section className="surface-panel" style={{ overflow: 'hidden' }}>
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_0.9fr]">
-                <div
-                  style={{
-                    minHeight: '320px',
-                    backgroundImage: `url(${featuredDeal.image || 'https://placehold.co/900x700?text=Featured+Deal'})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }}
-                />
-                <div className="panel-pad" style={{ display: 'grid', alignContent: 'center', gap: '1rem' }}>
-                  <div className="page-eyebrow">
-                    <i className="fas fa-star"></i>
-                    Featured Deal
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <span className="discount-badge" style={{ fontSize: '1rem', padding: '0.45rem 0.85rem' }}>
-                      {featuredDeal.discount || 'Top'} OFF
-                    </span>
-                    <span className="status-chip" style={{ background: 'rgba(249,115,22,0.12)', color: 'var(--warning-color)' }}>
-                      <i className="fas fa-hourglass-half"></i>
-                      Ending soon
-                    </span>
-                  </div>
-                  <h2 style={{ margin: 0, fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.05 }}>
-                    {featuredDeal.title || 'Summer Mega Sale'}
-                  </h2>
-                  <p style={{ margin: 0, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                    {featuredDeal.description || 'One standout offer with strong savings, clean urgency, and a faster path to action.'}
-                  </p>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-                    {getMerchantName(featuredDeal)}{featuredDeal.category ? ` • ${getCategoryLabel(featuredDeal.category)}` : ''}
-                  </div>
-                  <div className="flex gap-3 flex-wrap">
-                    <button
-                      onClick={() => router.push(`/deal/${getPromotionId(featuredDeal)}`)}
-                      className="btn btn-primary"
-                      style={{ padding: '0.9rem 1.2rem' }}
-                    >
-                      <i className="fas fa-bolt"></i>
-                      Get Deal
-                    </button>
-                    <button
-                      onClick={() => handleFavoriteToggle(getPromotionId(featuredDeal), !favoriteIds.has(getPromotionId(featuredDeal)))}
-                      className="btn"
-                      style={{
-                        padding: '0.9rem 1.2rem',
-                        background: 'var(--card-bg)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-color)',
-                      }}
-                    >
-                      <i className="fas fa-heart"></i>
-                      Save Offer
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          ) : null}
 
           <section className="surface-panel panel-pad">
             <SectionHeader
