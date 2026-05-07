@@ -25,6 +25,17 @@ export const ADMIN_STATUS_STYLES: Record<string, { bg: string; color: string }> 
   admin: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
 };
 
+export const ADMIN_QA_STYLES: Record<string, { label: string; bg: string; color: string }> = {
+  missing_image: { label: 'Missing image', bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
+  missing_url: { label: 'Missing URL', bg: 'rgba(249,115,22,0.12)', color: '#ea580c' },
+  invalid_dates: { label: 'Invalid dates', bg: 'rgba(245,158,11,0.12)', color: '#d97706' },
+  expired_featured: { label: 'Expired but featured', bg: 'rgba(148,163,184,0.12)', color: '#64748b' },
+  active_invalid_window: { label: 'Active date issue', bg: 'rgba(245,158,11,0.12)', color: '#d97706' },
+  merchant_inactive_visibility: { label: 'Merchant blocked', bg: 'rgba(99,102,241,0.12)', color: '#6366f1' },
+  discount_unclear: { label: 'Discount unclear', bg: 'rgba(250,204,21,0.14)', color: '#a16207' },
+  weak_title: { label: 'Weak title', bg: 'rgba(148,163,184,0.12)', color: '#64748b' },
+};
+
 export function getPromotionId<T extends { _id?: string; id?: string }>(promotion: T) {
   return promotion._id || promotion.id || '';
 }
@@ -79,4 +90,22 @@ export function getNormalizedAdminCategory(category?: string | null) {
 
 export function getAdminCategoryLabel(category?: string | null) {
   return getCategoryLabel(category);
+}
+
+export function getAdminQaMeta(flag: string) {
+  return (
+    ADMIN_QA_STYLES[flag] || {
+      label: flag.replace(/_/g, ' '),
+      bg: 'rgba(148,163,184,0.12)',
+      color: '#64748b',
+    }
+  );
+}
+
+export function formatAdminRelativeDays(days?: number | null) {
+  if (days === null || days === undefined || Number.isNaN(days)) return '—';
+  if (days < 0) return `${Math.abs(days)}d ago`;
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 day left';
+  return `${days} days left`;
 }

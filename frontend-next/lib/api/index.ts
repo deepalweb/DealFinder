@@ -137,6 +137,19 @@ export const AdminAPI = {
     const q = new URLSearchParams(filters as any).toString();
     return fetchAPI<any>(`admin/promotions${q ? `?${q}` : ''}`).then((res: any) => Array.isArray(res) ? res : (res?.data || []));
   },
+  getPromotionsPage: (filters = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(filters as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (value !== undefined && value !== null && value !== '') acc[key] = String(value);
+        return acc;
+      }, {})
+    ).toString();
+    return fetchAPI<any>(`admin/promotions${q ? `?${q}` : ''}`, { cache: 'no-store' });
+  },
+  getPromotionFilters: () => fetchAPI<any>('admin/promotions/filters', { cache: 'no-store' }),
+  runPromotionBulkAction: (data: any) =>
+    fetchAPI<any>('admin/promotions/bulk', { method: 'POST', body: JSON.stringify(data) })
+      .then((res) => { invalidateCache('admin/promotions'); invalidateCache('promotions'); return res; }),
   getSections: () => fetchAPI<any[]>('admin/sections', { cache: 'no-store' }),
   getSectionConflicts: () => fetchAPI<any[]>('admin/sections/conflicts', { cache: 'no-store' }),
   saveSectionAssignment: (data: any) =>

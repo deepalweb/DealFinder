@@ -168,53 +168,74 @@ async function getAlertData() {
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
   const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const brokenPromotionFilter = {
+    $or: [
+      { image: { $in: [null, ''] } },
+      { url: { $in: [null, ''] } },
+    ],
+  };
+  const expiringSoonFilter = {
+    status: { $in: ['active', 'approved'] },
+    startDate: { $lte: now },
+    endDate: { $gte: todayStart, $lte: in7Days },
+  };
+  const pausedPromotionFilter = { status: 'admin_paused' };
 
-  const [pendingMerchants, pendingPromotions, dormantMerchants, brokenPromotions, expiringSoon, pausedPromotions] = await Promise.all([
+  const [
+    pendingMerchantCount,
+    pendingPromotionCount,
+    brokenPromotionCount,
+    expiringSoonCount,
+    pausedPromotionCount,
+    pendingMerchants,
+    pendingPromotions,
+    dormantMerchants,
+    brokenPromotions,
+    expiringSoon,
+    pausedPromotions,
+  ] = await Promise.all([
+    Merchant.countDocuments({ status: 'pending_approval' }),
+    Promotion.countDocuments({ status: 'pending_approval' }),
+    Promotion.countDocuments(brokenPromotionFilter),
+    Promotion.countDocuments(expiringSoonFilter),
+    Promotion.countDocuments(pausedPromotionFilter),
     Merchant.find({ status: 'pending_approval' }).select('name createdAt status').sort({ createdAt: -1 }).limit(6).lean(),
     Promotion.find({ status: 'pending_approval' }).select('title createdAt status merchant').populate('merchant', 'name').sort({ createdAt: -1 }).limit(6).lean(),
     Merchant.find().select('name createdAt logo contactInfo').lean(),
-    Promotion.find({
-      $or: [
-        { image: { $in: [null, ''] } },
-        { url: { $in: [null, ''] } },
-      ],
-    }).select('title image url status merchant createdAt').populate('merchant', 'name').sort({ createdAt: -1 }).limit(8).lean(),
-    Promotion.find({
-      status: { $in: ['active', 'approved'] },
-      startDate: { $lte: now },
-      endDate: { $gte: todayStart, $lte: in7Days },
-    }).select('title endDate merchant').populate('merchant', 'name').sort({ endDate: 1 }).limit(8).lean(),
-    Promotion.find({ status: 'admin_paused' }).select('title updatedAt merchant').populate('merchant', 'name').sort({ updatedAt: -1 }).limit(8).lean(),
+    Promotion.find(brokenPromotionFilter).select('title image url status merchant createdAt').populate('merchant', 'name').sort({ createdAt: -1 }).limit(8).lean(),
+    Promotion.find(expiringSoonFilter).select('title endDate merchant').populate('merchant', 'name').sort({ endDate: 1 }).limit(8).lean(),
+    Promotion.find(pausedPromotionFilter).select('title updatedAt merchant').populate('merchant', 'name').sort({ updatedAt: -1 }).limit(8).lean(),
   ]);
 
-  const dormantMerchantList = dormantMerchants.filter((merchant) => !merchant.logo && !merchant.contactInfo).slice(0, 6);
+  const dormantMerchantMatches = dormantMerchants.filter((merchant) => !merchant.logo && !merchant.contactInfo);
+  const dormantMerchantList = dormantMerchantMatches.slice(0, 6);
 
   return {
     pendingMerchants: {
-      count: pendingMerchants.length,
+      count: pendingMerchantCount,
       items: pendingMerchants,
     },
     pendingPromotions: {
-      count: pendingPromotions.length,
+      count: pendingPromotionCount,
       items: pendingPromotions,
     },
     brokenPromotions: {
-      count: brokenPromotions.length,
+      count: brokenPromotionCount,
       items: brokenPromotions.map((promotion) => ({
         ...promotion,
         issue: !promotion.image && !promotion.url ? 'Missing image and URL' : !promotion.image ? 'Missing image' : 'Missing URL',
       })),
     },
     dormantMerchants: {
-      count: dormantMerchantList.length,
+      count: dormantMerchantMatches.length,
       items: dormantMerchantList,
     },
     expiringSoon: {
-      count: expiringSoon.length,
+      count: expiringSoonCount,
       items: expiringSoon,
     },
     pausedPromotions: {
-      count: pausedPromotions.length,
+      count: pausedPromotionCount,
       items: pausedPromotions,
     },
     expiringTodayCount: await Promotion.countDocuments({
