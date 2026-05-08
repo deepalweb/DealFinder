@@ -432,7 +432,7 @@ export default function HomePage() {
                 }}
               >
                 <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i>
-                Fast. Smart. Local-first.
+                Sri Lanka's #1 Deal Platform
               </div>
 
               <h1
@@ -488,7 +488,7 @@ export default function HomePage() {
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') openDeals(searchTerm);
                     }}
-                    placeholder="Search deals, stores, categories, nearby offers..."
+                    placeholder="Find deals near you..."
                     style={{
                       flex: 1,
                       minWidth: '220px',
@@ -509,7 +509,7 @@ export default function HomePage() {
                       fontWeight: 800,
                     }}
                   >
-                    Grab now
+                    Search
                   </button>
                 </div>
 
@@ -648,33 +648,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="max-w-7xl mx-auto px-4" style={{ marginTop: '-1.6rem', position: 'relative', zIndex: 2 }}>
-        <div className="surface-panel panel-pad">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <div className="page-eyebrow">
-                <i className="fas fa-bullseye"></i>
-                Search preview
-              </div>
-              <div style={{ marginTop: '0.8rem', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                {searchTerm.trim()
-                  ? loadingAiSearch
-                    ? `Ranking matches for "${searchTerm}"...`
-                    : `${searchResults.length} AI-ranked matches for "${searchTerm}"`
-                  : 'Search deals, stores, or categories to jump straight to the right results.'}
-              </div>
-            </div>
-            <button
-              onClick={() => openDeals(searchTerm)}
-              className="btn btn-primary"
-              style={{ padding: '0.85rem 1.15rem' }}
-            >
-              Open Full Results
-            </button>
-          </div>
-        </div>
-      </section>
-
       <section className="max-w-7xl mx-auto px-4 py-10">
         {searchTerm.trim() ? (
           <section style={{ marginBottom: '3rem' }}>
@@ -742,7 +715,7 @@ export default function HomePage() {
               eyebrow="Urgency"
               title="Ending Soon"
               icon="fa-hourglass-half"
-              meta="Grab now before they disappear"
+              meta="Search before they disappear"
               actionLabel="Ending soon"
               onAction={() => router.push('/categories/all')}
               accent="var(--warning-color)"
@@ -882,7 +855,7 @@ export default function HomePage() {
               {[
                 { step: '1', title: 'Discover nearby deals', text: 'Search fast and surface the strongest offers around you.' },
                 { step: '2', title: 'Spot value instantly', text: 'See urgency, discounts, and categories without the clutter.' },
-                { step: '3', title: 'Grab now or save later', text: 'Take the deal now or keep it ready for the next step.' },
+                { step: '3', title: 'Search or save later', text: 'Take the deal now or keep it ready for the next step.' },
               ].map((item) => (
                 <div key={item.step} className="surface-panel panel-pad">
                   <div
