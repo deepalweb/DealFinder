@@ -168,24 +168,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // Account Type
               Text('Account Type', style: Theme.of(context).textTheme.titleMedium),
-              Row(children: [
-                Expanded(
-                  child: RadioListTile<AccountRole>(
-                    title: const Text('User'),
-                    value: AccountRole.user,
-                    groupValue: _selectedRole,
-                    onChanged: (v) { if (v != null) setState(() { _selectedRole = v; }); },
+              RadioGroup<AccountRole>(
+                groupValue: _selectedRole,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedRole = value;
+                    });
+                  }
+                },
+                child: const Row(children: [
+                  Expanded(
+                    child: RadioListTile<AccountRole>(
+                      title: Text('User'),
+                      value: AccountRole.user,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: RadioListTile<AccountRole>(
-                    title: const Text('Merchant'),
-                    value: AccountRole.merchant,
-                    groupValue: _selectedRole,
-                    onChanged: (v) { if (v != null) setState(() { _selectedRole = v; }); },
+                  Expanded(
+                    child: RadioListTile<AccountRole>(
+                      title: Text('Merchant'),
+                      value: AccountRole.merchant,
+                    ),
                   ),
-                ),
-              ]),
+                ]),
+              ),
 
               // Business Name (conditional)
               if (_selectedRole == AccountRole.merchant)

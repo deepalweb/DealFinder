@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
@@ -18,7 +18,7 @@ class ImageHelper {
       );
       return result;
     } catch (e) {
-      print('Error compressing image: $e');
+      debugPrint('Error compressing image: $e');
       return null;
     }
   }
@@ -34,7 +34,7 @@ class ImageHelper {
       await file.writeAsBytes(bytes);
       return file;
     } catch (e) {
-      print('Error creating compressed file: $e');
+      debugPrint('Error creating compressed file: $e');
       return null;
     }
   }

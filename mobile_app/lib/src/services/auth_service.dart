@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'push_notification_service.dart';
@@ -35,24 +36,28 @@ class AuthService {
   }
 
   static Future<Map<String, dynamic>> loginWithEmail(
-      String email, String password) async {
+    String email,
+    String password,
+  ) async {
     try {
-      // Try Firebase first
       try {
         final credential = await _auth.signInWithEmailAndPassword(
-            email: email, password: password);
+          email: email,
+          password: password,
+        );
         final idToken = await credential.user!.getIdToken();
         final response = await _apiService.firebaseAuthSync(idToken: idToken!);
         await saveSession(response);
         return response;
       } on FirebaseAuthException catch (e) {
-        print('⚠️ Firebase auth failed: ${e.code} - ${e.message}');
-        print('🔄 Falling back to direct API login...');
-        // Firebase failed, try direct backend login
+        debugPrint('Firebase auth failed: ${e.code} - ${e.message}');
+        debugPrint('Falling back to direct API login.');
       }
-      
-      // Fallback: Direct backend login (no Firebase)
-      final response = await _apiService.directLogin(email: email, password: password);
+
+      final response = await _apiService.directLogin(
+        email: email,
+        password: password,
+      );
       await saveSession(response);
       return response;
     } catch (e) {
@@ -84,10 +89,9 @@ class AuthService {
     if (token == null || userId == null) {
       throw Exception('Invalid response from server');
     }
-    
-    // Debug: Print the entire response to see what we're getting
-    print('🔍 Login Response: $response');
-    
+
+    debugPrint('Login response received for user: $userId');
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userToken', token);
     await prefs.setString('userId', userId);
@@ -95,20 +99,21 @@ class AuthService {
     await prefs.setString('userEmail', response['email'] as String? ?? '');
     final role = response['role'] as String? ?? 'user';
     await prefs.setString('userRole', role);
-    
-    // Save merchant-specific data
+
     if (role == 'merchant') {
       if (response['businessName'] != null) {
-        await prefs.setString('userBusinessName', response['businessName'] as String);
+        await prefs.setString(
+          'userBusinessName',
+          response['businessName'] as String,
+        );
       }
-      // Save merchantId if available
       final merchantId = response['merchantId'] as String?;
-      print('🔍 MerchantId from response: $merchantId');
+      debugPrint('MerchantId from response: $merchantId');
       if (merchantId != null) {
         await prefs.setString('merchantId', merchantId);
-        print('✅ Saved merchantId: $merchantId');
+        debugPrint('Saved merchantId: $merchantId');
       } else {
-        print('❌ No merchantId in response');
+        debugPrint('No merchantId in response');
       }
     } else {
       await prefs.remove('userBusinessName');

@@ -81,7 +81,7 @@ class Promotion {
         return DateTime.parse(dateString);
       } catch (e) {
         if (kDebugMode) {
-          print('Error parsing date: $dateString, Error: $e');
+          debugPrint('Error parsing date: $dateString, Error: $e');
         }
         return null; // Return null if parsing fails
       }
@@ -116,9 +116,9 @@ class Promotion {
     }
 
     if (kDebugMode && logoUrl != null) {
-      print('✅ Logo found for ${json['title']}: $logoUrl');
+      debugPrint('Logo found for ${json['title']}: $logoUrl');
     } else if (kDebugMode) {
-      print('❌ No logo for ${json['title']}');
+      debugPrint('No logo for ${json['title']}');
     }
 
     return Promotion(

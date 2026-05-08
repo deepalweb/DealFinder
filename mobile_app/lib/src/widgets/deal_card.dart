@@ -67,11 +67,11 @@ class _DealCardState extends State<DealCard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_offer, size: height * 0.25, color: Colors.white.withOpacity(0.8)),
+            Icon(Icons.local_offer, size: height * 0.25, color: Colors.white.withValues(alpha: 0.8)),
             const SizedBox(height: 8),
             Text(
               'Deal Image',
-              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500),
             ),
           ],
         ),

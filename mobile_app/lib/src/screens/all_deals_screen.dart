@@ -462,13 +462,13 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               gradient: LinearGradient(
                 colors: [
                   Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.7),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
                 ],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -478,7 +478,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem(Icons.local_offer, '$totalDeals', 'Total Deals'),
-                Container(width: 1, height: 40, color: Colors.white.withOpacity(0.3)),
+                Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
                 _buildStatItem(Icons.category, '${sortedCategories.length}', 'Categories'),
               ],
             ),
@@ -519,7 +519,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
+            color: Colors.white.withValues(alpha: 0.9),
             fontSize: 12,
           ),
         ),
@@ -552,7 +552,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 15,
               offset: const Offset(0, 4),
             ),
@@ -567,8 +567,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    categoryColor.withOpacity(0.1),
-                    categoryColor.withOpacity(0.05),
+                    categoryColor.withValues(alpha: 0.1),
+                    categoryColor.withValues(alpha: 0.05),
                   ],
                 ),
                 borderRadius: const BorderRadius.only(
@@ -581,7 +581,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: categoryColor.withOpacity(0.2),
+                      color: categoryColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(categoryIcon, color: categoryColor, size: 24),

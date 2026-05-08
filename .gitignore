@@ -25,6 +25,15 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+/mobile_app/.env
+/mobile_app/android/key.properties
+/mobile_app/android/secrets.properties
+/mobile_app/android/app/google-services.json
+/mobile_app/android/keystore/
+/mobile_app/android/*.jks
+/mobile_app/android/*.keystore
+/mobile_app/ios/Runner/GoogleService-Info.plist
+/mobile_app/ios/Flutter/MapsConfig.xcconfig
 
 /backend/vapid-keys.json
 /backend/serviceAccountKey.json

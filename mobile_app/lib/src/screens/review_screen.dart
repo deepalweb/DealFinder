@@ -48,8 +48,9 @@ class _ReviewScreenState extends State<ReviewScreen> {
   }
 
   Future<void> _submitReview() async {
+    final messenger = ScaffoldMessenger.of(context);
     if (_commentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Please write a comment')),
       );
       return;
@@ -67,16 +68,20 @@ class _ReviewScreenState extends State<ReviewScreen> {
       _commentController.clear();
       setState(() => _rating = 5.0);
       await _loadReviews();
+      if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Review submitted successfully!')),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      messenger.showSnackBar(
         SnackBar(content: Text('Failed to submit review: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

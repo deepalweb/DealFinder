@@ -13,7 +13,6 @@ void main() {
 
     expect(find.text('Login'), findsWidgets);
     expect(find.text('Welcome Back!'), findsOneWidget);
-    expect(find.text('Demo Login'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
   });
 }

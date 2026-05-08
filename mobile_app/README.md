@@ -4,7 +4,7 @@ Flutter client for browsing promotions, saving favorites, reviewing deals, follo
 
 ## What the app includes
 
-- Email/password, Google sign-in, and demo logins
+- Email/password and Google sign-in
 - Home feed, explore view, merchant/store browsing, and favorites
 - Deal detail pages with ratings, comments, sharing, and directions
 - Merchant dashboard flows for creating and managing promotions
@@ -128,8 +128,23 @@ flutter analyze
 flutter test
 ```
 
+## Android release signing
+
+Release bundles now require a real signing setup.
+
+1. Create an upload keystore
+2. Create `mobile_app/android/key.properties`
+3. Add the keystore SHA-1 and SHA-256 to Firebase
+4. Download a fresh `google-services.json`
+5. Run `flutter build appbundle`
+
+Detailed guide:
+
+- [ANDROID_RELEASE_SIGNING.md](./ANDROID_RELEASE_SIGNING.md)
+- [PLAY_STORE_RELEASE_CHECKLIST.md](./PLAY_STORE_RELEASE_CHECKLIST.md)
+
 ## Notes
 
 - If Firebase is not configured, the app still starts, but Firebase-backed auth/notification features will be unavailable.
-- Demo accounts are exposed in the login screen for local evaluation.
 - The app currently defaults to production URLs unless overridden through `.env` or Dart defines.
+- Android release builds require signing values in `mobile_app/android/key.properties` or equivalent environment variables.

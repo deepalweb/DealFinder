@@ -32,6 +32,29 @@ val generatedSecretsProperties = Properties().apply {
     }
 }
 
+val releaseSigningProperties = Properties().apply {
+    val releaseSigningFile = rootProject.file("key.properties")
+    if (releaseSigningFile.exists()) {
+        releaseSigningFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingValue(key: String): String? {
+    return releaseSigningProperties.getProperty(key)
+        ?: project.findProperty(key) as String?
+        ?: System.getenv(key)
+}
+
+val releaseStoreFile = signingValue("storeFile")
+val releaseStorePassword = signingValue("storePassword")
+val releaseKeyAlias = signingValue("keyAlias")
+val releaseKeyPassword = signingValue("keyPassword")
+val hasReleaseSigning =
+    !releaseStoreFile.isNullOrBlank() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyAlias.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 val googleMapsApiKey = (
     generatedSecretsProperties.getProperty("GOOGLE_MAPS_API_KEY")
         ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")
@@ -69,9 +92,17 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (!hasReleaseSigning) {
+                throw GradleException(
+                    "Release signing is not configured. Add android/key.properties or provide storeFile, storePassword, keyAlias, and keyPassword.",
+                )
+            }
+            signingConfig = signingConfigs.create("release") {
+                storeFile = rootProject.file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
         }
     }
 }

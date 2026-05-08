@@ -39,8 +39,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   int _reviewCount = 0;
   final ApiService _apiService = ApiService();
   final TextEditingController _commentController = TextEditingController();
-  // TODO: Replace with your actual auth logic
-  String? _userToken; // Set this from your auth provider
+  String? _userToken;
   String? _userId;
 
   Map<String, dynamic>? _merchantData;
@@ -708,7 +707,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       borderRadius: BorderRadius.circular(8.0),
                       boxShadow: [
                         BoxShadow(
-                            color: Colors.orange.withOpacity(0.1),
+                            color: Colors.orange.withValues(alpha: 0.1),
                             blurRadius: 4,
                             offset: const Offset(0, 2))
                       ],
@@ -876,7 +875,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 elevation: 1,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
-                color: theme.colorScheme.secondaryContainer.withOpacity(0.3),
+                color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Row(

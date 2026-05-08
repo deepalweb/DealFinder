@@ -46,7 +46,7 @@ class CategoryIcon extends StatelessWidget {
         border: outlined ? Border.all(color: color ?? Colors.blueGrey, width: 1.5) : null,
         boxShadow: [
           BoxShadow(
-            color: Color.fromARGB(31, (color ?? Colors.blueGrey).red, (color ?? Colors.blueGrey).green, (color ?? Colors.blueGrey).blue),
+            color: (color ?? Colors.blueGrey).withValues(alpha: 0.12),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

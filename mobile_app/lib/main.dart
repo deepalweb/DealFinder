@@ -34,7 +34,9 @@ Future<void> _initializeRemoteServices() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     await PushNotificationService.initialize(navKey: _navigatorKey);
-  } catch (_) {}
+  } catch (error) {
+    debugPrint('Remote services initialization skipped: $error');
+  }
 }
 
 class MyApp extends StatelessWidget {

@@ -26,6 +26,11 @@ Firebase configuration files contain sensitive API keys and should **never** be 
 - Each developer must download their own copy
 - For CI/CD, store these files as encrypted secrets
 - Never share these files publicly or commit them to Git
+- For Google Sign-In on Android release builds, add the upload key SHA-1 and SHA-256 fingerprints in Firebase before downloading the final `google-services.json`
+
+## Release build reminder
+
+If Android release signing changes, the Firebase Android app must include the SHA fingerprints from that signing key. See [ANDROID_RELEASE_SIGNING.md](./ANDROID_RELEASE_SIGNING.md).
 
 ## Template
 

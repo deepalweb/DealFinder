@@ -20,7 +20,7 @@ class QuickActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final bgColor = backgroundColor ?? theme.colorScheme.primary.withOpacity(0.1);
+    final bgColor = backgroundColor ?? theme.colorScheme.primary.withValues(alpha: 0.1);
     final iColor = iconColor ?? theme.colorScheme.primary;
 
     return GestureDetector(
@@ -48,7 +48,7 @@ class QuickActionButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
