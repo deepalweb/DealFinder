@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { AiAPI } from '@/lib/api';
+import { AiAPI, PromotionAPI } from '@/lib/api';
 import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
@@ -108,24 +108,41 @@ export default function CategoryPageClient() {
         else if (sortBy === 'ending-soon') filters.sortBy = 'ending_soon';
         else if (sortBy === 'highest-discount') filters.sortBy = 'highest_discount';
 
-        const response = await AiAPI.search({
-          query: searchTerm.trim(),
-          filters,
-          location,
-          limit: 80,
-        });
+        // Use AI search if there's a search term, otherwise get all promotions
+        let results: any[] = [];
+        let meta: any = null;
+
+        if (searchTerm.trim()) {
+          const response = await AiAPI.search({
+            query: searchTerm.trim(),
+            filters,
+            location,
+            limit: 80,
+          });
+          results = response.results || [];
+          meta = {
+            aiUsed: response.meta?.aiUsed,
+            source: response.meta?.source,
+            latencyMs: response.meta?.latencyMs,
+            resultCount: response.meta?.resultCount,
+          };
+        } else {
+          // Fallback to regular API when no search term
+          const allPromotions = await PromotionAPI.getAll({ limit: 200 });
+          results = allPromotions || [];
+          meta = {
+            aiUsed: false,
+            source: 'database',
+            resultCount: results.length,
+          };
+        }
 
         if (cancelled) return;
 
-        setPromotions(response.results || []);
-        setSearchMeta({
-          aiUsed: response.meta?.aiUsed,
-          source: response.meta?.source,
-          latencyMs: response.meta?.latencyMs,
-          resultCount: response.meta?.resultCount,
-        });
+        setPromotions(results);
+        setSearchMeta(meta);
       } catch (error) {
-        console.error('Failed to load AI search results:', error);
+        console.error('Failed to load results:', error);
         if (!cancelled) {
           setPromotions([]);
           setSearchMeta(null);

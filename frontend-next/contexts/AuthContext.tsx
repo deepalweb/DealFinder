@@ -38,17 +38,20 @@ const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T | nul
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === 'undefined') return null;
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
     try {
       const stored = localStorage.getItem('dealFinderUser');
-      return stored ? JSON.parse(stored) as User : null;
+      setUser(stored ? JSON.parse(stored) as User : null);
     } catch {
-      return null;
+      setUser(null);
+    } finally {
+      setLoading(false);
     }
-  });
-  const [loading] = useState(() => typeof window !== 'undefined' ? false : true);
-  const router = useRouter();
+  }, []);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -58,6 +61,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(event.newValue ? JSON.parse(event.newValue) : null);
       } catch {
         setUser(null);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -69,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalized = { ...userData, merchantId: userData.merchantId?.toString() };
     localStorage.setItem('dealFinderUser', JSON.stringify(normalized));
     setUser(normalized);
+    setLoading(false);
   };
 
   const logout = async () => {
@@ -84,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('dealFinderUser');
     invalidateCache();
     setUser(null);
+    setLoading(false);
     router.replace('/login');
     router.refresh();
   };
@@ -93,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const updated = { ...user, ...data };
     localStorage.setItem('dealFinderUser', JSON.stringify(updated));
     setUser(updated);
+    setLoading(false);
   };
 
   return (

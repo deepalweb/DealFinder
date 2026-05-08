@@ -7,11 +7,11 @@ import { buildApiUrl } from '@/lib/config/api';
 import { checkNotificationPermission, syncWebPushSubscription } from '@/lib/webPush';
 
 export default function WebPushBootstrap() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const initializedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!user?.token || initializedTokenRef.current === user.token) {
+    if (loading || !user?.token || initializedTokenRef.current === user.token) {
       return;
     }
 
@@ -40,6 +40,10 @@ export default function WebPushBootstrap() {
 
         await syncWebPushSubscription(user.token, vapidPublicKey);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.toLowerCase().includes('invalid or expired token')) {
+          return;
+        }
         console.warn('Web push bootstrap skipped:', error);
       }
     };
@@ -59,6 +63,10 @@ export default function WebPushBootstrap() {
 
         await syncWebPushSubscription(user.token, vapidPublicKey);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.toLowerCase().includes('invalid or expired token')) {
+          return;
+        }
         console.warn('Failed to resync web push subscription:', error);
       }
     };
@@ -70,7 +78,7 @@ export default function WebPushBootstrap() {
       isCancelled = true;
       navigator.serviceWorker?.removeEventListener('message', handleServiceWorkerMessage);
     };
-  }, [user?.token]);
+  }, [loading, user?.token]);
 
   return null;
 }

@@ -17,7 +17,7 @@ interface Notification {
 
 export default function NotificationBell() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
@@ -120,7 +120,7 @@ export default function NotificationBell() {
     return icons[type] || 'fa-bell';
   };
 
-  if (!user) return null;
+  if (authLoading || !user) return null;
 
   return (
     <div style={{ position: 'relative' }} ref={dropdownRef}>

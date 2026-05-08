@@ -10,7 +10,7 @@ import NotificationBell from '@/components/ui/NotificationBell';
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -218,7 +218,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center gap-2">
-            {user && <NotificationBell />}
+            {!loading && user ? <NotificationBell /> : null}
 
             <button
               onClick={toggleDark}
@@ -240,7 +240,7 @@ export default function Header() {
               <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
             </button>
 
-            {user ? (
+            {!loading && user ? (
                 <div className="hidden md:block relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -363,7 +363,7 @@ export default function Header() {
                     </div>
                   )}
                 </div>
-              ) : (
+              ) : !loading ? (
                 <div className="hidden md:flex items-center gap-2">
                   <Link
                     href="/login"
@@ -393,7 +393,7 @@ export default function Header() {
                     Grab Deals
                   </Link>
                 </div>
-              )}
+              ) : null}
 
             <button
               className="lg:hidden"
@@ -502,7 +502,7 @@ export default function Header() {
                 </button>
               </div>
 
-              {user ? (
+              {!loading && user ? (
                 <div className="grid grid-cols-1 gap-2">
                   {userMenuItems.map((item) => (
                     <Link
@@ -544,7 +544,7 @@ export default function Header() {
                     Logout
                   </button>
                 </div>
-              ) : (
+              ) : !loading ? (
                 <div className="grid grid-cols-2 gap-2">
                   <Link
                     href="/login"
@@ -573,7 +573,7 @@ export default function Header() {
                     Grab Deals
                   </Link>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         )}
