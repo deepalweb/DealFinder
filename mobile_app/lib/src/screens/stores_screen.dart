@@ -174,11 +174,12 @@ class _StoresScreenState extends State<StoresScreen> {
   Future<void> _toggleFollow(String merchantId) async {
     HapticFeedback.lightImpact();
     final isFollowing = _followingMerchants.contains(merchantId);
+    int? followers;
 
     if (isFollowing) {
-      await MerchantFollowingManager.unfollowMerchant(merchantId);
+      followers = await MerchantFollowingManager.unfollowMerchant(merchantId);
     } else {
-      await MerchantFollowingManager.followMerchant(merchantId);
+      followers = await MerchantFollowingManager.followMerchant(merchantId);
     }
 
     if (!mounted) return;
@@ -187,6 +188,15 @@ class _StoresScreenState extends State<StoresScreen> {
         _followingMerchants.remove(merchantId);
       } else {
         _followingMerchants.add(merchantId);
+      }
+      if (followers != null) {
+        _allMerchants = _allMerchants.map((merchant) {
+          if (_merchantIdOf(merchant) != merchantId) return merchant;
+          return {
+            ...merchant,
+            'followers': followers,
+          };
+        }).toList();
       }
     });
     _applyFilters();

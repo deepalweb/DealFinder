@@ -538,6 +538,93 @@ router.get('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
   }
 });
 
+// Get followed merchants for a user (Self or Admin)
+router.get('/:id/following-merchants', authorizeSelfOrAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .select('followingMerchants')
+      .populate('followingMerchants');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const merchants = Array.isArray(user.followingMerchants)
+      ? user.followingMerchants
+      : [];
+
+    res.status(200).json(merchants);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Follow a merchant (Self or Admin)
+router.post('/:id/following-merchants', authorizeSelfOrAdmin, async (req, res) => {
+  try {
+    const { merchantId } = req.body;
+    if (!merchantId) {
+      return res.status(400).json({ message: 'merchantId is required' });
+    }
+
+    const merchant = await Merchant.findById(merchantId);
+    if (!merchant) {
+      return res.status(404).json({ message: 'Merchant not found' });
+    }
+
+    const user = await User.findById(req.params.id).select('followingMerchants');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const alreadyFollowing = user.followingMerchants.some(
+      (id) => id.toString() === merchantId.toString()
+    );
+
+    if (!alreadyFollowing) {
+      user.followingMerchants.push(merchant._id);
+      await user.save();
+    }
+
+    const followers = await User.countDocuments({ followingMerchants: merchant._id });
+
+    res.status(200).json({
+      message: 'Merchant followed successfully',
+      merchantId: merchant._id,
+      followers,
+    });
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Unfollow a merchant (Self or Admin)
+router.delete('/:id/following-merchants/:merchantId', authorizeSelfOrAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('followingMerchants');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.followingMerchants = user.followingMerchants.filter(
+      (id) => id.toString() !== req.params.merchantId.toString()
+    );
+    await user.save();
+
+    const followers = await User.countDocuments({
+      followingMerchants: req.params.merchantId,
+    });
+
+    res.status(200).json({
+      message: 'Merchant unfollowed successfully',
+      merchantId: req.params.merchantId,
+      followers,
+    });
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Password reset request (step 1)
 router.post('/reset-password', async (req, res) => {
   const { email } = req.body;

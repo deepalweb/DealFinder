@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
     default: 'user'
   },
   merchantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Merchant' },
+  followingMerchants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Merchant' }],
   businessName: { type: String },
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' }],
   createdAt: { type: Date, default: Date.now },

@@ -234,17 +234,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     setState(() => _loadingFollowing = true);
     
     try {
-      final followingIds = await MerchantFollowingManager.getFollowingMerchants();
-      if (followingIds.isEmpty) {
+      if (_userId == null || _userId!.isEmpty) {
         setState(() {
           _followingMerchants = [];
           _loadingFollowing = false;
         });
         return;
       }
-      
-      final allMerchants = await ApiService().fetchMerchants();
-      final following = allMerchants.where((merchant) => followingIds.contains(merchant['_id'] ?? merchant['id'])).toList();
+
+      final following = await ApiService().fetchFollowingMerchants(_userId!);
       
       setState(() {
         _followingMerchants = following;

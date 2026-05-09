@@ -102,6 +102,58 @@ class ApiService {
     return response;
   }
 
+  Future<http.Response> _authPost(String url, {Map<String, dynamic>? body}) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('userToken');
+    var response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body ?? const <String, dynamic>{}),
+    ).timeout(const Duration(seconds: 30));
+    if (response.statusCode == 401) {
+      token = await _refreshToken();
+      if (token != null) {
+        response = await http.post(
+          Uri.parse(url),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(body ?? const <String, dynamic>{}),
+        ).timeout(const Duration(seconds: 30));
+      }
+    }
+    return response;
+  }
+
+  Future<http.Response> _authDelete(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('userToken');
+    var response = await http.delete(
+      Uri.parse(url),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 30));
+    if (response.statusCode == 401) {
+      token = await _refreshToken();
+      if (token != null) {
+        response = await http.delete(
+          Uri.parse(url),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ).timeout(const Duration(seconds: 30));
+      }
+    }
+    return response;
+  }
+
   Future<String?> _refreshToken() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -607,6 +659,55 @@ class ApiService {
     } else {
       throw Exception('Failed to load promotions for merchant');
     }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFollowingMerchants(String userId) async {
+    final response = await _authGet('${_baseUrl}users/$userId/following-merchants');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.whereType<Map<String, dynamic>>().toList();
+    }
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to load followed merchants',
+    ));
+  }
+
+  Future<List<String>> fetchFollowingMerchantIds(String userId) async {
+    final merchants = await fetchFollowingMerchants(userId);
+    return merchants
+        .map((merchant) => (merchant['_id'] ?? merchant['id'] ?? '').toString())
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  Future<int> followMerchant(String userId, String merchantId) async {
+    final response = await _authPost(
+      '${_baseUrl}users/$userId/following-merchants',
+      body: {'merchantId': merchantId},
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return (data['followers'] as num?)?.toInt() ?? 0;
+    }
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to follow merchant',
+    ));
+  }
+
+  Future<int> unfollowMerchant(String userId, String merchantId) async {
+    final response = await _authDelete(
+      '${_baseUrl}users/$userId/following-merchants/$merchantId',
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return (data['followers'] as num?)?.toInt() ?? 0;
+    }
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to unfollow merchant',
+    ));
   }
 
   Future<List<Promotion>> fetchMerchantPromotions(String merchantId) async {

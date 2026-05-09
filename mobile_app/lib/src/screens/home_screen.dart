@@ -971,6 +971,7 @@ class _HomeScreenState extends State<HomeScreen>
                   itemBuilder: (_, i) => ModernDealCard(
                     promotion: _featuredDeals[i],
                     width: 170,
+                    showCountdown: true,
                     onTap: () => _openDeal(_featuredDeals[i]),
                   ),
                 ),

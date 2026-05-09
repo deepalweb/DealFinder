@@ -1,18 +1,56 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
 
-class ModernDealCard extends StatelessWidget {
+class ModernDealCard extends StatefulWidget {
   final Promotion promotion;
   final VoidCallback? onTap;
   final double? width;
+  final bool showCountdown;
 
   const ModernDealCard({
     super.key,
     required this.promotion,
     this.onTap,
     this.width,
+    this.showCountdown = false,
   });
+
+  @override
+  State<ModernDealCard> createState() => _ModernDealCardState();
+}
+
+class _ModernDealCardState extends State<ModernDealCard> {
+  Timer? _timer;
+  Duration? _timeLeft;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.showCountdown && widget.promotion.endDate != null) {
+      _updateTimeLeft();
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _updateTimeLeft();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _updateTimeLeft() {
+    final endDate = widget.promotion.endDate;
+    if (endDate == null || !mounted) return;
+    final diff = endDate.difference(DateTime.now());
+    setState(() {
+      _timeLeft = diff.isNegative ? Duration.zero : diff;
+    });
+  }
 
   Widget _buildLogo(String logoUrl) {
     return ImageHelper.buildThumbnail(
@@ -30,21 +68,32 @@ class ModernDealCard extends StatelessWidget {
 
   Widget _buildImage() {
     return ImageHelper.buildOptimizedImage(
-      promotion.imageDataString,
+      widget.promotion.imageDataString,
       width: double.infinity,
       fit: BoxFit.cover,
     );
   }
 
+  String _formatCountdown(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    return '${hours.toString().padLeft(2, '0')}:'
+        '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final p = promotion;
+    final p = widget.promotion;
     final distance = _formatDistance(p.distance);
+    final showCountdown =
+        widget.showCountdown && _timeLeft != null && p.endDate != null;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
-        width: width,
+        width: widget.width,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -107,7 +156,50 @@ class ModernDealCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                  // Featured badge
+                    if (showCountdown)
+                      Positioned(
+                        left: 8,
+                        right: 8,
+                        bottom: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _timeLeft == Duration.zero
+                                    ? Icons.timer_off_outlined
+                                    : Icons.timer_outlined,
+                                size: 13,
+                                color: _timeLeft == Duration.zero
+                                    ? Colors.red.shade700
+                                    : const Color(0xFFB26A00),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _timeLeft == Duration.zero
+                                    ? 'Expired'
+                                    : _formatCountdown(_timeLeft!),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: _timeLeft == Duration.zero
+                                      ? Colors.red.shade700
+                                      : const Color(0xFFB26A00),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Featured badge
                   if (p.featured == true)
                     Positioned(
                       top: 8,
@@ -159,7 +251,6 @@ class ModernDealCard extends StatelessWidget {
                         height: 1.3,
                       ),
                     ),
-                    // Bottom row
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -187,6 +278,21 @@ class ModernDealCard extends StatelessWidget {
                             ],
                           ),
                         const SizedBox(height: 4),
+                        if (showCountdown && _timeLeft != null) ...[
+                          Text(
+                            _timeLeft == Duration.zero
+                                ? 'Offer expired'
+                                : 'Ends in ${_formatCountdown(_timeLeft!)}',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: _timeLeft == Duration.zero
+                                  ? Colors.red.shade700
+                                  : const Color(0xFFB26A00),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                        ],
                         // Price and distance
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,

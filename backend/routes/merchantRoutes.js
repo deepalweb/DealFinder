@@ -16,7 +16,7 @@ function safeError(error) {
 
 // Helper to get followers count for a merchant
 async function getFollowersCount(merchantId) {
-  return await User.countDocuments({ merchantId });
+  return await User.countDocuments({ followingMerchants: merchantId });
 }
 
 // Server-side cache for merchants list (5 minute TTL)
@@ -68,11 +68,14 @@ router.get('/', async (req, res) => {
     // Get follower counts in a single aggregation query
     const followerCounts = await User.aggregate([
       {
-        $match: { merchantId: { $exists: true, $ne: null } }
+        $match: {
+          followingMerchants: { $exists: true, $ne: [] }
+        }
       },
+      { $unwind: '$followingMerchants' },
       {
         $group: {
-          _id: '$merchantId',
+          _id: '$followingMerchants',
           followers: { $sum: 1 }
         }
       }
