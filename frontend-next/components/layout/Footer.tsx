@@ -123,7 +123,7 @@ export default function Footer() {
             <p style={{ margin: 0, marginBottom: '1rem', lineHeight: 1.7, color: '#d7e3f0', fontSize: '0.9rem' }}>
               Save offers, track urgency, and come back to the best local deals before they disappear.
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
               <Link
                 href="/register"
                 className="btn"
@@ -132,6 +132,7 @@ export default function Footer() {
                   color: '#0f172a',
                   fontWeight: 800,
                   padding: '0.85rem 1rem',
+                  textAlign: 'center',
                 }}
               >
                 Save Offers
@@ -144,6 +145,7 @@ export default function Footer() {
                   color: '#fff',
                   border: '1px solid rgba(255,255,255,0.14)',
                   padding: '0.85rem 1rem',
+                  textAlign: 'center',
                 }}
               >
                 View Nearby

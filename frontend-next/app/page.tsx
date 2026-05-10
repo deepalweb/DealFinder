@@ -239,10 +239,10 @@ export default function HomePage() {
         const currentLocation = {
           latitude: coords.latitude,
           longitude: coords.longitude,
-          radiusKm: 10,
+          radiusKm: 20,
         };
         setUserLocation(currentLocation);
-        PromotionAPI.getNearby(coords.latitude, coords.longitude, 10)
+        PromotionAPI.getNearby(coords.latitude, coords.longitude, 20)
           .then((data: Promotion[]) => {
             const sorted = [...data].sort((a, b) => getTimestamp(b.createdAt) - getTimestamp(a.createdAt));
             setNearbyDeals(sorted);
@@ -398,252 +398,622 @@ export default function HomePage() {
         style={{
           position: 'relative',
           overflow: 'hidden',
-          background:
-            'radial-gradient(circle at top left, rgba(108,59,255,0.24), transparent 24%), radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 30%), linear-gradient(135deg, #24145f 0%, #3f2aa3 44%, #215bc9 100%)',
-          color: '#f8fafc',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e40af 50%, #2563eb 100%)',
+          color: '#fff',
         }}
       >
+        {/* Background Image */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            backgroundImage: 'url(https://images.unsplash.com/photo-1515169067868-5387ec356754?auto=format&fit=crop&w=1600&q=80)',
+            backgroundImage: 'url(https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=900&fit=crop)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            opacity: 0.14,
+            opacity: 0.12,
           }}
         />
-        <div className="max-w-7xl mx-auto px-4" style={{ position: 'relative', zIndex: 1, paddingTop: '4.5rem', paddingBottom: '4rem' }}>
-          <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-8 items-center">
+        {/* Gradient Overlay */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'radial-gradient(circle at 20% 50%, rgba(59,130,246,0.4) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(168,85,247,0.3) 0%, transparent 50%)',
+          }}
+        />
+        <div className="max-w-7xl mx-auto px-4" style={{ position: 'relative', zIndex: 1, paddingTop: '3.5rem', paddingBottom: '4rem' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
+            {/* LEFT: Text Content */}
             <div>
               <div
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  marginBottom: '1rem',
-                  padding: '0.45rem 0.9rem',
+                  marginBottom: '1.2rem',
+                  padding: '0.5rem 1rem',
                   borderRadius: '999px',
-                  background: 'rgba(255,255,255,0.12)',
-                  border: '1px solid rgba(255,255,255,0.14)',
+                  background: 'rgba(34,197,94,0.15)',
+                  border: '1px solid rgba(34,197,94,0.3)',
                   fontSize: '0.8rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
+                  fontWeight: 700,
                 }}
               >
-                <i className="fas fa-bolt" style={{ color: '#fbbf24' }}></i>
-                Sri Lanka's #1 Deal Platform
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: '#22c55e',
+                    animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                  }}
+                />
+                Updated Daily • 1000+ Active Users • Verified Deals
               </div>
 
               <h1
                 style={{
-                  fontSize: 'clamp(2.4rem, 5.5vw, 4.8rem)',
-                  lineHeight: 1.02,
+                  fontSize: 'clamp(2.2rem, 5vw, 3.8rem)',
+                  lineHeight: 1.1,
                   margin: 0,
                   fontWeight: 900,
-                  maxWidth: '10ch',
+                  marginBottom: '1rem',
                 }}
               >
-                Find the best deals near you, instantly
+                Find Sri Lanka's Best Deals in Seconds
               </h1>
 
               <p
                 style={{
-                  marginTop: '1.2rem',
-                  marginBottom: '1.6rem',
-                  maxWidth: '42rem',
-                  fontSize: '1.06rem',
-                  lineHeight: 1.75,
-                  color: 'rgba(248,250,252,0.86)',
+                  marginBottom: '1.8rem',
+                  fontSize: '1.05rem',
+                  lineHeight: 1.7,
+                  color: 'rgba(248,250,252,0.9)',
+                  maxWidth: '540px',
                 }}
               >
-                Grab top local offers, track urgency, and move faster with clear Sri Lanka-first deal discovery built for action.
+                Discover verified deals from restaurants, supermarkets, hotels, electronics stores, and top Sri Lankan brands near you.
               </p>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gap: '0.9rem',
-                  maxWidth: '44rem',
-                }}
-              >
-                <div
+              {/* CTA Buttons */}
+              <div className="flex flex-wrap gap-3" style={{ marginBottom: '2rem' }}>
+                <a
+                  href="https://drive.google.com/uc?export=download&id=12xY8BPO4HqN6oH4vj0wcJSwXiDM0tDKu"
+                  className="btn"
                   style={{
-                    display: 'flex',
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    color: '#fff',
+                    padding: '1rem 1.8rem',
+                    fontWeight: 800,
+                    fontSize: '1rem',
+                    boxShadow: '0 10px 30px rgba(245,158,11,0.4)',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.7rem',
-                    borderRadius: '1.15rem',
-                    background: 'rgba(255,255,255,0.1)',
-                    border: '1px solid rgba(255,255,255,0.16)',
-                    backdropFilter: 'blur(10px)',
-                    flexWrap: 'wrap',
+                    gap: '0.6rem',
                   }}
                 >
-                  <i className="fas fa-search" style={{ color: '#fbbf24', paddingLeft: '0.45rem' }}></i>
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(event) => setSearchTerm(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') openDeals(searchTerm);
-                    }}
-                    placeholder="Find deals near you..."
-                    style={{
-                      flex: 1,
-                      minWidth: '220px',
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      color: '#fff',
-                      fontSize: '1rem',
-                    }}
-                  />
-                  <button
-                    onClick={() => openDeals(searchTerm)}
-                    className="btn"
-                    style={{
-                      background: '#f8fafc',
-                      color: '#0f172a',
-                      padding: '0.8rem 1rem',
-                      fontWeight: 800,
-                    }}
-                  >
-                    Search
-                  </button>
-                </div>
+                  <i className="fas fa-mobile-screen-button"></i>
+                  Download App
+                </a>
+                <button
+                  onClick={() => router.push('/categories/all')}
+                  className="btn"
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    padding: '1rem 1.8rem',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    backdropFilter: 'blur(10px)',
+                  }}
+                >
+                  <i className="fas fa-compass"></i>
+                  Browse Deals
+                </button>
+              </div>
 
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={() => router.push('/categories/all')}
-                    className="btn"
+              {/* Trust Elements */}
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  paddingTop: '1.5rem',
+                  borderTop: '1px solid rgba(255,255,255,0.15)',
+                }}
+              >
+                {[
+                  { icon: 'fa-location-dot', text: 'Colombo • Kandy • Galle' },
+                  { icon: 'fa-shield-halved', text: 'Verified Deals' },
+                ].map((item) => (
+                  <div
+                    key={item.text}
                     style={{
-                      background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
-                      color: '#0f172a',
-                      padding: '0.9rem 1.3rem',
-                      fontWeight: 800,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.88rem',
+                      color: 'rgba(248,250,252,0.8)',
                     }}
                   >
-                    <i className="fas fa-fire"></i>
-                    Get Deal
-                  </button>
-                  <button
-                    onClick={() => router.push('/nearby')}
-                    className="btn"
-                    style={{
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      border: '1px solid rgba(255,255,255,0.18)',
-                      padding: '0.9rem 1.3rem',
-                    }}
-                  >
-                    <i className="fas fa-location-dot"></i>
-                    View Nearby
-                  </button>
+                    <i className={`fas ${item.icon}`} style={{ color: '#fbbf24' }}></i>
+                    {item.text}
+                  </div>
+                ))}
+              </div>
+
+              {/* Trending Searches */}
+              <div style={{ marginTop: '1.5rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'rgba(248,250,252,0.7)',
+                    marginBottom: '0.6rem',
+                  }}
+                >
+                  Trending searches:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['Pizza deals', 'Bank offers', 'Buffet discounts', 'Daraz sales', 'Dialog packages'].map((term) => (
+                    <button
+                      key={term}
+                      onClick={() => {
+                        setSearchTerm(term);
+                        openDeals(term);
+                      }}
+                      style={{
+                        padding: '0.5rem 0.9rem',
+                        borderRadius: '999px',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        color: '#fff',
+                        fontSize: '0.85rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                      }}
+                    >
+                      {term}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="surface-panel" style={{ background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.16)' }}>
-              <div className="panel-pad">
+            {/* RIGHT: Mobile Device Mockup */}
+            <div className="hidden lg:flex justify-center items-center">
+              <div
+                style={{
+                  position: 'relative',
+                  width: '280px',
+                  height: '570px',
+                  background: '#1f2937',
+                  borderRadius: '2.5rem',
+                  padding: '0.8rem',
+                  boxShadow: '0 25px 50px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1)',
+                }}
+              >
+                {/* Phone notch */}
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                    gap: '0.75rem',
-                    marginBottom: '1rem',
+                    position: 'absolute',
+                    top: '0.8rem',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '120px',
+                    height: '25px',
+                    background: '#1f2937',
+                    borderRadius: '0 0 1rem 1rem',
+                    zIndex: 2,
                   }}
-                >
-                  {stats.map((stat) => (
-                    <div
-                      key={stat.label}
-                      style={{
-                        padding: '0.95rem',
-                        borderRadius: '1rem',
-                        background: 'rgba(15,23,42,0.32)',
-                        border: '1px solid rgba(255,255,255,0.12)',
-                      }}
-                    >
-                      <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#fff' }}>{loadingDeals ? '--' : stat.value}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.72)' }}>{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
+                />
 
+                {/* Phone screen */}
                 <div
                   style={{
-                    borderRadius: '1.2rem',
-                    padding: '1.2rem',
-                    background: 'rgba(255,255,255,0.96)',
-                    color: '#0f172a',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)',
+                    borderRadius: '2rem',
+                    overflow: 'hidden',
+                    position: 'relative',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1rem' }}>
-                    <div>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary-color)' }}>
-                        Today on DealFinder
+                  {/* App Header */}
+                  <div
+                    style={{
+                      background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+                      padding: '2.5rem 1rem 1rem',
+                      color: '#fff',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                      <div
+                        style={{
+                          width: '1.8rem',
+                          height: '1.8rem',
+                          borderRadius: '0.5rem',
+                          background: 'rgba(251,191,36,1)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 900,
+                          fontSize: '1rem',
+                        }}
+                      >
+                        %
                       </div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>Best local savings, surfaced fast</div>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>DealFinder</span>
                     </div>
                     <div
                       style={{
-                        width: '2.5rem',
-                        height: '2.5rem',
-                        borderRadius: '999px',
-                        background: 'rgba(37,99,235,0.1)',
+                        background: 'rgba(255,255,255,0.2)',
+                        borderRadius: '0.8rem',
+                        padding: '0.6rem 0.8rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--primary-color)',
+                        gap: '0.5rem',
+                        fontSize: '0.8rem',
                       }}
                     >
-                      <i className="fas fa-chart-line"></i>
+                      <i className="fas fa-search" style={{ fontSize: '0.75rem' }}></i>
+                      <span style={{ opacity: 0.9 }}>Search deals...</span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3">
-                    {[
-                      { icon: 'fa-fire', label: 'Best Deals Today', note: 'High-value offers surfaced first.' },
-                      { icon: 'fa-hourglass-half', label: 'Ending Soon', note: 'Urgency visible before deals expire.' },
-                      { icon: 'fa-star', label: 'Recommended For You', note: 'Smarter picks based on what you save.' },
-                    ].map((item) => (
+                  {/* App Content - Deal Cards */}
+                  <div style={{ padding: '1rem', overflowY: 'auto', height: 'calc(100% - 140px)' }}>
+                    {/* Deal Card 1 - Pizza */}
+                    <div
+                      style={{
+                        background: '#fff',
+                        borderRadius: '1rem',
+                        marginBottom: '0.8rem',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      }}
+                    >
                       <div
-                        key={item.label}
                         style={{
-                          display: 'grid',
-                          gridTemplateColumns: '2.4rem 1fr',
-                          gap: '0.8rem',
-                          alignItems: 'start',
-                          padding: '0.85rem',
-                          borderRadius: '1rem',
-                          background: '#f8fafc',
-                          border: '1px solid #e2e8f0',
+                          height: '100px',
+                          backgroundImage: 'url(https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&h=200&fit=crop)',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          position: 'relative',
                         }}
                       >
                         <div
                           style={{
-                            width: '2.4rem',
-                            height: '2.4rem',
-                            borderRadius: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--primary-color)',
-                            background: 'rgba(37,99,235,0.1)',
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))',
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '0.5rem',
+                            right: '0.5rem',
+                            background: '#ef4444',
+                            color: '#fff',
+                            padding: '0.3rem 0.6rem',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
                           }}
                         >
-                          <i className={`fas ${item.icon}`}></i>
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 800, marginBottom: '0.2rem' }}>{item.label}</div>
-                          <div style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.6 }}>{item.note}</div>
+                          50% OFF
                         </div>
                       </div>
-                    ))}
+                      <div style={{ padding: '0.8rem' }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.85rem', marginBottom: '0.3rem', color: '#0f172a' }}>
+                          Pizza Hut Mega Deal
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                          <i className="fas fa-location-dot" style={{ marginRight: '0.3rem' }}></i>
+                          Colombo City Centre
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div
+                            style={{
+                              fontSize: '0.65rem',
+                              background: '#fef3c7',
+                              color: '#92400e',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '0.4rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            <i className="fas fa-clock" style={{ marginRight: '0.2rem' }}></i>
+                            2 days left
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Deal Card 2 - Supermarket */}
+                    <div
+                      style={{
+                        background: '#fff',
+                        borderRadius: '1rem',
+                        marginBottom: '0.8rem',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100px',
+                          backgroundImage: 'url(https://images.unsplash.com/photo-1542838132-92c53300491e?w=400&h=200&fit=crop)',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          position: 'relative',
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))',
+                          }}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '0.5rem',
+                            right: '0.5rem',
+                            background: '#10b981',
+                            color: '#fff',
+                            padding: '0.3rem 0.6rem',
+                            borderRadius: '0.5rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 800,
+                          }}
+                        >
+                          30% OFF
+                        </div>
+                      </div>
+                      <div style={{ padding: '0.8rem' }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.85rem', marginBottom: '0.3rem', color: '#0f172a' }}>
+                          Cargills Food City
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                          <i className="fas fa-location-dot" style={{ marginRight: '0.3rem' }}></i>
+                          Kandy
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <div
+                            style={{
+                              fontSize: '0.65rem',
+                              background: '#dbeafe',
+                              color: '#1e40af',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '0.4rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            <i className="fas fa-tag" style={{ marginRight: '0.2rem' }}></i>
+                            Groceries
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Deal Card 3 (Partial) - Hotel/Restaurant */}
+                    <div
+                      style={{
+                        background: '#fff',
+                        borderRadius: '1rem',
+                        overflow: 'hidden',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '80px',
+                          backgroundImage: 'url(https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=200&fit=crop)',
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          position: 'relative',
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3))',
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+
+
+        </div>
+      </section>
+
+      {/* Stats / Social Proof Section */}
+      <section
+        style={{
+          background: 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)',
+          padding: '4rem 0',
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4">
+          <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.8rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '999px',
+                background: 'rgba(37,99,235,0.1)',
+                border: '1px solid rgba(37,99,235,0.2)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#2563eb',
+              }}
+            >
+              <i className="fas fa-chart-line"></i>
+              Platform Statistics
+            </div>
+            <h2
+              style={{
+                fontSize: 'clamp(1.8rem, 4vw, 2.5rem)',
+                fontWeight: 900,
+                color: '#0f172a',
+                marginBottom: '0.5rem',
+              }}
+            >
+              Trusted by Thousands Across Sri Lanka
+            </h2>
+            <p
+              style={{
+                fontSize: '1.05rem',
+                color: '#64748b',
+                maxWidth: '600px',
+                margin: '0 auto',
+              }}
+            >
+              Join the growing community of smart shoppers and businesses
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: 'fa-tags',
+                number: loadingDeals ? '...' : `${activePromotions.length}+`,
+                label: 'Active Promotions',
+                color: '#ef4444',
+                bgColor: 'rgba(239,68,68,0.1)',
+              },
+              {
+                icon: 'fa-store',
+                number: loadingDeals ? '...' : `${new Set(activePromotions.map((p) => getMerchantId(p))).size}+`,
+                label: 'Partner Stores',
+                color: '#3b82f6',
+                bgColor: 'rgba(59,130,246,0.1)',
+              },
+              {
+                icon: 'fa-users',
+                number: '12,000+',
+                label: 'Monthly Users',
+                color: '#10b981',
+                bgColor: 'rgba(16,185,129,0.1)',
+              },
+              {
+                icon: 'fa-location-dot',
+                number: '25+',
+                label: 'Cities Covered',
+                color: '#f59e0b',
+                bgColor: 'rgba(245,158,11,0.1)',
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                style={{
+                  background: '#fff',
+                  borderRadius: '1.2rem',
+                  padding: '2rem 1.5rem',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: '1px solid #e2e8f0',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-8px)';
+                  e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+                }}
+              >
+                <div
+                  style={{
+                    width: '4rem',
+                    height: '4rem',
+                    borderRadius: '1rem',
+                    background: stat.bgColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.2rem',
+                  }}
+                >
+                  <i className={`fas ${stat.icon}`} style={{ fontSize: '1.8rem', color: stat.color }}></i>
+                </div>
+                <div
+                  style={{
+                    fontSize: 'clamp(2rem, 4vw, 2.8rem)',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    marginBottom: '0.5rem',
+                    lineHeight: 1,
+                  }}
+                >
+                  {stat.number}
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#64748b' }}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              marginTop: '3rem',
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '2rem',
+              alignItems: 'center',
+            }}
+          >
+            {[
+              { icon: 'fa-shield-halved', text: 'Verified Deals' },
+              { icon: 'fa-clock', text: 'Updated Daily' },
+              { icon: 'fa-mobile-screen-button', text: 'Mobile App Available' },
+              { icon: 'fa-map-location-dot', text: 'Island-wide Coverage' },
+            ].map((badge) => (
+              <div
+                key={badge.text}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.8rem 1.2rem',
+                  background: '#fff',
+                  borderRadius: '999px',
+                  border: '1px solid #e2e8f0',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  color: '#475569',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                }}
+              >
+                <i className={`fas ${badge.icon}`} style={{ color: '#2563eb' }}></i>
+                {badge.text}
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -698,15 +1068,15 @@ export default function HomePage() {
               accent="var(--highlight-color)"
             />
             {loadingDeals ? (
-              <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(5, minmax(260px, 1fr))', overflowX: 'auto', paddingBottom: '0.35rem' }}>
-                {Array.from({ length: 5 }).map((_, index) => (
+              <div className="grid gap-6" style={{ gridTemplateColumns: 'repeat(3, minmax(260px, 1fr))' }}>
+                {Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} style={{ minWidth: '260px' }}>
                     <SkeletonCard />
                   </div>
                 ))}
               </div>
             ) : (
-              <DealGrid deals={featuredDeals.slice(0, 5)} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} singleRow />
+              <DealGrid deals={featuredDeals.slice(0, 3)} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
             )}
           </section>
 
@@ -726,6 +1096,25 @@ export default function HomePage() {
               <DealGrid deals={endingSoonDeals} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
             )}
           </section>
+
+          {nearbyDeals.length > 0 && (
+            <section>
+              <SectionHeader
+                eyebrow="Location-based"
+                title="Nearby Deals"
+                icon="fa-location-dot"
+                meta="Deals close to your location"
+                actionLabel="View All Nearby"
+                onAction={() => router.push('/nearby')}
+                accent="#10b981"
+              />
+              {loadingNearby ? (
+                <SkeletonGrid count={3} />
+              ) : (
+                <DealGrid deals={nearbyDeals.slice(0, 3)} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
+              )}
+            </section>
+          )}
 
           <section>
             <SectionHeader
@@ -788,122 +1177,489 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="surface-panel panel-pad">
-            <SectionHeader
-              eyebrow="Trust builder"
-              title="Why use DealFinder?"
-              icon="fa-scale-balanced"
-              meta="Less noise, faster decisions"
-            />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {compareRows.map((row) => (
+          <section
+            style={{
+              background: 'linear-gradient(180deg, #ffffff 0%, #fffbf5 100%)',
+              padding: '6rem 0',
+            }}
+          >
+            <div className="max-w-7xl mx-auto px-4">
+              {/* Header */}
+              <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
                 <div
-                  key={row.side}
                   style={{
-                    borderRadius: '1.2rem',
-                    padding: '1.25rem',
-                    background: row.background,
-                    border: `1px solid ${row.border}`,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '1rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '999px',
+                    background: 'rgba(249,115,22,0.1)',
+                    border: '1px solid rgba(249,115,22,0.2)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#ea580c',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1rem', fontWeight: 900, fontSize: '1.08rem' }}>
-                    <span
+                  <i className="fas fa-fire"></i>
+                  Trusted by Smart Shoppers
+                </div>
+                <h2
+                  style={{
+                    fontSize: 'clamp(2rem, 4vw, 3rem)',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    marginBottom: '1rem',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Why Thousands Use <span style={{ color: '#ea580c' }}>DealFinder</span> Daily
+                </h2>
+                <p
+                  style={{
+                    fontSize: '1.1rem',
+                    color: '#64748b',
+                    maxWidth: '600px',
+                    margin: '0 auto',
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Compare offers faster, discover better deals, and save money without endless searching.
+                </p>
+              </div>
+
+              {/* Feature Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                  {
+                    icon: 'fa-sparkles',
+                    title: 'Smart Deal Discovery',
+                    description: 'Find the best restaurant, shopping, and hotel offers in seconds — all in one place.',
+                    badge: 'Updated Daily',
+                    color: '#3b82f6',
+                    bgColor: 'rgba(59,130,246,0.1)',
+                  },
+                  {
+                    icon: 'fa-arrows-left-right',
+                    title: 'Compare Before You Buy',
+                    description: 'Quickly compare prices, discounts, and offers from multiple stores without opening dozens of tabs.',
+                    badge: 'Save Time',
+                    color: '#8b5cf6',
+                    bgColor: 'rgba(139,92,246,0.1)',
+                  },
+                  {
+                    icon: 'fa-bell',
+                    title: 'Never Miss a Good Deal',
+                    description: 'Save your favorite offers and get notified when prices drop or new promotions appear.',
+                    badge: 'Smart Alerts',
+                    color: '#10b981',
+                    bgColor: 'rgba(16,185,129,0.1)',
+                  },
+                ].map((feature) => (
+                  <div
+                    key={feature.title}
+                    style={{
+                      background: '#fff',
+                      borderRadius: '1.5rem',
+                      padding: '2.5rem 2rem',
+                      border: '1px solid #e2e8f0',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                      transition: 'all 0.3s ease',
+                      textAlign: 'center',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-8px)';
+                      e.currentTarget.style.boxShadow = '0 12px 28px rgba(0,0,0,0.12)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)';
+                    }}
+                  >
+                    <div
                       style={{
-                        width: '2.2rem',
-                        height: '2.2rem',
-                        borderRadius: '999px',
-                        background: '#fff',
-                        color: row.color,
+                        width: '4.5rem',
+                        height: '4.5rem',
+                        borderRadius: '1.2rem',
+                        background: feature.bgColor,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        margin: '0 auto 1.5rem',
                       }}
                     >
-                      <i className={`fas ${row.icon}`}></i>
-                    </span>
-                    {row.side}
-                  </div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {row.items.map((item) => (
-                      <div
-                        key={item}
+                      <i
+                        className={`fas ${feature.icon}`}
                         style={{
-                          borderRadius: '0.95rem',
-                          background: '#fff',
-                          padding: '0.9rem 1rem',
-                          color: 'var(--text-primary)',
-                          fontWeight: 600,
+                          fontSize: '2rem',
+                          color: feature.color,
                         }}
-                      >
-                        {item}
-                      </div>
-                    ))}
+                      ></i>
+                    </div>
+                    <h3
+                      style={{
+                        fontSize: '1.3rem',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        marginBottom: '1rem',
+                      }}
+                    >
+                      {feature.title}
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: '0.95rem',
+                        color: '#64748b',
+                        lineHeight: 1.7,
+                        marginBottom: '1.5rem',
+                      }}
+                    >
+                      {feature.description}
+                    </p>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.4rem 0.9rem',
+                        borderRadius: '999px',
+                        background: feature.bgColor,
+                        color: feature.color,
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <i className="fas fa-check-circle"></i>
+                      {feature.badge}
+                    </div>
                   </div>
+                ))}
+              </div>
+
+              {/* Bottom Trust Row */}
+              <div
+                style={{
+                  marginTop: '4rem',
+                  textAlign: 'center',
+                  padding: '1.5rem',
+                  borderRadius: '1rem',
+                  background: 'rgba(249,115,22,0.05)',
+                  border: '1px solid rgba(249,115,22,0.1)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.6rem',
+                    fontSize: '1rem',
+                    color: '#475569',
+                    fontWeight: 600,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <i className="fas fa-store" style={{ color: '#ea580c' }}></i>
+                  <span>Deals from restaurants, supermarkets, hotels & top local brands</span>
+                  <span style={{ color: '#cbd5e1' }}>•</span>
+                  <span>Used by shoppers across Colombo, Kandy, Galle & more</span>
                 </div>
-              ))}
+              </div>
             </div>
           </section>
 
-          <section>
-            <SectionHeader
-              eyebrow="Simple flow"
-              title="How it works"
-              icon="fa-diagram-project"
-              meta="Three steps, no extra friction"
-            />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { step: '1', title: 'Discover nearby deals', text: 'Search fast and surface the strongest offers around you.' },
-                { step: '2', title: 'Spot value instantly', text: 'See urgency, discounts, and categories without the clutter.' },
-                { step: '3', title: 'Search or save later', text: 'Take the deal now or keep it ready for the next step.' },
-              ].map((item) => (
-                <div key={item.step} className="surface-panel panel-pad">
+          <section style={{ padding: '5rem 0', background: '#fff' }}>
+            <div className="max-w-7xl mx-auto px-4">
+              {/* Header */}
+              <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '1rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '999px',
+                    background: 'rgba(59,130,246,0.1)',
+                    border: '1px solid rgba(59,130,246,0.2)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#2563eb',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  Simple & Fast
+                </div>
+                <h2
+                  style={{
+                    fontSize: 'clamp(2rem, 4vw, 3rem)',
+                    fontWeight: 900,
+                    color: '#0f172a',
+                    marginBottom: '1rem',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Save More in 3 Simple Steps
+                </h2>
+                <p
+                  style={{
+                    fontSize: '1.1rem',
+                    color: '#64748b',
+                    maxWidth: '600px',
+                    margin: '0 auto',
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Find deals, compare offers, and save money in seconds.
+                </p>
+              </div>
+
+              {/* Steps */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8" style={{ position: 'relative' }}>
+                {/* Connecting Line (Desktop) */}
+                <div
+                  className="hidden md:block"
+                  style={{
+                    position: 'absolute',
+                    top: '3rem',
+                    left: '25%',
+                    right: '25%',
+                    height: '2px',
+                    background: 'linear-gradient(to right, #3b82f6 0%, #8b5cf6 50%, #10b981 100%)',
+                    opacity: 0.2,
+                    zIndex: 0,
+                  }}
+                />
+
+                {[
+                  {
+                    number: '01',
+                    icon: 'fa-location-dot',
+                    title: 'Discover Deals Near You',
+                    description: 'Browse restaurant offers, shopping discounts, hotel deals, and nearby promotions instantly.',
+                    color: '#3b82f6',
+                    bgColor: 'rgba(59,130,246,0.1)',
+                  },
+                  {
+                    number: '02',
+                    icon: 'fa-bolt',
+                    title: 'Compare & Find the Best Offer',
+                    description: 'Quickly see prices, discounts, and limited-time deals without opening multiple apps or tabs.',
+                    color: '#8b5cf6',
+                    bgColor: 'rgba(139,92,246,0.1)',
+                  },
+                  {
+                    number: '03',
+                    icon: 'fa-bookmark',
+                    title: 'Save or Redeem Anytime',
+                    description: 'Bookmark deals for later or grab the offer before it expires.',
+                    color: '#10b981',
+                    bgColor: 'rgba(16,185,129,0.1)',
+                  },
+                ].map((step) => (
                   <div
+                    key={step.number}
                     style={{
-                      width: '2.4rem',
-                      height: '2.4rem',
-                      borderRadius: '0.85rem',
-                      background: 'var(--primary-gradient)',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 900,
-                      marginBottom: '0.85rem',
+                      position: 'relative',
+                      zIndex: 1,
+                      textAlign: 'center',
                     }}
                   >
-                    {item.step}
+                    {/* Number Badge */}
+                    <div
+                      style={{
+                        width: '4rem',
+                        height: '4rem',
+                        borderRadius: '50%',
+                        background: '#fff',
+                        border: `3px solid ${step.color}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 1.5rem',
+                        fontSize: '1.5rem',
+                        fontWeight: 900,
+                        color: step.color,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      {step.number}
+                    </div>
+
+                    {/* Icon */}
+                    <div
+                      style={{
+                        width: '3.5rem',
+                        height: '3.5rem',
+                        borderRadius: '1rem',
+                        background: step.bgColor,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto 1.5rem',
+                      }}
+                    >
+                      <i
+                        className={`fas ${step.icon}`}
+                        style={{
+                          fontSize: '1.5rem',
+                          color: step.color,
+                        }}
+                      ></i>
+                    </div>
+
+                    {/* Title */}
+                    <h3
+                      style={{
+                        fontSize: '1.3rem',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        marginBottom: '1rem',
+                      }}
+                    >
+                      {step.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p
+                      style={{
+                        fontSize: '0.95rem',
+                        color: '#64748b',
+                        lineHeight: 1.7,
+                        maxWidth: '320px',
+                        margin: '0 auto',
+                      }}
+                    >
+                      {step.description}
+                    </p>
                   </div>
-                  <div style={{ fontWeight: 900, fontSize: '1.05rem', marginBottom: '0.4rem' }}>{item.title}</div>
-                  <div style={{ color: 'var(--text-secondary)', lineHeight: 1.65 }}>{item.text}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </section>
 
           {user ? (
-            <section>
-              <SectionHeader
-                eyebrow="Your picks"
-                title="Continue where you left off"
-                icon="fa-heart"
-                meta={savedPreview.length > 0 ? 'Your saved deals are ready' : 'Start building your shortlist'}
-                actionLabel="Open Saved"
-                onAction={() => router.push('/favorites')}
-              />
+            <section
+              style={{
+                background: 'linear-gradient(135deg, rgba(59,130,246,0.05) 0%, rgba(139,92,246,0.05) 100%)',
+                borderRadius: '1.5rem',
+                padding: '3rem 2rem',
+                border: '1px solid rgba(59,130,246,0.1)',
+              }}
+            >
+              <div style={{ marginBottom: '2rem' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    marginBottom: '1rem',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '999px',
+                    background: 'rgba(239,68,68,0.1)',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#dc2626',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  <i className="fas fa-heart"></i>
+                  Your Saved Deals
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div>
+                    <h2
+                      style={{
+                        fontSize: 'clamp(1.8rem, 4vw, 2.5rem)',
+                        fontWeight: 900,
+                        color: '#0f172a',
+                        marginBottom: '0.5rem',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {savedPreview.length > 0 ? 'Continue Where You Left Off' : 'Start Saving Your Favorite Deals'}
+                    </h2>
+                    <p
+                      style={{
+                        fontSize: '1rem',
+                        color: '#64748b',
+                        margin: 0,
+                      }}
+                    >
+                      {savedPreview.length > 0
+                        ? `You have ${favoriteDeals.length} saved deal${favoriteDeals.length !== 1 ? 's' : ''} ready to grab`
+                        : 'Bookmark deals you love and come back to them anytime'}
+                    </p>
+                  </div>
+                  {savedPreview.length > 0 && (
+                    <button
+                      onClick={() => router.push('/favorites')}
+                      className="btn"
+                      style={{
+                        background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                        color: '#fff',
+                        padding: '0.9rem 1.5rem',
+                        fontWeight: 700,
+                        boxShadow: '0 4px 12px rgba(239,68,68,0.3)',
+                      }}
+                    >
+                      <i className="fas fa-heart"></i>
+                      View All Saved
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {savedPreview.length > 0 ? (
                 <DealGrid deals={savedPreview} favoriteIds={favoriteIds} onFavoriteToggle={handleFavoriteToggle} />
               ) : (
-                <div className="empty-state">
-                  <div className="empty-icon">
-                    <i className="fas fa-heart"></i>
+                <div
+                  style={{
+                    textAlign: 'center',
+                    padding: '3rem 2rem',
+                    background: '#fff',
+                    borderRadius: '1.2rem',
+                    border: '1px solid #e2e8f0',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '5rem',
+                      height: '5rem',
+                      borderRadius: '50%',
+                      background: 'rgba(239,68,68,0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 1.5rem',
+                    }}
+                  >
+                    <i className="fas fa-heart" style={{ fontSize: '2rem', color: '#ef4444' }}></i>
                   </div>
-                  <h2 style={{ marginTop: 0, marginBottom: '0.5rem', fontWeight: 800 }}>No saved deals yet</h2>
-                  <p style={{ color: 'var(--text-secondary)', marginBottom: '1.2rem' }}>
-                    Tap save on any deal and your shortlist will show up here.
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.8rem' }}>
+                    No Saved Deals Yet
+                  </h3>
+                  <p style={{ color: '#64748b', marginBottom: '1.8rem', fontSize: '1rem', maxWidth: '400px', margin: '0 auto 1.8rem' }}>
+                    Start saving deals you're interested in. Tap the heart icon on any deal to add it here.
                   </p>
-                  <button onClick={() => router.push('/categories/all')} className="btn btn-primary">
-                    Start Saving
+                  <button
+                    onClick={() => router.push('/categories/all')}
+                    className="btn"
+                    style={{
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      color: '#fff',
+                      padding: '1rem 2rem',
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                    }}
+                  >
+                    <i className="fas fa-compass"></i>
+                    Explore Deals
                   </button>
                 </div>
               )}
@@ -973,35 +1729,145 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="surface-panel panel-pad" style={{ textAlign: 'center' }}>
-            <div className="page-eyebrow" style={{ marginInline: 'auto' }}>
-              <i className="fas fa-rocket"></i>
-              Final CTA
-            </div>
-            <h2 style={{ marginTop: '1rem', marginBottom: '0.75rem', fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.08 }}>
-              Ready to find your next local deal?
-            </h2>
-            <p style={{ margin: '0 auto 1.5rem', maxWidth: '40rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              Start with the strongest offers, save what matters, and act before the best ones end.
-            </p>
-            <div className="flex justify-center gap-3 flex-wrap">
-              <button onClick={() => router.push('/categories/all')} className="btn btn-primary" style={{ padding: '0.95rem 1.3rem' }}>
-                <i className="fas fa-fire"></i>
-                Get Deal
-              </button>
-              <button
-                onClick={() => router.push(user ? '/favorites' : '/register')}
-                className="btn"
+          <section
+            style={{
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e40af 100%)',
+              borderRadius: '2rem',
+              padding: '4rem 2rem',
+              textAlign: 'center',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Background Pattern */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage:
+                  'radial-gradient(circle at 20% 50%, rgba(59,130,246,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(168,85,247,0.2) 0%, transparent 50%)',
+                opacity: 0.5,
+              }}
+            />
+
+            <div style={{ position: 'relative', zIndex: 1, maxWidth: '800px', margin: '0 auto' }}>
+              <div
                 style={{
-                  padding: '0.95rem 1.3rem',
-                  background: 'var(--card-bg)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '1.5rem',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '999px',
+                  background: 'rgba(251,191,36,0.2)',
+                  border: '1px solid rgba(251,191,36,0.3)',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  color: '#fbbf24',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
                 }}
               >
-                <i className="fas fa-heart"></i>
-                Save Offer
-              </button>
+                <i className="fas fa-bolt"></i>
+                Start Saving Today
+              </div>
+
+              <h2
+                style={{
+                  fontSize: 'clamp(2.2rem, 5vw, 3.5rem)',
+                  fontWeight: 900,
+                  color: '#fff',
+                  marginBottom: '1.2rem',
+                  lineHeight: 1.2,
+                }}
+              >
+                Ready to Save Money on Every Purchase?
+              </h2>
+
+              <p
+                style={{
+                  fontSize: '1.15rem',
+                  color: 'rgba(248,250,252,0.9)',
+                  marginBottom: '2.5rem',
+                  lineHeight: 1.7,
+                  maxWidth: '600px',
+                  margin: '0 auto 2.5rem',
+                }}
+              >
+                Join thousands of smart shoppers across Sri Lanka. Discover the best deals from restaurants, stores, and brands near you.
+              </p>
+
+              <div className="flex justify-center gap-4 flex-wrap">
+                <button
+                  onClick={() => router.push('/categories/all')}
+                  className="btn"
+                  style={{
+                    background: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+                    color: '#0f172a',
+                    padding: '1.1rem 2.5rem',
+                    fontSize: '1.05rem',
+                    fontWeight: 800,
+                    boxShadow: '0 8px 24px rgba(251,191,36,0.4)',
+                  }}
+                >
+                  <i className="fas fa-fire"></i>
+                  Browse All Deals
+                </button>
+                <a
+                  href="https://drive.google.com/uc?export=download&id=12xY8BPO4HqN6oH4vj0wcJSwXiDM0tDKu"
+                  className="btn"
+                  style={{
+                    background: 'rgba(255,255,255,0.1)',
+                    color: '#fff',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    padding: '1.1rem 2.5rem',
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    backdropFilter: 'blur(10px)',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                  }}
+                >
+                  <i className="fas fa-mobile-screen-button"></i>
+                  Download App
+                </a>
+              </div>
+
+              {/* Trust Indicators */}
+              <div
+                style={{
+                  marginTop: '3rem',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: '2rem',
+                  flexWrap: 'wrap',
+                  paddingTop: '2rem',
+                  borderTop: '1px solid rgba(255,255,255,0.1)',
+                }}
+              >
+                {[
+                  { icon: 'fa-users', text: '12,000+ Users' },
+                  { icon: 'fa-tags', text: `${activePromotions.length}+ Active Deals` },
+                  { icon: 'fa-shield-halved', text: 'Verified Offers' },
+                ].map((item) => (
+                  <div
+                    key={item.text}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      color: 'rgba(248,250,252,0.8)',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <i className={`fas ${item.icon}`} style={{ color: '#fbbf24' }}></i>
+                    {item.text}
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         </div>

@@ -27,6 +27,12 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
   const urgencyText = daysLeft < 0 ? 'Expired' : daysLeft <= 1 ? 'Ending soon' : 'Live now';
   const urgencyBg = daysLeft <= 1 ? 'var(--danger-soft)' : 'rgba(34,197,94,0.1)';
   const urgencyColor = daysLeft <= 1 ? 'var(--danger-color)' : 'var(--success-color)';
+  const distanceKm = promotion.aiMeta?.distanceKm;
+  const distanceText = distanceKm !== null && distanceKm !== undefined 
+    ? distanceKm < 1 
+      ? `${Math.round(distanceKm * 1000)}m away` 
+      : `${distanceKm.toFixed(1)}km away`
+    : null;
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -115,24 +121,42 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
       </div>
 
       <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             <i className="fas fa-store-alt" style={{ marginRight: '0.3rem' }}></i>{merchantName}
           </span>
-          <span style={{ 
-            fontSize: '0.72rem', 
-            padding: '0.25rem 0.6rem', 
-            borderRadius: '999px', 
-            background: daysLeft <= 1 ? 'var(--warning-soft)' : 'var(--light-gray)', 
-            color: daysLeft <= 1 ? 'var(--warning-color)' : 'var(--text-secondary)', 
-            border: `1px solid ${daysLeft <= 1 ? 'rgba(249, 115, 22, 0.3)' : 'var(--border-color)'}`, 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.3rem',
-            fontWeight: 700
-          }}>
-            <i className="far fa-clock"></i> {expiryText}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            {distanceText && (
+              <span style={{ 
+                fontSize: '0.72rem', 
+                padding: '0.25rem 0.6rem', 
+                borderRadius: '999px', 
+                background: 'rgba(59,130,246,0.1)', 
+                color: '#2563eb', 
+                border: '1px solid rgba(59,130,246,0.2)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.3rem',
+                fontWeight: 700
+              }}>
+                <i className="fas fa-location-arrow"></i> {distanceText}
+              </span>
+            )}
+            <span style={{ 
+              fontSize: '0.72rem', 
+              padding: '0.25rem 0.6rem', 
+              borderRadius: '999px', 
+              background: daysLeft <= 1 ? 'var(--warning-soft)' : 'var(--light-gray)', 
+              color: daysLeft <= 1 ? 'var(--warning-color)' : 'var(--text-secondary)', 
+              border: `1px solid ${daysLeft <= 1 ? 'rgba(249, 115, 22, 0.3)' : 'var(--border-color)'}`, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.3rem',
+              fontWeight: 700
+            }}>
+              <i className="far fa-clock"></i> {expiryText}
+            </span>
+          </div>
         </div>
 
         <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: '1.4', height: '2.8rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>

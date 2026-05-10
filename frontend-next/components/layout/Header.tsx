@@ -49,7 +49,8 @@ export default function Header() {
 
   const navLinks = [
     { href: '/categories/all', icon: 'fa-tags', label: 'Categories' },
-    { href: '/favorites', icon: 'fa-heart', label: 'Saved' },
+    { href: '/nearby', icon: 'fa-location-dot', label: 'Nearby Deals' },
+    { href: '/merchants', icon: 'fa-store', label: 'Businesses' },
   ];
 
   const getSafeImage = (url?: string, name?: string) => {
@@ -86,104 +87,124 @@ export default function Header() {
       }}
     >
       <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <Link
-              href="/"
+        <div className="flex items-center justify-between gap-6">
+          {/* LEFT: Logo + Brand */}
+          <Link
+            href="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}
+          >
+            <span
               style={{
+                width: '2.4rem',
+                height: '2.4rem',
+                borderRadius: '0.7rem',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.8rem',
-                textDecoration: 'none',
-                minWidth: 0,
+                justifyContent: 'center',
+                background: 'var(--primary-gradient)',
+                color: '#fff',
+                fontWeight: 900,
+                fontSize: '1.2rem',
+                boxShadow: '0 8px 16px rgba(37,99,235,0.2)',
               }}
             >
+              %
+            </span>
+            <span>
               <span
                 style={{
-                  width: '2.65rem',
-                  height: '2.65rem',
-                  borderRadius: '0.95rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'var(--primary-gradient)',
-                  color: '#fff',
-                  fontWeight: 900,
-                  boxShadow: '0 18px 30px rgba(37,99,235,0.24)',
-                  flexShrink: 0,
+                  display: 'block',
+                  fontSize: '1.05rem',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  color: 'var(--text-primary)',
+                  lineHeight: 1.2,
                 }}
               >
-                %
+                DealFinder
               </span>
-              <span style={{ minWidth: 0 }}>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: '1.1rem',
-                    fontWeight: 900,
-                    letterSpacing: '-0.03em',
-                    color: 'var(--text-primary)',
-                  }}
-                >
-                  DealFinder
-                </span>
-                <span
-                  className="hidden sm:block"
-                  style={{
-                    fontSize: '0.76rem',
-                    color: 'var(--text-secondary)',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  Find the best deals near you
-                </span>
-              </span>
-            </Link>
-
-            <div className="hidden lg:flex" style={{ flex: 1, minWidth: 0, maxWidth: '34rem' }}>
-              <div
+              <span
+                className="hidden sm:block"
                 style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.45rem 0.55rem 0.45rem 0.9rem',
-                  borderRadius: '999px',
-                  background: 'var(--card-bg)',
-                  border: '1px solid var(--border-color)',
-                  boxShadow: 'var(--box-shadow)',
+                  fontSize: '0.7rem',
+                  color: 'var(--text-secondary)',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 500,
                 }}
               >
-                <i className="fas fa-search" style={{ color: 'var(--text-secondary)' }}></i>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') submitSearch();
-                  }}
-                  placeholder="Search deals, stores, or nearby offers"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    border: 'none',
-                    outline: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.95rem',
-                  }}
-                />
-                <button
-                  onClick={submitSearch}
-                  className="btn btn-primary"
-                  style={{ padding: '0.7rem 0.95rem', borderRadius: '999px' }}
-                >
-                  Search
-                </button>
-              </div>
-            </div>
+                Sri Lanka Deals
+              </span>
+            </span>
+          </Link>
 
-            <nav className="hidden xl:flex items-center gap-2">
+          {/* CENTER: Large Search Bar */}
+          <div className="hidden md:flex" style={{ flex: 1, minWidth: 0, maxWidth: '600px' }}>
+            <div
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.6rem 0.7rem 0.6rem 1.1rem',
+                borderRadius: '999px',
+                background: 'var(--card-bg)',
+                border: '2px solid var(--border-color)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--primary-color)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(37,99,235,0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-color)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
+              }}
+            >
+              <i className="fas fa-search" style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}></i>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') submitSearch();
+                }}
+                placeholder="Search restaurants, hotels, bank offers…"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.95rem',
+                  fontWeight: 500,
+                }}
+              />
+              <button
+                onClick={submitSearch}
+                className="btn btn-primary"
+                style={{ 
+                  padding: '0.65rem 1.2rem', 
+                  borderRadius: '999px',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                }}
+              >
+                Search
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT: Desktop Navigation */}
+          <div className="hidden lg:flex items-center gap-1">
+            <nav className="flex items-center gap-1">
               {navLinks.map(({ href, icon, label }) => {
                 const active = isActive(href);
                 return (
@@ -198,47 +219,40 @@ export default function Header() {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.5rem',
-                      padding: '0.7rem 0.95rem',
-                      borderRadius: '999px',
+                      padding: '0.65rem 0.9rem',
+                      borderRadius: '0.6rem',
                       textDecoration: 'none',
-                      fontSize: '0.9rem',
-                      fontWeight: 700,
-                      color: active ? '#0f172a' : 'var(--text-secondary)',
-                      background: active ? 'linear-gradient(135deg, rgba(108,59,255,0.16), rgba(59,130,246,0.14))' : 'transparent',
-                      border: active ? '1px solid rgba(108,59,255,0.18)' : '1px solid transparent',
-                      boxShadow: active ? '0 10px 20px rgba(108,59,255,0.12)' : 'none',
+                      fontSize: '0.88rem',
+                      fontWeight: 600,
+                      color: active ? 'var(--primary-color)' : 'var(--text-secondary)',
+                      background: active ? 'rgba(37,99,235,0.1)' : 'transparent',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.background = 'var(--light-gray)';
+                        e.currentTarget.style.color = 'var(--text-primary)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.background = 'transparent';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }
                     }}
                   >
-                    <i className={`fas ${icon}`} style={{ color: active ? 'var(--primary-color)' : 'var(--text-secondary)' }}></i>
+                    <i className={`fas ${icon}`} style={{ fontSize: '0.9rem' }}></i>
                     {label}
                   </Link>
                 );
               })}
             </nav>
+
           </div>
 
+          {/* RIGHT: User Actions */}
           <div className="flex items-center gap-2">
             {!loading && user ? <NotificationBell /> : null}
-
-            <button
-              onClick={toggleDark}
-              title={isDark ? 'Light mode' : 'Dark mode'}
-              style={{
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: '999px',
-                border: '1px solid var(--border-color)',
-                background: 'var(--card-bg)',
-                color: 'var(--text-secondary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                boxShadow: 'var(--box-shadow)',
-              }}
-            >
-              <i className={`fas ${isDark ? 'fa-sun' : 'fa-moon'}`}></i>
-            </button>
 
             {!loading && user ? (
                 <div className="hidden md:block relative" ref={userMenuRef}>
@@ -369,11 +383,19 @@ export default function Header() {
                     href="/login"
                     onClick={() => setMenuOpen(false)}
                     style={{
-                      padding: '0.72rem 0.95rem',
-                      borderRadius: '999px',
+                      padding: '0.65rem 1rem',
+                      borderRadius: '0.6rem',
                       textDecoration: 'none',
                       color: 'var(--text-primary)',
-                      fontWeight: 700,
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'var(--light-gray)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
                     }}
                   >
                     Login
@@ -385,23 +407,46 @@ export default function Header() {
                     style={{
                       background: 'var(--primary-gradient)',
                       color: '#fff',
-                      padding: '0.8rem 1.1rem',
-                      borderRadius: '999px',
-                      boxShadow: '0 14px 28px rgba(37,99,235,0.2)',
+                      padding: '0.65rem 1.2rem',
+                      borderRadius: '0.6rem',
+                      boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
+                      fontWeight: 700,
+                      fontSize: '0.88rem',
                     }}
                   >
-                    Grab Deals
+                    <i className="fas fa-mobile-screen-button" style={{ marginRight: '0.5rem' }}></i>
+                    Download App
                   </Link>
                 </div>
               ) : null}
 
+            {/* Mobile: Download + Hamburger */}
+            <Link
+              href="/register"
+              className="md:hidden btn"
+              style={{
+                background: 'var(--primary-gradient)',
+                color: '#fff',
+                padding: '0.6rem 0.8rem',
+                borderRadius: '0.6rem',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <i className="fas fa-download"></i>
+            </Link>
+
             <button
-              className="lg:hidden"
+              className="md:hidden"
               onClick={() => setMenuOpen(!menuOpen)}
               style={{
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: '999px',
+                width: '2.4rem',
+                height: '2.4rem',
+                borderRadius: '0.6rem',
                 border: '1px solid var(--border-color)',
                 background: 'var(--card-bg)',
                 color: 'var(--text-secondary)',
@@ -409,7 +454,7 @@ export default function Header() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                boxShadow: 'var(--box-shadow)',
+                fontSize: '1.1rem',
               }}
             >
               <i className={`fas ${menuOpen ? 'fa-times' : 'fa-bars'}`}></i>
@@ -419,17 +464,58 @@ export default function Header() {
 
         {menuOpen && (
           <div
-            className="lg:hidden"
+            className="md:hidden"
             style={{
               marginTop: '1rem',
               padding: '1rem',
-              borderRadius: '1.2rem',
+              borderRadius: '1rem',
               background: 'var(--card-bg)',
               border: '1px solid var(--border-color)',
-              boxShadow: 'var(--box-shadow)',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
             }}
           >
-            <nav className="grid grid-cols-1 gap-2">
+            {/* Mobile Search Bar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                padding: '0.7rem 1rem',
+                borderRadius: '0.8rem',
+                background: 'var(--light-gray)',
+                marginBottom: '1rem',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <i className="fas fa-search" style={{ color: 'var(--text-secondary)' }}></i>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') submitSearch();
+                }}
+                placeholder="Search restaurants, hotels…"
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                }}
+              />
+              <button
+                onClick={submitSearch}
+                className="btn btn-primary"
+                style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
+              >
+                Go
+              </button>
+            </div>
+
+            <nav className="grid grid-cols-1 gap-2 mb-4">
               {navLinks.map(({ href, icon, label }) => {
                 const active = isActive(href);
                 return (
@@ -441,15 +527,16 @@ export default function Header() {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.7rem',
-                      padding: '0.9rem 1rem',
-                      borderRadius: '0.9rem',
+                      padding: '0.85rem 1rem',
+                      borderRadius: '0.8rem',
                       textDecoration: 'none',
-                      fontWeight: 700,
-                      color: active ? '#0f172a' : 'var(--text-primary)',
-                      background: active ? 'linear-gradient(135deg, rgba(37,99,235,0.16), rgba(56,189,248,0.14), rgba(245,158,11,0.16))' : 'var(--light-gray)',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      color: active ? 'var(--primary-color)' : 'var(--text-primary)',
+                      background: active ? 'rgba(37,99,235,0.1)' : 'var(--light-gray)',
                     }}
                   >
-                    <i className={`fas ${icon}`} style={{ color: active ? 'var(--primary-color)' : 'var(--text-secondary)' }}></i>
+                    <i className={`fas ${icon}`}></i>
                     {label}
                   </Link>
                 );
@@ -458,49 +545,10 @@ export default function Header() {
 
             <div
               style={{
-                marginTop: '1rem',
                 paddingTop: '1rem',
                 borderTop: '1px solid var(--border-color)',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  padding: '0.55rem',
-                  borderRadius: '1rem',
-                  background: 'var(--light-gray)',
-                  marginBottom: '1rem',
-                }}
-              >
-                <i className="fas fa-search" style={{ color: 'var(--text-secondary)', paddingLeft: '0.35rem' }}></i>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') submitSearch();
-                  }}
-                  placeholder="Search deals, stores, or nearby offers"
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    border: 'none',
-                    outline: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.95rem',
-                  }}
-                />
-                <button
-                  onClick={submitSearch}
-                  className="btn btn-primary"
-                  style={{ padding: '0.7rem 0.9rem' }}
-                >
-                  Go
-                </button>
-              </div>
 
               {!loading && user ? (
                 <div className="grid grid-cols-1 gap-2">
