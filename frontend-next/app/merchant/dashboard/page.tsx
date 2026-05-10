@@ -20,6 +20,24 @@ export default function MerchantDashboard() {
   const [form, setForm] = useState({ title:'', description:'', discount:'', code:'', category:'electronics', startDate:'', endDate:'', image:'', url:'', featured:false, originalPrice:'', discountedPrice:'' });
   const [profileForm, setProfileForm] = useState({ name:'', profile:'', contactInfo:'', contactNumber:'', address:'', logo:'', socialMedia:{ facebook:'', instagram:'', twitter:'', tiktok:'' } });
 
+  const resolveMerchantId = async () => {
+    const currentMerchantId = user?.merchantId?.toString() || user?.merchantId;
+    if (currentMerchantId) return currentMerchantId;
+
+    if (!user?._id) return '';
+
+    try {
+      const refreshedUser = await UserAPI.getProfile(user._id);
+      const refreshedMerchantId = refreshedUser.merchantId?.toString() || '';
+      if (refreshedMerchantId) {
+        updateUser({ merchantId: refreshedMerchantId });
+      }
+      return refreshedMerchantId;
+    } catch {
+      return '';
+    }
+  };
+
   useEffect(() => {
     const loadDashboard = async () => {
       if (!user) { router.push('/login'); return; }
@@ -63,7 +81,9 @@ export default function MerchantDashboard() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const data = { ...form, featured: Boolean(form.featured), merchantId: user!.merchantId };
+      const merchantId = await resolveMerchantId();
+      const data: any = { ...form, featured: Boolean(form.featured) };
+      if (merchantId) data.merchantId = merchantId;
       if (editing) { const updated = await PromotionAPI.update(editing._id, data); setPromotions(prev => prev.map(p => p.id === editing.id ? {...updated, id: updated._id} : p)); toast.success('Promotion updated!'); }
       else { const created = await PromotionAPI.create(data); setPromotions(prev => [...prev, {...created, id: created._id}]); toast.success('Promotion created!'); }
       setModalOpen(false); setEditing(null);

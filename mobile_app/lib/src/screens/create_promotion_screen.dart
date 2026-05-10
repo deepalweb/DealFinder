@@ -310,13 +310,11 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       return;
     }
 
-    if (!_hasValidMerchantId || _isDemoMerchantSession) {
+    if (_isDemoMerchantSession) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
-            _isDemoMerchantSession
-                ? 'Demo merchant accounts cannot create live promotions.'
-                : 'Merchant profile is invalid. Please sign out and sign back in.',
+            'Demo merchant accounts cannot create live promotions.',
           ),
         ),
       );
@@ -395,7 +393,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
         'category': _selectedCategory,
         'startDate': _startDate!.toIso8601String(),
         'endDate': _endDate!.toIso8601String(),
-        'merchantId': widget.merchantId,
         'featured': _featured,
         if (_urlController.text.trim().isNotEmpty)
           'url': _urlController.text.trim(),
@@ -405,6 +402,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
           'discountedPrice': double.parse(_discountedPriceController.text),
         if (mergedImageUrls.isNotEmpty) 'image': mergedImageUrls.first,
         if (mergedImageUrls.isNotEmpty) 'images': mergedImageUrls,
+        if (_hasValidMerchantId) 'merchantId': widget.merchantId,
       };
 
       if (_isEditing) {

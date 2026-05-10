@@ -493,7 +493,7 @@ router.post('/', authenticateJWT, [
   body('image').optional().isString(),
   body('images').optional().isArray().withMessage('Images must be an array'),
   body('url').optional().isString(),
-  body('merchantId').trim().notEmpty().withMessage('Merchant ID is required'),
+  body('merchantId').optional().isString().withMessage('Merchant ID must be a string'),
   body('featured').optional().isBoolean(),
   body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
   body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number.')
@@ -520,15 +520,20 @@ router.post('/', authenticateJWT, [
       if (!req.user.merchantId) {
         return res.status(403).json({ message: 'Forbidden: You are a merchant but not linked to a merchant profile.' });
       }
-      if (merchantId !== req.user.merchantId.toString()) {
+      if (merchantId && merchantId !== req.user.merchantId.toString()) {
         // If merchant tries to specify a different merchantId, either deny or override.
         // Overriding is safer to prevent accidental/malicious mis-assignment.
         console.warn(`Merchant ${req.user.id} attempted to create promotion for ${merchantId} but is being reassigned to their own merchantId ${req.user.merchantId}.`);
-        merchantId = req.user.merchantId.toString();
       }
+      merchantId = req.user.merchantId.toString();
     } else if (req.user.role !== 'admin') {
       // Neither merchant nor admin, should not be able to create promotions
       return res.status(403).json({ message: 'Forbidden: You do not have permission to create promotions.' });
+    } else {
+      merchantId = String(merchantId || '').trim();
+      if (!merchantId) {
+        return res.status(400).json({ message: 'Merchant ID is required for admin-created promotions.' });
+      }
     }
     // If admin, they can specify any merchantId, so no changes needed to merchantId from req.body
 
