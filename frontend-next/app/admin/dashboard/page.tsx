@@ -182,7 +182,6 @@ export default function AdminDashboardPage() {
   }, []);
 
   const pendingMerchants = overview?.pending?.merchants || stats?.merchantsByStatus?.pending_approval || 0;
-  const pendingPromotions = overview?.pending?.promotions || stats?.promotionsByStatus?.pending_approval || 0;
 
   const overviewCards = useMemo(
     () => [
@@ -268,7 +267,7 @@ export default function AdminDashboardPage() {
         }
       />
 
-      {(pendingMerchants > 0 || pendingPromotions > 0 || alerts?.brokenPromotions?.count > 0) && (
+      {(pendingMerchants > 0 || alerts?.brokenPromotions?.count > 0) && (
         <div
           className="surface-panel panel-pad"
           style={{
@@ -284,20 +283,13 @@ export default function AdminDashboardPage() {
           <i className="fas fa-exclamation-triangle" style={{ color: '#f59e0b' }}></i>
           <span style={{ fontSize: '0.875rem', color: '#92400e', fontWeight: 500 }}>
             {pendingMerchants > 0 ? `${pendingMerchants} merchant approvals pending` : null}
-            {pendingMerchants > 0 && pendingPromotions > 0 ? ' · ' : null}
-            {pendingPromotions > 0 ? `${pendingPromotions} promotion approvals pending` : null}
-            {(pendingMerchants > 0 || pendingPromotions > 0) && alerts?.brokenPromotions?.count > 0 ? ' · ' : null}
+            {pendingMerchants > 0 && alerts?.brokenPromotions?.count > 0 ? ' · ' : null}
             {alerts?.brokenPromotions?.count > 0 ? `${alerts.brokenPromotions.count} promotions need content fixes` : null}
           </span>
           <div className="flex gap-2 ml-auto">
             {pendingMerchants > 0 ? (
               <Link href="/admin/merchants" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', textDecoration: 'none', padding: '0.25rem 0.625rem', borderRadius: '0.375rem', background: 'rgba(245,158,11,0.15)' }}>
                 Review Merchants
-              </Link>
-            ) : null}
-            {pendingPromotions > 0 ? (
-              <Link href="/admin/promotions" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#92400e', textDecoration: 'none', padding: '0.25rem 0.625rem', borderRadius: '0.375rem', background: 'rgba(245,158,11,0.15)' }}>
-                Review Promotions
               </Link>
             ) : null}
           </div>
@@ -377,7 +369,6 @@ export default function AdminDashboardPage() {
                 const colors = {
                   active: '#10b981',
                   scheduled: '#6366f1',
-                  pending_approval: '#f59e0b',
                   expired: '#94a3b8',
                   rejected: '#ef4444',
                   admin_paused: '#64748b',

@@ -30,7 +30,7 @@ async function checkPriceDrops() {
       // Get user's favorite deals
       const favoriteDeals = await Promotion.find({
         _id: { $in: user.favorites },
-        status: { $in: ['active', 'approved'] }
+        status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] }
       }).populate('merchant');
 
       for (const deal of favoriteDeals) {

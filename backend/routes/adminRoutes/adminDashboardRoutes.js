@@ -78,7 +78,6 @@ async function getOverviewData() {
     totalPromotions,
     activePromotions,
     pendingMerchants,
-    pendingPromotions,
     usersThisWeek,
     merchantsThisWeek,
     promotionsThisWeek,
@@ -90,12 +89,11 @@ async function getOverviewData() {
     Merchant.countDocuments(),
     Promotion.countDocuments(),
     Promotion.countDocuments({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       startDate: { $lte: now },
       endDate: { $gte: now },
     }),
     Merchant.countDocuments({ status: 'pending_approval' }),
-    Promotion.countDocuments({ status: 'pending_approval' }),
     User.countDocuments({ createdAt: { $gte: weekAgo } }),
     Merchant.countDocuments({ createdAt: { $gte: weekAgo } }),
     Promotion.countDocuments({ createdAt: { $gte: weekAgo } }),
@@ -111,7 +109,7 @@ async function getOverviewData() {
   ]);
 
   const expiringToday = await Promotion.countDocuments({
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lte: now },
     endDate: { $gte: todayStart, $lt: todayEnd },
   });
@@ -134,7 +132,6 @@ async function getOverviewData() {
     },
     pending: {
       merchants: pendingMerchants,
-      promotions: pendingPromotions,
     },
     notifications: {
       total: notificationsThisWeek,
@@ -175,7 +172,7 @@ async function getAlertData() {
     ],
   };
   const expiringSoonFilter = {
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lte: now },
     endDate: { $gte: todayStart, $lte: in7Days },
   };
@@ -183,24 +180,20 @@ async function getAlertData() {
 
   const [
     pendingMerchantCount,
-    pendingPromotionCount,
     brokenPromotionCount,
     expiringSoonCount,
     pausedPromotionCount,
     pendingMerchants,
-    pendingPromotions,
     dormantMerchants,
     brokenPromotions,
     expiringSoon,
     pausedPromotions,
   ] = await Promise.all([
     Merchant.countDocuments({ status: 'pending_approval' }),
-    Promotion.countDocuments({ status: 'pending_approval' }),
     Promotion.countDocuments(brokenPromotionFilter),
     Promotion.countDocuments(expiringSoonFilter),
     Promotion.countDocuments(pausedPromotionFilter),
     Merchant.find({ status: 'pending_approval' }).select('name createdAt status').sort({ createdAt: -1 }).limit(6).lean(),
-    Promotion.find({ status: 'pending_approval' }).select('title createdAt status merchant').populate('merchant', 'name').sort({ createdAt: -1 }).limit(6).lean(),
     Merchant.find().select('name createdAt logo contactInfo').lean(),
     Promotion.find(brokenPromotionFilter).select('title image url status merchant createdAt').populate('merchant', 'name').sort({ createdAt: -1 }).limit(8).lean(),
     Promotion.find(expiringSoonFilter).select('title endDate merchant').populate('merchant', 'name').sort({ endDate: 1 }).limit(8).lean(),
@@ -214,10 +207,6 @@ async function getAlertData() {
     pendingMerchants: {
       count: pendingMerchantCount,
       items: pendingMerchants,
-    },
-    pendingPromotions: {
-      count: pendingPromotionCount,
-      items: pendingPromotions,
     },
     brokenPromotions: {
       count: brokenPromotionCount,
@@ -239,7 +228,7 @@ async function getAlertData() {
       items: pausedPromotions,
     },
     expiringTodayCount: await Promotion.countDocuments({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       startDate: { $lte: now },
       endDate: { $gte: todayStart, $lt: todayEnd },
     }),
@@ -256,8 +245,7 @@ async function getLegacyStats() {
   const activeMerchants = await Merchant.countDocuments({ status: 'active' });
   const totalPromotions = await Promotion.countDocuments();
 
-  const [pending, active, scheduled, expired, rejected, paused, draft, activePromotions] = await Promise.all([
-    Promotion.countDocuments({ status: 'pending_approval' }),
+  const [active, scheduled, expired, rejected, paused, draft, activePromotions] = await Promise.all([
     Promotion.countDocuments({ status: 'active' }),
     Promotion.countDocuments({ status: 'scheduled' }),
     Promotion.countDocuments({ status: 'expired' }),
@@ -265,14 +253,14 @@ async function getLegacyStats() {
     Promotion.countDocuments({ status: 'admin_paused' }),
     Promotion.countDocuments({ status: 'draft' }),
     Promotion.countDocuments({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       startDate: { $lte: now },
       endDate: { $gte: now },
     }),
   ]);
 
   const expiringSoon = await Promotion.find({
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lte: now },
     endDate: { $gte: now, $lte: in7Days },
   }).populate('merchant', 'name').sort({ endDate: 1 }).limit(10).lean();
@@ -305,7 +293,6 @@ async function getLegacyStats() {
     promotionsByStatus: {
       active,
       scheduled,
-      pending_approval: pending,
       expired,
       rejected,
       admin_paused: paused,

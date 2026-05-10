@@ -54,10 +54,6 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       .where((promotion) => _isActiveLikeStatus(promotion.status))
       .length;
 
-  int get _pendingCount => _promotions
-      .where((promotion) => promotion.status == 'pending_approval')
-      .length;
-
   int get _expiredCount => _promotions
       .where((promotion) => _isExpiredLikeStatus(promotion.status))
       .length;
@@ -318,13 +314,16 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   }
 
   bool _isActiveLikeStatus(String? status) =>
-      ['active', 'approved', 'pending_approval', 'scheduled'].contains(status);
+      ['active', 'scheduled', 'approved', 'pending_approval'].contains(status);
 
   bool _isExpiredLikeStatus(String? status) =>
       ['expired', 'rejected', 'admin_paused'].contains(status);
 
   String _statusLabel(String? status) {
     if (status == null || status.isEmpty) return 'Unknown';
+    if (status == 'approved' || status == 'pending_approval') {
+      return 'Active';
+    }
     return status
         .split('_')
         .map((part) => part.isEmpty
@@ -335,7 +334,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
 
   Color _statusColor(String? status) {
     if (_isActiveLikeStatus(status)) {
-      return status == 'pending_approval' ? Colors.orange : Colors.green;
+      return Colors.green;
     }
     if (_isExpiredLikeStatus(status)) {
       return status == 'rejected' ? Colors.red : Colors.grey;
@@ -506,7 +505,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                   onPressed: _openEditProfile,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                    side:
+                        BorderSide(color: Colors.white.withValues(alpha: 0.35)),
                     backgroundColor: Colors.white.withValues(alpha: 0.12),
                   ),
                   icon: const Icon(Icons.edit_outlined),
@@ -552,13 +552,10 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         Row(
           children: [
             Expanded(
-              child:
-                  _buildStatCard('Pending', '$_pendingCount', Icons.schedule),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
               child: _buildStatCard('Expired', '$_expiredCount', Icons.history),
             ),
+            const SizedBox(width: 12),
+            const Expanded(child: SizedBox.shrink()),
           ],
         ),
       ],
@@ -671,14 +668,16 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         color: done ? Colors.green.withValues(alpha: 0.06) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: done ? Colors.green.withValues(alpha: 0.2) : Colors.grey.shade300,
+          color:
+              done ? Colors.green.withValues(alpha: 0.2) : Colors.grey.shade300,
         ),
       ),
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor:
-                done ? Colors.green.withValues(alpha: 0.12) : Colors.grey.shade100,
+            backgroundColor: done
+                ? Colors.green.withValues(alpha: 0.12)
+                : Colors.grey.shade100,
             foregroundColor:
                 done ? Colors.green : Theme.of(context).colorScheme.primary,
             child: Icon(done ? Icons.check : icon),

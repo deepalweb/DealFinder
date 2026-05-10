@@ -83,7 +83,10 @@ class Promotion {
 
   bool get hasVerifiedActiveStatus {
     final normalized = status?.trim().toLowerCase();
-    return normalized == 'active' || normalized == 'approved';
+    return normalized == 'active' ||
+        normalized == 'scheduled' ||
+        normalized == 'approved' ||
+        normalized == 'pending_approval';
   }
 
   bool get isVerifiedActiveDeal {

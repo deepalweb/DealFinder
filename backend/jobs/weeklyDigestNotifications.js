@@ -28,7 +28,7 @@ async function sendWeeklyDigest() {
     // Get top deals from the last week
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const topDeals = await Promotion.find({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       createdAt: { $gte: oneWeekAgo },
       endDate: { $gte: new Date() }
     })

@@ -52,7 +52,7 @@ router.get('/', async (req, res) => {
     const promotionCounts = await Promotion.aggregate([
       {
         $match: {
-          status: { $in: ['active', 'approved'] },
+          status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
           startDate: { $lte: now },
           endDate: { $gte: now }
         }

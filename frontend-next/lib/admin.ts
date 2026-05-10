@@ -2,7 +2,6 @@ import { getCategoryLabel, normalizeCategoryId } from '@/lib/categories';
 
 export type PromotionLifecycleStatus =
   | 'active'
-  | 'pending_approval'
   | 'scheduled'
   | 'rejected'
   | 'admin_paused'
@@ -50,7 +49,7 @@ export function getEffectivePromotionStatus(promotion: {
   endDate?: string;
 }): PromotionLifecycleStatus {
   const rawStatus = promotion.status || 'draft';
-  if (['pending_approval', 'rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
+  if (['rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
     return rawStatus as PromotionLifecycleStatus;
   }
 

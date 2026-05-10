@@ -70,7 +70,7 @@ function buildActivePromotionQuery(value = new Date()) {
   const { start, endExclusive } = getColomboDayRange(value);
 
   return {
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lt: endExclusive },
     endDate: { $gte: start },
   };
@@ -249,7 +249,7 @@ router.get('/nearby', async (req, res) => {
               {
                 $match: {
                   $expr: { $eq: ['$merchant', '$$merchantId'] },
-                  status: { $in: ['active', 'approved'] },
+                  status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
                   startDate: { $lt: endExclusive },
                   endDate: { $gte: start }
                 }
@@ -503,7 +503,7 @@ router.post('/', authenticateJWT, [
       }
       return true;
     }),
-  body('status').optional().isIn(['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
+  body('status').optional().isIn(['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
     .withMessage('Invalid status value provided for creation.'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -543,7 +543,7 @@ router.post('/', authenticateJWT, [
     }
 
     let initialStatus = resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
-    if (req.user.role === 'admin' && ['pending_approval', 'rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
+    if (req.user.role === 'admin' && ['rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
       initialStatus = req.body.status;
     }
     
@@ -627,7 +627,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       // For now, assuming if prices are sent, they are sent together or this check is sufficient.
       return true;
     }),
-  body('status').optional().isIn(['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
+  body('status').optional().isIn(['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
     .withMessage('Invalid status value provided for update.'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -683,12 +683,12 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
 
     // Handle status update by admin
     if (req.body.status && req.user.role === 'admin') {
-        const allowedAdminStatuses = ['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'];
+        const allowedAdminStatuses = ['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'];
         if (allowedAdminStatuses.includes(req.body.status)) {
             updateData.status = req.body.status;
 
             // Re-evaluate live lifecycle when admin wants the promotion publicly visible.
-            if (['approved', 'active', 'scheduled', 'expired'].includes(updateData.status)) {
+            if (['active', 'scheduled', 'expired'].includes(updateData.status)) {
                 const existingPromotion = await Promotion.findById(req.params.id).select('startDate endDate');
                 if (!existingPromotion) {
                     return res.status(404).json({ message: 'Promotion not found' });

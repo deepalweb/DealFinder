@@ -18,8 +18,6 @@ const promotionSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
-      'pending_approval',
-      'approved',
       'active',
       'scheduled',
       'expired',
@@ -27,7 +25,7 @@ const promotionSchema = new mongoose.Schema({
       'admin_paused',
       'draft'
     ],
-    default: 'pending_approval'
+    default: 'draft'
   },
   createdAt: { type: Date, default: Date.now },
   comments: [{

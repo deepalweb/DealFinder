@@ -10,7 +10,7 @@ async function sendExpiryNotifications() {
 
     // Deals expiring in next 3-4 days window (avoids duplicate sends)
     const expiringDeals = await Promotion.find({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       endDate: { $gte: in3Days, $lt: in4Days },
     }).populate('merchant');
 

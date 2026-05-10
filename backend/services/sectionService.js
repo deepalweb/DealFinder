@@ -91,7 +91,7 @@ function setCached(key, data) {
 
 function getNowActivePromotionQuery(now = new Date()) {
   return {
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lte: now },
     endDate: { $gte: now },
   };
