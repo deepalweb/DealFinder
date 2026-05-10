@@ -95,7 +95,7 @@ async function resolveMerchantIdsByQuery(merchantQuery) {
 function buildPromotionQuery({ normalizedQuery, filters }) {
   const { start, endExclusive } = getColomboDayRange();
   const query = {
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lt: endExclusive },
     endDate: { $gte: start },
   };

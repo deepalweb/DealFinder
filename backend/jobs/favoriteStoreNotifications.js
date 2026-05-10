@@ -89,7 +89,7 @@ async function checkFavoriteStoresNewDeals() {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
     
     const newDeals = await Promotion.find({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       createdAt: { $gte: twoHoursAgo }
     });
 

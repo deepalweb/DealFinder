@@ -101,7 +101,7 @@ async function checkExpiringFlashSales() {
 
     // Find deals expiring in the next 1-2 hours (to avoid duplicate notifications)
     const expiringDeals = await Promotion.find({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       endDate: { 
         $gte: in1Hour,
         $lte: in2Hours

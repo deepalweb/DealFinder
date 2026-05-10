@@ -32,7 +32,6 @@ type PromotionRecord = {
 
 type EffectiveStatus =
   | 'active'
-  | 'pending_approval'
   | 'scheduled'
   | 'rejected'
   | 'admin_paused'
@@ -94,11 +93,6 @@ export default function AdminPromotionsPage() {
     return result;
   }, [categoryFilter, enrichedPromotions, search, statusFilter]);
 
-  const pendingCount = useMemo(
-    () => enrichedPromotions.filter((promotion) => promotion.effectiveStatus === 'pending_approval').length,
-    [enrichedPromotions]
-  );
-
   const categoryOptions = useMemo(
     () =>
       [...new Set(enrichedPromotions.map((promotion) => promotion.normalizedCategory).filter(Boolean))].sort(),
@@ -144,41 +138,6 @@ export default function AdminPromotionsPage() {
     <div>
       <AdminPageHeader title="Promotions" subtitle={`${filtered.length} of ${enrichedPromotions.length} promotions`} />
 
-      {pendingCount > 0 && (
-        <div
-          className="surface-panel panel-pad"
-          style={{
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(249,115,22,0.08))',
-            borderColor: 'rgba(245,158,11,0.25)',
-          }}
-        >
-          <i className="fas fa-clock" style={{ color: '#f59e0b' }}></i>
-          <span style={{ fontSize: '0.875rem', color: '#92400e', fontWeight: 500 }}>
-            {pendingCount} promotion(s) waiting for approval
-          </span>
-          <button
-            onClick={() => setStatusFilter('pending_approval')}
-            style={{
-              marginLeft: 'auto',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: '#92400e',
-              padding: '0.25rem 0.625rem',
-              borderRadius: '0.375rem',
-              background: 'rgba(245,158,11,0.15)',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            Review Now
-          </button>
-        </div>
-      )}
-
       <AdminFilterBar>
         <div className="input-with-icon toolbar-grow" style={{ maxWidth: '400px' }}>
           <i className="fas fa-search"></i>
@@ -192,7 +151,6 @@ export default function AdminPromotionsPage() {
         <select className="modern-select" style={{ maxWidth: '190px' }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All Status</option>
           <option value="active">Active</option>
-          <option value="pending_approval">Pending Approval</option>
           <option value="scheduled">Scheduled</option>
           <option value="rejected">Rejected</option>
           <option value="admin_paused">Paused</option>
@@ -240,7 +198,6 @@ export default function AdminPromotionsPage() {
                 filtered.map((promotion) => {
                   const id = getPromotionId(promotion);
                   const isPaused = promotion.effectiveStatus === 'admin_paused';
-                  const isPending = promotion.effectiveStatus === 'pending_approval';
                   const isPubliclyVisible = ['active', 'scheduled'].includes(promotion.effectiveStatus);
 
                   return (
@@ -286,42 +243,6 @@ export default function AdminPromotionsPage() {
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div className="flex justify-end gap-2 flex-wrap">
-                          {isPending ? (
-                            <>
-                              <button
-                                onClick={() => updateStatus(id, 'approved')}
-                                disabled={!!actionLoading}
-                                style={{
-                                  padding: '0.3rem 0.6rem',
-                                  borderRadius: '0.5rem',
-                                  border: '1.5px solid rgba(16,185,129,0.3)',
-                                  background: 'rgba(16,185,129,0.08)',
-                                  color: '#059669',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                <i className="fas fa-check"></i> Approve
-                              </button>
-                              <button
-                                onClick={() => updateStatus(id, 'rejected')}
-                                disabled={!!actionLoading}
-                                style={{
-                                  padding: '0.3rem 0.6rem',
-                                  borderRadius: '0.5rem',
-                                  border: '1.5px solid rgba(239,68,68,0.3)',
-                                  background: 'rgba(239,68,68,0.06)',
-                                  color: '#ef4444',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                }}
-                              >
-                                <i className="fas fa-times"></i> Reject
-                              </button>
-                            </>
-                          ) : null}
                           {isPubliclyVisible ? (
                             <button
                               onClick={() => updateStatus(id, 'admin_paused')}

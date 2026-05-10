@@ -70,7 +70,7 @@ function buildActivePromotionQuery(value = new Date()) {
   const { start, endExclusive } = getColomboDayRange(value);
 
   return {
-    status: { $in: ['active', 'approved'] },
+    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
     startDate: { $lt: endExclusive },
     endDate: { $gte: start },
   };
@@ -249,7 +249,7 @@ router.get('/nearby', async (req, res) => {
               {
                 $match: {
                   $expr: { $eq: ['$merchant', '$$merchantId'] },
-                  status: { $in: ['active', 'approved'] },
+                  status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
                   startDate: { $lt: endExclusive },
                   endDate: { $gte: start }
                 }
@@ -493,7 +493,7 @@ router.post('/', authenticateJWT, [
   body('image').optional().isString(),
   body('images').optional().isArray().withMessage('Images must be an array'),
   body('url').optional().isString(),
-  body('merchantId').trim().notEmpty().withMessage('Merchant ID is required'),
+  body('merchantId').optional().isString().withMessage('Merchant ID must be a string'),
   body('featured').optional().isBoolean(),
   body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
   body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number.')
@@ -503,7 +503,7 @@ router.post('/', authenticateJWT, [
       }
       return true;
     }),
-  body('status').optional().isIn(['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
+  body('status').optional().isIn(['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
     .withMessage('Invalid status value provided for creation.'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -520,15 +520,20 @@ router.post('/', authenticateJWT, [
       if (!req.user.merchantId) {
         return res.status(403).json({ message: 'Forbidden: You are a merchant but not linked to a merchant profile.' });
       }
-      if (merchantId !== req.user.merchantId.toString()) {
+      if (merchantId && merchantId !== req.user.merchantId.toString()) {
         // If merchant tries to specify a different merchantId, either deny or override.
         // Overriding is safer to prevent accidental/malicious mis-assignment.
         console.warn(`Merchant ${req.user.id} attempted to create promotion for ${merchantId} but is being reassigned to their own merchantId ${req.user.merchantId}.`);
-        merchantId = req.user.merchantId.toString();
       }
+      merchantId = req.user.merchantId.toString();
     } else if (req.user.role !== 'admin') {
       // Neither merchant nor admin, should not be able to create promotions
       return res.status(403).json({ message: 'Forbidden: You do not have permission to create promotions.' });
+    } else {
+      merchantId = String(merchantId || '').trim();
+      if (!merchantId) {
+        return res.status(400).json({ message: 'Merchant ID is required for admin-created promotions.' });
+      }
     }
     // If admin, they can specify any merchantId, so no changes needed to merchantId from req.body
 
@@ -543,7 +548,7 @@ router.post('/', authenticateJWT, [
     }
 
     let initialStatus = resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
-    if (req.user.role === 'admin' && ['pending_approval', 'rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
+    if (req.user.role === 'admin' && ['rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
       initialStatus = req.body.status;
     }
     
@@ -627,7 +632,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       // For now, assuming if prices are sent, they are sent together or this check is sufficient.
       return true;
     }),
-  body('status').optional().isIn(['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
+  body('status').optional().isIn(['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
     .withMessage('Invalid status value provided for update.'),
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -683,12 +688,12 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
 
     // Handle status update by admin
     if (req.body.status && req.user.role === 'admin') {
-        const allowedAdminStatuses = ['pending_approval', 'approved', 'rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'];
+        const allowedAdminStatuses = ['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'];
         if (allowedAdminStatuses.includes(req.body.status)) {
             updateData.status = req.body.status;
 
             // Re-evaluate live lifecycle when admin wants the promotion publicly visible.
-            if (['approved', 'active', 'scheduled', 'expired'].includes(updateData.status)) {
+            if (['active', 'scheduled', 'expired'].includes(updateData.status)) {
                 const existingPromotion = await Promotion.findById(req.params.id).select('startDate endDate');
                 if (!existingPromotion) {
                     return res.status(404).json({ message: 'Promotion not found' });

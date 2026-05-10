@@ -29,7 +29,7 @@ async function checkNearbyDeals() {
     // Get deals created in the last 30 minutes
     const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
     const newDeals = await Promotion.find({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       createdAt: { $gte: thirtyMinutesAgo },
       'location.coordinates': { $exists: true }
     }).populate('merchant');

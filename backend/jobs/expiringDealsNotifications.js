@@ -42,7 +42,7 @@ async function checkExpiringDealsForUsers() {
 
     const allExpiringDeals = await Promotion.find({
       _id: { $in: allFavoriteIds },
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       endDate: { $gte: now, $lte: maxThreshold }
     }).populate('merchant').lean();
 

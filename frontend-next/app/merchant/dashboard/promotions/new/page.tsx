@@ -32,6 +32,24 @@ function NewPromotionContent() {
   const [form, setForm] = useState(defaultForm);
   const [original, setOriginal] = useState(defaultForm);
 
+  const resolveMerchantId = async () => {
+    const currentMerchantId = user?.merchantId?.toString() || user?.merchantId;
+    if (currentMerchantId) return currentMerchantId;
+
+    if (!user?._id) return '';
+
+    try {
+      const refreshedUser = await UserAPI.getProfile(user._id);
+      const refreshedMerchantId = refreshedUser.merchantId?.toString() || '';
+      if (refreshedMerchantId) {
+        updateUser({ merchantId: refreshedMerchantId });
+      }
+      return refreshedMerchantId;
+    } catch {
+      return '';
+    }
+  };
+
   useEffect(() => {
     const loadPage = async () => {
       if (!user) { router.push('/login'); return; }
@@ -133,16 +151,15 @@ function NewPromotionContent() {
         setUploading(false);
       }
 
-      const merchantId = user!.merchantId?.toString() || user!.merchantId;
-      if (!merchantId) { toast.error('Merchant profile not linked. Please contact support.'); setSaving(false); return; }
+      const merchantId = await resolveMerchantId();
       
       const data: any = { 
         ...form, 
         featured: Boolean(form.featured), 
-        merchantId,
         image: imageUrls[0] || form.image || '',
         images: imageUrls.length > 0 ? imageUrls : (form.image ? [form.image] : []),
       };
+      if (merchantId) data.merchantId = merchantId;
       
       if (!data.originalPrice || data.originalPrice === '') delete data.originalPrice;
       if (!data.discountedPrice || data.discountedPrice === '') delete data.discountedPrice;

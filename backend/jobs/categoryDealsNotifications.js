@@ -14,7 +14,7 @@ async function checkCategoryDeals() {
     
     // Get new deals from the last hour
     const newDeals = await Promotion.find({
-      status: { $in: ['active', 'approved'] },
+      status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
       createdAt: { $gte: oneHourAgo },
       category: { $exists: true, $ne: null }
     }).populate('merchant');

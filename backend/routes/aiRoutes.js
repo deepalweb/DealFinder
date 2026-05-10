@@ -154,7 +154,7 @@ router.get('/search/suggestions', gentleAuthenticateJWT, [
 
     const [promotions, merchants] = await Promise.all([
       Promotion.find({
-        status: { $in: ['active', 'approved'] },
+        status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
         $or: [
           { title: regex },
           { description: regex },

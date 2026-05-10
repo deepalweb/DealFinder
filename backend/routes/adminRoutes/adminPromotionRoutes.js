@@ -44,7 +44,7 @@ function normalizeValue(value) {
 
 function getEffectivePromotionStatus(promotion) {
   const rawStatus = promotion.status || 'draft';
-  if (['pending_approval', 'rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
+  if (['rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
     return rawStatus;
   }
 
@@ -361,7 +361,6 @@ router.post('/promotions/bulk', authenticateJWT, authorizeAdmin, async (req, res
     }
 
     const update = {};
-    if (action === 'approve') update.status = 'approved';
     if (action === 'reject') update.status = 'rejected';
     if (action === 'pause') update.status = 'admin_paused';
     if (action === 'resume') update.status = 'active';
