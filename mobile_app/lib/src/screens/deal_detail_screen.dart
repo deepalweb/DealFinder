@@ -16,6 +16,8 @@ import '../services/recommendation_service.dart';
 import '../services/deal_history_service.dart';
 import '../config/app_config.dart';
 import '../screens/merchant_profile_screen.dart';
+import '../utils/deal_expiry_helper.dart';
+import '../widgets/deal_verification_badge.dart';
 import '../widgets/rating_widget.dart';
 
 class DealDetailScreen extends StatefulWidget {
@@ -253,23 +255,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   String? get _countdownText {
-    final end = widget.promotion.endDate;
-    if (end == null) return null;
-
-    final diff = end.difference(DateTime.now());
-    if (diff.isNegative || diff.inSeconds <= 0) {
-      return 'Expired';
-    }
-    if (diff.inDays >= 1) {
-      return '${diff.inDays} day${diff.inDays == 1 ? '' : 's'} left';
-    }
-    if (diff.inHours >= 1) {
-      return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} left';
-    }
-    if (diff.inMinutes >= 1) {
-      return '${diff.inMinutes} min left';
-    }
-    return '${diff.inSeconds}s left';
+    return DealExpiryHelper.formatCompact(widget.promotion.endDate);
   }
 
   Future<void> _launchPhoneCall() async {
@@ -526,73 +512,93 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
     final callButton = _merchantPhoneNumber.isNotEmpty
-        ? ElevatedButton.icon(
-            icon: const Icon(Icons.call_outlined, size: 18),
-            label: const Text('Call'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+        ? Semantics(
+            button: true,
+            label: 'Call merchant',
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.call_outlined, size: 18),
+              label: const Text('Call'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
+              onPressed: _launchPhoneCall,
             ),
-            onPressed: _launchPhoneCall,
           )
         : null;
     final whatsappButton = _merchantPhoneNumber.isNotEmpty
-        ? OutlinedButton.icon(
-            icon: const Icon(Icons.chat_outlined, size: 18),
-            label: const Text('WhatsApp'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.green.shade700,
-              backgroundColor: Colors.green.shade50,
-              side: BorderSide(color: Colors.green.shade300),
+        ? Semantics(
+            button: true,
+            label: 'Message merchant on WhatsApp',
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.chat_outlined, size: 18),
+              label: const Text('WhatsApp'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green.shade700,
+                backgroundColor: Colors.green.shade50,
+                side: BorderSide(color: Colors.green.shade300),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: _launchWhatsApp,
+            ),
+          )
+        : null;
+    final directionsButton = Semantics(
+      button: true,
+      label: 'Get directions to merchant',
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.directions, size: 18),
+        label: const Text('Directions'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF4285F4),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        onPressed: _openDirections,
+      ),
+    );
+    final secondaryActionButtons = <Widget>[
+      if (promotion.url != null && promotion.url!.isNotEmpty)
+        Semantics(
+          button: true,
+          label: 'Open deal link',
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.launch, size: 18),
+            label: const Text('Go to Deal'),
+            style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
-            onPressed: _launchWhatsApp,
-          )
-        : null;
-    final directionsButton = ElevatedButton.icon(
-      icon: const Icon(Icons.directions, size: 18),
-      label: const Text('Directions'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF4285F4),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-      onPressed: _openDirections,
-    );
-    final secondaryActionButtons = <Widget>[
-      if (promotion.url != null && promotion.url!.isNotEmpty)
-        ElevatedButton.icon(
-          icon: const Icon(Icons.launch, size: 18),
-          label: const Text('Go to Deal'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            onPressed: () => _launchURL(promotion.url!),
           ),
-          onPressed: () => _launchURL(promotion.url!),
         ),
       if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty)
-        OutlinedButton.icon(
-          icon: const Icon(Icons.public, size: 18),
-          label: const Text('Website'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
+        Semantics(
+          button: true,
+          label: 'Open merchant website',
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.public, size: 18),
+            label: const Text('Website'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
+            onPressed: () => _launchURL(promotion.websiteUrl!),
           ),
-          onPressed: () => _launchURL(promotion.websiteUrl!),
         ),
     ];
 
@@ -600,18 +606,28 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       appBar: AppBar(
         title: Text(promotion.title, overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(
-            icon: Icon(
-              _isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: _isFavorite ? Colors.red : null,
+          Semantics(
+            button: true,
+            label: _isFavorite
+                ? 'Remove deal from favorites'
+                : 'Save deal to favorites',
+            child: IconButton(
+              icon: Icon(
+                _isFavorite ? Icons.favorite : Icons.favorite_border,
+                color: _isFavorite ? Colors.red : null,
+              ),
+              tooltip: 'Toggle Favorite',
+              onPressed: _toggleFavorite,
             ),
-            tooltip: 'Toggle Favorite',
-            onPressed: _toggleFavorite,
           ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            tooltip: 'Share Deal',
-            onPressed: _shareDeal,
+          Semantics(
+            button: true,
+            label: 'Share deal',
+            child: IconButton(
+              icon: const Icon(Icons.share_outlined),
+              tooltip: 'Share Deal',
+              onPressed: _shareDeal,
+            ),
           ),
         ],
       ),
@@ -669,26 +685,39 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 ),
                 // Expiry Countdown
                 if (_countdownText != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _countdownText == 'Expired'
-                          ? Colors.grey.shade200
-                          : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      _countdownText!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: _countdownText == 'Expired'
-                            ? Colors.grey.shade700
-                            : Colors.red.shade700,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  Builder(
+                    builder: (context) {
+                      final isExpired = _countdownText == 'Expired';
+                      final urgencyDate = isExpired
+                          ? DateTime.now().subtract(const Duration(minutes: 1))
+                          : promotion.endDate;
+                      final foreground = DealExpiryHelper.urgencyColor(
+                        context,
+                        urgencyDate,
+                      );
+                      final background =
+                          DealExpiryHelper.urgencyBackgroundColor(urgencyDate);
+                      final border =
+                          DealExpiryHelper.urgencyBorderColor(urgencyDate);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: background,
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: border),
+                        ),
+                        child: Text(
+                          _countdownText!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: foreground,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      );
+                    },
                   ),
               ],
             ),
@@ -718,9 +747,34 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             fontWeight: FontWeight.bold,
                             fontSize: 12)),
                   ),
+                if (DealExpiryHelper.isEndingToday(promotion.endDate))
+                  Container(
+                    margin: const EdgeInsets.only(right: 6.0),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 2.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF4ED),
+                      borderRadius: BorderRadius.circular(8.0),
+                      border: Border.all(color: const Color(0xFFF9B189)),
+                    ),
+                    child: const Text(
+                      'ENDING TODAY',
+                      style: TextStyle(
+                        color: Color(0xFF9A3412),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                if (promotion.isVerifiedActiveDeal)
+                  const Padding(
+                    padding: EdgeInsets.only(right: 6.0),
+                    child: DealVerificationBadge(compact: false),
+                  ),
               ],
             ),
-            if (promotion.featured == true) const SizedBox(height: 6.0),
+            if (promotion.featured == true || promotion.isVerifiedActiveDeal)
+              const SizedBox(height: 6.0),
 
             // Promotion Title
             Text(
@@ -828,43 +882,50 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               const SizedBox(height: 16.0),
 
             if (_countdownText != null) ...[
-              Card(
-                elevation: 0.5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                color: _countdownText == 'Expired'
-                    ? Colors.grey.shade100
-                    : Colors.red.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(14.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _countdownText == 'Expired'
-                            ? Icons.event_busy
-                            : Icons.timer_outlined,
-                        color: _countdownText == 'Expired'
-                            ? Colors.grey.shade700
-                            : Colors.red.shade700,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _countdownText == 'Expired'
-                              ? 'This deal has expired.'
-                              : 'Offer ends in $_countdownText',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: _countdownText == 'Expired'
-                                ? Colors.grey.shade800
-                                : Colors.red.shade800,
+              Builder(
+                builder: (context) {
+                  final isExpired = _countdownText == 'Expired';
+                  final urgencyDate = isExpired
+                      ? DateTime.now().subtract(const Duration(minutes: 1))
+                      : promotion.endDate;
+                  final foreground =
+                      DealExpiryHelper.urgencyColor(context, urgencyDate);
+                  final background =
+                      DealExpiryHelper.urgencyBackgroundColor(urgencyDate);
+                  final border =
+                      DealExpiryHelper.urgencyBorderColor(urgencyDate);
+                  return Card(
+                    elevation: 0.5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(color: border),
+                    ),
+                    color: background,
+                    child: Padding(
+                      padding: const EdgeInsets.all(14.0),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isExpired ? Icons.event_busy : Icons.timer_outlined,
+                            color: foreground,
                           ),
-                        ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              isExpired
+                                  ? 'This deal has expired.'
+                                  : 'Offer ends in $_countdownText',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: foreground,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 16.0),
             ],
@@ -875,7 +936,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 elevation: 1,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
-                color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
+                color:
+                    theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
                   child: Row(
@@ -1522,8 +1584,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                     height: 120,
                                     color: Colors.grey[200],
                                     child: const Center(
-                                      child: Icon(Icons.map,
-                                          color: Colors.grey),
+                                      child:
+                                          Icon(Icons.map, color: Colors.grey),
                                     ),
                                   ),
                                 )

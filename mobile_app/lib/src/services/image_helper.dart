@@ -8,7 +8,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class ImageHelper {
   // Compress image file (returns compressed bytes, not base64)
-  static Future<Uint8List?> compressImage(String imagePath, {int quality = 70, int maxWidth = 1024}) async {
+  static Future<Uint8List?> compressImage(String imagePath,
+      {int quality = 70, int maxWidth = 1024}) async {
     try {
       final result = await FlutterImageCompress.compressWithFile(
         imagePath,
@@ -24,11 +25,13 @@ class ImageHelper {
   }
 
   // Create temporary compressed file for upload
-  static Future<File?> compressImageFile(String imagePath, {int quality = 70, int maxWidth = 1024}) async {
+  static Future<File?> compressImageFile(String imagePath,
+      {int quality = 70, int maxWidth = 1024}) async {
     try {
-      final bytes = await compressImage(imagePath, quality: quality, maxWidth: maxWidth);
+      final bytes =
+          await compressImage(imagePath, quality: quality, maxWidth: maxWidth);
       if (bytes == null) return null;
-      
+
       final tempPath = '${imagePath}_compressed.jpg';
       final file = File(tempPath);
       await file.writeAsBytes(bytes);
@@ -46,6 +49,9 @@ class ImageHelper {
     double? height,
     BoxFit fit = BoxFit.cover,
     BorderRadius? borderRadius,
+    bool enablePlaceholder = true,
+    Duration fadeInDuration = const Duration(milliseconds: 300),
+    Duration fadeOutDuration = const Duration(milliseconds: 100),
   }) {
     final shimmer = Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
@@ -83,17 +89,22 @@ class ImageHelper {
     // Handle base64 images (legacy support)
     if (imageUrl.startsWith('data:image')) {
       try {
-        final bytes = base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
+        final bytes =
+            base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
         final image = Image.memory(
           bytes,
           width: width,
           height: height,
           fit: fit,
-          cacheWidth: width != null && width.isFinite && width > 0 ? width.toInt() : null,
-          cacheHeight: height != null && height.isFinite && height > 0 ? height.toInt() : null,
+          cacheWidth: width != null && width.isFinite && width > 0
+              ? width.toInt()
+              : null,
+          cacheHeight: height != null && height.isFinite && height > 0
+              ? height.toInt()
+              : null,
           errorBuilder: (_, __, ___) => errorWidget,
         );
-        
+
         if (borderRadius != null) {
           return ClipRRect(borderRadius: borderRadius, child: image);
         }
@@ -110,16 +121,19 @@ class ImageHelper {
         width: width,
         height: height,
         fit: fit,
-        memCacheWidth: width != null && width.isFinite && width > 0 ? width.toInt() : null,
-        memCacheHeight: height != null && height.isFinite && height > 0 ? height.toInt() : null,
+        memCacheWidth:
+            width != null && width.isFinite && width > 0 ? width.toInt() : null,
+        memCacheHeight: height != null && height.isFinite && height > 0
+            ? height.toInt()
+            : null,
         maxWidthDiskCache: 1024,
         maxHeightDiskCache: 1024,
-        placeholder: (_, __) => shimmer,
+        placeholder: enablePlaceholder ? (_, __) => shimmer : null,
         errorWidget: (_, __, ___) => errorWidget,
-        fadeInDuration: const Duration(milliseconds: 300),
-        fadeOutDuration: const Duration(milliseconds: 100),
+        fadeInDuration: fadeInDuration,
+        fadeOutDuration: fadeOutDuration,
       );
-      
+
       if (borderRadius != null) {
         return ClipRRect(borderRadius: borderRadius, child: cachedImage);
       }
@@ -142,6 +156,9 @@ class ImageHelper {
       height: size,
       fit: fit,
       borderRadius: borderRadius ?? BorderRadius.circular(8),
+      enablePlaceholder: false,
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
     );
   }
 
@@ -177,7 +194,8 @@ class ImageHelper {
 
     if (imageUrl.startsWith('data:image')) {
       try {
-        final bytes = base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
+        final bytes =
+            base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
         return CircleAvatar(
           radius: radius,
           backgroundImage: MemoryImage(bytes),

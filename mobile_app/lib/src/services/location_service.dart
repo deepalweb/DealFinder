@@ -1,7 +1,51 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
+
+enum LocationFetchStatus {
+  success,
+  serviceDisabled,
+  permissionDenied,
+  permissionDeniedForever,
+  timeout,
+  unavailable,
+}
+
+class LocationFetchResult {
+  const LocationFetchResult({
+    required this.status,
+    this.position,
+    this.usedLastKnownPosition = false,
+  });
+
+  final LocationFetchStatus status;
+  final Position? position;
+  final bool usedLastKnownPosition;
+
+  bool get isSuccess => position != null;
+
+  String get message {
+    switch (status) {
+      case LocationFetchStatus.serviceDisabled:
+        return 'Turn on device location to discover nearby deals.';
+      case LocationFetchStatus.permissionDenied:
+        return 'Allow location access to discover nearby deals.';
+      case LocationFetchStatus.permissionDeniedForever:
+        return 'Location permission is blocked. Enable it from app settings.';
+      case LocationFetchStatus.timeout:
+        return 'Location is taking too long to load. Try again outdoors or near a window.';
+      case LocationFetchStatus.unavailable:
+        return 'We could not detect your location right now. Please try again.';
+      case LocationFetchStatus.success:
+        if (usedLastKnownPosition) {
+          return 'Using your recent location while we refresh GPS.';
+        }
+        return 'Location detected.';
+    }
+  }
+}
 
 class LocationService {
   static Future<bool> isLocationServiceEnabled() async {
@@ -18,19 +62,108 @@ class LocationService {
         permission == LocationPermission.always;
   }
 
-  static Future<Position?> getCurrentLocation() async {
-    if (!await isLocationServiceEnabled()) return null;
-    final hasPermission = await requestLocationPermission();
-    if (!hasPermission) return null;
+  static Future<LocationFetchResult> resolveCurrentLocation({
+    bool requestPermission = true,
+    LocationAccuracy accuracy = LocationAccuracy.high,
+    Duration timeLimit = const Duration(seconds: 10),
+    bool allowLastKnownFallback = true,
+  }) async {
+    if (!await isLocationServiceEnabled()) {
+      return const LocationFetchResult(
+        status: LocationFetchStatus.serviceDisabled,
+      );
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied && requestPermission) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied) {
+      return const LocationFetchResult(
+        status: LocationFetchStatus.permissionDenied,
+      );
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return const LocationFetchResult(
+        status: LocationFetchStatus.permissionDeniedForever,
+      );
+    }
 
     try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-        timeLimit: const Duration(seconds: 10),
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: accuracy,
+        timeLimit: timeLimit,
       );
-    } catch (e) {
+      return LocationFetchResult(
+        status: LocationFetchStatus.success,
+        position: position,
+      );
+    } on TimeoutException {
+      final fallback = allowLastKnownFallback
+          ? await _getFreshEnoughLastKnownPosition()
+          : null;
+      if (fallback != null) {
+        return LocationFetchResult(
+          status: LocationFetchStatus.success,
+          position: fallback,
+          usedLastKnownPosition: true,
+        );
+      }
+      return const LocationFetchResult(
+        status: LocationFetchStatus.timeout,
+      );
+    } on LocationServiceDisabledException {
+      return const LocationFetchResult(
+        status: LocationFetchStatus.serviceDisabled,
+      );
+    } catch (_) {
+      final fallback = allowLastKnownFallback
+          ? await _getFreshEnoughLastKnownPosition()
+          : null;
+      if (fallback != null) {
+        return LocationFetchResult(
+          status: LocationFetchStatus.success,
+          position: fallback,
+          usedLastKnownPosition: true,
+        );
+      }
+      return const LocationFetchResult(
+        status: LocationFetchStatus.unavailable,
+      );
+    }
+  }
+
+  static Future<Position?> getCurrentLocation({
+    bool requestPermission = true,
+    LocationAccuracy accuracy = LocationAccuracy.high,
+    Duration timeLimit = const Duration(seconds: 10),
+    bool allowLastKnownFallback = true,
+  }) async {
+    final result = await resolveCurrentLocation(
+      requestPermission: requestPermission,
+      accuracy: accuracy,
+      timeLimit: timeLimit,
+      allowLastKnownFallback: allowLastKnownFallback,
+    );
+    return result.position;
+  }
+
+  static Future<Position?> _getFreshEnoughLastKnownPosition() async {
+    try {
+      final position = await Geolocator.getLastKnownPosition();
+      if (position == null) return null;
+
+      final timestamp = position.timestamp;
+      final age = DateTime.now().difference(timestamp);
+      if (age <= const Duration(minutes: 30)) {
+        return position;
+      }
+    } catch (_) {
       return null;
     }
+    return null;
   }
 
   // Get location name from coordinates using reverse geocoding

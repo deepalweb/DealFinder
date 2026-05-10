@@ -19,6 +19,7 @@ class StoresScreen extends StatefulWidget {
 }
 
 class _StoresScreenState extends State<StoresScreen> {
+  final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _allMerchants = [];
   List<Map<String, dynamic>> _filteredMerchants = [];
   bool _loading = true;
@@ -27,6 +28,7 @@ class _StoresScreenState extends State<StoresScreen> {
   String _sortMode = 'popular';
   String? _error;
   final Set<String> _followingMerchants = {};
+  final Set<String> _followLoadingMerchants = {};
 
   late final List<Map<String, String>> _categories = [
     {'id': 'all', 'name': 'All', 'icon': 'all_inclusive'},
@@ -45,14 +47,19 @@ class _StoresScreenState extends State<StoresScreen> {
     _bootstrap();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _bootstrap() async {
     await _loadFollowingMerchants();
     await _fetchMerchants();
   }
 
   Future<void> _loadFollowingMerchants() async {
-    final followed =
-        await MerchantFollowingManager.getFollowingMerchants();
+    final followed = await MerchantFollowingManager.getFollowingMerchants();
     if (!mounted) return;
     setState(() {
       _followingMerchants
@@ -92,7 +99,9 @@ class _StoresScreenState extends State<StoresScreen> {
     var results = [..._allMerchants];
 
     if (term.isNotEmpty) {
-      results = results.where((merchant) => SearchMatcher.matchesMerchant(merchant, term)).toList();
+      results = results
+          .where((merchant) => SearchMatcher.matchesMerchant(merchant, term))
+          .toList();
     }
 
     if (_selectedCategory != 'all') {
@@ -145,9 +154,8 @@ class _StoresScreenState extends State<StoresScreen> {
 
   int _merchantScore(Map<String, dynamic> merchant) {
     final followers = (merchant['followers'] as num?)?.toInt() ?? 0;
-    final deals = ((merchant['activeDeals'] ?? merchant['deals']) as num?)
-            ?.toInt() ??
-        0;
+    final deals =
+        ((merchant['activeDeals'] ?? merchant['deals']) as num?)?.toInt() ?? 0;
     return (followers * 3) + (deals * 5);
   }
 
@@ -163,63 +171,87 @@ class _StoresScreenState extends State<StoresScreen> {
     return ranked.take(5).toList();
   }
 
-  int get _activeCategoryCount =>
-      _selectedCategory == 'all'
-          ? _allMerchants.length
-          : _allMerchants
-              .where((merchant) =>
-                  _normalizedMerchantCategory(merchant) == _selectedCategory)
-              .length;
+  int get _activeCategoryCount => _selectedCategory == 'all'
+      ? _allMerchants.length
+      : _allMerchants
+          .where((merchant) =>
+              _normalizedMerchantCategory(merchant) == _selectedCategory)
+          .length;
 
   Future<void> _toggleFollow(String merchantId) async {
+    if (_followLoadingMerchants.contains(merchantId)) return;
     HapticFeedback.lightImpact();
     final isFollowing = _followingMerchants.contains(merchantId);
-    int? followers;
-
-    if (isFollowing) {
-      followers = await MerchantFollowingManager.unfollowMerchant(merchantId);
-    } else {
-      followers = await MerchantFollowingManager.followMerchant(merchantId);
-    }
-
-    if (!mounted) return;
+    final previousFollowerCount = _merchantFollowerCount(merchantId);
     setState(() {
-      if (isFollowing) {
-        _followingMerchants.remove(merchantId);
-      } else {
-        _followingMerchants.add(merchantId);
-      }
-      if (followers != null) {
-        _allMerchants = _allMerchants.map((merchant) {
-          if (_merchantIdOf(merchant) != merchantId) return merchant;
-          return {
-            ...merchant,
-            'followers': followers,
-          };
-        }).toList();
-      }
+      _followLoadingMerchants.add(merchantId);
+      _setMerchantFollowState(
+        merchantId: merchantId,
+        isFollowing: !isFollowing,
+        followers:
+            (previousFollowerCount + (isFollowing ? -1 : 1)).clamp(0, 1 << 30),
+      );
     });
     _applyFilters();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isFollowing ? Icons.check_circle : Icons.favorite,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(isFollowing ? 'Unfollowed store' : 'Following store'),
-          ],
+    try {
+      final followers = isFollowing
+          ? await MerchantFollowingManager.unfollowMerchant(merchantId)
+          : await MerchantFollowingManager.followMerchant(merchantId);
+      if (!mounted) return;
+      setState(() {
+        _followLoadingMerchants.remove(merchantId);
+        if (followers != null) {
+          _setMerchantFollowState(
+            merchantId: merchantId,
+            isFollowing: !isFollowing,
+            followers: followers,
+          );
+        }
+      });
+      _applyFilters();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(
+                isFollowing ? Icons.check_circle : Icons.favorite,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isFollowing
+                    ? 'Store removed from your follows'
+                    : 'Store added to your follows',
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor:
+              isFollowing ? const Color(0xFF455A64) : const Color(0xFF2E7D32),
         ),
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            isFollowing ? const Color(0xFF455A64) : const Color(0xFF2E7D32),
-      ),
-    );
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _followLoadingMerchants.remove(merchantId);
+        _setMerchantFollowState(
+          merchantId: merchantId,
+          isFollowing: isFollowing,
+          followers: previousFollowerCount,
+        );
+      });
+      _applyFilters();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update store follow right now'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _shareMerchant(Map<String, dynamic> merchant) {
@@ -241,6 +273,56 @@ class _StoresScreenState extends State<StoresScreen> {
         builder: (context) => MerchantProfileScreen(merchantId: merchantId),
       ),
     );
+  }
+
+  int _merchantFollowerCount(String merchantId) {
+    final merchant = _allMerchants.cast<Map<String, dynamic>?>().firstWhere(
+          (item) => item != null && _merchantIdOf(item) == merchantId,
+          orElse: () => null,
+        );
+    return (merchant?['followers'] as num?)?.toInt() ?? 0;
+  }
+
+  void _setMerchantFollowState({
+    required String merchantId,
+    required bool isFollowing,
+    required int followers,
+  }) {
+    if (isFollowing) {
+      _followingMerchants.add(merchantId);
+    } else {
+      _followingMerchants.remove(merchantId);
+    }
+    _allMerchants = _allMerchants.map((merchant) {
+      if (_merchantIdOf(merchant) != merchantId) return merchant;
+      return {
+        ...merchant,
+        'followers': followers,
+      };
+    }).toList();
+  }
+
+  bool get _hasActiveFilters =>
+      _searchTerm.trim().isNotEmpty ||
+      _selectedCategory != 'all' ||
+      _sortMode != 'popular';
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_searchTerm.trim().isNotEmpty) count++;
+    if (_selectedCategory != 'all') count++;
+    if (_sortMode != 'popular') count++;
+    return count;
+  }
+
+  void _clearFilters() {
+    _searchController.clear();
+    setState(() {
+      _searchTerm = '';
+      _selectedCategory = 'all';
+      _sortMode = 'popular';
+    });
+    _applyFilters();
   }
 
   @override
@@ -281,6 +363,10 @@ class _StoresScreenState extends State<StoresScreen> {
                               _buildQuickStatsRow(),
                               const SizedBox(height: 16),
                               _buildCategoryFilter(),
+                              if (_hasActiveFilters) ...[
+                                const SizedBox(height: 14),
+                                _buildActiveFilterBar(),
+                              ],
                               const SizedBox(height: 18),
                               if (_featuredMerchants.isNotEmpty &&
                                   _searchTerm.isEmpty &&
@@ -326,15 +412,18 @@ class _StoresScreenState extends State<StoresScreen> {
                                 builder: (context, value, child) {
                                   return Transform.translate(
                                     offset: Offset(0, 18 * (1 - value)),
-                                    child: Opacity(opacity: value, child: child),
+                                    child:
+                                        Opacity(opacity: value, child: child),
                                   );
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.only(bottom: 14),
                                   child: MerchantCard(
                                     merchant: merchant,
-                                    isFollowing:
-                                        _followingMerchants.contains(merchantId),
+                                    isFollowing: _followingMerchants
+                                        .contains(merchantId),
+                                    isFollowUpdating: _followLoadingMerchants
+                                        .contains(merchantId),
                                     onFollowToggle: () =>
                                         _toggleFollow(merchantId),
                                     onShare: () => _shareMerchant(merchant),
@@ -507,8 +596,8 @@ class _StoresScreenState extends State<StoresScreen> {
           prefixIcon: const Icon(Icons.search, color: Color(0xFF8B97A8)),
           suffixIcon: _searchTerm.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: Color(0xFF8B97A8)),
+                  icon:
+                      const Icon(Icons.close_rounded, color: Color(0xFF8B97A8)),
                   onPressed: () {
                     setState(() => _searchTerm = '');
                     _applyFilters();
@@ -523,6 +612,7 @@ class _StoresScreenState extends State<StoresScreen> {
           setState(() => _searchTerm = value);
           _applyFilters();
         },
+        controller: _searchController,
       ),
     );
   }
@@ -637,8 +727,7 @@ class _StoresScreenState extends State<StoresScreen> {
             borderRadius: BorderRadius.circular(24),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: selected ? const Color(0xFF14213D) : Colors.white,
                 borderRadius: BorderRadius.circular(24),
@@ -662,9 +751,7 @@ class _StoresScreenState extends State<StoresScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: selected
-                          ? Colors.white
-                          : const Color(0xFF243447),
+                      color: selected ? Colors.white : const Color(0xFF243447),
                     ),
                   ),
                 ],
@@ -712,6 +799,123 @@ class _StoresScreenState extends State<StoresScreen> {
     );
   }
 
+  Widget _buildActiveFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6EBF2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: Color(0xFF4F5D75),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Active filters ($_activeFilterCount)',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF14213D),
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _clearFilters,
+                child: const Text('Clear all'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (_searchTerm.trim().isNotEmpty)
+                _buildActiveFilterChip(
+                  icon: Icons.search_rounded,
+                  label: 'Search: ${_searchTerm.trim()}',
+                  onRemoved: () {
+                    _searchController.clear();
+                    setState(() => _searchTerm = '');
+                    _applyFilters();
+                  },
+                ),
+              if (_selectedCategory != 'all')
+                _buildActiveFilterChip(
+                  icon: Icons.category_outlined,
+                  label:
+                      'Category: ${_categories.firstWhere((item) => item['id'] == _selectedCategory)['name']}',
+                  onRemoved: () {
+                    setState(() => _selectedCategory = 'all');
+                    _applyFilters();
+                  },
+                ),
+              if (_sortMode != 'popular')
+                _buildActiveFilterChip(
+                  icon: Icons.sort_rounded,
+                  label: 'Sort: ${_sortLabel(_sortMode)}',
+                  onRemoved: () {
+                    setState(() => _sortMode = 'popular');
+                    _applyFilters();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveFilterChip({
+    required IconData icon,
+    required String label,
+    required VoidCallback onRemoved,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F7FB),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF4F5D75)),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF243447),
+            ),
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: onRemoved,
+            borderRadius: BorderRadius.circular(999),
+            child: const Padding(
+              padding: EdgeInsets.all(2),
+              child: Icon(
+                Icons.close_rounded,
+                size: 16,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSortMenu() {
     return PopupMenuButton<String>(
       initialValue: _sortMode,
@@ -736,8 +940,7 @@ class _StoresScreenState extends State<StoresScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.tune_rounded,
-                size: 16, color: Color(0xFF5C6B7A)),
+            const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF5C6B7A)),
             const SizedBox(width: 6),
             Text(
               _sortLabel(_sortMode),
@@ -838,19 +1041,33 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            if (isSearching)
-              OutlinedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _searchTerm = '';
-                    _selectedCategory = 'all';
-                    _sortMode = 'popular';
-                  });
-                  _applyFilters();
-                },
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Clear Filters'),
-              ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (isSearching)
+                  OutlinedButton.icon(
+                    onPressed: _clearFilters,
+                    icon: const Icon(Icons.filter_alt_off_rounded),
+                    label: const Text('Clear filters'),
+                  ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _fetchMerchants(forceRefresh: true),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+                if (_followingMerchants.isNotEmpty)
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      setState(() => _sortMode = 'following');
+                      _applyFilters();
+                    },
+                    icon: const Icon(Icons.favorite_outline),
+                    label: const Text('Show followed'),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
@@ -881,17 +1098,29 @@ class _StoresScreenState extends State<StoresScreen> {
               style: TextStyle(color: Colors.grey[600], height: 1.4),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => _fetchMerchants(forceRefresh: true),
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try Again'),
-              style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _fetchMerchants(forceRefresh: true),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Try Again'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                 ),
-              ),
+                OutlinedButton.icon(
+                  onPressed: _clearFilters,
+                  icon: const Icon(Icons.filter_alt_off_outlined),
+                  label: const Text('Reset view'),
+                ),
+              ],
             ),
           ],
         ),

@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen>
   final ApiService _api = ApiService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  Timer? _endingSoonTicker;
 
   List<Promotion> _allDeals = [];
   List<Promotion> _bannerDeals = [];
@@ -53,6 +54,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _locationName = 'Near You';
   Position? _position;
+  String? _locationIssue;
 
   String? _selectedCategory;
 
@@ -69,12 +71,21 @@ class _HomeScreenState extends State<HomeScreen>
     );
     _loadAll();
     _animationController.forward();
+    _startEndingSoonTicker();
   }
 
   @override
   void dispose() {
+    _endingSoonTicker?.cancel();
     _animationController.dispose();
     super.dispose();
+  }
+
+  void _startEndingSoonTicker() {
+    _endingSoonTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted || _featuredDeals.isEmpty) return;
+      setState(() {});
+    });
   }
 
   Future<void> _loadAll() async {
@@ -110,15 +121,29 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadLocation() async {
-    final pos = await LocationService.getCurrentLocation();
+    final result = await LocationService.resolveCurrentLocation();
+    final pos = result.position;
     if (!mounted) return;
-    setState(() => _position = pos);
+    setState(() {
+      _position = pos;
+      _locationIssue = result.isSuccess ? null : result.message;
+      if (!result.isSuccess) {
+        _locationName = result.status == LocationFetchStatus.serviceDisabled
+            ? 'Location off'
+            : 'Near You';
+      }
+    });
     if (pos != null) {
       // Get location name
       final locationName =
           await LocationService.getLocationName(pos.latitude, pos.longitude);
       if (mounted) {
-        setState(() => _locationName = locationName ?? 'Current Location');
+        setState(() {
+          _locationName = locationName ?? 'Current Location';
+          if (result.usedLastKnownPosition) {
+            _locationIssue = 'Using your recent location while GPS refreshes.';
+          }
+        });
       }
       // Fetch nearby deals from backend
       _loadNearbyDeals(pos.latitude, pos.longitude);
@@ -245,7 +270,18 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<Promotion> get _flashSales {
     if (_flashSalesDeals.isNotEmpty || _flashSalesManaged) {
-      return _flashSalesDeals.take(10).toList();
+      final curatedFlashSales =
+          _flashSalesDeals.where((p) => !p.isExpired && p.hasStarted).toList()
+            ..sort((a, b) {
+              final aEnd = a.endDate ?? DateTime(2100);
+              final bEnd = b.endDate ?? DateTime(2100);
+              final byEndDate = aEnd.compareTo(bEnd);
+              if (byEndDate != 0) return byEndDate;
+              return _compareByRecent(a, b);
+            });
+      if (curatedFlashSales.isNotEmpty || _flashSalesManaged) {
+        return curatedFlashSales.take(10).toList();
+      }
     }
     final now = DateTime.now();
     final cutoff = now.add(const Duration(hours: 24));
@@ -277,12 +313,9 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Promotion> get _featuredDeals {
-    if (_hotDeals.isNotEmpty || _hotDealsManaged) {
-      return _hotDeals.take(5).toList();
-    }
     final now = DateTime.now();
     final endOfToday = DateTime(now.year, now.month, now.day + 1);
-    final endingSoon = _filteredDeals
+    final localEndingSoon = _filteredDeals
         .where((p) =>
             p.endDate != null &&
             p.endDate!.isAfter(now) &&
@@ -293,7 +326,164 @@ class _HomeScreenState extends State<HomeScreen>
         if (byEndDate != 0) return byEndDate;
         return _compareByRecent(a, b);
       });
-    return endingSoon.take(5).toList();
+
+    if (_hotDeals.isNotEmpty || _hotDealsManaged) {
+      final curatedEndingSoon = _hotDeals
+          .where((p) =>
+              p.endDate != null &&
+              p.endDate!.isAfter(now) &&
+              p.endDate!.isBefore(endOfToday))
+          .toList()
+        ..sort((a, b) {
+          final byEndDate = a.endDate!.compareTo(b.endDate!);
+          if (byEndDate != 0) return byEndDate;
+          return _compareByRecent(a, b);
+        });
+      if (curatedEndingSoon.isNotEmpty) {
+        return curatedEndingSoon.take(5).toList();
+      }
+    }
+
+    return localEndingSoon.take(5).toList();
+  }
+
+  Duration? get _nextEndingSoonDuration {
+    if (_featuredDeals.isEmpty) return null;
+    final nextEnding = _featuredDeals.first.endDate;
+    if (nextEnding == null) return null;
+    final diff = nextEnding.difference(DateTime.now());
+    return diff.isNegative ? Duration.zero : diff;
+  }
+
+  String get _endingSoonSectionSubtitle {
+    final duration = _nextEndingSoonDuration;
+    if (duration == null) return 'Deals ending today';
+    if (duration == Duration.zero) return 'Last chance deals';
+    return 'Closest expiry today';
+  }
+
+  String get _endingSoonTimerText {
+    final duration = _nextEndingSoonDuration;
+    if (duration == null) return '--:--:--';
+    if (duration == Duration.zero) return '00:00:00';
+
+    final totalHours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+
+    if (totalHours >= 24) {
+      final days = duration.inDays;
+      final hours = totalHours % 24;
+      return '${days}D ${hours.toString().padLeft(2, '0')}:'
+          '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    }
+
+    return '${totalHours.toString().padLeft(2, '0')}:'
+        '${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildEndingSoonCallout() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFB45309).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: const Color(0xFFB45309).withValues(alpha: 0.16),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(11),
+              decoration: BoxDecoration(
+                color: const Color(0xFFB45309).withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.timer_outlined,
+                color: Color(0xFFB45309),
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Next deal expires in',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF14213D),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'The rail is ordered by urgency so the fastest-expiring deal always leads.',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF5C6B7A),
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF14213D),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF14213D).withValues(alpha: 0.18),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    _endingSoonTimerText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    '${_featuredDeals.length} closing today',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFFB45309),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Promotion> get _newDeals {
@@ -312,6 +502,24 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _openDeal(Promotion p) => Navigator.push(context,
       MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: p)));
+
+  void _openAllDeals({
+    String? sectionPreset,
+    String? sortBy,
+    String? contextTitle,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AllDealsScreen(
+          initialSectionPreset: sectionPreset,
+          initialSortBy: sortBy,
+          initialCategoryId: _selectedCategory,
+          initialContextTitle: contextTitle,
+        ),
+      ),
+    );
+  }
 
   void _openNotifications() {
     Navigator.push(
@@ -378,7 +586,10 @@ class _HomeScreenState extends State<HomeScreen>
                   gradient: LinearGradient(
                     colors: [
                       Theme.of(context).colorScheme.primary,
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.8),
+                      Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -565,42 +776,46 @@ class _HomeScreenState extends State<HomeScreen>
           tag: 'search_bar',
           child: Material(
             color: Colors.transparent,
-            child: GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SearchScreen()),
-              ),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.grey[300]!, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+            child: Semantics(
+              button: true,
+              label: 'Open search for deals and stores',
+              child: GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SearchScreen()),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.search,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 22,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Search deals, stores...',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 14,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.grey[300]!, width: 1),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 2),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Search deals, stores...',
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -867,39 +1082,203 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ── Content Sections ──────────────────────────────────────────────────────
-  Widget _buildContent() {
-    if (_filteredDeals.isEmpty) {
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
+  Widget _buildSectionCallout({
+    required IconData icon,
+    required Color accent,
+    required String title,
+    required String subtitle,
+    required String statLabel,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: accent.withValues(alpha: 0.14)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF14213D),
+                fontSize: 14,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: accent, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF475569),
+                      height: 1.45,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                statLabel,
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: accent,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoDealsState() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
           child: Column(
             children: [
-              Icon(Icons.search_off, size: 60, color: Colors.grey[300]),
-              const SizedBox(height: 12),
-              Text(
-                'No deals found',
-                style: TextStyle(color: Colors.grey[500], fontSize: 16),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(
+                  Icons.search_off_rounded,
+                  size: 42,
+                  color: Color(0xFF64748B),
+                ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 16),
+              const Text(
+                'No deals found in this view',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF14213D),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
               Text(
-                'Try a different category',
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                _selectedCategory == null
+                    ? 'Try refreshing, explore nearby deals, or open the full deals list to keep browsing.'
+                    : 'No deals match the selected category right now. Clear the filter or switch to another category.',
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  height: 1.45,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  if (_selectedCategory != null)
+                    FilledButton.tonalIcon(
+                      onPressed: () => setState(() => _selectedCategory = null),
+                      icon: const Icon(Icons.filter_alt_off_outlined),
+                      label: const Text('Clear category'),
+                    ),
+                  FilledButton.tonalIcon(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Refresh deals'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _openAllDeals(
+                      contextTitle: _selectedCategory == null
+                          ? null
+                          : predefinedCategories
+                              .firstWhere(
+                                (cat) => cat.id == _selectedCategory,
+                                orElse: () => Category(
+                                  id: _selectedCategory!,
+                                  name: 'Filtered Deals',
+                                ),
+                              )
+                              .name,
+                    ),
+                    icon: const Icon(Icons.grid_view_rounded),
+                    label: const Text('Browse all deals'),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      );
+      ),
+    );
+  }
+
+  // ── Content Sections ──────────────────────────────────────────────────────
+  Widget _buildContent() {
+    if (_filteredDeals.isEmpty) {
+      return _buildNoDealsState();
     }
 
     return SliverList(
       delegate: SliverChildListDelegate([
         // Flash Sales Section
         if (_flashSales.isNotEmpty) ...[
-          const SectionHeader(
+          SectionHeader(
             title: '⚡ Flash Sales',
             subtitle: 'Ending soon - Hurry up!',
             icon: Icons.flash_on,
+            onSeeAll: () => _openAllDeals(
+              sectionPreset: 'flash_sales',
+              sortBy: 'ending_soon',
+              contextTitle: 'Flash Sales',
+            ),
+          ),
+          _buildSectionCallout(
+            icon: Icons.bolt_rounded,
+            accent: const Color(0xFFE65100),
+            title: 'Fastest-moving deals first',
+            subtitle:
+                'These offers combine strong discounts with short sale windows, so they are ideal for quick browsing.',
+            statLabel: '${_flashSales.length} hot picks',
           ),
           Stack(
             children: [
@@ -954,11 +1333,17 @@ class _HomeScreenState extends State<HomeScreen>
         // Featured Deals Section
         if (_featuredDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
-          const SectionHeader(
+          SectionHeader(
             title: '⏰ Ending Soon',
-            subtitle: 'Deals ending today',
+            subtitle: _endingSoonSectionSubtitle,
             icon: Icons.access_time,
+            onSeeAll: () => _openAllDeals(
+              sectionPreset: 'ending_soon',
+              sortBy: 'ending_soon',
+              contextTitle: 'Ending Soon',
+            ),
           ),
+          _buildEndingSoonCallout(),
           Stack(
             children: [
               SizedBox(
@@ -971,7 +1356,6 @@ class _HomeScreenState extends State<HomeScreen>
                   itemBuilder: (_, i) => ModernDealCard(
                     promotion: _featuredDeals[i],
                     width: 170,
-                    showCountdown: true,
                     onTap: () => _openDeal(_featuredDeals[i]),
                   ),
                 ),
@@ -1027,69 +1411,90 @@ class _HomeScreenState extends State<HomeScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                color: const Color(0xFFF5FBF7),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFD7EEDD)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE8F5E9),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.near_me,
-                              color: Color(0xFF2E7D32), size: 18),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2E7),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Closest deals first',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        child: const Icon(Icons.near_me,
+                            color: Color(0xFF2E7D32), size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Closest deals first',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF14213D),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                _nearbyDeals.first.distance != null
-                                    ? 'Closest deal is ${(_nearbyDeals.first.distance! < 1000 ? '${_nearbyDeals.first.distance!.round()}m' : '${(_nearbyDeals.first.distance! / 1000).toStringAsFixed(1)}km')} away'
-                                    : 'Open the full nearby view for map and directions',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _nearbyDeals.first.distance != null
+                                  ? 'Closest deal is ${(_nearbyDeals.first.distance! < 1000 ? '${_nearbyDeals.first.distance!.round()}m' : '${(_nearbyDeals.first.distance! / 1000).toStringAsFixed(1)}km')} away. Open the map for directions and distance context.'
+                                  : 'Open the nearby map view to compare distance, direction, and location context.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF475569),
+                                height: 1.45,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const NearbyDealsScreen()),
-                    ),
-                    icon: const Icon(Icons.map_outlined, size: 18),
-                    label: const Text('Map'),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${_nearbyDeals.length} nearby picks',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2E7D32),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const NearbyDealsScreen()),
+                        ),
+                        icon: const Icon(Icons.map_outlined, size: 18),
+                        label: const Text('Open map'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF2E7D32),
+                          side: const BorderSide(color: Color(0xFFB7DFC2)),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1143,7 +1548,8 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Allow location access to discover amazing deals near you',
+                    _locationIssue ??
+                        'Allow location access to discover amazing deals near you',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.blue[800]),
                   ),
@@ -1178,10 +1584,23 @@ class _HomeScreenState extends State<HomeScreen>
         // New This Week Section
         if (_newDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
-          const SectionHeader(
+          SectionHeader(
             title: '🆕 New This Week',
             subtitle: 'Fresh deals just added',
             icon: Icons.fiber_new,
+            onSeeAll: () => _openAllDeals(
+              sectionPreset: 'new_this_week',
+              sortBy: 'recent',
+              contextTitle: 'New This Week',
+            ),
+          ),
+          _buildSectionCallout(
+            icon: Icons.fiber_new_rounded,
+            accent: const Color(0xFF1565C0),
+            title: 'Fresh arrivals from merchants',
+            subtitle:
+                'Use this lane to discover recently published deals before they get buried in the full catalog.',
+            statLabel: '${_newDeals.length} new this week',
           ),
           Stack(
             children: [
@@ -1239,9 +1658,18 @@ class _HomeScreenState extends State<HomeScreen>
           title: '🎯 All Deals',
           subtitle: '${_filteredDeals.length} deals available',
           icon: Icons.grid_view,
-          onSeeAll: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AllDealsScreen()),
+          onSeeAll: () => _openAllDeals(
+            contextTitle: _selectedCategory == null
+                ? null
+                : predefinedCategories
+                    .firstWhere(
+                      (cat) => cat.id == _selectedCategory,
+                      orElse: () => Category(
+                        id: _selectedCategory!,
+                        name: 'Filtered Deals',
+                      ),
+                    )
+                    .name,
           ),
         ),
         Padding(
@@ -1267,9 +1695,18 @@ class _HomeScreenState extends State<HomeScreen>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             child: OutlinedButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AllDealsScreen()),
+              onPressed: () => _openAllDeals(
+                contextTitle: _selectedCategory == null
+                    ? null
+                    : predefinedCategories
+                        .firstWhere(
+                          (cat) => cat.id == _selectedCategory,
+                          orElse: () => Category(
+                            id: _selectedCategory!,
+                            name: 'Filtered Deals',
+                          ),
+                        )
+                        .name,
               ),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),

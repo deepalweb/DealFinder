@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
 import 'dart:io';
 import '../models/category.dart';
 import '../services/api_service.dart';
 import '../services/image_helper.dart';
+import '../services/location_service.dart';
 
 class EditMerchantScreen extends StatefulWidget {
   final String merchantId;
@@ -891,20 +891,17 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           ElevatedButton.icon(
             onPressed: () async {
               try {
-                final permission = await Geolocator.checkPermission();
-                if (permission == LocationPermission.denied) {
-                  final requested = await Geolocator.requestPermission();
-                  if (requested == LocationPermission.denied) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Location permission denied')),
-                      );
-                    }
-                    return;
+                final result = await LocationService.resolveCurrentLocation();
+                final position = result.position;
+                if (position == null) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(result.message)),
+                    );
                   }
+                  return;
                 }
-                
-                final position = await Geolocator.getCurrentPosition();
+
                 setState(() {
                   _latitude = position.latitude;
                   _longitude = position.longitude;

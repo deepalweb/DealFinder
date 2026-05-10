@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
 import '../services/merchant_following_manager.dart';
+import '../utils/deal_expiry_helper.dart';
 
 class MerchantProfileScreen extends StatefulWidget {
   final String merchantId;
@@ -53,7 +54,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
     try {
       final merchant = await ApiService().fetchMerchantById(widget.merchantId);
-      final deals = await ApiService().fetchPromotionsByMerchant(widget.merchantId);
+      final deals =
+          await ApiService().fetchPromotionsByMerchant(widget.merchantId);
 
       if (!mounted) return;
       setState(() {
@@ -92,8 +94,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       setState(() {
         _isFollowing = !_isFollowing;
         if (_merchant != null) {
-          final current =
-              (_merchant!['followers'] as num?)?.toInt() ?? 0;
+          final current = (_merchant!['followers'] as num?)?.toInt() ?? 0;
           _merchant = {
             ..._merchant!,
             'followers': followerCount ??
@@ -105,17 +106,21 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isFollowing ? 'Following store' : 'Unfollowed store',
+            _isFollowing
+                ? 'Store added to your follows'
+                : 'Store removed from your follows',
           ),
           behavior: SnackBarBehavior.floating,
+          backgroundColor:
+              _isFollowing ? const Color(0xFF2E7D32) : const Color(0xFF455A64),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
+            'Could not update store follow right now',
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -206,7 +211,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
     if (imageUrl.startsWith('data:image')) {
       try {
-        final bytes = base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
+        final bytes =
+            base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
         return Image.memory(
           bytes,
           width: width,
@@ -265,24 +271,43 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     final now = DateTime.now();
     if (_activeTab == 'active') {
       return _deals.where((deal) {
-        final end = DateTime.tryParse((deal['endDate'] ?? '').toString());
+        final end = _parseDealDate(deal['endDate']);
         return end == null || !end.isBefore(now);
       }).toList();
     }
     return _deals.where((deal) {
-      final end = DateTime.tryParse((deal['endDate'] ?? '').toString());
+      final end = _parseDealDate(deal['endDate']);
       return end != null && end.isBefore(now);
     }).toList();
   }
 
+  int get _activeDealsCount {
+    final now = DateTime.now();
+    return _deals.where((deal) {
+      final end = _parseDealDate(deal['endDate']);
+      return end == null || !end.isBefore(now);
+    }).length;
+  }
+
+  int get _expiredDealsCount {
+    final now = DateTime.now();
+    return _deals.where((deal) {
+      final end = _parseDealDate(deal['endDate']);
+      return end != null && end.isBefore(now);
+    }).length;
+  }
+
   String? _countdownText(Map<String, dynamic> deal) {
-    final end = DateTime.tryParse((deal['endDate'] ?? '').toString());
-    if (end == null) return null;
-    final diff = end.difference(DateTime.now());
-    if (diff.isNegative) return 'Expired';
-    if (diff.inDays > 0) return '${diff.inDays}d ${diff.inHours % 24}h left';
-    if (diff.inHours > 0) return '${diff.inHours}h ${diff.inMinutes % 60}m left';
-    return '${diff.inMinutes}m ${diff.inSeconds % 60}s left';
+    final end = _parseDealDate(deal['endDate']);
+    return DealExpiryHelper.formatCompact(end);
+  }
+
+  DateTime? _parseDealDate(dynamic value) {
+    final raw = (value ?? '').toString();
+    if (raw.isEmpty) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return null;
+    return parsed.isUtc ? parsed.toLocal() : parsed;
   }
 
   String _dateRange(Map<String, dynamic> deal) {
@@ -406,8 +431,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     final latitude = _merchantLatitude;
     final longitude = _merchantLongitude;
     final followerCount = (_merchant?['followers'] as num?)?.toInt() ?? 0;
-    final activeDeals = (_merchant?['activeDeals'] as num?)?.toInt() ??
-        _deals.where((deal) => _countdownText(deal) != 'Expired').length;
+    final activeDeals =
+        (_merchant?['activeDeals'] as num?)?.toInt() ?? _activeDealsCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -452,7 +477,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                               fit: StackFit.expand,
                               children: [
                                 _buildImageWidget(
-                                  _merchant!['banner']?.toString().isNotEmpty == true
+                                  _merchant!['banner']?.toString().isNotEmpty ==
+                                          true
                                       ? _merchant!['banner'] as String
                                       : null,
                                   height: 220,
@@ -475,7 +501,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           Transform.translate(
                             offset: const Offset(0, -34),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               child: Container(
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
@@ -483,7 +510,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.08),
+                                      color:
+                                          Colors.black.withValues(alpha: 0.08),
                                       blurRadius: 18,
                                       offset: const Offset(0, 6),
                                     ),
@@ -493,7 +521,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         ClipOval(
                                           child: _buildImageWidget(
@@ -505,20 +534,24 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                         const SizedBox(width: 14),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                (_merchant!['name'] ?? '').toString(),
+                                                (_merchant!['name'] ?? '')
+                                                    .toString(),
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .titleLarge
                                                     ?.copyWith(
-                                                      fontWeight: FontWeight.w800,
+                                                      fontWeight:
+                                                          FontWeight.w800,
                                                     ),
                                               ),
                                               const SizedBox(height: 6),
                                               Text(
-                                                (_merchant!['category'] ?? 'Other')
+                                                (_merchant!['category'] ??
+                                                        'Other')
                                                     .toString(),
                                                 style: const TextStyle(
                                                   color: Color(0xFF6D7B8A),
@@ -526,21 +559,33 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 ),
                                               ),
                                               const SizedBox(height: 10),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
-                                                  _buildStatChip(
-                                                    icon: Icons.people_alt_outlined,
-                                                    label: 'followers',
-                                                    value: '$followerCount',
+                                              AnimatedSwitcher(
+                                                duration: const Duration(
+                                                  milliseconds: 220,
+                                                ),
+                                                child: Wrap(
+                                                  key: ValueKey(
+                                                    '$followerCount-$activeDeals-$_isFollowing',
                                                   ),
-                                                  _buildStatChip(
-                                                    icon: Icons.local_offer_outlined,
-                                                    label: 'active deals',
-                                                    value: '$activeDeals',
-                                                  ),
-                                                ],
+                                                  spacing: 8,
+                                                  runSpacing: 8,
+                                                  children: [
+                                                    _buildStatChip(
+                                                      icon: Icons
+                                                          .people_alt_outlined,
+                                                      label: _isFollowing
+                                                          ? 'followers • you follow'
+                                                          : 'followers',
+                                                      value: '$followerCount',
+                                                    ),
+                                                    _buildStatChip(
+                                                      icon: Icons
+                                                          .local_offer_outlined,
+                                                      label: 'active deals',
+                                                      value: '$activeDeals',
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -565,29 +610,57 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                       spacing: 10,
                                       runSpacing: 10,
                                       children: [
-                                        ElevatedButton.icon(
-                                          onPressed: _followBusy ? null : _toggleFollow,
-                                          icon: Icon(
-                                            _isFollowing
-                                                ? Icons.check_circle
-                                                : Icons.person_add_alt_1,
+                                        AnimatedSwitcher(
+                                          duration: const Duration(
+                                            milliseconds: 220,
                                           ),
-                                          label: Text(
-                                            _isFollowing ? 'Following' : 'Follow',
+                                          child: ElevatedButton.icon(
+                                            key: ValueKey(
+                                              'follow-${_isFollowing ? 'on' : 'off'}-${_followBusy ? 'busy' : 'idle'}',
+                                            ),
+                                            onPressed: _followBusy
+                                                ? null
+                                                : _toggleFollow,
+                                            icon: _followBusy
+                                                ? const SizedBox(
+                                                    width: 16,
+                                                    height: 16,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: Colors.white,
+                                                    ),
+                                                  )
+                                                : Icon(
+                                                    _isFollowing
+                                                        ? Icons.check_circle
+                                                        : Icons
+                                                            .person_add_alt_1,
+                                                  ),
+                                            label: Text(
+                                              _followBusy
+                                                  ? (_isFollowing
+                                                      ? 'Updating...'
+                                                      : 'Saving...')
+                                                  : (_isFollowing
+                                                      ? 'Following store'
+                                                      : 'Follow store'),
+                                            ),
                                           ),
                                         ),
                                         if (merchantWebsite.isNotEmpty)
                                           OutlinedButton.icon(
-                                            onPressed: () =>
-                                                _openExternalUrl(merchantWebsite),
+                                            onPressed: () => _openExternalUrl(
+                                                merchantWebsite),
                                             icon: const Icon(Icons.language),
                                             label: const Text('Website'),
                                           ),
                                         if (merchantPhone.isNotEmpty)
                                           OutlinedButton.icon(
-                                            onPressed: () =>
-                                                _openExternalUrl('tel:$merchantPhone'),
-                                            icon: const Icon(Icons.call_outlined),
+                                            onPressed: () => _openExternalUrl(
+                                                'tel:$merchantPhone'),
+                                            icon:
+                                                const Icon(Icons.call_outlined),
                                             label: const Text('Contact'),
                                           ),
                                       ],
@@ -602,7 +675,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF7F9FC),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                         ),
                                         child: Column(
                                           crossAxisAlignment:
@@ -634,12 +708,14 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 longitude != null) ...[
                                               const SizedBox(height: 10),
                                               TextButton.icon(
-                                                onPressed: () => _openExternalUrl(
+                                                onPressed: () =>
+                                                    _openExternalUrl(
                                                   'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
                                                 ),
-                                                icon: const Icon(Icons.directions),
-                                                label:
-                                                    const Text('Get Directions'),
+                                                icon: const Icon(
+                                                    Icons.directions),
+                                                label: const Text(
+                                                    'Get Directions'),
                                               ),
                                             ],
                                           ],
@@ -659,8 +735,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           ),
                           if (latitude != null && longitude != null)
                             Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                               child: SizedBox(
                                 height: 190,
                                 child: ClipRRect(
@@ -705,24 +780,30 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                               ),
                             ),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: Row(
                               children: [
-                                _buildTabButton('active', 'Active Deals'),
+                                _buildTabButton(
+                                  'active',
+                                  'Active Deals',
+                                  _activeDealsCount,
+                                ),
                                 const SizedBox(width: 8),
-                                _buildTabButton('expired', 'Expired Deals'),
+                                _buildTabButton(
+                                  'expired',
+                                  'Expired Deals',
+                                  _expiredDealsCount,
+                                ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 12),
                           Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: _filteredDeals.isEmpty
                                 ? Padding(
-                                    padding:
-                                        const EdgeInsets.symmetric(vertical: 32),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 32),
                                     child: Center(
                                       child: Text(
                                         'No ${_activeTab == 'active' ? 'active' : 'expired'} deals available.',
@@ -768,15 +849,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                       ),
                                                     ),
                                                     const SizedBox(height: 6),
-                                                    if ((deal['description'] ?? '')
+                                                    if ((deal['description'] ??
+                                                            '')
                                                         .toString()
                                                         .isNotEmpty)
                                                       Text(
                                                         deal['description']
                                                             .toString(),
                                                         maxLines: 2,
-                                                        overflow:
-                                                            TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                     const SizedBox(height: 8),
                                                     Text(
@@ -787,7 +869,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                             Color(0xFF6D7B8A),
                                                       ),
                                                     ),
-                                                    if (countdown != null) ...[
+                                                    if (DealExpiryHelper
+                                                        .isEndingToday(
+                                                      _parseDealDate(
+                                                          deal['endDate']),
+                                                    )) ...[
                                                       const SizedBox(height: 8),
                                                       Container(
                                                         padding:
@@ -798,33 +884,97 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                         ),
                                                         decoration:
                                                             BoxDecoration(
-                                                          color: countdown ==
-                                                                  'Expired'
-                                                              ? Colors.red
-                                                                  .shade50
-                                                              : const Color(
-                                                                  0xFFFFF4E5),
+                                                          color: const Color(
+                                                              0xFFFFF4ED),
                                                           borderRadius:
                                                               BorderRadius
-                                                                  .circular(999),
+                                                                  .circular(
+                                                                      999),
+                                                          border: Border.all(
+                                                            color: const Color(
+                                                              0xFFF9B189,
+                                                            ),
+                                                          ),
                                                         ),
-                                                        child: Text(
-                                                          countdown ==
-                                                                  'Expired'
-                                                              ? countdown
-                                                              : 'Ends in $countdown',
+                                                        child: const Text(
+                                                          'Ending today',
                                                           style: TextStyle(
                                                             fontSize: 12,
                                                             fontWeight:
-                                                                FontWeight.w700,
-                                                            color: countdown ==
-                                                                    'Expired'
-                                                                ? Colors.red
-                                                                    .shade700
-                                                                : const Color(
-                                                                    0xFFB26A00),
+                                                                FontWeight.w800,
+                                                            color: Color(
+                                                                0xFF9A3412),
                                                           ),
                                                         ),
+                                                      ),
+                                                    ],
+                                                    if (countdown != null) ...[
+                                                      const SizedBox(height: 8),
+                                                      Builder(
+                                                        builder: (context) {
+                                                          final urgencyDate =
+                                                              countdown ==
+                                                                      'Expired'
+                                                                  ? DateTime
+                                                                          .now()
+                                                                      .subtract(
+                                                                      const Duration(
+                                                                        minutes:
+                                                                            1,
+                                                                      ),
+                                                                    )
+                                                                  : _parseDealDate(
+                                                                      deal[
+                                                                          'endDate'],
+                                                                    );
+                                                          final foreground =
+                                                              DealExpiryHelper
+                                                                  .urgencyColor(
+                                                            context,
+                                                            urgencyDate,
+                                                          );
+                                                          return Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                              horizontal: 10,
+                                                              vertical: 6,
+                                                            ),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: DealExpiryHelper
+                                                                  .urgencyBackgroundColor(
+                                                                urgencyDate,
+                                                              ),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                999,
+                                                              ),
+                                                              border:
+                                                                  Border.all(
+                                                                color: DealExpiryHelper
+                                                                    .urgencyBorderColor(
+                                                                  urgencyDate,
+                                                                ),
+                                                              ),
+                                                            ),
+                                                            child: Text(
+                                                              countdown ==
+                                                                      'Expired'
+                                                                  ? countdown
+                                                                  : 'Ends in $countdown',
+                                                              style: TextStyle(
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color:
+                                                                    foreground,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
                                                       ),
                                                     ],
                                                   ],
@@ -844,15 +994,14 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
-  Widget _buildTabButton(String value, String label) {
+  Widget _buildTabButton(String value, String label, int count) {
     final selected = _activeTab == value;
     return Expanded(
       child: OutlinedButton(
         onPressed: () => setState(() => _activeTab = value),
         style: OutlinedButton.styleFrom(
-          backgroundColor: selected
-              ? Theme.of(context).colorScheme.primary
-              : Colors.white,
+          backgroundColor:
+              selected ? Theme.of(context).colorScheme.primary : Colors.white,
           foregroundColor: selected ? Colors.white : const Color(0xFF425466),
           side: BorderSide(
             color: selected
@@ -860,7 +1009,35 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 : const Color(0xFFD7E0EA),
           ),
         ),
-        child: Text(label),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.18)
+                    : const Color(0xFFF3F6FA),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: selected ? Colors.white : const Color(0xFF425466),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

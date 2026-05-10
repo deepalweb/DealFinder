@@ -10,6 +10,7 @@ class MerchantCard extends StatelessWidget {
   final VoidCallback onVisit;
   final VoidCallback onFollowToggle;
   final bool isFollowing;
+  final bool isFollowUpdating;
   final VoidCallback onShare;
   final bool compact;
 
@@ -19,6 +20,7 @@ class MerchantCard extends StatelessWidget {
     required this.onVisit,
     required this.onFollowToggle,
     required this.isFollowing,
+    this.isFollowUpdating = false,
     required this.onShare,
     this.compact = false,
   });
@@ -179,12 +181,16 @@ class MerchantCard extends StatelessWidget {
                           color: isFollowing
                               ? const Color(0xFFE53935)
                               : const Color(0xFF54606E),
+                          isLoading: isFollowUpdating,
+                          semanticsLabel:
+                              isFollowing ? 'Unfollow store' : 'Follow store',
                           onTap: onFollowToggle,
                         ),
                         const SizedBox(width: 8),
                         _buildTopAction(
                           icon: Icons.share_outlined,
                           color: const Color(0xFF54606E),
+                          semanticsLabel: 'Share store',
                           onTap: onShare,
                         ),
                       ],
@@ -316,6 +322,7 @@ class MerchantCard extends StatelessWidget {
                           label: '$followers followers',
                           background: const Color(0xFFF3F6FA),
                           foreground: const Color(0xFF51606F),
+                          animated: true,
                         ),
                         _buildInfoPill(
                           icon: Icons.local_offer_outlined,
@@ -350,28 +357,67 @@ class MerchantCard extends StatelessWidget {
                         ),
                         if (!compact) ...[
                           const SizedBox(width: 10),
-                          OutlinedButton(
-                            onPressed: onFollowToggle,
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 13),
-                              side: BorderSide(
-                                color: isFollowing
-                                    ? const Color(0xFFE57373)
-                                    : const Color(0xFFD7DEE8),
+                          Semantics(
+                            button: true,
+                            label:
+                                isFollowing ? 'Unfollow store' : 'Follow store',
+                            child: OutlinedButton(
+                              onPressed:
+                                  isFollowUpdating ? null : onFollowToggle,
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 13),
+                                backgroundColor: isFollowing
+                                    ? const Color(0xFFFFEEF0)
+                                    : Colors.white,
+                                side: BorderSide(
+                                  color: isFollowing
+                                      ? const Color(0xFFE57373)
+                                      : const Color(0xFFD7DEE8),
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
                               ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 180),
+                                child: isFollowUpdating
+                                    ? const SizedBox(
+                                        key: ValueKey('loading'),
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.2,
+                                        ),
+                                      )
+                                    : Row(
+                                        key: ValueKey(isFollowing),
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            isFollowing
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_border_rounded,
+                                            color: isFollowing
+                                                ? const Color(0xFFE53935)
+                                                : const Color(0xFF51606F),
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            isFollowing
+                                                ? 'Following store'
+                                                : 'Follow store',
+                                            style: TextStyle(
+                                              color: isFollowing
+                                                  ? const Color(0xFFE53935)
+                                                  : const Color(0xFF51606F),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                               ),
-                            ),
-                            child: Icon(
-                              isFollowing
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
-                              color: isFollowing
-                                  ? const Color(0xFFE53935)
-                                  : const Color(0xFF51606F),
-                              size: 20,
                             ),
                           ),
                         ],
@@ -390,17 +436,36 @@ class MerchantCard extends StatelessWidget {
   Widget _buildTopAction({
     required IconData icon,
     required Color color,
+    bool isLoading = false,
+    required String semanticsLabel,
     required VoidCallback onTap,
   }) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.9),
-      shape: const CircleBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(icon, color: color, size: 18),
+    return AnimatedScale(
+      scale: isLoading ? 0.94 : 1,
+      duration: const Duration(milliseconds: 180),
+      child: Semantics(
+        button: true,
+        label: semanticsLabel,
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.9),
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: isLoading ? null : onTap,
+            customBorder: const CircleBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: isLoading
+                  ? SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.1,
+                        valueColor: AlwaysStoppedAnimation<Color>(color),
+                      ),
+                    )
+                  : Icon(icon, color: color, size: 18),
+            ),
+          ),
         ),
       ),
     );
@@ -411,8 +476,9 @@ class MerchantCard extends StatelessWidget {
     required String label,
     required Color background,
     required Color foreground,
+    bool animated = false,
   }) {
-    return Container(
+    final pill = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: background,
@@ -432,6 +498,20 @@ class MerchantCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+
+    if (!animated) return pill;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(scale: animation, child: child),
+      ),
+      child: KeyedSubtree(
+        key: ValueKey(label),
+        child: pill,
       ),
     );
   }

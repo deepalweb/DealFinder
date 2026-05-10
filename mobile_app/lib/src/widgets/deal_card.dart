@@ -4,13 +4,16 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
+import '../utils/deal_expiry_helper.dart';
+import 'deal_verification_badge.dart';
 
 class DealCard extends StatefulWidget {
   final Promotion promotion;
   final double? width;
   final bool compact; // compact = grid mode, false = list mode
 
-  const DealCard({super.key, required this.promotion, this.width, this.compact = false});
+  const DealCard(
+      {super.key, required this.promotion, this.width, this.compact = false});
 
   @override
   State<DealCard> createState() => _DealCardState();
@@ -22,9 +25,16 @@ class _DealCardState extends State<DealCard> {
   String _getCurrencySymbol() {
     final currency = widget.promotion.merchantCurrency ?? 'LKR';
     const Map<String, String> symbols = {
-      'USD': r'$', 'LKR': 'Rs.', 'EUR': '\u20ac', 'GBP': '\u00a3',
-      'INR': '\u20b9', 'AUD': 'A\$', 'CAD': 'C\$', 'SGD': 'S\$',
-      'AED': 'AED', 'MYR': 'RM',
+      'USD': r'$',
+      'LKR': 'Rs.',
+      'EUR': '\u20ac',
+      'GBP': '\u00a3',
+      'INR': '\u20b9',
+      'AUD': 'A\$',
+      'CAD': 'C\$',
+      'SGD': 'S\$',
+      'AED': 'AED',
+      'MYR': 'RM',
     };
     return symbols[currency] ?? currency;
   }
@@ -51,7 +61,7 @@ class _DealCardState extends State<DealCard> {
 
   Widget _buildImage({required double height}) {
     final img = widget.promotion.imageDataString;
-    
+
     // Use a colorful gradient placeholder when no image
     Widget placeholder = Container(
       height: height,
@@ -67,11 +77,16 @@ class _DealCardState extends State<DealCard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.local_offer, size: height * 0.25, color: Colors.white.withValues(alpha: 0.8)),
+            Icon(Icons.local_offer,
+                size: height * 0.25,
+                color: Colors.white.withValues(alpha: 0.8)),
             const SizedBox(height: 8),
             Text(
               'Deal Image',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -83,7 +98,10 @@ class _DealCardState extends State<DealCard> {
     if (img.startsWith('data:image')) {
       try {
         final bytes = base64Decode(img.substring(img.indexOf(',') + 1));
-        return Image.memory(bytes, height: height, width: double.infinity, fit: BoxFit.cover,
+        return Image.memory(bytes,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => placeholder);
       } catch (_) {
         return placeholder;
@@ -97,7 +115,8 @@ class _DealCardState extends State<DealCard> {
         width: double.infinity,
         fit: BoxFit.cover,
         placeholder: (_, __) => Container(
-          height: height, color: Colors.grey[200],
+          height: height,
+          color: Colors.grey[200],
           child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
         ),
         errorWidget: (_, __, ___) => placeholder,
@@ -131,7 +150,8 @@ class _DealCardState extends State<DealCard> {
               _buildImage(height: 160),
               // Favorite button
               Positioned(
-                top: 6, right: 6,
+                top: 6,
+                right: 6,
                 child: GestureDetector(
                   onTap: _toggleFavorite,
                   child: Container(
@@ -139,7 +159,11 @@ class _DealCardState extends State<DealCard> {
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.92),
                       shape: BoxShape.circle,
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4)],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4)
+                      ],
                     ),
                     child: Icon(
                       _isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -152,29 +176,39 @@ class _DealCardState extends State<DealCard> {
               // Discount badge
               if (p.discount != null && p.discount!.isNotEmpty)
                 Positioned(
-                  top: 6, left: 6,
+                  top: 6,
+                  left: 6,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.red[600],
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(p.discount!,
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ),
               // Featured badge
               if (p.featured == true)
                 Positioned(
-                  bottom: 6, left: 6,
+                  bottom: 6,
+                  left: 6,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.orange[700],
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: const Text('HOT',
-                        style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold)),
                   ),
                 ),
             ],
@@ -188,29 +222,43 @@ class _DealCardState extends State<DealCard> {
                 Text(p.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12, height: 1.3)),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        height: 1.3)),
                 const SizedBox(height: 3),
                 if (p.merchantName != null && p.merchantName!.isNotEmpty)
                   Text(p.merchantName!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: theme.colorScheme.primary, fontWeight: FontWeight.w500)),
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w500)),
                 const SizedBox(height: 4),
                 // Price row
-                if (p.discountedPrice != null || p.originalPrice != null || p.price != null)
+                if (p.discountedPrice != null ||
+                    p.originalPrice != null ||
+                    p.price != null)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
                         '${_getCurrencySymbol()}${(p.discountedPrice ?? p.price ?? p.originalPrice)!.toStringAsFixed(0)}',
-                        style: TextStyle(fontSize: 13, color: Colors.red[700], fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.red[700],
+                            fontWeight: FontWeight.bold),
                       ),
-                      if (p.originalPrice != null && p.discountedPrice != null) ...[
+                      if (p.originalPrice != null &&
+                          p.discountedPrice != null) ...[
                         const SizedBox(width: 4),
                         Text(
                           '${_getCurrencySymbol()}${p.originalPrice!.toStringAsFixed(0)}',
-                          style: const TextStyle(fontSize: 10, color: Colors.grey,
+                          style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey,
                               decoration: TextDecoration.lineThrough),
                         ),
                       ],
@@ -218,11 +266,18 @@ class _DealCardState extends State<DealCard> {
                   )
                 else
                   Text(p.discount ?? '',
-                      style: TextStyle(fontSize: 12, color: Colors.red[700], fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.red[700],
+                          fontWeight: FontWeight.bold)),
                 // Expiry
                 if (p.endDate != null) ...[
                   const SizedBox(height: 3),
                   _ExpiryBadge(endDate: p.endDate!),
+                ],
+                if (p.isVerifiedActiveDeal) ...[
+                  const SizedBox(height: 4),
+                  const DealVerificationBadge(),
                 ],
               ],
             ),
@@ -249,34 +304,55 @@ class _DealCardState extends State<DealCard> {
               // Discount badge top-left
               if (p.discount != null && p.discount!.isNotEmpty)
                 Positioned(
-                  top: 10, left: 10,
+                  top: 10,
+                  left: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(8)),
-                    child: Text(p.discount!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(8)),
+                    child: Text(p.discount!,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13)),
                   ),
                 ),
               // Featured badge
               if (p.featured == true)
                 Positioned(
-                  top: 10, right: 10,
+                  top: 10,
+                  right: 10,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: Colors.orange[700], borderRadius: BorderRadius.circular(8)),
-                    child: const Text('FEATURED', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: Colors.orange[700],
+                        borderRadius: BorderRadius.circular(8)),
+                    child: const Text('FEATURED',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11)),
                   ),
                 ),
               // Action buttons bottom-right
               Positioned(
-                bottom: 8, right: 8,
+                bottom: 8,
+                right: 8,
                 child: Row(
                   children: [
-                    _ImageActionButton(icon: Icons.share, onTap: () {
-                      Share.share('🔥 ${p.title}\n${p.description}\n💰 ${p.discount ?? "Great Deal"}');
-                    }),
+                    _ImageActionButton(
+                        icon: Icons.share,
+                        onTap: () {
+                          Share.share(
+                              '🔥 ${p.title}\n${p.description}\n💰 ${p.discount ?? "Great Deal"}');
+                        }),
                     const SizedBox(width: 6),
                     _ImageActionButton(
-                      icon: _isFavorite ? Icons.favorite : Icons.favorite_border,
+                      icon:
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
                       color: _isFavorite ? Colors.red : null,
                       onTap: _toggleFavorite,
                     ),
@@ -294,25 +370,40 @@ class _DealCardState extends State<DealCard> {
                 // Merchant + expiry row
                 Row(
                   children: [
-                    if (p.merchantName != null && p.merchantName!.isNotEmpty) ...[
-                      Icon(Icons.storefront, size: 14, color: theme.colorScheme.primary),
+                    if (p.merchantName != null &&
+                        p.merchantName!.isNotEmpty) ...[
+                      Icon(Icons.storefront,
+                          size: 14, color: theme.colorScheme.primary),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Text(p.merchantName!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
+                        child: Text(p.merchantName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600)),
                       ),
                     ] else
                       const Spacer(),
                     if (p.endDate != null) _ExpiryBadge(endDate: p.endDate!),
                   ],
                 ),
+                if (p.isVerifiedActiveDeal) ...[
+                  const SizedBox(height: 6),
+                  const DealVerificationBadge(compact: false),
+                ],
                 const SizedBox(height: 6),
                 // Title
-                Text(p.title, maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text(p.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 // Description
-                Text(p.description, maxLines: 2, overflow: TextOverflow.ellipsis,
+                Text(p.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodySmall),
                 // Price row
                 if (p.discountedPrice != null || p.price != null) ...[
@@ -320,12 +411,20 @@ class _DealCardState extends State<DealCard> {
                   Row(
                     children: [
                       if (p.originalPrice != null) ...[
-                        Text('${_getCurrencySymbol()}${p.originalPrice!.toStringAsFixed(2)}',
-                            style: const TextStyle(decoration: TextDecoration.lineThrough, color: Colors.grey, fontSize: 13)),
+                        Text(
+                            '${_getCurrencySymbol()}${p.originalPrice!.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                decoration: TextDecoration.lineThrough,
+                                color: Colors.grey,
+                                fontSize: 13)),
                         const SizedBox(width: 8),
                       ],
-                      Text('${_getCurrencySymbol()}${(p.discountedPrice ?? p.price)!.toStringAsFixed(2)}',
-                          style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(
+                          '${_getCurrencySymbol()}${(p.discountedPrice ?? p.price)!.toStringAsFixed(2)}',
+                          style: TextStyle(
+                              color: Colors.green[700],
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16)),
                     ],
                   ),
                 ],
@@ -333,14 +432,19 @@ class _DealCardState extends State<DealCard> {
                 if (p.code != null && p.code!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.5),
+                      color: theme.colorScheme.secondaryContainer
+                          .withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color: theme.colorScheme.secondary
+                              .withValues(alpha: 0.3)),
                     ),
                     child: Text('CODE: ${p.code}',
-                        style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.bold)),
+                        style: theme.textTheme.labelMedium
+                            ?.copyWith(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ],
@@ -358,27 +462,33 @@ class _ExpiryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final diff = endDate.difference(DateTime.now());
-    if (diff.isNegative) return const SizedBox.shrink();
-    String label;
-    Color color;
-    if (diff.inDays >= 1) {
-      label = '${diff.inDays}d left';
-      color = diff.inDays <= 3 ? Colors.orange : Colors.grey;
-    } else if (diff.inHours > 0) {
-      label = '${diff.inHours}h left';
-      color = Colors.red;
-    } else {
-      label = '${diff.inMinutes}m left';
-      color = Colors.red;
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.timer, size: 12, color: color),
-        const SizedBox(width: 2),
-        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-      ],
+    final label = DealExpiryHelper.formatWithSuffix(endDate);
+    if (label == null || label == 'Expired') return const SizedBox.shrink();
+    final color = DealExpiryHelper.urgencyColor(context, endDate);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: DealExpiryHelper.urgencyBackgroundColor(endDate),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: DealExpiryHelper.urgencyBorderColor(endDate),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.timer, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -387,7 +497,8 @@ class _ImageActionButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final Color? color;
-  const _ImageActionButton({required this.icon, required this.onTap, this.color});
+  const _ImageActionButton(
+      {required this.icon, required this.onTap, this.color});
 
   @override
   Widget build(BuildContext context) {

@@ -35,6 +35,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   String _viewMode = 'list';
   String _activeFilter = 'all';
   Promotion? _selectedMapDeal;
+  LocationFetchStatus? _locationStatus;
 
   List<Promotion> get _mappableDeals => _filteredDeals
       .where((deal) => deal.latitude != null && deal.longitude != null)
@@ -44,7 +45,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   void initState() {
     super.initState();
     _loadCachedPreferences();
-    _checkLocationPermission();
+    _getCurrentLocationAndFetchDeals();
     BackgroundLocationService.startLocationChecking();
   }
 
@@ -79,17 +80,6 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     }
   }
 
-  Future<void> _checkLocationPermission() async {
-    final hasPermission = await LocationService.hasLocationPermission();
-    if (hasPermission) {
-      await _getCurrentLocationAndFetchDeals();
-    } else {
-      setState(() {
-        _locationName = 'Location permission needed';
-      });
-    }
-  }
-
   Future<void> _getCurrentLocationAndFetchDeals() async {
     setState(() {
       _isLoading = true;
@@ -97,18 +87,28 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     });
 
     try {
-      final position = await LocationService.getCurrentLocation();
+      final result = await LocationService.resolveCurrentLocation();
+      final position = result.position;
 
       if (position == null) {
         setState(() {
-          _error = 'Location access denied. Enable location to discover nearby deals.';
+          _locationStatus = result.status;
+          _error = result.message;
           _isLoading = false;
-          _locationName = 'Location unavailable';
+          _locationName = result.status == LocationFetchStatus.serviceDisabled
+              ? 'Location off'
+              : 'Location unavailable';
         });
         return;
       }
 
-      setState(() => _currentPosition = position);
+      setState(() {
+        _currentPosition = position;
+        _locationStatus = result.status;
+        if (result.usedLastKnownPosition) {
+          _error = result.message;
+        }
+      });
 
       final locationName = await LocationService.getLocationName(position.latitude, position.longitude);
       if (mounted) {
@@ -1046,6 +1046,16 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   Widget _buildEmptyLocationState() {
+    final helperText = switch (_locationStatus) {
+      LocationFetchStatus.serviceDisabled =>
+        'Turn on device location to see nearby deals, distance, and directions.',
+      LocationFetchStatus.permissionDeniedForever =>
+        'Location permission is blocked for DealFinder. Enable it from app settings.',
+      LocationFetchStatus.timeout =>
+        'We could not get a live GPS fix in time. Try again outdoors or near a window.',
+      _ => 'Turn on location to see nearby deals, distance, and directions.',
+    };
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -1060,7 +1070,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Turn on location to see nearby deals, distance, and directions.',
+              helperText,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600),
             ),

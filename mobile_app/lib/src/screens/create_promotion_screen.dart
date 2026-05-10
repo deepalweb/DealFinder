@@ -47,6 +47,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   String? _token;
   String _dealType = 'percentage';
   final List<File> _imageFiles = [];
+  final List<String> _existingImageUrls = [];
   List<String> _uploadedImageUrls = [];
 
   bool get _hasValidMerchantId =>
@@ -57,6 +58,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       widget.merchantId.startsWith('demo-');
 
   bool get _isEditing => widget.existingPromotion != null;
+
+  int get _totalImageCount => _existingImageUrls.length + _imageFiles.length;
 
   @override
   void initState() {
@@ -84,10 +87,14 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     _urlController.text = promo.url ?? '';
     _selectedCategory = normalizeCategoryId(promo.category);
     _featured = promo.featured ?? false;
+    _dealType = _inferDealType(promo);
     _startDate = isDuplicate ? DateTime.now() : (promo.startDate ?? _startDate);
     _endDate = isDuplicate
         ? DateTime.now().add(const Duration(days: 30))
         : (promo.endDate ?? _endDate);
+    _existingImageUrls
+      ..clear()
+      ..addAll(_extractExistingImageUrls(promo, isDuplicate: isDuplicate));
 
     if (promo.originalPrice != null) {
       _originalPriceController.text = promo.originalPrice.toString();
@@ -98,6 +105,52 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     if (promo.price != null && promo.originalPrice == null) {
       _originalPriceController.text = promo.price.toString();
     }
+    if (_dealType == 'percentage' &&
+        promo.originalPrice != null &&
+        promo.discountedPrice != null &&
+        promo.originalPrice! > 0) {
+      final percent = ((promo.originalPrice! - promo.discountedPrice!) /
+          promo.originalPrice! *
+          100);
+      if (percent > 0) {
+        _percentageOffController.text = percent.toStringAsFixed(0);
+      }
+    }
+  }
+
+  String _inferDealType(Promotion promo) {
+    final discount = (promo.discount ?? '').toLowerCase();
+    if (discount.contains('buy 1 get 1') || discount.contains('bogo')) {
+      return 'bogo';
+    }
+    if (promo.originalPrice != null && promo.discountedPrice != null) {
+      if (discount.contains('%')) {
+        return 'percentage';
+      }
+      return 'price_drop';
+    }
+    if (discount.contains('bundle') || discount.contains(' for ')) {
+      return 'bundle';
+    }
+    if (discount.contains('flash')) {
+      return 'flash';
+    }
+    if (discount.contains('rs.') ||
+        discount.contains('lkr') ||
+        discount.contains(' off')) {
+      return 'fixed';
+    }
+    return 'percentage';
+  }
+
+  List<String> _extractExistingImageUrls(Promotion promo,
+      {required bool isDuplicate}) {
+    if (isDuplicate) return [];
+    final imageUrl = promo.imageDataString;
+    if (imageUrl == null || imageUrl.trim().isEmpty) {
+      return [];
+    }
+    return [imageUrl.trim()];
   }
 
   void _calculateDiscountedPrice() {
@@ -138,7 +191,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   }
 
   Future<void> _pickImages() async {
-    if (_imageFiles.length >= 5) {
+    if (_totalImageCount >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Maximum 5 images allowed')),
       );
@@ -147,9 +200,10 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
 
     final List<XFile> images = await _picker.pickMultiImage();
     for (var image in images) {
-      if (_imageFiles.length >= 5) break;
+      if (_totalImageCount >= 5) break;
       setState(() {
         _imageFiles.add(File(image.path));
+        _uploadedImageUrls = [];
       });
     }
   }
@@ -157,7 +211,32 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   void _removeImage(int index) {
     setState(() {
       _imageFiles.removeAt(index);
+      _uploadedImageUrls = [];
     });
+  }
+
+  void _removeExistingImage(int index) {
+    setState(() {
+      _existingImageUrls.removeAt(index);
+    });
+  }
+
+  String? _validateRequiredPrice(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Required';
+    final parsed = double.tryParse(value.trim());
+    if (parsed == null || parsed <= 0) return 'Enter a valid amount';
+    return null;
+  }
+
+  String? _validateDiscountedPrice(String? value) {
+    final baseError = _validateRequiredPrice(value);
+    if (baseError != null) return baseError;
+    final original = double.tryParse(_originalPriceController.text.trim());
+    final discounted = double.tryParse(value!.trim());
+    if (original != null && discounted != null && discounted >= original) {
+      return 'Must be less than original price';
+    }
+    return null;
   }
 
   void _generateCode() {
@@ -169,21 +248,58 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   }
 
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
+    final today = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStartDate
-          ? (_startDate ?? DateTime.now())
-          : (_endDate ?? DateTime.now().add(const Duration(days: 30))),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+          ? (_startDate ?? today)
+          : (_endDate ?? _startDate ?? today.add(const Duration(days: 30))),
+      firstDate: isStartDate
+          ? today
+          : (_startDate != null && _startDate!.isAfter(today)
+              ? _startDate!
+              : today),
+      lastDate: today.add(const Duration(days: 365)),
     );
 
     if (picked != null) {
       setState(() {
         if (isStartDate) {
-          _startDate = picked;
+          _startDate = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            0,
+            0,
+            0,
+          );
+          if (_endDate != null && _endDate!.isBefore(_startDate!)) {
+            _endDate = DateTime(
+              picked.year,
+              picked.month,
+              picked.day,
+              23,
+              59,
+              59,
+            );
+          }
         } else {
-          _endDate = picked;
+          if (_startDate != null && picked.isBefore(_startDate!)) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('End date cannot be earlier than start date.'),
+              ),
+            );
+            return;
+          }
+          _endDate = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            23,
+            59,
+            59,
+          );
         }
       });
     }
@@ -223,9 +339,30 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       return;
     }
 
+    if (_startDate == null || _endDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Please select both start and end dates.')),
+      );
+      _tabController.animateTo(0);
+      return;
+    }
+
+    if (_endDate!.isBefore(_startDate!)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('End date must be the same day or later than start date.'),
+        ),
+      );
+      _tabController.animateTo(0);
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     try {
+      _uploadedImageUrls = [];
       // Upload images to Azure first
       if (_imageFiles.isNotEmpty) {
         final compressedFiles = <File>[];
@@ -245,6 +382,11 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
         );
       }
 
+      final mergedImageUrls = [
+        ..._existingImageUrls,
+        ..._uploadedImageUrls,
+      ];
+
       final promotionData = {
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -261,8 +403,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
           'originalPrice': double.parse(_originalPriceController.text),
         if (_discountedPriceController.text.isNotEmpty)
           'discountedPrice': double.parse(_discountedPriceController.text),
-        if (_uploadedImageUrls.isNotEmpty) 'image': _uploadedImageUrls.first,
-        if (_uploadedImageUrls.isNotEmpty) 'images': _uploadedImageUrls,
+        if (mergedImageUrls.isNotEmpty) 'image': mergedImageUrls.first,
+        if (mergedImageUrls.isNotEmpty) 'images': mergedImageUrls,
       };
 
       if (_isEditing) {
@@ -463,10 +605,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       prefixText: 'Rs. ',
                     ),
                     keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Required';
-                      return null;
-                    },
+                    validator: _validateRequiredPrice,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -518,10 +657,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
               onChanged: (value) {
                 _discountController.text = 'Buy 1 Get 1 Free';
               },
-              validator: (value) {
-                if (value == null || value.isEmpty) return 'Required';
-                return null;
-              },
+              validator: _validateRequiredPrice,
             ),
           ],
           if (_dealType == 'price_drop') ...[
@@ -537,10 +673,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       prefixText: 'Rs. ',
                     ),
                     keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Required';
-                      return null;
-                    },
+                    validator: _validateRequiredPrice,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -570,10 +703,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                         }
                       }
                     },
-                    validator: (value) {
-                      if (value == null || value.isEmpty) return 'Required';
-                      return null;
-                    },
+                    validator: _validateDiscountedPrice,
                   ),
                 ),
               ],
@@ -704,7 +834,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          if (_imageFiles.isNotEmpty)
+          if (_totalImageCount > 0)
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -713,9 +843,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
               ),
-              itemCount: _imageFiles.length + (_imageFiles.length < 5 ? 1 : 0),
+              itemCount: _totalImageCount + (_totalImageCount < 5 ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index == _imageFiles.length) {
+                if (index == _totalImageCount) {
                   return GestureDetector(
                     onTap: _pickImages,
                     child: Container(
@@ -735,6 +865,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                   );
                 }
 
+                final isExistingImage = index < _existingImageUrls.length;
+                final localImageIndex = index - _existingImageUrls.length;
+
                 return Stack(
                   children: [
                     Container(
@@ -749,12 +882,25 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.file(
-                          _imageFiles[index],
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          height: double.infinity,
-                        ),
+                        child: isExistingImage
+                            ? Image.network(
+                                _existingImageUrls[index],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: Icon(Icons.broken_image),
+                                  ),
+                                ),
+                              )
+                            : Image.file(
+                                _imageFiles[localImageIndex],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              ),
                       ),
                     ),
                     if (index == 0)
@@ -782,7 +928,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       top: 4,
                       right: 4,
                       child: GestureDetector(
-                        onTap: () => _removeImage(index),
+                        onTap: () => isExistingImage
+                            ? _removeExistingImage(index)
+                            : _removeImage(localImageIndex),
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
@@ -884,7 +1032,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       _codeController.text.isEmpty
                           ? '—'
                           : _codeController.text),
-                  _buildSummaryRow('Category', getCategoryLabel(_selectedCategory)),
+                  _buildSummaryRow(
+                      'Category', getCategoryLabel(_selectedCategory)),
                   _buildSummaryRow(
                       'Duration', daysLeft > 0 ? '$daysLeft days' : '—'),
                   _buildSummaryRow('Featured', _featured ? 'Yes ⭐' : 'No'),
@@ -916,5 +1065,4 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       ),
     );
   }
-
 }

@@ -9,7 +9,18 @@ import 'deal_detail_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AllDealsScreen extends StatefulWidget {
-  const AllDealsScreen({super.key});
+  final String? initialSortBy;
+  final String? initialCategoryId;
+  final String? initialSectionPreset;
+  final String? initialContextTitle;
+
+  const AllDealsScreen({
+    super.key,
+    this.initialSortBy,
+    this.initialCategoryId,
+    this.initialSectionPreset,
+    this.initialContextTitle,
+  });
 
   @override
   State<AllDealsScreen> createState() => _AllDealsScreenState();
@@ -26,10 +37,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   double _minDiscount = 0;
   String? _selectedCategory;
   bool _showFilters = false;
+  String? _activeSectionPreset;
 
   @override
   void initState() {
     super.initState();
+    _sortBy = widget.initialSortBy ?? _sortBy;
+    _selectedCategory = widget.initialCategoryId;
+    _activeSectionPreset = widget.initialSectionPreset;
     _loadPromotions();
   }
 
@@ -91,6 +106,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       } else if (_minDiscount > 0) {
         return false;
       }
+
+      if (!_matchesEntryPreset(promo)) {
+        return false;
+      }
       
       return true;
     }).toList();
@@ -149,6 +168,30 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     
     return grouped;
   }
+
+  bool _matchesEntryPreset(Promotion promo) {
+    if (_activeSectionPreset == null) return true;
+
+    final now = DateTime.now();
+    switch (_activeSectionPreset) {
+      case 'flash_sales':
+        final cutoff = now.add(const Duration(hours: 24));
+        return promo.endDate != null &&
+            promo.endDate!.isAfter(now) &&
+            promo.endDate!.isBefore(cutoff);
+      case 'ending_soon':
+        final endOfToday = DateTime(now.year, now.month, now.day + 1);
+        return promo.endDate != null &&
+            promo.endDate!.isAfter(now) &&
+            promo.endDate!.isBefore(endOfToday);
+      case 'new_this_week':
+        final recentCutoff = now.subtract(const Duration(days: 7));
+        final publishedAt = promo.createdAt ?? promo.startDate;
+        return publishedAt != null && publishedAt.isAfter(recentCutoff);
+      default:
+        return true;
+    }
+  }
   
   double _extractDiscount(String? discount) {
     if (discount == null) return 0;
@@ -194,12 +237,48 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     return colorMap[categoryId] ?? const Color(0xFF95A5A6);
   }
 
+  String get _screenTitle {
+    if (_activeSectionPreset != null && widget.initialContextTitle != null) {
+      return widget.initialContextTitle!;
+    }
+    if (_selectedCategory != null) {
+      return _getCategoryName(_selectedCategory!);
+    }
+    return 'All Deals';
+  }
+
+  String? get _contextSubtitle {
+    switch (_activeSectionPreset) {
+      case 'flash_sales':
+        return 'Showing quick-turn deals closing within the next day.';
+      case 'ending_soon':
+        return 'Showing the deals that are most likely to expire today.';
+      case 'new_this_week':
+        return 'Showing recently added deals so fresh offers stay easy to find.';
+      default:
+        return null;
+    }
+  }
+
+  void _resetFilters({bool clearEntryContext = false}) {
+    setState(() {
+      _selectedCategory = clearEntryContext ? null : widget.initialCategoryId;
+      _minPrice = 0;
+      _maxPrice = 10000;
+      _minDiscount = 0;
+      _activeSectionPreset =
+          clearEntryContext ? null : widget.initialSectionPreset;
+      _sortBy = widget.initialSortBy ?? 'recent';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('All Deals', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(_screenTitle,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
         backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
@@ -292,6 +371,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_activeSectionPreset != null || widget.initialCategoryId != null)
+                    _buildContextBanner(),
                   const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
                   
@@ -376,14 +457,9 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Reset Filters'),
+                      label: const Text('Clear filters'),
                       onPressed: () {
-                        setState(() {
-                          _selectedCategory = null;
-                          _minPrice = 0;
-                          _maxPrice = 10000;
-                          _minDiscount = 0;
-                        });
+                        _resetFilters();
                       },
                     ),
                   ),
@@ -413,34 +489,69 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   final totalDeals = groupedDeals.values.fold<int>(0, (sum, list) => sum + list.length);
                   
                   if (totalDeals == 0) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          const Text('No deals match your filters'),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _selectedCategory = null;
-                                _minPrice = 0;
-                                _maxPrice = 10000;
-                                _minDiscount = 0;
-                              });
-                            },
-                            child: const Text('Reset Filters'),
-                          ),
-                        ],
-                      ),
-                    );
+                    return _buildNoMatchesState();
                   }
                   
                   return _buildCategoryList(groupedDeals, totalDeals);
                 },
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContextBanner() {
+    final subtitle = _contextSubtitle;
+    final hasPreset = _activeSectionPreset != null;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF5FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD6E4FF)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(Icons.auto_awesome_rounded,
+                color: Color(0xFF1E5AA8), size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasPreset
+                      ? '${widget.initialContextTitle ?? _screenTitle} view'
+                      : 'Category filter applied',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF163A70),
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF35537A),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            onPressed: () => _resetFilters(clearEntryContext: true),
+            child: Text(hasPreset ? 'Show all' : 'Clear'),
           ),
         ],
       ),
@@ -761,7 +872,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
+              label: const Text('Retry'),
               onPressed: _refreshPromotions,
             ),
           ],
@@ -782,6 +893,68 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             style: TextStyle(fontSize: 16, color: Colors.grey[700]),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNoMatchesState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                size: 42,
+                color: Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No deals match this view',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF14213D),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Try a broader category, adjust your price or discount filters, or clear filters to explore more deals.',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                height: 1.45,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: _resetFilters,
+                  icon: const Icon(Icons.filter_alt_off_outlined),
+                  label: const Text('Clear filters'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _refreshPromotions,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

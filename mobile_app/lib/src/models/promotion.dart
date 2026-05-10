@@ -71,6 +71,25 @@ class Promotion {
     return ((originalPrice! - discountedPrice!) / originalPrice! * 100).round();
   }
 
+  bool get hasStarted {
+    final now = DateTime.now();
+    return startDate == null || !startDate!.isAfter(now);
+  }
+
+  bool get isExpired {
+    final now = DateTime.now();
+    return endDate != null && endDate!.isBefore(now);
+  }
+
+  bool get hasVerifiedActiveStatus {
+    final normalized = status?.trim().toLowerCase();
+    return normalized == 'active' || normalized == 'approved';
+  }
+
+  bool get isVerifiedActiveDeal {
+    return hasVerifiedActiveStatus && hasStarted && !isExpired;
+  }
+
   factory Promotion.fromJson(Map<String, dynamic> json) {
     // Helper to safely parse dates
     DateTime? parseDate(String? dateString) {
@@ -78,7 +97,8 @@ class Promotion {
         return null;
       }
       try {
-        return DateTime.parse(dateString);
+        final parsed = DateTime.parse(dateString);
+        return parsed.isUtc ? parsed.toLocal() : parsed;
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Error parsing date: $dateString, Error: $e');

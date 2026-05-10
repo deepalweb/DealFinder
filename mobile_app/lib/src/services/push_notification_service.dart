@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../firebase_options.dart';
 import 'api_service.dart';
-import 'location_permission_service.dart';
+import 'location_service.dart';
 
 const AndroidNotificationChannel _defaultNotificationChannel =
     AndroidNotificationChannel(
@@ -222,7 +222,9 @@ class PushNotificationService {
 
   static Future<void> checkNearbyDealsAndNotify() async {
     try {
-      final position = await LocationPermissionService.getCurrentLocation();
+      final position = await LocationService.getCurrentLocation(
+        requestPermission: false,
+      );
       if (position == null) return;
 
       final prefs = await SharedPreferences.getInstance();

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
+import '../utils/deal_expiry_helper.dart';
+import 'deal_verification_badge.dart';
 
 class ModernDealCard extends StatefulWidget {
   final Promotion promotion;
@@ -135,7 +137,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE53935),
                           borderRadius: BorderRadius.circular(8),
@@ -156,56 +159,63 @@ class _ModernDealCardState extends State<ModernDealCard> {
                         ),
                       ),
                     ),
-                    if (showCountdown)
-                      Positioned(
-                        left: 8,
-                        right: 8,
-                        bottom: 8,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _timeLeft == Duration.zero
-                                    ? Icons.timer_off_outlined
-                                    : Icons.timer_outlined,
-                                size: 13,
+                  if (showCountdown)
+                    Positioned(
+                      left: 8,
+                      right: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.92),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _timeLeft == Duration.zero
+                                  ? Icons.timer_off_outlined
+                                  : Icons.timer_outlined,
+                              size: 13,
+                              color: _timeLeft == Duration.zero
+                                  ? DealExpiryHelper.urgencyColor(
+                                      context,
+                                      p.endDate,
+                                    )
+                                  : const Color(0xFF9A3412),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              _timeLeft == Duration.zero
+                                  ? 'Expired'
+                                  : _formatCountdown(_timeLeft!),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
                                 color: _timeLeft == Duration.zero
-                                    ? Colors.red.shade700
-                                    : const Color(0xFFB26A00),
+                                    ? DealExpiryHelper.urgencyColor(
+                                        context,
+                                        p.endDate,
+                                      )
+                                    : const Color(0xFF9A3412),
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _timeLeft == Duration.zero
-                                    ? 'Expired'
-                                    : _formatCountdown(_timeLeft!),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: _timeLeft == Duration.zero
-                                      ? Colors.red.shade700
-                                      : const Color(0xFFB26A00),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    // Featured badge
+                    ),
+                  // Featured badge
                   if (p.featured == true)
                     Positioned(
                       top: 8,
                       right: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 3),
                         decoration: BoxDecoration(
                           color: Colors.orange[700],
                           borderRadius: BorderRadius.circular(6),
@@ -255,13 +265,16 @@ class _ModernDealCardState extends State<ModernDealCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Merchant name with logo
-                        if (p.merchantName != null && p.merchantName!.isNotEmpty)
+                        if (p.merchantName != null &&
+                            p.merchantName!.isNotEmpty)
                           Row(
                             children: [
-                              if (p.merchantLogoUrl != null && p.merchantLogoUrl!.isNotEmpty)
+                              if (p.merchantLogoUrl != null &&
+                                  p.merchantLogoUrl!.isNotEmpty)
                                 _buildLogo(p.merchantLogoUrl!)
                               else
-                                const Icon(Icons.store, size: 11, color: Color(0xFF1E88E5)),
+                                const Icon(Icons.store,
+                                    size: 11, color: Color(0xFF1E88E5)),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
@@ -277,6 +290,10 @@ class _ModernDealCardState extends State<ModernDealCard> {
                               ),
                             ],
                           ),
+                        if (p.isVerifiedActiveDeal) ...[
+                          const SizedBox(height: 4),
+                          const DealVerificationBadge(),
+                        ],
                         const SizedBox(height: 4),
                         if (showCountdown && _timeLeft != null) ...[
                           Text(
@@ -287,8 +304,11 @@ class _ModernDealCardState extends State<ModernDealCard> {
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                               color: _timeLeft == Duration.zero
-                                  ? Colors.red.shade700
-                                  : const Color(0xFFB26A00),
+                                  ? DealExpiryHelper.urgencyColor(
+                                      context,
+                                      p.endDate,
+                                    )
+                                  : const Color(0xFF9A3412),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -298,10 +318,13 @@ class _ModernDealCardState extends State<ModernDealCard> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             // Price
-                            if (p.discountedPrice != null || p.originalPrice != null || p.price != null)
+                            if (p.discountedPrice != null ||
+                                p.originalPrice != null ||
+                                p.price != null)
                               Expanded(
                                 child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
                                   children: [
                                     Text(
@@ -312,14 +335,16 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                         color: Color(0xFFE53935),
                                       ),
                                     ),
-                                    if (p.originalPrice != null && p.discountedPrice != null) ...[
+                                    if (p.originalPrice != null &&
+                                        p.discountedPrice != null) ...[
                                       const SizedBox(width: 4),
                                       Text(
                                         'Rs.${p.originalPrice!.toStringAsFixed(0)}',
                                         style: const TextStyle(
                                           fontSize: 10,
                                           color: Color(0xFF9E9E9E),
-                                          decoration: TextDecoration.lineThrough,
+                                          decoration:
+                                              TextDecoration.lineThrough,
                                         ),
                                       ),
                                     ],
@@ -331,7 +356,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                             // Distance
                             if (distance.isNotEmpty)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFE3F2FD),
                                   borderRadius: BorderRadius.circular(6),
@@ -339,7 +365,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.location_on, size: 10, color: Color(0xFF1E88E5)),
+                                    const Icon(Icons.location_on,
+                                        size: 10, color: Color(0xFF1E88E5)),
                                     const SizedBox(width: 2),
                                     Text(
                                       distance,
