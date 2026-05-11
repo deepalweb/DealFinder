@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
 
     // Optimized: Get merchants without populating promotions
     const merchants = await Merchant.find()
-      .select('name logo banner category description address location currency')
+      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable')
       .lean();
     
     // Get promotion counts in a single aggregation query
@@ -127,7 +127,12 @@ router.post('/', authenticateJWT, authorizeAdmin, [
   body('profile').optional().isString(),
   body('description').optional().isString(),
   body('category').optional().isString(),
+  body('merchantType').optional().isIn(['offline', 'online', 'hybrid'])
+    .withMessage('Invalid merchant type'),
   body('website').optional().isString(),
+  body('orderLink').optional().isString(),
+  body('deliveryAvailable').optional().isBoolean(),
+  body('pickupAvailable').optional().isBoolean(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
@@ -150,7 +155,11 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       profile,
       description,
       category,
+      merchantType,
       website,
+      orderLink,
+      deliveryAvailable,
+      pickupAvailable,
       contactInfo,
       logo,
       banner,
@@ -166,7 +175,11 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       profile,
       description,
       category,
+      merchantType,
       website,
+      orderLink,
+      deliveryAvailable,
+      pickupAvailable,
       contactInfo,
       logo,
       banner,
@@ -206,7 +219,12 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('profile').optional().isString(),
   body('description').optional().isString(),
   body('category').optional().isString(),
+  body('merchantType').optional().isIn(['offline', 'online', 'hybrid'])
+    .withMessage('Invalid merchant type'),
   body('website').optional().isString(),
+  body('orderLink').optional().isString(),
+  body('deliveryAvailable').optional().isBoolean(),
+  body('pickupAvailable').optional().isBoolean(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
@@ -233,7 +251,11 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       profile,
       description,
       category,
+      merchantType,
       website,
+      orderLink,
+      deliveryAvailable,
+      pickupAvailable,
       contactInfo,
       logo,
       banner,
@@ -254,7 +276,11 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     if (profile !== undefined) updateData.profile = profile;
     if (description !== undefined) updateData.description = description;
     if (category !== undefined) updateData.category = category;
+    if (merchantType !== undefined) updateData.merchantType = merchantType;
     if (website !== undefined) updateData.website = website;
+    if (orderLink !== undefined) updateData.orderLink = orderLink;
+    if (deliveryAvailable !== undefined) updateData.deliveryAvailable = deliveryAvailable;
+    if (pickupAvailable !== undefined) updateData.pickupAvailable = pickupAvailable;
     if (contactInfo !== undefined) updateData.contactInfo = contactInfo;
     if (logo !== undefined) updateData.logo = logo;
     if (banner !== undefined) updateData.banner = banner;

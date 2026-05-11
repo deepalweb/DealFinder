@@ -66,6 +66,10 @@ class SearchMatcher {
       'coffee',
       'tea',
       'dining',
+      'budget meal',
+      'quick bite',
+      'family deal',
+      'takeaway',
       'ආහාර',
       'කෑම',
       'බීම',
@@ -108,6 +112,9 @@ class SearchMatcher {
       'spa',
       'pharmacy',
       'fitness',
+      'salon',
+      'grooming',
+      'haircut',
       'සෞඛ්‍ය',
       'සුන්දරත්වය',
       'ඖෂධ',
@@ -132,6 +139,10 @@ class SearchMatcher {
       'decor',
       'household',
       'plants',
+      'grocery',
+      'groceries',
+      'essentials',
+      'fresh',
       'ගෙදර',
       'වත්ත',
       'ගෘහ',
@@ -160,6 +171,10 @@ class SearchMatcher {
       'delivery',
       'booking',
       'consulting',
+      'mobile repair',
+      'laptop repair',
+      'printing',
+      'same day service',
       'සේවා',
       'සර්විස්',
       'අලුත්වැඩියා',
@@ -175,6 +190,13 @@ class SearchMatcher {
       'පෙට්',
       'බල්ලන්',
       'පූසා',
+    ],
+    'education': [
+      'pharmacy',
+      'wellness',
+      'medical',
+      'medicine',
+      'healthcare',
     ],
   };
 
@@ -215,7 +237,10 @@ class SearchMatcher {
 
     final queryTokens = tokenize(normalizedQuery);
     final haystacks = [
-      ...fields.whereType<String>().map(normalize).where((value) => value.isNotEmpty),
+      ...fields
+          .whereType<String>()
+          .map(normalize)
+          .where((value) => value.isNotEmpty),
       ...extraTerms.map(normalize).where((value) => value.isNotEmpty),
     ];
 
@@ -240,16 +265,17 @@ class SearchMatcher {
     final title = normalize(promotion.title);
     final merchant = normalize(promotion.merchantName ?? '');
     final description = normalize(promotion.description);
-    final categoryTerms = SearchMatcher.categoryTerms(promotion.category)
-        .map(normalize)
-        .toList();
+    final categoryTerms =
+        SearchMatcher.categoryTerms(promotion.category).map(normalize).toList();
 
     var score = 0;
     if (title == normalizedQuery) score += 120;
     if (merchant == normalizedQuery) score += 110;
     if (title.contains(normalizedQuery)) score += 90;
     if (merchant.contains(normalizedQuery)) score += 80;
-    if (categoryTerms.any((term) => term.contains(normalizedQuery))) score += 70;
+    if (categoryTerms.any((term) => term.contains(normalizedQuery))) {
+      score += 70;
+    }
     if (description.contains(normalizedQuery)) score += 40;
 
     for (final token in tokenize(normalizedQuery)) {

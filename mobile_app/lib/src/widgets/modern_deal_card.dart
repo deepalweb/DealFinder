@@ -76,6 +76,13 @@ class _ModernDealCardState extends State<ModernDealCard> {
     );
   }
 
+  String? _primaryModeLabel(Promotion promotion) {
+    if (promotion.supportsDelivery) return 'Delivery';
+    if (promotion.supportsPickup) return 'Pickup';
+    if (promotion.supportsVisit) return 'Visit';
+    return null;
+  }
+
   String _formatCountdown(Duration duration) {
     final totalHours = duration.inHours;
     final days = duration.inDays;
@@ -100,6 +107,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
     final distance = _formatDistance(p.distance);
     final showCountdown =
         widget.showCountdown && _timeLeft != null && p.endDate != null;
+    final primaryModeLabel = _primaryModeLabel(p);
 
     return GestureDetector(
       onTap: widget.onTap,
@@ -302,6 +310,27 @@ class _ModernDealCardState extends State<ModernDealCard> {
                         if (p.isVerifiedActiveDeal) ...[
                           const SizedBox(height: 4),
                           const DealVerificationBadge(),
+                        ],
+                        if (primaryModeLabel != null) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F8E9),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              primaryModeLabel,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF33691E),
+                              ),
+                            ),
+                          ),
                         ],
                         const SizedBox(height: 4),
                         if (showCountdown && _timeLeft != null) ...[

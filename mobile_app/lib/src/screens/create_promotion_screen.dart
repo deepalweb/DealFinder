@@ -35,6 +35,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   final _discountController = TextEditingController();
   final _codeController = TextEditingController();
   final _urlController = TextEditingController();
+  final _orderLinkController = TextEditingController();
   final _originalPriceController = TextEditingController();
   final _discountedPriceController = TextEditingController();
   final _percentageOffController = TextEditingController();
@@ -46,6 +47,10 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   bool _isSubmitting = false;
   String? _token;
   String _dealType = 'percentage';
+  String _fulfillmentType = 'visit';
+  bool _visitAvailable = true;
+  bool _deliveryAvailable = false;
+  bool _pickupAvailable = false;
   final List<File> _imageFiles = [];
   final List<String> _existingImageUrls = [];
   List<String> _uploadedImageUrls = [];
@@ -85,9 +90,14 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     _discountController.text = promo.discount ?? '';
     _codeController.text = promo.code ?? '';
     _urlController.text = promo.url ?? '';
+    _orderLinkController.text = promo.orderLink ?? '';
     _selectedCategory = normalizeCategoryId(promo.category);
     _featured = promo.featured ?? false;
     _dealType = _inferDealType(promo);
+    _fulfillmentType = promo.fulfillmentType ?? 'visit';
+    _visitAvailable = promo.visitAvailable;
+    _deliveryAvailable = promo.deliveryAvailable;
+    _pickupAvailable = promo.pickupAvailable;
     _startDate = isDuplicate ? DateTime.now() : (promo.startDate ?? _startDate);
     _endDate = isDuplicate
         ? DateTime.now().add(const Duration(days: 30))
@@ -187,6 +197,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     _discountController.dispose();
     _codeController.dispose();
     _urlController.dispose();
+    _orderLinkController.dispose();
     _originalPriceController.dispose();
     _discountedPriceController.dispose();
     _percentageOffController.dispose();
@@ -397,8 +408,14 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
         'startDate': _startDate!.toIso8601String(),
         'endDate': _endDate!.toIso8601String(),
         'featured': _featured,
+        'fulfillmentType': _fulfillmentType,
+        'visitAvailable': _visitAvailable,
+        'deliveryAvailable': _deliveryAvailable,
+        'pickupAvailable': _pickupAvailable,
         if (_urlController.text.trim().isNotEmpty)
           'url': _urlController.text.trim(),
+        if (_orderLinkController.text.trim().isNotEmpty)
+          'orderLink': _orderLinkController.text.trim(),
         if (_originalPriceController.text.isNotEmpty)
           'originalPrice': double.parse(_originalPriceController.text),
         if (_discountedPriceController.text.isNotEmpty)
@@ -592,6 +609,137 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
               });
             },
           ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            initialValue: _fulfillmentType,
+            decoration: const InputDecoration(
+              labelText: 'How customers redeem this deal *',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.storefront),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: 'visit',
+                child: Text('Visit Store'),
+              ),
+              DropdownMenuItem(
+                value: 'order',
+                child: Text('Order Online'),
+              ),
+              DropdownMenuItem(
+                value: 'hybrid',
+                child: Text('Visit or Order'),
+              ),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _fulfillmentType = value ?? 'visit';
+                if (_fulfillmentType == 'visit') {
+                  _visitAvailable = true;
+                  _deliveryAvailable = false;
+                  _pickupAvailable = false;
+                } else if (_fulfillmentType == 'order') {
+                  _visitAvailable = false;
+                  _deliveryAvailable = true;
+                } else {
+                  _visitAvailable = true;
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Visit Store'),
+                  subtitle: const Text('Customers can go to the physical shop'),
+                  value: _visitAvailable,
+                  onChanged: _fulfillmentType == 'order'
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _visitAvailable = value;
+                            if (!_visitAvailable &&
+                                !_deliveryAvailable &&
+                                !_pickupAvailable) {
+                              _deliveryAvailable = true;
+                              _fulfillmentType = 'order';
+                            } else if (_visitAvailable &&
+                                (_deliveryAvailable || _pickupAvailable)) {
+                              _fulfillmentType = 'hybrid';
+                            } else if (_visitAvailable) {
+                              _fulfillmentType = 'visit';
+                            }
+                          });
+                        },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Delivery Available'),
+                  subtitle: const Text('Customers can order this deal online'),
+                  value: _deliveryAvailable,
+                  onChanged: (value) {
+                    setState(() {
+                      _deliveryAvailable = value;
+                      if (_deliveryAvailable) {
+                        _fulfillmentType = _visitAvailable || _pickupAvailable
+                            ? 'hybrid'
+                            : 'order';
+                      } else if (!_pickupAvailable && !_visitAvailable) {
+                        _visitAvailable = true;
+                        _fulfillmentType = 'visit';
+                      } else if (_visitAvailable) {
+                        _fulfillmentType = 'visit';
+                      }
+                    });
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Pickup Available'),
+                  subtitle: const Text('Customers can collect after ordering'),
+                  value: _pickupAvailable,
+                  onChanged: (value) {
+                    setState(() {
+                      _pickupAvailable = value;
+                      if (_pickupAvailable) {
+                        _fulfillmentType = _visitAvailable || _deliveryAvailable
+                            ? 'hybrid'
+                            : 'order';
+                      } else if (!_deliveryAvailable && !_visitAvailable) {
+                        _visitAvailable = true;
+                        _fulfillmentType = 'visit';
+                      } else if (_visitAvailable && !_deliveryAvailable) {
+                        _fulfillmentType = 'visit';
+                      }
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          if (_deliveryAvailable ||
+              _pickupAvailable ||
+              _fulfillmentType != 'visit') ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _orderLinkController,
+              decoration: const InputDecoration(
+                labelText: 'Order Link',
+                hintText: 'https://ubereats.com / PickMe / website link',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.delivery_dining),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           if (_dealType == 'percentage') ...[
             Row(
@@ -1033,6 +1181,13 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       _codeController.text.isEmpty
                           ? '—'
                           : _codeController.text),
+                  _buildSummaryRow(
+                      'Redemption',
+                      _fulfillmentType == 'visit'
+                          ? 'Visit store'
+                          : _fulfillmentType == 'order'
+                              ? 'Order online'
+                              : 'Visit or order'),
                   _buildSummaryRow(
                       'Category', getCategoryLabel(_selectedCategory)),
                   _buildSummaryRow(

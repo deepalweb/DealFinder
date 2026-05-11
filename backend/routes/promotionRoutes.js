@@ -150,7 +150,7 @@ router.get('/homepage', async (req, res) => {
       resolveHomepageSections(),
       Promotion.find(query)
         .select('-comments -ratings')
-        .populate('merchant', 'name logo currency')
+        .populate('merchant', 'name logo currency website merchantType orderLink deliveryAvailable pickupAvailable')
         .sort({ createdAt: -1 })
         .limit(20)
         .lean()
@@ -269,6 +269,11 @@ router.get('/nearby', async (req, res) => {
                   images: 1,
                   image: 1,
                   url: 1,
+                  fulfillmentType: 1,
+                  orderLink: 1,
+                  visitAvailable: 1,
+                  deliveryAvailable: 1,
+                  pickupAvailable: 1,
                   featured: 1,
                   originalPrice: 1,
                   discountedPrice: 1,
@@ -296,6 +301,11 @@ router.get('/nearby', async (req, res) => {
                     _id: '$_id',
                     name: '$name',
                     logo: '$logo',
+                    website: '$website',
+                    merchantType: '$merchantType',
+                    orderLink: '$orderLink',
+                    deliveryAvailable: '$deliveryAvailable',
+                    pickupAvailable: '$pickupAvailable',
                     location: '$location',
                     address: '$address',
                     contactInfo: '$contactInfo',
@@ -362,7 +372,7 @@ router.get('/', async (req, res) => {
     
     let promotionsQuery = Promotion.find(query)
       .select('-comments -ratings')
-      .populate('merchant', 'name logo address contactInfo currency location')
+      .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
       .sort({ createdAt: -1 })
       .lean();
     
@@ -493,6 +503,12 @@ router.post('/', authenticateJWT, [
   body('image').optional().isString(),
   body('images').optional().isArray().withMessage('Images must be an array'),
   body('url').optional().isString(),
+  body('fulfillmentType').optional().isIn(['visit', 'order', 'hybrid'])
+    .withMessage('Invalid fulfillment type'),
+  body('orderLink').optional().isString(),
+  body('visitAvailable').optional().isBoolean(),
+  body('deliveryAvailable').optional().isBoolean(),
+  body('pickupAvailable').optional().isBoolean(),
   body('merchantId').optional().isString().withMessage('Merchant ID must be a string'),
   body('featured').optional().isBoolean(),
   body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
@@ -511,7 +527,27 @@ router.post('/', authenticateJWT, [
     return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
   }
   try {
-    let { title, description, discount, code, category, startDate, endDate, image, images, url, merchantId, featured, originalPrice, discountedPrice } = req.body;
+    let {
+      title,
+      description,
+      discount,
+      code,
+      category,
+      startDate,
+      endDate,
+      image,
+      images,
+      url,
+      fulfillmentType,
+      orderLink,
+      visitAvailable,
+      deliveryAvailable,
+      pickupAvailable,
+      merchantId,
+      featured,
+      originalPrice,
+      discountedPrice
+    } = req.body;
     const normalizedStartDate = normalizePromotionDateInput(startDate, 'start');
     const normalizedEndDate = normalizePromotionDateInput(endDate, 'end');
 
@@ -563,6 +599,11 @@ router.post('/', authenticateJWT, [
       image,
       images: images || [],
       url,
+      fulfillmentType: fulfillmentType || 'visit',
+      orderLink,
+      visitAvailable: visitAvailable !== undefined ? visitAvailable === true || visitAvailable === 'true' : true,
+      deliveryAvailable: deliveryAvailable === true || deliveryAvailable === 'true',
+      pickupAvailable: pickupAvailable === true || pickupAvailable === 'true',
       merchant: merchantId,
       featured: featured === true || featured === 'true',
       originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
@@ -619,6 +660,12 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
   body('image').optional().isString(),
   body('images').optional().isArray().withMessage('Images must be an array'),
   body('url').optional().isString(),
+  body('fulfillmentType').optional().isIn(['visit', 'order', 'hybrid'])
+    .withMessage('Invalid fulfillment type'),
+  body('orderLink').optional().isString(),
+  body('visitAvailable').optional().isBoolean(),
+  body('deliveryAvailable').optional().isBoolean(),
+  body('pickupAvailable').optional().isBoolean(),
   body('featured').optional().isBoolean(),
   body('originalPrice').optional().isNumeric().withMessage('Original price must be a number.'),
   body('discountedPrice').optional().isNumeric().withMessage('Discounted price must be a number.')
@@ -640,7 +687,26 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     return res.status(400).json({ errors: errors.array() });
   }
   try {
-    const { title, description, discount, code, category, startDate, endDate, image, images, url, featured, originalPrice, discountedPrice } = req.body;
+    const {
+      title,
+      description,
+      discount,
+      code,
+      category,
+      startDate,
+      endDate,
+      image,
+      images,
+      url,
+      fulfillmentType,
+      orderLink,
+      visitAvailable,
+      deliveryAvailable,
+      pickupAvailable,
+      featured,
+      originalPrice,
+      discountedPrice
+    } = req.body;
     const normalizedStartDate = startDate !== undefined ? normalizePromotionDateInput(startDate, 'start') : undefined;
     const normalizedEndDate = endDate !== undefined ? normalizePromotionDateInput(endDate, 'end') : undefined;
 
@@ -648,6 +714,17 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       title, description, discount, code, category, image, url,
       featured: featured === true || featured === 'true'
     };
+    if (fulfillmentType !== undefined) updateData.fulfillmentType = fulfillmentType;
+    if (orderLink !== undefined) updateData.orderLink = orderLink;
+    if (visitAvailable !== undefined) {
+      updateData.visitAvailable = visitAvailable === true || visitAvailable === 'true';
+    }
+    if (deliveryAvailable !== undefined) {
+      updateData.deliveryAvailable = deliveryAvailable === true || deliveryAvailable === 'true';
+    }
+    if (pickupAvailable !== undefined) {
+      updateData.pickupAvailable = pickupAvailable === true || pickupAvailable === 'true';
+    }
     if (normalizedStartDate !== undefined) updateData.startDate = normalizedStartDate;
     if (normalizedEndDate !== undefined) updateData.endDate = normalizedEndDate;
     if (images !== undefined) updateData.images = images;

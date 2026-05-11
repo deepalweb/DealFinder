@@ -12,6 +12,16 @@ const promotionSchema = new mongoose.Schema({
   images: [{ type: String }],
   image: { type: String },
   url: { type: String },
+  fulfillmentType: {
+    type: String,
+    enum: ['visit', 'order', 'hybrid'],
+    default: 'visit',
+    index: true
+  },
+  orderLink: { type: String },
+  visitAvailable: { type: Boolean, default: true },
+  deliveryAvailable: { type: Boolean, default: false },
+  pickupAvailable: { type: Boolean, default: false },
   featured: { type: Boolean, default: false },
   originalPrice: { type: Number },
   discountedPrice: { type: Number },
@@ -44,5 +54,6 @@ const promotionSchema = new mongoose.Schema({
 promotionSchema.index({ status: 1, endDate: 1, startDate: 1, _id: -1 });
 promotionSchema.index({ merchant: 1, status: 1 });
 promotionSchema.index({ featured: 1, status: 1, _id: -1 });
+promotionSchema.index({ fulfillmentType: 1, status: 1, endDate: 1 });
 
 module.exports = mongoose.model('Promotion', promotionSchema);

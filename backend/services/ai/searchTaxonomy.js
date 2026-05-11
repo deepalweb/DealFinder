@@ -7,14 +7,14 @@ const STOP_WORDS = new Set([
 const CATEGORY_ALIAS_MAP = {
   fashion: ['fashion', 'clothes', 'clothing', 'apparel', 'wear', 'shirts', 'dress', 'dresses', 'shoes'],
   electronics: ['electronics', 'electronic', 'gadgets', 'gadget', 'phone', 'phones', 'laptop', 'laptops', 'tv'],
-  food_bev: ['food', 'foods', 'restaurant', 'restaurants', 'cafe', 'cafes', 'coffee', 'drink', 'drinks', 'beverage', 'beverages', 'food bev', 'food and bev'],
+  food_bev: ['food', 'foods', 'restaurant', 'restaurants', 'cafe', 'cafes', 'coffee', 'drink', 'drinks', 'beverage', 'beverages', 'food bev', 'food and bev', 'budget meal', 'quick bites', 'family deal', 'takeaway'],
   travel: ['travel', 'trip', 'trips', 'flight', 'flights', 'hotel', 'hotels', 'holiday', 'holidays'],
-  beauty_health: ['beauty', 'health', 'wellness', 'salon', 'spa', 'cosmetics', 'skincare'],
-  home_garden: ['home', 'garden', 'furniture', 'kitchen', 'decor', 'household'],
+  beauty_health: ['beauty', 'health', 'wellness', 'salon', 'spa', 'cosmetics', 'skincare', 'grooming', 'haircut', 'hair', 'spa day'],
+  home_garden: ['home', 'garden', 'furniture', 'kitchen', 'decor', 'household', 'grocery', 'groceries', 'essentials', 'fresh', 'supermarket'],
   entertainment: ['entertainment', 'movie', 'movies', 'cinema', 'games', 'gaming', 'concert'],
-  services: ['services', 'service', 'repair', 'cleaning', 'consulting'],
+  services: ['services', 'service', 'repair', 'cleaning', 'consulting', 'mobile repair', 'laptop repair', 'printing', 'same day service'],
   pets: ['pets', 'pet', 'dog', 'dogs', 'cat', 'cats', 'veterinary'],
-  education: ['education', 'school', 'course', 'courses', 'class', 'classes', 'tuition'],
+  education: ['education', 'school', 'course', 'courses', 'class', 'classes', 'tuition', 'pharmacy', 'medical', 'wellness'],
   other: ['other', 'misc'],
 };
 

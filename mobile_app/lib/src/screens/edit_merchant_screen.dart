@@ -21,30 +21,35 @@ class EditMerchantScreen extends StatefulWidget {
   State<EditMerchantScreen> createState() => _EditMerchantScreenState();
 }
 
-class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTickerProviderStateMixin {
+class _EditMerchantScreenState extends State<EditMerchantScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
   final ImagePicker _picker = ImagePicker();
   late TabController _tabController;
-  
+
   final _nameController = TextEditingController();
   final _profileController = TextEditingController();
   final _categoryController = TextEditingController();
   final _websiteController = TextEditingController();
+  final _orderLinkController = TextEditingController();
   final _contactInfoController = TextEditingController();
   final _contactNumberController = TextEditingController();
   final _addressController = TextEditingController();
   final _logoUrlController = TextEditingController();
   final _bannerUrlController = TextEditingController();
-  
+
   // Social media controllers
   final _facebookController = TextEditingController();
   final _instagramController = TextEditingController();
   final _twitterController = TextEditingController();
   final _tiktokController = TextEditingController();
-  
+
   bool _isSubmitting = false;
   String? _token;
+  String _merchantType = 'offline';
+  bool _deliveryAvailable = false;
+  bool _pickupAvailable = false;
   File? _logoFile;
   File? _bannerFile;
   String? _uploadedLogoUrl;
@@ -71,20 +76,28 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
   void _loadMerchantData() {
     if (widget.merchantData != null) {
       _nameController.text = widget.merchantData!['name'] ?? '';
-      _profileController.text =
-          widget.merchantData!['profile'] ?? widget.merchantData!['description'] ?? '';
+      _profileController.text = widget.merchantData!['profile'] ??
+          widget.merchantData!['description'] ??
+          '';
       _categoryController.text =
           normalizeCategoryId(widget.merchantData!['category']?.toString());
       _websiteController.text = widget.merchantData!['website'] ?? '';
+      _orderLinkController.text = widget.merchantData!['orderLink'] ?? '';
       _contactInfoController.text = widget.merchantData!['contactInfo'] ?? '';
-      _contactNumberController.text =
-          widget.merchantData!['contactNumber'] ?? widget.merchantData!['phone'] ?? '';
+      _contactNumberController.text = widget.merchantData!['contactNumber'] ??
+          widget.merchantData!['phone'] ??
+          '';
+      _merchantType =
+          (widget.merchantData!['merchantType'] ?? 'offline').toString();
+      _deliveryAvailable = widget.merchantData!['deliveryAvailable'] == true;
+      _pickupAvailable = widget.merchantData!['pickupAvailable'] == true;
       _addressController.text = widget.merchantData!['address'] ?? '';
       _logoUrlController.text = widget.merchantData!['logo'] ?? '';
       _bannerUrlController.text = widget.merchantData!['banner'] ?? '';
-      
+
       // Load location
-      final location = widget.merchantData!['location'] as Map<String, dynamic>?;
+      final location =
+          widget.merchantData!['location'] as Map<String, dynamic>?;
       if (location != null && location['coordinates'] != null) {
         final coords = location['coordinates'] as List;
         if (coords.length >= 2) {
@@ -92,9 +105,10 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           _latitude = coords[1].toDouble();
         }
       }
-      
+
       // Load social media
-      final socialMedia = widget.merchantData!['socialMedia'] as Map<String, dynamic>?;
+      final socialMedia =
+          widget.merchantData!['socialMedia'] as Map<String, dynamic>?;
       if (socialMedia != null) {
         _facebookController.text = socialMedia['facebook'] ?? '';
         _instagramController.text = socialMedia['instagram'] ?? '';
@@ -111,6 +125,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
     _profileController.dispose();
     _categoryController.dispose();
     _websiteController.dispose();
+    _orderLinkController.dispose();
     _contactInfoController.dispose();
     _contactNumberController.dispose();
     _addressController.dispose();
@@ -145,7 +160,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
 
     if (_token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Authentication required. Please login again.')),
+        const SnackBar(
+            content: Text('Authentication required. Please login again.')),
       );
       return;
     }
@@ -166,7 +182,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           folder: 'merchants',
         );
       }
-      
+
       // Upload banner if changed
       if (_bannerFile != null) {
         final compressed = await ImageHelper.compressImageFile(
@@ -186,7 +202,11 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         'profile': _profileController.text.trim(),
         'description': _profileController.text.trim(),
         'category': normalizeCategoryId(_categoryController.text.trim()),
+        'merchantType': _merchantType,
         'website': _websiteController.text.trim(),
+        'orderLink': _orderLinkController.text.trim(),
+        'deliveryAvailable': _deliveryAvailable,
+        'pickupAvailable': _pickupAvailable,
         'contactInfo': _contactInfoController.text.trim(),
         'contactNumber': _contactNumberController.text.trim(),
         'address': _addressController.text.trim(),
@@ -197,21 +217,23 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
           'tiktok': _tiktokController.text.trim(),
         },
       };
-      
+
       // Add logo URL
       if (_uploadedLogoUrl != null) {
         merchantData['logo'] = _uploadedLogoUrl;
-      } else if (_logoUrlController.text.trim().isNotEmpty && _logoUrlController.text.startsWith('http')) {
+      } else if (_logoUrlController.text.trim().isNotEmpty &&
+          _logoUrlController.text.startsWith('http')) {
         merchantData['logo'] = _logoUrlController.text.trim();
       }
-      
+
       // Add banner URL
       if (_uploadedBannerUrl != null) {
         merchantData['banner'] = _uploadedBannerUrl;
-      } else if (_bannerUrlController.text.trim().isNotEmpty && _bannerUrlController.text.startsWith('http')) {
+      } else if (_bannerUrlController.text.trim().isNotEmpty &&
+          _bannerUrlController.text.startsWith('http')) {
         merchantData['banner'] = _bannerUrlController.text.trim();
       }
-      
+
       // Add location
       if (_latitude != null && _longitude != null) {
         merchantData['location'] = {
@@ -220,7 +242,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
         };
       }
 
-      await _apiService.updateMerchant(widget.merchantId, merchantData, _token!);
+      await _apiService.updateMerchant(
+          widget.merchantId, merchantData, _token!);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -360,9 +383,10 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             },
           ),
           const SizedBox(height: 16),
-          
           DropdownButtonFormField<String>(
-            initialValue: _categoryController.text.isEmpty ? null : _categoryController.text,
+            initialValue: _categoryController.text.isEmpty
+                ? null
+                : _categoryController.text,
             decoration: InputDecoration(
               labelText: 'Category',
               filled: true,
@@ -387,7 +411,40 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             },
           ),
           const SizedBox(height: 16),
-          
+          DropdownButtonFormField<String>(
+            initialValue: _merchantType,
+            decoration: InputDecoration(
+              labelText: 'Store Type',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.store_mall_directory),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'offline', child: Text('In-store only')),
+              DropdownMenuItem(value: 'online', child: Text('Online only')),
+              DropdownMenuItem(
+                  value: 'hybrid', child: Text('In-store + online')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _merchantType = value ?? 'offline';
+                if (_merchantType == 'offline') {
+                  _deliveryAvailable = false;
+                  _pickupAvailable = false;
+                } else if (_merchantType == 'online') {
+                  _deliveryAvailable = true;
+                }
+              });
+            },
+          ),
+          const SizedBox(height: 16),
           TextFormField(
             controller: _profileController,
             decoration: InputDecoration(
@@ -424,7 +481,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 16),
-          
           TextFormField(
             controller: _websiteController,
             decoration: InputDecoration(
@@ -440,6 +496,77 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                 borderSide: BorderSide(color: Colors.grey[300]!),
               ),
               prefixIcon: const Icon(Icons.language),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _orderLinkController,
+            decoration: InputDecoration(
+              labelText: 'Order Link',
+              hintText: 'Uber Eats / PickMe / website / WhatsApp',
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              prefixIcon: const Icon(Icons.delivery_dining),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Delivery Available'),
+                  subtitle:
+                      const Text('Show delivery/order badges to customers'),
+                  value: _deliveryAvailable,
+                  onChanged: (value) {
+                    setState(() {
+                      _deliveryAvailable = value;
+                      if (_deliveryAvailable && _merchantType == 'offline') {
+                        _merchantType = 'hybrid';
+                      }
+                      if (!_deliveryAvailable &&
+                          !_pickupAvailable &&
+                          _merchantType == 'online') {
+                        _merchantType = 'offline';
+                      }
+                    });
+                  },
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Pickup Available'),
+                  subtitle:
+                      const Text('Customers can order and collect in person'),
+                  value: _pickupAvailable,
+                  onChanged: (value) {
+                    setState(() {
+                      _pickupAvailable = value;
+                      if (_pickupAvailable && _merchantType == 'offline') {
+                        _merchantType = 'hybrid';
+                      }
+                      if (!_pickupAvailable &&
+                          !_deliveryAvailable &&
+                          _merchantType == 'online') {
+                        _merchantType = 'offline';
+                      }
+                    });
+                  },
+                ),
+              ],
             ),
           ),
         ],
@@ -478,7 +605,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             },
           ),
           const SizedBox(height: 16),
-          
           TextFormField(
             controller: _contactNumberController,
             decoration: InputDecoration(
@@ -498,7 +624,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             keyboardType: TextInputType.phone,
           ),
           const SizedBox(height: 16),
-          
           TextFormField(
             controller: _addressController,
             decoration: InputDecoration(
@@ -548,7 +673,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
-          
           _buildSocialField(
             controller: _facebookController,
             label: 'Facebook',
@@ -557,7 +681,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             hint: 'your.page',
           ),
           const SizedBox(height: 16),
-          
           _buildSocialField(
             controller: _instagramController,
             label: 'Instagram',
@@ -566,7 +689,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             hint: '@yourhandle',
           ),
           const SizedBox(height: 16),
-          
           _buildSocialField(
             controller: _twitterController,
             label: 'Twitter / X',
@@ -575,7 +697,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             hint: '@yourhandle',
           ),
           const SizedBox(height: 16),
-          
           _buildSocialField(
             controller: _tiktokController,
             label: 'TikTok',
@@ -641,16 +762,16 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
-          
+
           // Logo Section
           Text(
             'Store Logo',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 12),
-          
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -673,14 +794,16 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                             image: FileImage(_logoFile!),
                             fit: BoxFit.cover,
                           )
-                        : _logoUrlController.text.isNotEmpty && _logoUrlController.text.startsWith('http')
+                        : _logoUrlController.text.isNotEmpty &&
+                                _logoUrlController.text.startsWith('http')
                             ? DecorationImage(
                                 image: NetworkImage(_logoUrlController.text),
                                 fit: BoxFit.cover,
                               )
                             : null,
                   ),
-                  child: _logoFile == null && !_logoUrlController.text.startsWith('http')
+                  child: _logoFile == null &&
+                          !_logoUrlController.text.startsWith('http')
                       ? const Icon(Icons.store, size: 40)
                       : null,
                 ),
@@ -706,7 +829,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 12),
-          
+
           TextFormField(
             controller: _logoUrlController,
             decoration: InputDecoration(
@@ -724,16 +847,16 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 32),
-          
+
           // Banner Section
           Text(
             'Store Banner',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 12),
-          
+
           Container(
             height: 150,
             decoration: BoxDecoration(
@@ -744,7 +867,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                       image: FileImage(_bannerFile!),
                       fit: BoxFit.cover,
                     )
-                  : _bannerUrlController.text.isNotEmpty && _bannerUrlController.text.startsWith('http')
+                  : _bannerUrlController.text.isNotEmpty &&
+                          _bannerUrlController.text.startsWith('http')
                       ? DecorationImage(
                           image: NetworkImage(_bannerUrlController.text),
                           fit: BoxFit.cover,
@@ -754,7 +878,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
             child: Stack(
               children: [
-                if (_bannerFile == null && !_bannerUrlController.text.startsWith('http'))
+                if (_bannerFile == null &&
+                    !_bannerUrlController.text.startsWith('http'))
                   const Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -782,7 +907,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 12),
-          
+
           TextFormField(
             controller: _bannerUrlController,
             decoration: InputDecoration(
@@ -825,7 +950,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
-          
           if (_latitude != null && _longitude != null)
             Container(
               padding: const EdgeInsets.all(16),
@@ -890,7 +1014,6 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
               ),
             ),
           const SizedBox(height: 24),
-          
           ElevatedButton.icon(
             onPressed: () async {
               try {
@@ -909,7 +1032,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                   _latitude = position.latitude;
                   _longitude = position.longitude;
                 });
-                
+
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -933,18 +1056,15 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
             ),
           ),
           const SizedBox(height: 24),
-          
           const Divider(),
           const SizedBox(height: 16),
-          
           Text(
             'Or Enter Manually',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
           const SizedBox(height: 16),
-          
           Row(
             children: [
               Expanded(
@@ -963,7 +1083,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                     ),
                     prefixIcon: const Icon(Icons.location_on),
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true, signed: true),
                   initialValue: _latitude?.toString() ?? '',
                   onChanged: (value) {
                     final lat = double.tryParse(value);
@@ -990,7 +1111,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
                     ),
                     prefixIcon: const Icon(Icons.location_on),
                   ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true, signed: true),
                   initialValue: _longitude?.toString() ?? '',
                   onChanged: (value) {
                     final lng = double.tryParse(value);

@@ -256,6 +256,20 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     return '';
   }
 
+  bool get _supportsVisit => widget.promotion.supportsVisit;
+
+  bool get _supportsDelivery => widget.promotion.supportsDelivery;
+
+  bool get _supportsPickup => widget.promotion.supportsPickup;
+
+  String? get _effectiveOrderLink {
+    final merchantLink = _merchantData?['orderLink']?.toString().trim();
+    if (merchantLink != null && merchantLink.isNotEmpty) {
+      return merchantLink;
+    }
+    return widget.promotion.effectiveOrderLink;
+  }
+
   String? get _countdownText {
     return DealExpiryHelper.formatCompact(widget.promotion.endDate);
   }
@@ -513,6 +527,47 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final promotion = widget.promotion;
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
+    final orderLink = _effectiveOrderLink;
+    final primaryActionButtons = <Widget>[
+      if (_supportsVisit)
+        Semantics(
+          button: true,
+          label: 'Get directions to merchant',
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.storefront_outlined, size: 18),
+            label: const Text('Visit Now'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1565C0),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _openDirections,
+          ),
+        ),
+      if ((_supportsDelivery || _supportsPickup) &&
+          orderLink != null &&
+          orderLink.isNotEmpty)
+        Semantics(
+          button: true,
+          label: 'Open order link',
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.delivery_dining, size: 18),
+            label: Text(_supportsDelivery ? 'Order Now' : 'Pickup Order'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2E7D32),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () => _launchURL(orderLink),
+          ),
+        ),
+    ];
     final callButton = _merchantPhoneNumber.isNotEmpty
         ? Semantics(
             button: true,
@@ -570,7 +625,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       ),
     );
     final secondaryActionButtons = <Widget>[
-      if (promotion.url != null && promotion.url!.isNotEmpty)
+      if ((!_supportsDelivery && !_supportsPickup) &&
+          promotion.url != null &&
+          promotion.url!.isNotEmpty)
         Semantics(
           button: true,
           label: 'Open deal link',
@@ -586,7 +643,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             onPressed: () => _launchURL(promotion.url!),
           ),
         ),
-      if (promotion.websiteUrl != null && promotion.websiteUrl!.isNotEmpty)
+      if ((promotion.websiteUrl ?? '').isNotEmpty)
         Semantics(
           button: true,
           label: 'Open merchant website',
@@ -1153,6 +1210,34 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   final halfWidth = (fullWidth - gap) / 2;
                   final rows = <Widget>[];
 
+                  for (var i = 0; i < primaryActionButtons.length; i += 2) {
+                    final remaining = primaryActionButtons.length - i;
+                    if (remaining == 1) {
+                      rows.add(
+                        _buildActionButtonShell(
+                          width: fullWidth,
+                          child: primaryActionButtons[i],
+                        ),
+                      );
+                    } else {
+                      rows.add(
+                        Row(
+                          children: [
+                            _buildActionButtonShell(
+                              width: halfWidth,
+                              child: primaryActionButtons[i],
+                            ),
+                            const SizedBox(width: gap),
+                            _buildActionButtonShell(
+                              width: halfWidth,
+                              child: primaryActionButtons[i + 1],
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                  }
+
                   if (callButton != null && whatsappButton != null) {
                     rows.add(
                       Row(
@@ -1178,12 +1263,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     );
                   }
 
-                  rows.add(
-                    _buildActionButtonShell(
-                      width: fullWidth,
-                      child: directionsButton,
-                    ),
-                  );
+                  if (!_supportsVisit) {
+                    rows.add(
+                      _buildActionButtonShell(
+                        width: fullWidth,
+                        child: directionsButton,
+                      ),
+                    );
+                  }
 
                   for (var i = 0; i < secondaryActionButtons.length; i += 2) {
                     final remaining = secondaryActionButtons.length - i;
@@ -1580,7 +1667,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             child: FlutterMap(
                               options: MapOptions(
                                 initialCenter: latlng.LatLng(
-                                  (_merchantData!['latitude'] as num).toDouble(),
+                                  (_merchantData!['latitude'] as num)
+                                      .toDouble(),
                                   (_merchantData!['longitude'] as num)
                                       .toDouble(),
                                 ),

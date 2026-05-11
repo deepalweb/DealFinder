@@ -194,6 +194,33 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     return 'https://$text';
   }
 
+  String get _merchantType {
+    final raw = (_merchant?['merchantType'] ?? 'offline').toString().trim();
+    if (raw == 'online' || raw == 'hybrid' || raw == 'offline') {
+      return raw;
+    }
+    return 'offline';
+  }
+
+  bool get _merchantDeliveryAvailable =>
+      _merchant?['deliveryAvailable'] == true;
+
+  bool get _merchantPickupAvailable => _merchant?['pickupAvailable'] == true;
+
+  String get _merchantOrderLink =>
+      _normalizeWebsite(_merchant?['orderLink'] ?? _merchant?['website']);
+
+  String _merchantTypeLabel(String merchantType) {
+    switch (merchantType) {
+      case 'online':
+        return 'Online';
+      case 'hybrid':
+        return 'Visit or Order';
+      default:
+        return 'In-store';
+    }
+  }
+
   Widget _buildImageWidget(
     String? imageUrl, {
     double? width,
@@ -417,6 +444,33 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
+  Widget _buildModeChip({
+    required IconData icon,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F7FB),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: const Color(0xFF1E88E5)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF14213D),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final merchantDescription = _merchantText(
@@ -428,6 +482,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       fallbackKey: 'contactNumber',
     );
     final merchantWebsite = _normalizeWebsite(_merchant?['website']);
+    final merchantOrderLink = _merchantOrderLink;
+    final merchantType = _merchantType;
     final latitude = _merchantLatitude;
     final longitude = _merchantLongitude;
     final followerCount = (_merchant?['followers'] as num?)?.toInt() ?? 0;
@@ -558,6 +614,34 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                   fontWeight: FontWeight.w600,
                                                 ),
                                               ),
+                                              const SizedBox(height: 8),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  _buildModeChip(
+                                                    icon: merchantType ==
+                                                            'online'
+                                                        ? Icons.public
+                                                        : Icons
+                                                            .storefront_outlined,
+                                                    label: _merchantTypeLabel(
+                                                        merchantType),
+                                                  ),
+                                                  if (_merchantDeliveryAvailable)
+                                                    _buildModeChip(
+                                                      icon:
+                                                          Icons.delivery_dining,
+                                                      label: 'delivery',
+                                                    ),
+                                                  if (_merchantPickupAvailable)
+                                                    _buildModeChip(
+                                                      icon: Icons
+                                                          .shopping_bag_outlined,
+                                                      label: 'pickup',
+                                                    ),
+                                                ],
+                                              ),
                                               const SizedBox(height: 10),
                                               AnimatedSwitcher(
                                                 duration: const Duration(
@@ -654,6 +738,22 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 merchantWebsite),
                                             icon: const Icon(Icons.language),
                                             label: const Text('Website'),
+                                          ),
+                                        if ((_merchantDeliveryAvailable ||
+                                                _merchantPickupAvailable ||
+                                                merchantType == 'online' ||
+                                                merchantType == 'hybrid') &&
+                                            merchantOrderLink.isNotEmpty)
+                                          ElevatedButton.icon(
+                                            onPressed: () => _openExternalUrl(
+                                                merchantOrderLink),
+                                            icon: const Icon(
+                                                Icons.delivery_dining),
+                                            label: Text(
+                                              _merchantDeliveryAvailable
+                                                  ? 'Order Now'
+                                                  : 'Order',
+                                            ),
                                           ),
                                         if (merchantPhone.isNotEmpty)
                                           OutlinedButton.icon(

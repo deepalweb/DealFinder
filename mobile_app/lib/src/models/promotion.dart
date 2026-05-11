@@ -17,6 +17,7 @@ class Promotion {
   final bool? featured;
   final String? url; // Promotion URL for "Go to Promotion" button
   final String? websiteUrl; // Added for "Visit Website" button
+  final String? orderLink;
   final String? termsAndConditions; // Added for T&C section
   final double? price;
   final double? originalPrice;
@@ -30,6 +31,14 @@ class Promotion {
   final String? merchantCurrency;
   final DateTime? createdAt;
   final String? status;
+  final String? fulfillmentType;
+  final bool visitAvailable;
+  final bool deliveryAvailable;
+  final bool pickupAvailable;
+  final String? merchantType;
+  final bool merchantDeliveryAvailable;
+  final bool merchantPickupAvailable;
+  final String? merchantOrderLink;
 
   Promotion({
     required this.id,
@@ -46,6 +55,7 @@ class Promotion {
     this.featured,
     this.url,
     this.websiteUrl,
+    this.orderLink,
     this.termsAndConditions,
     this.price,
     this.originalPrice,
@@ -59,6 +69,14 @@ class Promotion {
     this.merchantCurrency,
     this.createdAt,
     this.status,
+    this.fulfillmentType,
+    this.visitAvailable = true,
+    this.deliveryAvailable = false,
+    this.pickupAvailable = false,
+    this.merchantType,
+    this.merchantDeliveryAvailable = false,
+    this.merchantPickupAvailable = false,
+    this.merchantOrderLink,
   });
 
   // Safe discount percentage calculation
@@ -93,6 +111,33 @@ class Promotion {
     return hasVerifiedActiveStatus && hasStarted && !isExpired;
   }
 
+  bool get supportsVisit {
+    if (fulfillmentType == 'order') return visitAvailable;
+    if (fulfillmentType == 'hybrid') return visitAvailable;
+    return visitAvailable;
+  }
+
+  bool get supportsDelivery => deliveryAvailable || merchantDeliveryAvailable;
+
+  bool get supportsPickup => pickupAvailable || merchantPickupAvailable;
+
+  String get effectiveMerchantType {
+    final raw = merchantType?.trim().toLowerCase();
+    if (raw == 'online' || raw == 'hybrid' || raw == 'offline') {
+      return raw!;
+    }
+    if (fulfillmentType == 'order') return 'online';
+    if (fulfillmentType == 'hybrid') return 'hybrid';
+    return 'offline';
+  }
+
+  String? get effectiveOrderLink {
+    final candidate =
+        (orderLink ?? merchantOrderLink ?? websiteUrl ?? url)?.trim();
+    if (candidate == null || candidate.isEmpty) return null;
+    return candidate;
+  }
+
   factory Promotion.fromJson(Map<String, dynamic> json) {
     // Helper to safely parse dates
     DateTime? parseDate(String? dateString) {
@@ -118,6 +163,8 @@ class Promotion {
     final merchantData = json['merchant'] is Map<String, dynamic>
         ? json['merchant'] as Map<String, dynamic>
         : null;
+    final merchantType =
+        (merchantData?['merchantType'] ?? json['merchantType']) as String?;
     final merchantLocation = merchantData?['location'] is Map<String, dynamic>
         ? merchantData!['location'] as Map<String, dynamic>
         : null;
@@ -173,6 +220,8 @@ class Promotion {
       featured: json['featured'] as bool?,
       url: json['url'] as String?,
       websiteUrl: json['websiteUrl'] as String?,
+      orderLink: (json['orderLink'] as String?) ??
+          (merchantData?['orderLink'] as String?),
       termsAndConditions: json['termsAndConditions'] as String?,
       price: (json['price'] as num?)?.toDouble(),
       originalPrice: (json['originalPrice'] as num?)?.toDouble(),
@@ -188,6 +237,16 @@ class Promotion {
           : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
       createdAt: parseDate(json['createdAt'] as String?),
       status: json['status'] as String?,
+      fulfillmentType: json['fulfillmentType'] as String?,
+      visitAvailable: json['visitAvailable'] as bool? ?? true,
+      deliveryAvailable: json['deliveryAvailable'] as bool? ?? false,
+      pickupAvailable: json['pickupAvailable'] as bool? ?? false,
+      merchantType: merchantType,
+      merchantDeliveryAvailable:
+          merchantData?['deliveryAvailable'] as bool? ?? false,
+      merchantPickupAvailable:
+          merchantData?['pickupAvailable'] as bool? ?? false,
+      merchantOrderLink: merchantData?['orderLink'] as String?,
     );
   }
 
@@ -219,6 +278,7 @@ class Promotion {
       'featured': featured,
       'url': url,
       'websiteUrl': websiteUrl,
+      'orderLink': orderLink,
       'termsAndConditions': termsAndConditions,
       'price': price,
       'originalPrice': originalPrice,
@@ -230,6 +290,14 @@ class Promotion {
       'ratings': List.generate(ratingsCount, (_) => {}),
       'createdAt': createdAt?.toIso8601String(),
       'status': status,
+      'fulfillmentType': fulfillmentType,
+      'visitAvailable': visitAvailable,
+      'deliveryAvailable': deliveryAvailable,
+      'pickupAvailable': pickupAvailable,
+      'merchantType': merchantType,
+      'merchantOrderLink': merchantOrderLink,
+      'merchantDeliveryAvailable': merchantDeliveryAvailable,
+      'merchantPickupAvailable': merchantPickupAvailable,
     };
   }
 
@@ -248,6 +316,7 @@ class Promotion {
     bool? featured,
     String? url,
     String? websiteUrl,
+    String? orderLink,
     String? termsAndConditions,
     double? price,
     double? originalPrice,
@@ -261,6 +330,14 @@ class Promotion {
     String? merchantCurrency,
     DateTime? createdAt,
     String? status,
+    String? fulfillmentType,
+    bool? visitAvailable,
+    bool? deliveryAvailable,
+    bool? pickupAvailable,
+    String? merchantType,
+    bool? merchantDeliveryAvailable,
+    bool? merchantPickupAvailable,
+    String? merchantOrderLink,
   }) {
     return Promotion(
       id: id ?? this.id,
@@ -277,6 +354,7 @@ class Promotion {
       featured: featured ?? this.featured,
       url: url ?? this.url,
       websiteUrl: websiteUrl ?? this.websiteUrl,
+      orderLink: orderLink ?? this.orderLink,
       termsAndConditions: termsAndConditions ?? this.termsAndConditions,
       price: price ?? this.price,
       originalPrice: originalPrice ?? this.originalPrice,
@@ -290,6 +368,16 @@ class Promotion {
       merchantCurrency: merchantCurrency ?? this.merchantCurrency,
       createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
+      fulfillmentType: fulfillmentType ?? this.fulfillmentType,
+      visitAvailable: visitAvailable ?? this.visitAvailable,
+      deliveryAvailable: deliveryAvailable ?? this.deliveryAvailable,
+      pickupAvailable: pickupAvailable ?? this.pickupAvailable,
+      merchantType: merchantType ?? this.merchantType,
+      merchantDeliveryAvailable:
+          merchantDeliveryAvailable ?? this.merchantDeliveryAvailable,
+      merchantPickupAvailable:
+          merchantPickupAvailable ?? this.merchantPickupAvailable,
+      merchantOrderLink: merchantOrderLink ?? this.merchantOrderLink,
     );
   }
 }

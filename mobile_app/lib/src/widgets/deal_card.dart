@@ -132,16 +132,75 @@ class _DealCardState extends State<DealCard> {
     return placeholder;
   }
 
+  List<Widget> _buildModeBadges(Promotion promotion) {
+    final badges = <Widget>[];
+
+    void addBadge(IconData icon, String label, Color color, Color bg) {
+      badges.add(Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+
+    if (promotion.supportsVisit) {
+      addBadge(
+        Icons.storefront_outlined,
+        'Visit',
+        const Color(0xFF1565C0),
+        const Color(0xFFE3F2FD),
+      );
+    }
+    if (promotion.supportsDelivery) {
+      addBadge(
+        Icons.delivery_dining,
+        'Delivery',
+        const Color(0xFF2E7D32),
+        const Color(0xFFE8F5E9),
+      );
+    }
+    if (promotion.supportsPickup) {
+      addBadge(
+        Icons.shopping_bag_outlined,
+        'Pickup',
+        const Color(0xFFEF6C00),
+        const Color(0xFFFFF3E0),
+      );
+    }
+
+    return badges;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final p = widget.promotion;
+    final modeBadges = _buildModeBadges(p);
 
-    return widget.compact ? _buildCompact(theme, p) : _buildList(theme, p);
+    return widget.compact
+        ? _buildCompact(theme, p, modeBadges)
+        : _buildList(theme, p, modeBadges);
   }
 
   // ── Compact grid card (Temu-style) ──────────────────────────────────────
-  Widget _buildCompact(ThemeData theme, Promotion p) {
+  Widget _buildCompact(ThemeData theme, Promotion p, List<Widget> modeBadges) {
     final distance = _formatDistance(p.distance);
     return Card(
       margin: const EdgeInsets.all(3),
@@ -286,6 +345,14 @@ class _DealCardState extends State<DealCard> {
                   const SizedBox(height: 4),
                   const DealVerificationBadge(),
                 ],
+                if (modeBadges.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: modeBadges,
+                  ),
+                ],
                 if (distance.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Row(
@@ -313,7 +380,7 @@ class _DealCardState extends State<DealCard> {
   }
 
   // ── Full list card ────────────────────────────────────────────────────────
-  Widget _buildList(ThemeData theme, Promotion p) {
+  Widget _buildList(ThemeData theme, Promotion p, List<Widget> modeBadges) {
     final distance = _formatDistance(p.distance);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -417,6 +484,14 @@ class _DealCardState extends State<DealCard> {
                 if (p.isVerifiedActiveDeal) ...[
                   const SizedBox(height: 6),
                   const DealVerificationBadge(compact: false),
+                ],
+                if (modeBadges.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: modeBadges,
+                  ),
                 ],
                 const SizedBox(height: 6),
                 // Title

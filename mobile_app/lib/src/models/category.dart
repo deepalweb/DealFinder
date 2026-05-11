@@ -4,7 +4,8 @@ class Category {
   final String id;
   final String name;
   final String? iconUrl; // Optional: for a remote icon
-  final String? localIconPath; // Optional: for a local asset icon (e.g., 'assets/icons/food.svg')
+  final String?
+      localIconPath; // Optional: for a local asset icon (e.g., 'assets/icons/food.svg')
   // Add other relevant fields like color, etc., if needed
 
   Category({
@@ -40,16 +41,41 @@ String normalizeCategoryId(String? rawCategory) {
 // Predefined list of categories (as per user decision)
 // In a real app, this might come from an API or a more dynamic source.
 final List<Category> predefinedCategories = [
-  Category(id: 'food_bev', name: 'Food & Bev', localIconPath: 'assets/icons/food_bev.svg'), // Example path
-  Category(id: 'electronics', name: 'Electronics', localIconPath: 'assets/icons/electronics.svg'),
-  Category(id: 'fashion', name: 'Fashion', localIconPath: 'assets/icons/fashion.svg'),
-  Category(id: 'travel', name: 'Travel', localIconPath: 'assets/icons/travel.svg'),
-  Category(id: 'home_garden', name: 'Home & Garden', localIconPath: 'assets/icons/home.svg'),
-  Category(id: 'beauty_health', name: 'Beauty & Health', localIconPath: 'assets/icons/health.svg'),
-  Category(id: 'entertainment', name: 'Entertainment', localIconPath: 'assets/icons/entertainment.svg'),
-  Category(id: 'services', name: 'Services', localIconPath: 'assets/icons/services.svg'),
+  Category(
+      id: 'food_bev',
+      name: 'Food & Cafes',
+      localIconPath: 'assets/icons/food_bev.svg'), // Example path
+  Category(
+      id: 'electronics',
+      name: 'Electronics',
+      localIconPath: 'assets/icons/electronics.svg'),
+  Category(
+      id: 'fashion',
+      name: 'Fashion',
+      localIconPath: 'assets/icons/fashion.svg'),
+  Category(
+      id: 'travel', name: 'Travel', localIconPath: 'assets/icons/travel.svg'),
+  Category(
+      id: 'home_garden',
+      name: 'Groceries & Essentials',
+      localIconPath: 'assets/icons/home.svg'),
+  Category(
+      id: 'beauty_health',
+      name: 'Beauty & Salon',
+      localIconPath: 'assets/icons/health.svg'),
+  Category(
+      id: 'entertainment',
+      name: 'Entertainment',
+      localIconPath: 'assets/icons/entertainment.svg'),
+  Category(
+      id: 'services',
+      name: 'Repairs & Services',
+      localIconPath: 'assets/icons/services.svg'),
   Category(id: 'pets', name: 'Pets', localIconPath: 'assets/icons/other.svg'),
-  Category(id: 'education', name: 'Education', localIconPath: 'assets/icons/other.svg'),
+  Category(
+      id: 'education',
+      name: 'Pharmacy & Wellness',
+      localIconPath: 'assets/icons/other.svg'),
   Category(id: 'other', name: 'Other', localIconPath: 'assets/icons/other.svg'),
 ];
 
@@ -76,7 +102,8 @@ String getCategoryLabel(String? categoryId) {
 
   return normalized
       .split('_')
-      .map((part) => part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
+      .map((part) =>
+          part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
       .join(' ');
 }
 
