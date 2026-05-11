@@ -44,10 +44,6 @@ class AppConfig {
         : _normalizePublicBase(baseUrl);
   }
 
-  static String get googleMapsApiKey => _readConfig('GOOGLE_MAPS_API_KEY');
-
-  static bool get hasGoogleMapsApiKey => googleMapsApiKey.isNotEmpty;
-
   static String _readConfig(String key) {
     final dartDefine = String.fromEnvironment(key);
     if (dartDefine.isNotEmpty) {

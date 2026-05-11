@@ -49,8 +49,6 @@
 	<string>This app needs location access to show nearby deals and promotions.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs location access to show nearby deals and promotions.</string>
-	<key>GoogleMapsApiKey</key>
-	<string>$(GOOGLE_MAPS_API_KEY)</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

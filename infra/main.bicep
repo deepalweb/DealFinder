@@ -17,7 +17,6 @@ param mongoUri string
 param jwtSecret string
 @secure()
 param jwtRefreshSecret string
-param googleMapsApiKey string
 @secure()
 param firebaseProjectId string
 @secure()
@@ -125,7 +124,6 @@ resource appSettings 'Microsoft.Web/sites/config@2023-01-01' = {
     MONGO_URI: mongoUri
     JWT_SECRET: jwtSecret
     JWT_REFRESH_SECRET: jwtRefreshSecret
-    GOOGLE_MAPS_API_KEY: googleMapsApiKey
     FIREBASE_PROJECT_ID: firebaseProjectId
     FIREBASE_CLIENT_EMAIL: firebaseClientEmail
     FIREBASE_PRIVATE_KEY: firebasePrivateKey

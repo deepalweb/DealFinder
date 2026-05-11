@@ -30,9 +30,6 @@ param jwtSecret string
 @description('JWT refresh secret key')
 param jwtRefreshSecret string
 
-@description('Google Maps API key')
-param googleMapsApiKey string
-
 @secure()
 @description('Firebase project ID')
 param firebaseProjectId string

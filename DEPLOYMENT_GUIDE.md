@@ -76,7 +76,6 @@ az webapp config appsettings set `
     MONGO_URI="your-mongo-uri" `
     JWT_SECRET="your-jwt-secret" `
     JWT_REFRESH_SECRET="your-jwt-refresh" `
-    GOOGLE_MAPS_API_KEY="your-maps-key" `
     FIREBASE_PROJECT_ID="your-firebase-id" `
     FIREBASE_CLIENT_EMAIL="your-firebase-email" `
     FIREBASE_PRIVATE_KEY="your-firebase-key" `

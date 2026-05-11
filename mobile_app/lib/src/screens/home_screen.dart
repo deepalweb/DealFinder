@@ -134,6 +134,15 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
     if (pos != null) {
+      if (mounted) {
+        setState(() {
+          _allDeals = _withComputedDistances(_allDeals);
+          _bannerDeals = _withComputedDistances(_bannerDeals);
+          _hotDeals = _withComputedDistances(_hotDeals);
+          _newThisWeekDeals = _withComputedDistances(_newThisWeekDeals);
+          _flashSalesDeals = _withComputedDistances(_flashSalesDeals);
+        });
+      }
       // Get location name
       final locationName =
           await LocationService.getLocationName(pos.latitude, pos.longitude);
@@ -174,15 +183,36 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  List<Promotion> _withComputedDistances(List<Promotion> promotions) {
+    final pos = _position;
+    if (pos == null) return promotions;
+
+    return promotions.map((promotion) {
+      if (promotion.distance != null) return promotion;
+      if (promotion.latitude == null || promotion.longitude == null) {
+        return promotion;
+      }
+
+      final distanceKm = LocationService.calculateDistance(
+        pos.latitude,
+        pos.longitude,
+        promotion.latitude!,
+        promotion.longitude!,
+      );
+
+      return promotion.copyWith(distance: distanceKm * 1000);
+    }).toList();
+  }
+
   Future<void> _loadCuratedSections() async {
     try {
       final sections = await _api.fetchCuratedHomeSections();
       if (!mounted) return;
       setState(() {
-        _bannerDeals = sections.banner;
-        _hotDeals = sections.hotDeals;
-        _newThisWeekDeals = sections.newThisWeek;
-        _flashSalesDeals = sections.flashSales;
+        _bannerDeals = _withComputedDistances(sections.banner);
+        _hotDeals = _withComputedDistances(sections.hotDeals);
+        _newThisWeekDeals = _withComputedDistances(sections.newThisWeek);
+        _flashSalesDeals = _withComputedDistances(sections.flashSales);
         _bannerManaged = sections.bannerManaged;
         _hotDealsManaged = sections.hotDealsManaged;
         _newThisWeekManaged = sections.newThisWeekManaged;
@@ -198,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen>
     final cached = await CacheService.loadPromotions();
     if (cached != null && cached.isNotEmpty && mounted) {
       setState(() {
-        _allDeals = cached;
+        _allDeals = _withComputedDistances(cached);
         _loading = false;
       });
     }
@@ -208,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen>
       final deals = await _api.fetchPromotions(forceRefresh: true);
       if (mounted) {
         setState(() {
-          _allDeals = deals;
+          _allDeals = _withComputedDistances(deals);
           _loading = false;
           _isOffline = false;
         });
@@ -312,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen>
     return withDist.take(10).toList();
   }
 
-  List<Promotion> get _featuredDeals {
+  List<Promotion> get _allEndingSoonDeals {
     final now = DateTime.now();
     final endOfToday = DateTime(now.year, now.month, now.day + 1);
     final localEndingSoon = _filteredDeals
@@ -340,12 +370,18 @@ class _HomeScreenState extends State<HomeScreen>
           return _compareByRecent(a, b);
         });
       if (curatedEndingSoon.isNotEmpty) {
-        return curatedEndingSoon.take(5).toList();
+        return curatedEndingSoon;
       }
     }
 
-    return localEndingSoon.take(5).toList();
+    return localEndingSoon;
   }
+
+  List<Promotion> get _featuredDeals {
+    return _allEndingSoonDeals.take(5).toList();
+  }
+
+  int get _endingSoonCount => _allEndingSoonDeals.length;
 
   Duration? get _nextEndingSoonDuration {
     if (_featuredDeals.isEmpty) return null;
@@ -374,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (totalHours >= 24) {
       final days = duration.inDays;
       final hours = totalHours % 24;
-      return '${days}D ${hours.toString().padLeft(2, '0')}:'
+      return '${days}d ${hours.toString().padLeft(2, '0')}:'
           '${minutes.toString().padLeft(2, '0')}:'
           '${seconds.toString().padLeft(2, '0')}';
     }
@@ -411,21 +447,21 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Next deal expires in',
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF14213D),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'The rail is ordered by urgency so the fastest-expiring deal always leads.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       color: Color(0xFF5C6B7A),
                       height: 1.35,
@@ -471,7 +507,7 @@ class _HomeScreenState extends State<HomeScreen>
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    '${_featuredDeals.length} closing today',
+                    '$_endingSoonCount closing today',
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       color: Color(0xFFB45309),

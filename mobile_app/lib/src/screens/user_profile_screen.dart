@@ -10,6 +10,7 @@ import '../models/promotion.dart';
 import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';
 import 'login_screen.dart';
+import 'merchant_profile_screen.dart';
 import 'merchant_dashboard_screen.dart';
 import 'notification_settings_screen.dart';
 
@@ -264,6 +265,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Unfollowed merchant')),
+    );
+  }
+
+  void _openMerchantProfile(String merchantId) {
+    if (merchantId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Store details are unavailable right now.')),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MerchantProfileScreen(merchantId: merchantId),
+      ),
     );
   }
 
@@ -792,11 +809,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                 title: Text(merchantName),
                 subtitle: Text(merchant['contactInfo'] ?? 'No contact info'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Store profile coming soon!')),
-                  );
-                },
+                onTap: () => _openMerchantProfile(merchantId),
               ),
             ),
           );
@@ -866,11 +879,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                   ),
                   IconButton(
                     icon: const Icon(Icons.arrow_forward_ios),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Merchant profile coming soon!')),
-                      );
-                    },
+                    onPressed: () => _openMerchantProfile(merchantId),
                   ),
                 ],
               ),

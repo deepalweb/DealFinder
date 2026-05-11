@@ -21,7 +21,6 @@ dependencies:
   cupertino_icons: ^1.0.2 # Standard iOS icons
   url_launcher: ^6.2.5
   share_plus: ^7.2.1
-  google_maps_flutter: ^2.12.3
   geolocator: ^10.1.0
   permission_handler: ^11.2.0
   mobile_scanner: ^3.5.6

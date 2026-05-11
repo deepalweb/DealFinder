@@ -154,6 +154,38 @@ class ApiService {
     return response;
   }
 
+  Future<http.Response> _authPut(String url,
+      {Map<String, dynamic>? body}) async {
+    final prefs = await SharedPreferences.getInstance();
+    String? token = prefs.getString('userToken');
+    var response = await http
+        .put(
+          Uri.parse(url),
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(body ?? const <String, dynamic>{}),
+        )
+        .timeout(const Duration(seconds: 30));
+    if (response.statusCode == 401) {
+      token = await _refreshToken();
+      if (token != null) {
+        response = await http
+            .put(
+              Uri.parse(url),
+              headers: {
+                'Authorization': 'Bearer $token',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode(body ?? const <String, dynamic>{}),
+            )
+            .timeout(const Duration(seconds: 30));
+      }
+    }
+    return response;
+  }
+
   Future<String?> _refreshToken() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -1050,56 +1082,46 @@ class ApiService {
   // Create a new promotion (merchant only)
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String token) async {
-    final response = await http
-        .post(
-          Uri.parse('${_baseUrl}promotions'),
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(promotionData),
-        )
-        .timeout(const Duration(seconds: 30));
+    final response = await _authPost(
+      '${_baseUrl}promotions',
+      body: promotionData,
+    );
 
     if (response.statusCode == 201) {
       return jsonDecode(response.body) as Map<String, dynamic>;
-    } else {
-      final errorBody = jsonDecode(response.body);
-      if (errorBody is Map<String, dynamic>) {
-        if (errorBody['errors'] is List) {
-          final messages = (errorBody['errors'] as List)
-              .map((e) =>
-                  e is Map<String, dynamic> ? (e['msg'] ?? e['message']) : null)
-              .whereType<String>()
-              .join(', ');
-          if (messages.isNotEmpty) {
-            throw Exception(messages);
-          }
-        }
-        throw Exception(errorBody['message'] ?? 'Failed to create promotion');
-      }
-      throw Exception('Failed to create promotion');
     }
+
+    final dynamic errorBody =
+        response.body.trim().isNotEmpty ? jsonDecode(response.body) : null;
+    if (errorBody is Map<String, dynamic>) {
+      if (errorBody['errors'] is List) {
+        final messages = (errorBody['errors'] as List)
+            .map((e) =>
+                e is Map<String, dynamic> ? (e['msg'] ?? e['message']) : null)
+            .whereType<String>()
+            .join(', ');
+        if (messages.isNotEmpty) {
+          throw Exception(messages);
+        }
+      }
+      throw Exception(errorBody['message'] ?? 'Failed to create promotion');
+    }
+    throw Exception('Failed to create promotion');
   }
 
   Future<Map<String, dynamic>> updatePromotion(String promotionId,
       Map<String, dynamic> promotionData, String token) async {
-    final response = await http
-        .put(
-          Uri.parse('${_baseUrl}promotions/$promotionId'),
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(promotionData),
-        )
-        .timeout(const Duration(seconds: 30));
+    final response = await _authPut(
+      '${_baseUrl}promotions/$promotionId',
+      body: promotionData,
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
 
-    final errorBody = jsonDecode(response.body);
+    final dynamic errorBody =
+        response.body.trim().isNotEmpty ? jsonDecode(response.body) : null;
     if (errorBody is Map<String, dynamic>) {
       if (errorBody['errors'] is List) {
         final messages = (errorBody['errors'] as List)
@@ -1117,35 +1139,27 @@ class ApiService {
   }
 
   Future<void> deletePromotion(String promotionId, String token) async {
-    final response = await http.delete(
-      Uri.parse('${_baseUrl}promotions/$promotionId'),
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Bearer $token',
-      },
-    ).timeout(const Duration(seconds: 30));
+    final response = await _authDelete('${_baseUrl}promotions/$promotionId');
 
     if (response.statusCode == 200) {
       return;
     }
 
-    final errorBody = jsonDecode(response.body);
-    throw Exception(errorBody['message'] ?? 'Failed to delete promotion');
+    final dynamic errorBody =
+        response.body.trim().isNotEmpty ? jsonDecode(response.body) : null;
+    if (errorBody is Map<String, dynamic>) {
+      throw Exception(errorBody['message'] ?? 'Failed to delete promotion');
+    }
+    throw Exception('Failed to delete promotion');
   }
 
   // Update merchant information
   Future<Map<String, dynamic>> updateMerchant(String merchantId,
       Map<String, dynamic> merchantData, String token) async {
-    final response = await http
-        .put(
-          Uri.parse('${_baseUrl}merchants/$merchantId'),
-          headers: {
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode(merchantData),
-        )
-        .timeout(const Duration(seconds: 30));
+    final response = await _authPut(
+      '${_baseUrl}merchants/$merchantId',
+      body: merchantData,
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;

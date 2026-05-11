@@ -59,6 +59,12 @@ class _DealCardState extends State<DealCard> {
     if (mounted) setState(() => _isFavorite = !_isFavorite);
   }
 
+  String _formatDistance(double? distanceMeters) {
+    if (distanceMeters == null) return '';
+    if (distanceMeters < 1000) return '${distanceMeters.round()}m';
+    return '${(distanceMeters / 1000).toStringAsFixed(1)}km';
+  }
+
   Widget _buildImage({required double height}) {
     final img = widget.promotion.imageDataString;
 
@@ -136,6 +142,7 @@ class _DealCardState extends State<DealCard> {
 
   // ── Compact grid card (Temu-style) ──────────────────────────────────────
   Widget _buildCompact(ThemeData theme, Promotion p) {
+    final distance = _formatDistance(p.distance);
     return Card(
       margin: const EdgeInsets.all(3),
       elevation: 1,
@@ -279,6 +286,24 @@ class _DealCardState extends State<DealCard> {
                   const SizedBox(height: 4),
                   const DealVerificationBadge(),
                 ],
+                if (distance.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on,
+                          size: 11, color: theme.colorScheme.primary),
+                      const SizedBox(width: 3),
+                      Text(
+                        distance,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -289,6 +314,7 @@ class _DealCardState extends State<DealCard> {
 
   // ── Full list card ────────────────────────────────────────────────────────
   Widget _buildList(ThemeData theme, Promotion p) {
+    final distance = _formatDistance(p.distance);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 2,
@@ -445,6 +471,23 @@ class _DealCardState extends State<DealCard> {
                     child: Text('CODE: ${p.code}',
                         style: theme.textTheme.labelMedium
                             ?.copyWith(fontWeight: FontWeight.bold)),
+                  ),
+                ],
+                if (distance.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on,
+                          size: 14, color: theme.colorScheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        distance,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],

@@ -62,7 +62,10 @@ class _EditMerchantScreenState extends State<EditMerchantScreen> with SingleTick
 
   Future<void> _loadToken() async {
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('userToken');
+    if (!mounted) return;
+    setState(() {
+      _token = prefs.getString('userToken');
+    });
   }
 
   void _loadMerchantData() {

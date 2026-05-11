@@ -77,10 +77,19 @@ class _ModernDealCardState extends State<ModernDealCard> {
   }
 
   String _formatCountdown(Duration duration) {
-    final hours = duration.inHours;
+    final totalHours = duration.inHours;
+    final days = duration.inDays;
+    final hours = totalHours % 24;
     final minutes = duration.inMinutes % 60;
     final seconds = duration.inSeconds % 60;
-    return '${hours.toString().padLeft(2, '0')}:'
+
+    if (totalHours >= 24) {
+      return '${days}d ${hours.toString().padLeft(2, '0')}:'
+          '${minutes.toString().padLeft(2, '0')}:'
+          '${seconds.toString().padLeft(2, '0')}';
+    }
+
+    return '${totalHours.toString().padLeft(2, '0')}:'
         '${minutes.toString().padLeft(2, '0')}:'
         '${seconds.toString().padLeft(2, '0')}';
   }

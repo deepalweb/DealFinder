@@ -23,7 +23,6 @@ Use this after Android signing and Firebase configuration are complete.
 - Android SHA-1 and SHA-256 for the upload key are added in Firebase
 - `mobile_app/ios/Runner/GoogleService-Info.plist` is present for iOS builds
 - `GOOGLE_WEB_CLIENT_ID` is set in `mobile_app/.env`
-- `GOOGLE_MAPS_API_KEY` is configured for Android and iOS
 
 ## Runtime verification
 

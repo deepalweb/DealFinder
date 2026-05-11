@@ -27,7 +27,6 @@ Supported variables:
 - `MOBILE_PUBLIC_BASE_URL`: Public web origin used for share links. Example: `https://example.com`
 - `BACKEND_URL`: Optional fallback origin if you prefer defining only the backend host
 - `GOOGLE_WEB_CLIENT_ID`: Google sign-in web client ID
-- `GOOGLE_MAPS_API_KEY`: Needed for the static map preview on deal details
 
 ## Google Sign-In setup
 
@@ -47,22 +46,9 @@ Important:
 
 ## Embedded map setup
 
-Nearby map view and merchant embedded maps need native Google Maps configuration in addition to `.env`.
+Nearby map view, merchant embedded maps, and deal-location previews use OpenStreetMap tiles through `flutter_map`.
 
-- Android:
-  Add `GOOGLE_MAPS_API_KEY=your-key` to `mobile_app/android/local.properties`, or provide it as a CI environment variable before building.
-- iOS:
-  Copy `mobile_app/ios/Flutter/MapsConfig.xcconfig.example` to `mobile_app/ios/Flutter/MapsConfig.xcconfig` and set `GOOGLE_MAPS_API_KEY=your-key`.
-
-If those native values are missing, the app now falls back safely to list-based nearby browsing and external Google Maps links instead of crashing.
-
-## Recommended secret flow
-
-- Keep the backend Azure environment variable for backend-only Google APIs.
-- Inject the same key separately into the mobile build for native map SDKs.
-- Local Android builds: use `android/local.properties`.
-- Local iOS builds: use `ios/Flutter/MapsConfig.xcconfig`.
-- CI builds: set `GOOGLE_MAPS_API_KEY` as a pipeline secret and expose it during the platform build step.
+No Google Maps key is required for mobile map rendering.
 
 ## Build secret generator
 
@@ -77,8 +63,6 @@ It can generate:
 - `mobile_app/.env`
 - `mobile_app/android/app/google-services.json`
 - `mobile_app/ios/Runner/GoogleService-Info.plist`
-- `mobile_app/android/secrets.properties`
-- `mobile_app/ios/Flutter/MapsConfig.xcconfig`
 
 Recommended Azure/CI variables:
 
@@ -86,7 +70,6 @@ Recommended Azure/CI variables:
 - `MOBILE_PUBLIC_BASE_URL`
 - `BACKEND_URL`
 - `GOOGLE_WEB_CLIENT_ID`
-- `GOOGLE_MAPS_API_KEY`
 
 Best option for Firebase mobile files:
 

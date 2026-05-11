@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
 import '../models/promotion.dart';
 import '../models/category.dart';
 import '../widgets/modern_deal_card.dart';
@@ -50,9 +51,9 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   void _loadPromotions() {
     setState(() {
-      _promotionsFuture = _apiService.fetchPromotions(forceRefresh: false).then((promotions) {
+      _promotionsFuture = _fetchPromotionsWithDistance(forceRefresh: false).then((promotions) {
         // Show cached data immediately, then refresh in background
-        _apiService.fetchPromotions(forceRefresh: true).then((fresh) {
+        _fetchPromotionsWithDistance(forceRefresh: true).then((fresh) {
           if (mounted) {
             setState(() {
               _promotionsFuture = Future.value(fresh);
@@ -66,8 +67,37 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   Future<void> _refreshPromotions() async {
     setState(() {
-      _promotionsFuture = _apiService.fetchPromotions(forceRefresh: true);
+      _promotionsFuture = _fetchPromotionsWithDistance(forceRefresh: true);
     });
+  }
+
+  Future<List<Promotion>> _fetchPromotionsWithDistance({
+    required bool forceRefresh,
+  }) async {
+    final promotions =
+        await _apiService.fetchPromotions(forceRefresh: forceRefresh);
+    final locationResult = await LocationService.resolveCurrentLocation(
+      requestPermission: false,
+      allowLastKnownFallback: true,
+    );
+    final position = locationResult.position;
+    if (position == null) return promotions;
+
+    return promotions.map((promotion) {
+      if (promotion.distance != null) return promotion;
+      if (promotion.latitude == null || promotion.longitude == null) {
+        return promotion;
+      }
+
+      final distanceKm = LocationService.calculateDistance(
+        position.latitude,
+        position.longitude,
+        promotion.latitude!,
+        promotion.longitude!,
+      );
+
+      return promotion.copyWith(distance: distanceKm * 1000);
+    }).toList();
   }
 
   String _normalizeCategory(String? category) {

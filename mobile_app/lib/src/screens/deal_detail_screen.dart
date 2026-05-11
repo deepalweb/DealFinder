@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as latlng;
 import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
@@ -1573,31 +1575,48 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                           _merchantData!['longitude'] != null)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12.0),
-                          child: AppConfig.hasGoogleMapsApiKey
-                              ? Image.network(
-                                  'https://maps.googleapis.com/maps/api/staticmap?center=${_merchantData!['latitude']},${_merchantData!['longitude']}&zoom=15&size=600x200&markers=color:red%7C${_merchantData!['latitude']},${_merchantData!['longitude']}&key=${AppConfig.googleMapsApiKey}',
-                                  height: 120,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Container(
-                                    height: 120,
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child:
-                                          Icon(Icons.map, color: Colors.grey),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  height: 120,
-                                  color: Colors.grey[200],
-                                  alignment: Alignment.center,
-                                  child: const Text(
-                                    'Add GOOGLE_MAPS_API_KEY to show the map preview.',
-                                    textAlign: TextAlign.center,
-                                  ),
+                          child: SizedBox(
+                            height: 140,
+                            child: FlutterMap(
+                              options: MapOptions(
+                                initialCenter: latlng.LatLng(
+                                  (_merchantData!['latitude'] as num).toDouble(),
+                                  (_merchantData!['longitude'] as num)
+                                      .toDouble(),
                                 ),
+                                initialZoom: 15,
+                                interactionOptions: const InteractionOptions(
+                                  flags: InteractiveFlag.none,
+                                ),
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate:
+                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.dealfinder.mobile',
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: latlng.LatLng(
+                                        (_merchantData!['latitude'] as num)
+                                            .toDouble(),
+                                        (_merchantData!['longitude'] as num)
+                                            .toDouble(),
+                                      ),
+                                      width: 44,
+                                      height: 44,
+                                      child: Icon(
+                                        Icons.location_on,
+                                        color: theme.colorScheme.primary,
+                                        size: 36,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       OutlinedButton.icon(
                         icon: const Icon(Icons.directions),

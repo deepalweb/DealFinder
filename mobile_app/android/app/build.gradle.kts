@@ -18,20 +18,6 @@ if (hasGoogleServicesFile) {
     logger.lifecycle("google-services.json not found; building Android app without Google Services plugin.")
 }
 
-val localProperties = Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
-    }
-}
-
-val generatedSecretsProperties = Properties().apply {
-    val generatedSecretsFile = rootProject.file("secrets.properties")
-    if (generatedSecretsFile.exists()) {
-        generatedSecretsFile.inputStream().use { load(it) }
-    }
-}
-
 val releaseSigningProperties = Properties().apply {
     val releaseSigningFile = rootProject.file("key.properties")
     if (releaseSigningFile.exists()) {
@@ -54,15 +40,6 @@ val hasReleaseSigning =
     !releaseStorePassword.isNullOrBlank() &&
     !releaseKeyAlias.isNullOrBlank() &&
     !releaseKeyPassword.isNullOrBlank()
-
-val googleMapsApiKey = (
-    generatedSecretsProperties.getProperty("GOOGLE_MAPS_API_KEY")
-        ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")
-        ?: localProperties.getProperty("googleMapsApiKey")
-        ?: project.findProperty("GOOGLE_MAPS_API_KEY") as String?
-        ?: System.getenv("GOOGLE_MAPS_API_KEY")
-        ?: ""
-)
 
 android {
     namespace = "com.dealfinder.mobile"
@@ -87,7 +64,6 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
     buildTypes {

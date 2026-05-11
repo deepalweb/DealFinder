@@ -5,6 +5,7 @@ import '../widgets/deal_card.dart'; // Import the new DealCard widget
 import 'package:shimmer/shimmer.dart';
 import '../models/category.dart'; // Import Category model
 import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
+import 'advanced_search_screen.dart';
 import 'search_screen.dart'; // Import SearchScreen for navigation
 
 
@@ -70,9 +71,11 @@ class _DealsListScreenState extends State<DealsListScreen> {
             icon: const Icon(Icons.filter_list),
             tooltip: 'Filter Deals',
             onPressed: () {
-              // Placeholder for filter functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Filter functionality coming soon!')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AdvancedSearchScreen(),
+                ),
               );
             },
           ),

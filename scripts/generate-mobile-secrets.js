@@ -49,7 +49,6 @@ function buildDotEnv() {
     ['MOBILE_PUBLIC_BASE_URL', readEnv('MOBILE_PUBLIC_BASE_URL')],
     ['BACKEND_URL', readEnv('BACKEND_URL')],
     ['GOOGLE_WEB_CLIENT_ID', readEnv('GOOGLE_WEB_CLIENT_ID')],
-    ['GOOGLE_MAPS_API_KEY', readEnv('GOOGLE_MAPS_API_KEY')],
   ].filter(([, value]) => value);
 
   if (!pairs.length) return '';
@@ -200,18 +199,6 @@ function buildIosGoogleServiceInfoPlist() {
 `;
 }
 
-function buildIosMapsConfig() {
-  const key = readEnv('GOOGLE_MAPS_API_KEY');
-  if (!key) return '';
-  return `GOOGLE_MAPS_API_KEY=${key}\n`;
-}
-
-function buildAndroidSecretsProperties() {
-  const key = readEnv('GOOGLE_MAPS_API_KEY');
-  if (!key) return '';
-  return `GOOGLE_MAPS_API_KEY=${key}\n`;
-}
-
 function main() {
   const outputs = [
     {
@@ -242,18 +229,6 @@ function main() {
         decodeMaybeBase64('GOOGLE_SERVICE_INFO_PLIST_BASE64') ||
         readEnv('GOOGLE_SERVICE_INFO_PLIST_CONTENT'),
       fallback: buildIosGoogleServiceInfoPlist(),
-    },
-    {
-      label: 'iOS MapsConfig.xcconfig',
-      filePath: path.join(mobileRoot, 'ios', 'Flutter', 'MapsConfig.xcconfig'),
-      direct: '',
-      fallback: buildIosMapsConfig(),
-    },
-    {
-      label: 'Android secrets.properties',
-      filePath: path.join(mobileRoot, 'android', 'secrets.properties'),
-      direct: '',
-      fallback: buildAndroidSecretsProperties(),
     },
   ];
 
