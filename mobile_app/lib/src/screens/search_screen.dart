@@ -6,6 +6,7 @@ import '../models/category.dart';
 import '../models/promotion.dart';
 import '../services/search_matcher.dart';
 import '../services/search_service.dart';
+import '../utils/deal_filter_support.dart';
 import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';
 
@@ -18,14 +19,6 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final List<String> _quickTopics = const [
-    'Flash sale',
-    '50% off',
-    'Food deals',
-    'Electronics',
-    'Fashion',
-    'Nearby offers',
-  ];
 
   List<String> _history = [];
   List<String> _suggestions = [];
@@ -171,18 +164,29 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildQuickTopicSection() {
     return _SectionCard(
-      title: 'Browse popular searches',
-      subtitle: 'Tap once to jump into common deal categories.',
+      title: 'Browse by delivery and budget',
+      subtitle: 'Jump straight into the deal types people act on fastest.',
       trailing: const Icon(Icons.trending_up, color: Color(0xFF1E88E5)),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
-        children: _quickTopics
+        children: dealCapabilityPresets
             .map(
-              (topic) => ActionChip(
-                label: Text(topic),
-                avatar: const Icon(Icons.bolt_rounded, size: 16),
-                onPressed: () => _submitSearch(topic),
+              (preset) => ActionChip(
+                label: Text(preset.label),
+                avatar: Icon(preset.icon, size: 16),
+                tooltip: preset.description,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SearchResultsScreen(
+                        query: '',
+                        initialCapabilityPresetId: preset.id,
+                      ),
+                    ),
+                  );
+                },
               ),
             )
             .toList(),
@@ -291,10 +295,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
 class SearchResultsScreen extends StatefulWidget {
   final String query;
+  final String? initialCapabilityPresetId;
 
   const SearchResultsScreen({
     super.key,
     required this.query,
+    this.initialCapabilityPresetId,
   });
 
   @override
@@ -306,10 +312,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   List<Promotion> _results = [];
   String _selectedSort = 'relevance';
   String? _selectedCategory;
+  String? _selectedCapabilityPresetId;
 
   @override
   void initState() {
     super.initState();
+    _selectedCapabilityPresetId = widget.initialCapabilityPresetId;
     _futureResults = _loadResults();
   }
 
@@ -342,14 +350,26 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   List<Promotion> get _visibleResults {
     final sorted = _sortedResults;
-    if (_selectedCategory == null) return sorted;
-    return sorted
-        .where(
-          (promotion) =>
-              SearchMatcher.normalizeCategory(promotion.category) ==
-              _selectedCategory,
-        )
-        .toList();
+    return sorted.where(
+      (promotion) {
+        final categoryMatches = _selectedCategory == null ||
+            SearchMatcher.normalizeCategory(promotion.category) ==
+                _selectedCategory;
+        final capabilityMatches = _selectedCapabilityPresetId == null ||
+            matchesDealCapabilityPreset(
+              promotion,
+              _selectedCapabilityPresetId!,
+            );
+        return categoryMatches && capabilityMatches;
+      },
+    ).toList();
+  }
+
+  int get _activeFilterCount {
+    var count = 0;
+    if (_selectedCategory != null) count += 1;
+    if (_selectedCapabilityPresetId != null) count += 1;
+    return count;
   }
 
   Future<void> _refreshResults() async {
@@ -375,48 +395,114 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Filter by category',
+                      'Filters',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Use quick presets or narrow by category.',
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
                     const SizedBox(height: 16),
+                    const Text(
+                      'Quick presets',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
+                      children: dealCapabilityPresets
+                          .map(
+                            (preset) => FilterChip(
+                              avatar: Icon(preset.icon, size: 18),
+                              label: Text(preset.label),
+                              selected:
+                                  _selectedCapabilityPresetId == preset.id,
+                              onSelected: (selected) {
+                                setState(() {
+                                  _selectedCapabilityPresetId =
+                                      selected ? preset.id : null;
+                                });
+                                setSheetState(() {});
+                              },
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Categories',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        _selectedCategory == null
+                            ? 'Optional'
+                            : getCategoryLabel(_selectedCategory!),
+                      ),
                       children: [
-                        ChoiceChip(
-                          label: const Text('All'),
-                          selected: _selectedCategory == null,
-                          onSelected: (_) {
-                            setState(() => _selectedCategory = null);
-                            setSheetState(() {});
-                          },
-                        ),
-                        ...predefinedCategories
-                            .where((category) => category.id != 'other')
-                            .map(
-                              (category) => ChoiceChip(
-                                label: Text(category.name),
-                                selected: _selectedCategory == category.id,
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10, bottom: 8),
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              ChoiceChip(
+                                label: const Text('All'),
+                                selected: _selectedCategory == null,
                                 onSelected: (_) {
-                                  setState(
-                                    () => _selectedCategory = category.id,
-                                  );
+                                  setState(() => _selectedCategory = null);
                                   setSheetState(() {});
                                 },
                               ),
-                            ),
+                              ...predefinedCategories
+                                  .where((category) => category.id != 'other')
+                                  .map(
+                                    (category) => ChoiceChip(
+                                      label: Text(category.name),
+                                      selected:
+                                          _selectedCategory == category.id,
+                                      onSelected: (_) {
+                                        setState(
+                                          () => _selectedCategory = category.id,
+                                        );
+                                        setSheetState(() {});
+                                      },
+                                    ),
+                                  ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Done'),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              setState(() {
+                                _selectedCategory = null;
+                                _selectedCapabilityPresetId = null;
+                              });
+                              setSheetState(() {});
+                            },
+                            child: const Text('Clear'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Done'),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -449,9 +535,19 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   }
 
   Widget _buildResultHeader(int resultCount) {
+    final activeCapability =
+        findDealCapabilityPreset(_selectedCapabilityPresetId);
     final activeCategory = _selectedCategory == null
         ? 'All categories'
         : getCategoryLabel(_selectedCategory!);
+    final headline = widget.query.trim().isNotEmpty
+        ? widget.query
+        : (activeCapability?.label ?? 'All deals');
+    final summaryParts = <String>[
+      '$resultCount matches',
+      activeCategory,
+      if (activeCapability != null) activeCapability.label,
+    ];
 
     return Container(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
@@ -477,7 +573,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.query,
+                      headline,
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -486,7 +582,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$resultCount matches in $activeCategory',
+                      summaryParts.join(' • '),
                       style: const TextStyle(
                         color: Color(0xFF64748B),
                         fontWeight: FontWeight.w600,
@@ -498,11 +594,46 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               OutlinedButton.icon(
                 onPressed: _openFilterSheet,
                 icon: const Icon(Icons.tune_rounded),
-                label: const Text('Filter'),
+                label: Text(
+                  _activeFilterCount > 0
+                      ? 'Filter ($_activeFilterCount)'
+                      : 'Filter',
+                ),
               ),
             ],
           ),
           const SizedBox(height: 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: dealCapabilityPresets.map((preset) {
+                final selected = _selectedCapabilityPresetId == preset.id;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    avatar: Icon(
+                      preset.icon,
+                      size: 16,
+                      color: selected ? Colors.white : const Color(0xFF54606E),
+                    ),
+                    label: Text(preset.label),
+                    selected: selected,
+                    selectedColor: Theme.of(context).colorScheme.primary,
+                    labelStyle: TextStyle(
+                      color: selected ? Colors.white : const Color(0xFF243447),
+                      fontWeight: FontWeight.w700,
+                    ),
+                    onSelected: (value) {
+                      setState(() {
+                        _selectedCapabilityPresetId = value ? preset.id : null;
+                      });
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -534,6 +665,23 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   label: Text(getCategoryLabel(_selectedCategory!)),
                   avatar: const Icon(Icons.category_outlined, size: 16),
                   onDeleted: () => setState(() => _selectedCategory = null),
+                ),
+              ],
+            ),
+          ],
+          if (_selectedCapabilityPresetId != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                InputChip(
+                  avatar: Icon(
+                    activeCapability?.icon ?? Icons.tune_rounded,
+                    size: 16,
+                  ),
+                  label: Text(activeCapability?.label ?? 'Preset'),
+                  onDeleted: () =>
+                      setState(() => _selectedCapabilityPresetId = null),
                 ),
               ],
             ),
@@ -602,7 +750,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Results for "${widget.query}"')),
+      appBar: AppBar(
+        title: Text(
+          widget.query.trim().isNotEmpty
+              ? 'Results for "${widget.query}"'
+              : 'Browse Deals',
+        ),
+      ),
       body: FutureBuilder<List<Promotion>>(
         future: _futureResults,
         builder: (context, snapshot) {
@@ -622,9 +776,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
           if (!snapshot.hasData || _results.isEmpty) {
             return _buildEmptyState(
-              title: 'No results for "${widget.query}"',
-              message:
-                  'Try a broader keyword, a store name, or one of the popular topics from the search page.',
+              title: widget.query.trim().isNotEmpty
+                  ? 'No results for "${widget.query}"'
+                  : 'No deals found',
+              message: widget.query.trim().isNotEmpty
+                  ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
+                  : 'Try a different quick preset or clear the active filters to see more deals.',
             );
           }
 
@@ -638,12 +795,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                 Expanded(
                   child: visibleResults.isEmpty
                       ? ListView(
-                          physics:
-                              const AlwaysScrollableScrollPhysics(),
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             SizedBox(
-                              height:
-                                  MediaQuery.of(context).size.height * 0.55,
+                              height: MediaQuery.of(context).size.height * 0.55,
                               child: _buildEmptyState(
                                 title: 'No matches in this filter',
                                 message:
@@ -656,8 +811,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                           ],
                         )
                       : ListView.builder(
-                          physics:
-                              const AlwaysScrollableScrollPhysics(),
+                          physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
                           itemCount: visibleResults.length,
                           itemBuilder: (context, index) {

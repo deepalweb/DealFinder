@@ -400,7 +400,9 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               ),
               prefixIcon: const Icon(Icons.category),
             ),
-            items: predefinedCategories.map((category) {
+            items: predefinedCategories
+                .where((category) => category.id != 'other')
+                .map((category) {
               return DropdownMenuItem(
                 value: category.id,
                 child: Text(category.name),

@@ -3,26 +3,24 @@ import '../models/category.dart';
 
 IconData getCategoryIcon(String category) {
   switch (normalizeCategoryId(category)) {
-    case 'fashion':
-      return Icons.checkroom;
-    case 'electronics':
-      return Icons.devices;
-    case 'food_bev':
+    case 'food_dining':
       return Icons.restaurant;
-    case 'travel':
-      return Icons.flight;
-    case 'beauty_health':
-      return Icons.local_hospital;
-    case 'entertainment':
-      return Icons.movie;
-    case 'home_garden':
-      return Icons.home;
-    case 'services':
+    case 'beauty_salon':
+      return Icons.content_cut;
+    case 'repairs_services':
       return Icons.build;
-    case 'pets':
-      return Icons.pets;
-    case 'education':
+    case 'shopping_retail':
+      return Icons.shopping_bag;
+    case 'health_wellness':
+      return Icons.favorite;
+    case 'daily_essentials':
+      return Icons.local_grocery_store;
+    case 'auto_services':
+      return Icons.directions_car;
+    case 'education_courses':
       return Icons.school;
+    case 'entertainment_activities':
+      return Icons.movie;
     default:
       return Icons.store;
   }
@@ -33,7 +31,12 @@ class CategoryIcon extends StatelessWidget {
   final double size;
   final Color? color;
   final bool outlined;
-  const CategoryIcon({super.key, required this.category, this.size = 20, this.color, this.outlined = false});
+  const CategoryIcon(
+      {super.key,
+      required this.category,
+      this.size = 20,
+      this.color,
+      this.outlined = false});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +46,9 @@ class CategoryIcon extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Colors.white,
-        border: outlined ? Border.all(color: color ?? Colors.blueGrey, width: 1.5) : null,
+        border: outlined
+            ? Border.all(color: color ?? Colors.blueGrey, width: 1.5)
+            : null,
         boxShadow: [
           BoxShadow(
             color: (color ?? Colors.blueGrey).withValues(alpha: 0.12),

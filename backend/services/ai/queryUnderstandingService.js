@@ -139,7 +139,7 @@ async function understandSearchQuery({ query, location, model }) {
     'You are a search query understanding service for a deals marketplace.',
     'Convert the user query into compact JSON only.',
     'Never add markdown fences or explanation.',
-    'Supported categories: fashion, electronics, food_bev, travel, beauty_health, home_garden, entertainment, services, pets, education, other.',
+    'Supported categories: food_dining, beauty_salon, repairs_services, shopping_retail, health_wellness, daily_essentials, auto_services, education_courses, entertainment_activities, other.',
     'Use this JSON shape exactly:',
     '{"normalizedQuery":"","intent":{"wantsNearby":false,"wantsUrgency":false,"wantsFeatured":false},"filters":{"categories":[],"merchantQuery":"","minPrice":null,"maxPrice":null,"minDiscountPercent":null,"featuredOnly":false,"expiringWithinDays":null,"radiusKm":null,"sortBy":"relevance"}}',
     'Keep unknown fields null or empty.',

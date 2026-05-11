@@ -18,6 +18,7 @@ import 'notifications_screen.dart';
 import 'search_screen.dart';
 import 'nearby_deals_screen.dart';
 import 'all_deals_screen.dart';
+import 'deals_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToFavorites;
@@ -381,8 +382,6 @@ class _HomeScreenState extends State<HomeScreen>
     return _allEndingSoonDeals.take(5).toList();
   }
 
-  int get _endingSoonCount => _allEndingSoonDeals.length;
-
   Duration? get _nextEndingSoonDuration {
     if (_featuredDeals.isEmpty) return null;
     final nextEnding = _featuredDeals.first.endDate;
@@ -396,130 +395,6 @@ class _HomeScreenState extends State<HomeScreen>
     if (duration == null) return 'Deals ending today';
     if (duration == Duration.zero) return 'Last chance deals';
     return 'Closest expiry today';
-  }
-
-  String get _endingSoonTimerText {
-    final duration = _nextEndingSoonDuration;
-    if (duration == null) return '--:--:--';
-    if (duration == Duration.zero) return '00:00:00';
-
-    final totalHours = duration.inHours;
-    final minutes = duration.inMinutes % 60;
-    final seconds = duration.inSeconds % 60;
-
-    if (totalHours >= 24) {
-      final days = duration.inDays;
-      final hours = totalHours % 24;
-      return '${days}d ${hours.toString().padLeft(2, '0')}:'
-          '${minutes.toString().padLeft(2, '0')}:'
-          '${seconds.toString().padLeft(2, '0')}';
-    }
-
-    return '${totalHours.toString().padLeft(2, '0')}:'
-        '${minutes.toString().padLeft(2, '0')}:'
-        '${seconds.toString().padLeft(2, '0')}';
-  }
-
-  Widget _buildEndingSoonCallout() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFFB45309).withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: const Color(0xFFB45309).withValues(alpha: 0.16),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(11),
-              decoration: BoxDecoration(
-                color: const Color(0xFFB45309).withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.timer_outlined,
-                color: Color(0xFFB45309),
-                size: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Next deal expires in',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF14213D),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'The rail is ordered by urgency so the fastest-expiring deal always leads.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF5C6B7A),
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF14213D),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF14213D).withValues(alpha: 0.18),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Text(
-                    _endingSoonTimerText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.1,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    '$_endingSoonCount closing today',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFFB45309),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   List<Promotion> get _newDeals {
@@ -566,6 +441,27 @@ class _HomeScreenState extends State<HomeScreen>
     ).then((_) => _loadNotificationCount());
   }
 
+  void _openPopularDeals() {
+    final curated = _hotDeals.isNotEmpty ? _hotDeals : _featuredDeals;
+    if (curated.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DealsListScreen(
+            promotions: curated,
+            title: 'Popular',
+          ),
+        ),
+      );
+      return;
+    }
+
+    _openAllDeals(
+      sortBy: 'recent',
+      contextTitle: 'Popular',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -579,8 +475,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: CustomScrollView(
               slivers: [
                 _buildHeader(),
-                _buildGreeting(),
-                _buildSearchBar(),
+                _buildDiscoveryHero(),
                 _buildCategories(),
                 if (!_loading && _bannerSectionDeals.isNotEmpty)
                   _buildFeaturedBanner(),
@@ -773,28 +668,50 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ── Greeting Section ──────────────────────────────────────────────────────
-  Widget _buildGreeting() {
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+  Widget _buildQuickBrowseCard({
+    required String emoji,
+    required String title,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 116,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Hello, $_userName 👋',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Color(0xFF9E9E9E),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                emoji,
+                style: const TextStyle(fontSize: 16),
               ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Find amazing deals today!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.15,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
               ),
             ),
           ],
@@ -803,58 +720,183 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  // ── Search Bar ────────────────────────────────────────────────────────────
-  Widget _buildSearchBar() {
+  // ── Discovery Hero ────────────────────────────────────────────────────────
+  Widget _buildDiscoveryHero() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: Hero(
-          tag: 'search_bar',
-          child: Material(
-            color: Colors.transparent,
-            child: Semantics(
-              button: true,
-              label: 'Open search for deals and stores',
-              child: GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FBFF),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE8EEF8)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.035),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey[300]!, width: 1),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.search,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Search deals, stores...',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+                child: Text(
+                  'Hello, $_userName',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 12),
+              const Text(
+                'Find great deals fast.',
+                style: TextStyle(
+                  fontSize: 22,
+                  height: 1.15,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Hero(
+                tag: 'search_bar',
+                child: Material(
+                  color: Colors.transparent,
+                  child: Semantics(
+                    button: true,
+                    label: 'Open search for deals and stores',
+                    child: GestureDetector(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SearchScreen()),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: const Color(0xFFD9E3F3),
+                            width: 1,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.045),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F1FF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(
+                                Icons.search_rounded,
+                                color: Color(0xFF1D4ED8),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Text(
+                                'Search deals, stores, categories',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Quick picks',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF334155),
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 86,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _buildQuickBrowseCard(
+                      emoji: '📍',
+                      title: 'Near Me',
+                      accent: const Color(0xFF0EA5E9),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const NearbyDealsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    _buildQuickBrowseCard(
+                      emoji: '🔥',
+                      title: 'Best Deals',
+                      accent: const Color(0xFFEF4444),
+                      onTap: () => _openAllDeals(
+                        sortBy: 'discount',
+                        contextTitle: 'Best Deals',
+                      ),
+                    ),
+                    _buildQuickBrowseCard(
+                      emoji: '⏳',
+                      title: 'Ending Soon',
+                      accent: const Color(0xFFF59E0B),
+                      onTap: () => _openAllDeals(
+                        sectionPreset: 'ending_soon',
+                        sortBy: 'ending_soon',
+                        contextTitle: 'Ending Soon',
+                      ),
+                    ),
+                    _buildQuickBrowseCard(
+                      emoji: '⭐',
+                      title: 'Popular',
+                      accent: const Color(0xFF8B5CF6),
+                      onTap: _openPopularDeals,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1012,19 +1054,15 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Categories ────────────────────────────────────────────────────────────
   Widget _buildCategories() {
-    final categories = [null, ...predefinedCategories.map((c) => c.id)];
-    final labels = ['All', ...predefinedCategories.map((c) => c.name)];
+    final categories = [null, ...launchCategories.map((c) => c.id)];
+    final labels = ['All', ...launchCategories.map((c) => c.name)];
     final icons = [
       Icons.all_inclusive,
       Icons.fastfood_outlined,
-      Icons.devices_other_outlined,
-      Icons.checkroom_outlined,
-      Icons.flight_takeoff_outlined,
-      Icons.home_outlined,
-      Icons.spa_outlined,
-      Icons.sports_esports_outlined,
-      Icons.miscellaneous_services_outlined,
-      Icons.category_outlined,
+      Icons.content_cut_outlined,
+      Icons.build_outlined,
+      Icons.shopping_bag_outlined,
+      Icons.favorite_outline,
     ];
 
     return SliverToBoxAdapter(
@@ -1111,81 +1149,6 @@ class _HomeScreenState extends State<HomeScreen>
               onPressed: _refresh,
               child: const Text('Retry',
                   style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionCallout({
-    required IconData icon,
-    required Color accent,
-    required String title,
-    required String subtitle,
-    required String statLabel,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: accent.withValues(alpha: 0.14)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF14213D),
-                fontSize: 14,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, color: accent, size: 18),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF475569),
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                statLabel,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: accent,
-                  fontSize: 12,
-                ),
-              ),
             ),
           ],
         ),
@@ -1308,14 +1271,6 @@ class _HomeScreenState extends State<HomeScreen>
               contextTitle: 'Flash Sales',
             ),
           ),
-          _buildSectionCallout(
-            icon: Icons.bolt_rounded,
-            accent: const Color(0xFFE65100),
-            title: 'Fastest-moving deals first',
-            subtitle:
-                'These offers combine strong discounts with short sale windows, so they are ideal for quick browsing.',
-            statLabel: '${_flashSales.length} hot picks',
-          ),
           Stack(
             children: [
               SizedBox(
@@ -1379,7 +1334,6 @@ class _HomeScreenState extends State<HomeScreen>
               contextTitle: 'Ending Soon',
             ),
           ),
-          _buildEndingSoonCallout(),
           Stack(
             children: [
               SizedBox(
@@ -1629,14 +1583,6 @@ class _HomeScreenState extends State<HomeScreen>
               sortBy: 'recent',
               contextTitle: 'New This Week',
             ),
-          ),
-          _buildSectionCallout(
-            icon: Icons.fiber_new_rounded,
-            accent: const Color(0xFF1565C0),
-            title: 'Fresh arrivals from merchants',
-            subtitle:
-                'Use this lane to discover recently published deals before they get buried in the full catalog.',
-            statLabel: '${_newDeals.length} new this week',
           ),
           Stack(
             children: [

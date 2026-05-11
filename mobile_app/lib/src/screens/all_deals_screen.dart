@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../models/promotion.dart';
 import '../models/category.dart';
+import '../utils/deal_filter_support.dart';
 import '../widgets/modern_deal_card.dart';
 import 'deals_list_screen.dart';
 import 'deal_detail_screen.dart';
@@ -30,13 +31,15 @@ class AllDealsScreen extends StatefulWidget {
 class _AllDealsScreenState extends State<AllDealsScreen> {
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
-  
+
   // Sort and Filter state
-  String _sortBy = 'recent'; // recent, discount, price_low, price_high, ending_soon, distance
+  String _sortBy =
+      'recent'; // recent, discount, price_low, price_high, ending_soon, distance
   double _minPrice = 0;
   double _maxPrice = 10000;
   double _minDiscount = 0;
   String? _selectedCategory;
+  String? _selectedCapabilityPresetId;
   bool _showFilters = false;
   String? _activeSectionPreset;
 
@@ -51,7 +54,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   void _loadPromotions() {
     setState(() {
-      _promotionsFuture = _fetchPromotionsWithDistance(forceRefresh: false).then((promotions) {
+      _promotionsFuture =
+          _fetchPromotionsWithDistance(forceRefresh: false).then((promotions) {
         // Show cached data immediately, then refresh in background
         _fetchPromotionsWithDistance(forceRefresh: true).then((fresh) {
           if (mounted) {
@@ -101,29 +105,35 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   }
 
   String _normalizeCategory(String? category) {
-    if (category == null) return 'other';
-    // Handle legacy 'food' category
-    if (category == 'food') return 'food_bev';
-    return category;
+    return normalizeCategoryId(category).isEmpty
+        ? 'other'
+        : normalizeCategoryId(category);
   }
 
   Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
     final Map<String, List<Promotion>> grouped = {};
-    
+
     // Apply filters
     var filtered = promotions.where((promo) {
       // Category filter
       final normalizedCategory = _normalizeCategory(promo.category);
-      if (_selectedCategory != null && normalizedCategory != _selectedCategory) {
+      if (_selectedCategory != null &&
+          normalizedCategory != _selectedCategory) {
         return false;
       }
-      
+
+      if (_selectedCapabilityPresetId != null &&
+          !matchesDealCapabilityPreset(promo, _selectedCapabilityPresetId!)) {
+        return false;
+      }
+
       // Price filter
-      final price = promo.discountedPrice ?? promo.price ?? promo.originalPrice ?? 0;
+      final price =
+          promo.discountedPrice ?? promo.price ?? promo.originalPrice ?? 0;
       if (price < _minPrice || price > _maxPrice) {
         return false;
       }
-      
+
       // Discount filter
       if (promo.discount != null) {
         final discountMatch = RegExp(r'(\d+)').firstMatch(promo.discount!);
@@ -140,10 +150,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       if (!_matchesEntryPreset(promo)) {
         return false;
       }
-      
+
       return true;
     }).toList();
-    
+
     // Apply sorting
     filtered.sort((a, b) {
       switch (_sortBy) {
@@ -152,38 +162,44 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           if (a.createdAt == null) return 1;
           if (b.createdAt == null) return -1;
           return b.createdAt!.compareTo(a.createdAt!);
-        
+
         case 'discount':
           final aDiscount = _extractDiscount(a.discount);
           final bDiscount = _extractDiscount(b.discount);
           return bDiscount.compareTo(aDiscount);
-        
+
         case 'price_low':
-          final aPrice = a.discountedPrice ?? a.price ?? a.originalPrice ?? double.infinity;
-          final bPrice = b.discountedPrice ?? b.price ?? b.originalPrice ?? double.infinity;
+          final aPrice = a.discountedPrice ??
+              a.price ??
+              a.originalPrice ??
+              double.infinity;
+          final bPrice = b.discountedPrice ??
+              b.price ??
+              b.originalPrice ??
+              double.infinity;
           return aPrice.compareTo(bPrice);
-        
+
         case 'price_high':
           final aPrice = a.discountedPrice ?? a.price ?? a.originalPrice ?? 0;
           final bPrice = b.discountedPrice ?? b.price ?? b.originalPrice ?? 0;
           return bPrice.compareTo(aPrice);
-        
+
         case 'ending_soon':
           if (a.endDate == null && b.endDate == null) return 0;
           if (a.endDate == null) return 1;
           if (b.endDate == null) return -1;
           return a.endDate!.compareTo(b.endDate!);
-        
+
         case 'distance':
           final aDist = a.distance ?? double.infinity;
           final bDist = b.distance ?? double.infinity;
           return aDist.compareTo(bDist);
-        
+
         default:
           return 0;
       }
     });
-    
+
     // Group by category - only add categories that have deals
     for (var promo in filtered) {
       final category = _normalizeCategory(promo.category);
@@ -192,10 +208,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       }
       grouped[category]!.add(promo);
     }
-    
+
     // Remove empty categories (shouldn't happen but just in case)
     grouped.removeWhere((key, value) => value.isEmpty);
-    
+
     return grouped;
   }
 
@@ -222,7 +238,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return true;
     }
   }
-  
+
   double _extractDiscount(String? discount) {
     if (discount == null) return 0;
     final match = RegExp(r'(\d+)').firstMatch(discount);
@@ -239,14 +255,15 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   IconData _getCategoryIcon(String categoryId) {
     const iconMap = {
-      'food_bev': Icons.restaurant,
-      'electronics': Icons.devices,
-      'fashion': Icons.checkroom,
-      'travel': Icons.flight,
-      'home_garden': Icons.home,
-      'beauty_health': Icons.spa,
-      'entertainment': Icons.movie,
-      'services': Icons.build,
+      'food_dining': Icons.restaurant,
+      'beauty_salon': Icons.content_cut,
+      'repairs_services': Icons.build,
+      'shopping_retail': Icons.shopping_bag,
+      'health_wellness': Icons.favorite,
+      'daily_essentials': Icons.local_grocery_store,
+      'auto_services': Icons.directions_car,
+      'education_courses': Icons.school,
+      'entertainment_activities': Icons.movie,
       'other': Icons.category,
     };
     return iconMap[categoryId] ?? Icons.category;
@@ -254,14 +271,15 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   Color _getCategoryColor(String categoryId) {
     const colorMap = {
-      'food_bev': Color(0xFFFF6B6B),
-      'electronics': Color(0xFF4ECDC4),
-      'fashion': Color(0xFFFFBE0B),
-      'travel': Color(0xFF95E1D3),
-      'home_garden': Color(0xFF38A3A5),
-      'beauty_health': Color(0xFFFF6B9D),
-      'entertainment': Color(0xFF9B59B6),
-      'services': Color(0xFF3498DB),
+      'food_dining': Color(0xFFFF6B6B),
+      'beauty_salon': Color(0xFFFF6B9D),
+      'repairs_services': Color(0xFF3498DB),
+      'shopping_retail': Color(0xFFFFBE0B),
+      'health_wellness': Color(0xFF10B981),
+      'daily_essentials': Color(0xFF38A3A5),
+      'auto_services': Color(0xFF6366F1),
+      'education_courses': Color(0xFF8B5CF6),
+      'entertainment_activities': Color(0xFF9B59B6),
       'other': Color(0xFF95A5A6),
     };
     return colorMap[categoryId] ?? const Color(0xFF95A5A6);
@@ -293,6 +311,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   void _resetFilters({bool clearEntryContext = false}) {
     setState(() {
       _selectedCategory = clearEntryContext ? null : widget.initialCategoryId;
+      _selectedCapabilityPresetId = null;
       _minPrice = 0;
       _maxPrice = 10000;
       _minDiscount = 0;
@@ -300,6 +319,70 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           clearEntryContext ? null : widget.initialSectionPreset;
       _sortBy = widget.initialSortBy ?? 'recent';
     });
+  }
+
+  bool get _hasActiveUserFilters {
+    return _selectedCategory != widget.initialCategoryId ||
+        _selectedCapabilityPresetId != null ||
+        _minPrice > 0 ||
+        _maxPrice < 10000 ||
+        _minDiscount > 0 ||
+        _sortBy != (widget.initialSortBy ?? 'recent');
+  }
+
+  List<Widget> _buildActiveFilterChips() {
+    final chips = <Widget>[];
+    final selectedCapability =
+        findDealCapabilityPreset(_selectedCapabilityPresetId);
+
+    if (_selectedCategory != null) {
+      chips.add(
+        InputChip(
+          avatar: const Icon(Icons.category_outlined, size: 16),
+          label: Text(_getCategoryName(_selectedCategory!)),
+          onDeleted: () => setState(() => _selectedCategory = null),
+        ),
+      );
+    }
+
+    if (selectedCapability != null) {
+      chips.add(
+        InputChip(
+          avatar: Icon(selectedCapability.icon, size: 16),
+          label: Text(selectedCapability.label),
+          onDeleted: () => setState(() => _selectedCapabilityPresetId = null),
+        ),
+      );
+    }
+
+    if (_minPrice > 0 || _maxPrice < 10000) {
+      chips.add(
+        InputChip(
+          avatar: const Icon(Icons.payments_outlined, size: 16),
+          label: Text(
+            'Rs. ${_minPrice.toInt()} - Rs. ${_maxPrice.toInt()}',
+          ),
+          onDeleted: () {
+            setState(() {
+              _minPrice = 0;
+              _maxPrice = 10000;
+            });
+          },
+        ),
+      );
+    }
+
+    if (_minDiscount > 0) {
+      chips.add(
+        InputChip(
+          avatar: const Icon(Icons.percent_rounded, size: 16),
+          label: Text('${_minDiscount.toInt()}%+ off'),
+          onDeleted: () => setState(() => _minDiscount = 0),
+        ),
+      );
+    }
+
+    return chips;
   }
 
   @override
@@ -314,7 +397,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
+            icon: Icon(
+                _showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
             onPressed: () {
               setState(() => _showFilters = !_showFilters);
             },
@@ -331,9 +415,16 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 value: 'recent',
                 child: Row(
                   children: [
-                    Icon(Icons.access_time, size: 20, color: _sortBy == 'recent' ? Theme.of(context).colorScheme.primary : null),
+                    Icon(Icons.access_time,
+                        size: 20,
+                        color: _sortBy == 'recent'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
                     const SizedBox(width: 8),
-                    Text('Most Recent', style: TextStyle(fontWeight: _sortBy == 'recent' ? FontWeight.bold : null)),
+                    Text('Most Recent',
+                        style: TextStyle(
+                            fontWeight:
+                                _sortBy == 'recent' ? FontWeight.bold : null)),
                   ],
                 ),
               ),
@@ -341,9 +432,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 value: 'discount',
                 child: Row(
                   children: [
-                    Icon(Icons.percent, size: 20, color: _sortBy == 'discount' ? Theme.of(context).colorScheme.primary : null),
+                    Icon(Icons.percent,
+                        size: 20,
+                        color: _sortBy == 'discount'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
                     const SizedBox(width: 8),
-                    Text('Highest Discount', style: TextStyle(fontWeight: _sortBy == 'discount' ? FontWeight.bold : null)),
+                    Text('Highest Discount',
+                        style: TextStyle(
+                            fontWeight: _sortBy == 'discount'
+                                ? FontWeight.bold
+                                : null)),
                   ],
                 ),
               ),
@@ -351,9 +450,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 value: 'price_low',
                 child: Row(
                   children: [
-                    Icon(Icons.arrow_upward, size: 20, color: _sortBy == 'price_low' ? Theme.of(context).colorScheme.primary : null),
+                    Icon(Icons.arrow_upward,
+                        size: 20,
+                        color: _sortBy == 'price_low'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
                     const SizedBox(width: 8),
-                    Text('Price: Low to High', style: TextStyle(fontWeight: _sortBy == 'price_low' ? FontWeight.bold : null)),
+                    Text('Price: Low to High',
+                        style: TextStyle(
+                            fontWeight: _sortBy == 'price_low'
+                                ? FontWeight.bold
+                                : null)),
                   ],
                 ),
               ),
@@ -361,9 +468,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 value: 'price_high',
                 child: Row(
                   children: [
-                    Icon(Icons.arrow_downward, size: 20, color: _sortBy == 'price_high' ? Theme.of(context).colorScheme.primary : null),
+                    Icon(Icons.arrow_downward,
+                        size: 20,
+                        color: _sortBy == 'price_high'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
                     const SizedBox(width: 8),
-                    Text('Price: High to Low', style: TextStyle(fontWeight: _sortBy == 'price_high' ? FontWeight.bold : null)),
+                    Text('Price: High to Low',
+                        style: TextStyle(
+                            fontWeight: _sortBy == 'price_high'
+                                ? FontWeight.bold
+                                : null)),
                   ],
                 ),
               ),
@@ -371,9 +486,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 value: 'ending_soon',
                 child: Row(
                   children: [
-                    Icon(Icons.schedule, size: 20, color: _sortBy == 'ending_soon' ? Theme.of(context).colorScheme.primary : null),
+                    Icon(Icons.schedule,
+                        size: 20,
+                        color: _sortBy == 'ending_soon'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
                     const SizedBox(width: 8),
-                    Text('Ending Soon', style: TextStyle(fontWeight: _sortBy == 'ending_soon' ? FontWeight.bold : null)),
+                    Text('Ending Soon',
+                        style: TextStyle(
+                            fontWeight: _sortBy == 'ending_soon'
+                                ? FontWeight.bold
+                                : null)),
                   ],
                 ),
               ),
@@ -381,9 +504,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 value: 'distance',
                 child: Row(
                   children: [
-                    Icon(Icons.location_on, size: 20, color: _sortBy == 'distance' ? Theme.of(context).colorScheme.primary : null),
+                    Icon(Icons.location_on,
+                        size: 20,
+                        color: _sortBy == 'distance'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
                     const SizedBox(width: 8),
-                    Text('Nearest', style: TextStyle(fontWeight: _sortBy == 'distance' ? FontWeight.bold : null)),
+                    Text('Nearest',
+                        style: TextStyle(
+                            fontWeight: _sortBy == 'distance'
+                                ? FontWeight.bold
+                                : null)),
                   ],
                 ),
               ),
@@ -401,37 +532,85 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_activeSectionPreset != null || widget.initialCategoryId != null)
+                  if (_activeSectionPreset != null ||
+                      widget.initialCategoryId != null)
                     _buildContextBanner(),
-                  const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text('Filters',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
-                  
-                  // Category Filter
-                  const Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
+
+                  const Text('Quick filters',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
-                    children: [
-                      FilterChip(
-                        label: const Text('All'),
-                        selected: _selectedCategory == null,
-                        onSelected: (selected) {
-                          setState(() => _selectedCategory = null);
-                        },
-                      ),
-                      ...predefinedCategories.map((cat) => FilterChip(
-                        label: Text(cat.name),
-                        selected: _selectedCategory == cat.id,
-                        onSelected: (selected) {
-                          setState(() => _selectedCategory = selected ? cat.id : null);
-                        },
-                      )),
-                    ],
+                    runSpacing: 8,
+                    children: dealCapabilityPresets
+                        .map(
+                          (preset) => FilterChip(
+                            avatar: Icon(preset.icon, size: 18),
+                            label: Text(preset.label),
+                            selected: _selectedCapabilityPresetId == preset.id,
+                            onSelected: (selected) {
+                              setState(() {
+                                _selectedCapabilityPresetId =
+                                    selected ? preset.id : null;
+                              });
+                            },
+                          ),
+                        )
+                        .toList(),
                   ),
                   const SizedBox(height: 16),
-                  
+
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(bottom: 16),
+                    title: const Text(
+                      'Categories',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(
+                      _selectedCategory == null
+                          ? 'Optional'
+                          : _getCategoryName(_selectedCategory!),
+                    ),
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            FilterChip(
+                              label: const Text('All'),
+                              selected: _selectedCategory == null,
+                              onSelected: (selected) {
+                                setState(() => _selectedCategory = null);
+                              },
+                            ),
+                            ...predefinedCategories.map(
+                              (cat) => FilterChip(
+                                label: Text(cat.name),
+                                selected: _selectedCategory == cat.id,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedCategory =
+                                        selected ? cat.id : null;
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
                   // Price Range Filter
-                  const Text('Price Range', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text('Price Range',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -445,7 +624,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                           ),
                           keyboardType: TextInputType.number,
                           onChanged: (value) {
-                            setState(() => _minPrice = double.tryParse(value) ?? 0);
+                            setState(
+                                () => _minPrice = double.tryParse(value) ?? 0);
                           },
                         ),
                       ),
@@ -460,16 +640,18 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                           ),
                           keyboardType: TextInputType.number,
                           onChanged: (value) {
-                            setState(() => _maxPrice = double.tryParse(value) ?? 10000);
+                            setState(() =>
+                                _maxPrice = double.tryParse(value) ?? 10000);
                           },
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Discount Filter
-                  Text('Minimum Discount: ${_minDiscount.toInt()}%', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text('Minimum Discount: ${_minDiscount.toInt()}%',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   Slider(
                     value: _minDiscount,
                     min: 0,
@@ -481,7 +663,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
-                  
+
                   // Reset Button
                   SizedBox(
                     width: double.infinity,
@@ -496,7 +678,46 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 ],
               ),
             ),
-          
+
+          if (_hasActiveUserFilters)
+            Container(
+              width: double.infinity,
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.filter_alt_outlined,
+                        size: 18,
+                        color: Color(0xFF475569),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Active filters',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: _resetFilters,
+                        child: const Text('Clear all'),
+                      ),
+                    ],
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _buildActiveFilterChips(),
+                  ),
+                ],
+              ),
+            ),
+
           // Deals List
           Expanded(
             child: RefreshIndicator(
@@ -516,12 +737,13 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   }
 
                   final groupedDeals = _groupByCategory(snapshot.data!);
-                  final totalDeals = groupedDeals.values.fold<int>(0, (sum, list) => sum + list.length);
-                  
+                  final totalDeals = groupedDeals.values
+                      .fold<int>(0, (sum, list) => sum + list.length);
+
                   if (totalDeals == 0) {
                     return _buildNoMatchesState();
                   }
-                  
+
                   return _buildCategoryList(groupedDeals, totalDeals);
                 },
               ),
@@ -588,9 +810,11 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     );
   }
 
-  Widget _buildCategoryList(Map<String, List<Promotion>> groupedDeals, int totalDeals) {
+  Widget _buildCategoryList(
+      Map<String, List<Promotion>> groupedDeals, int totalDeals) {
     final sortedCategories = groupedDeals.keys.toList()
-      ..sort((a, b) => groupedDeals[b]!.length.compareTo(groupedDeals[a]!.length));
+      ..sort(
+          (a, b) => groupedDeals[b]!.length.compareTo(groupedDeals[a]!.length));
 
     return CustomScrollView(
       slivers: [
@@ -609,7 +833,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -619,8 +846,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem(Icons.local_offer, '$totalDeals', 'Total Deals'),
-                Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-                _buildStatItem(Icons.category, '${sortedCategories.length}', 'Categories'),
+                Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.white.withValues(alpha: 0.3)),
+                _buildStatItem(
+                    Icons.category, '${sortedCategories.length}', 'Categories'),
               ],
             ),
           ),
@@ -634,7 +865,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 final categoryId = sortedCategories[index];
                 final deals = groupedDeals[categoryId]!;
                 final categoryName = _getCategoryName(categoryId);
-                return _buildCategorySection(categoryId, categoryName, deals, index);
+                return _buildCategorySection(
+                    categoryId, categoryName, deals, index);
               },
               childCount: sortedCategories.length,
             ),
@@ -668,11 +900,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     );
   }
 
-  Widget _buildCategorySection(String categoryId, String categoryName, List<Promotion> deals, int index) {
+  Widget _buildCategorySection(String categoryId, String categoryName,
+      List<Promotion> deals, int index) {
     final displayDeals = deals.take(4).toList();
     final categoryColor = _getCategoryColor(categoryId);
     final categoryIcon = _getCategoryIcon(categoryId);
-    
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: Duration(milliseconds: 300 + (index * 100)),
@@ -760,7 +993,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                           HapticFeedback.lightImpact();
                           final category = predefinedCategories.firstWhere(
                             (cat) => cat.id == categoryId,
-                            orElse: () => Category(id: categoryId, name: categoryName),
+                            orElse: () =>
+                                Category(id: categoryId, name: categoryName),
                           );
                           Navigator.push(
                             context,
@@ -775,8 +1009,9 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              child: Row(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
@@ -788,7 +1023,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                                 ),
                               ),
                               SizedBox(width: 4),
-                              Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                              Icon(Icons.arrow_forward,
+                                  color: Colors.white, size: 16),
                             ],
                           ),
                         ),
@@ -816,7 +1052,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => DealDetailScreen(promotion: displayDeals[index]),
+                            builder: (_) => DealDetailScreen(
+                                promotion: displayDeals[index]),
                           ),
                         );
                       },

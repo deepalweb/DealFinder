@@ -110,7 +110,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         }
       });
 
-      final locationName = await LocationService.getLocationName(position.latitude, position.longitude);
+      final locationName = await LocationService.getLocationName(
+          position.latitude, position.longitude);
       if (mounted) {
         setState(() => _locationName = locationName ?? 'Current location');
       }
@@ -145,7 +146,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       });
     } on TimeoutException {
       setState(() {
-        _error = 'Nearby search timed out. Try a smaller radius or a quick refresh.';
+        _error =
+            'Nearby search timed out. Try a smaller radius or a quick refresh.';
         _isLoading = false;
       });
     } catch (e) {
@@ -165,13 +167,16 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         deals.sort((a, b) => _timeToExpiry(a).compareTo(_timeToExpiry(b)));
         break;
       default:
-        deals.sort((a, b) => (a.distance ?? double.infinity).compareTo(b.distance ?? double.infinity));
+        deals.sort((a, b) => (a.distance ?? double.infinity)
+            .compareTo(b.distance ?? double.infinity));
     }
   }
 
   double _dealScore(Promotion promotion) {
     final discount = _extractDiscount(promotion.discount);
-    final distanceBoost = promotion.distance == null ? 0 : (5000 - promotion.distance!).clamp(0, 5000) / 150;
+    final distanceBoost = promotion.distance == null
+        ? 0
+        : (5000 - promotion.distance!).clamp(0, 5000) / 150;
     return discount + distanceBoost;
   }
 
@@ -248,14 +253,16 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
 
     final filtered = _nearbyDeals.where((deal) {
       final normalizedCategory = SearchMatcher.normalizeCategory(deal.category);
-      final matchesSearch = term.isEmpty || SearchMatcher.matchesPromotion(deal, term);
+      final matchesSearch =
+          term.isEmpty || SearchMatcher.matchesPromotion(deal, term);
 
       final matchesFilter = switch (_activeFilter) {
-        'food' => normalizedCategory == 'food_bev',
-        'electronics' => normalizedCategory == 'electronics',
-        'fashion' => normalizedCategory == 'fashion',
+        'food' => normalizedCategory == 'food_dining',
+        'beauty' => normalizedCategory == 'beauty_salon',
+        'shopping' => normalizedCategory == 'shopping_retail',
         'discount50' => _extractDiscount(deal.discount) >= 50,
-        'ending' => deal.endDate != null && deal.endDate!.difference(now).inHours <= 24,
+        'ending' =>
+          deal.endDate != null && deal.endDate!.difference(now).inHours <= 24,
         _ => true,
       };
 
@@ -267,14 +274,16 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   List<Promotion> get _popularNearby {
-    final deals = [..._filteredDeals]..sort((a, b) => _dealScore(b).compareTo(_dealScore(a)));
+    final deals = [..._filteredDeals]
+      ..sort((a, b) => _dealScore(b).compareTo(_dealScore(a)));
     return deals.take(5).toList();
   }
 
   List<Promotion> get _endingTodayNearby {
     final now = DateTime.now();
     return _filteredDeals
-        .where((deal) => deal.endDate != null && deal.endDate!.difference(now).inHours <= 24)
+        .where((deal) =>
+            deal.endDate != null && deal.endDate!.difference(now).inHours <= 24)
         .take(5)
         .toList();
   }
@@ -295,8 +304,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: selected
                       ? const Color(0xFF0D47A1)
@@ -381,7 +389,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     final hasCoordinates = deal.latitude != null && deal.longitude != null;
     final query = hasCoordinates
         ? 'https://www.google.com/maps/search/?api=1&query=${deal.latitude},${deal.longitude}'
-        : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${deal.merchantName ?? deal.title} ${deal.location ?? ''}') }';
+        : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${deal.merchantName ?? deal.title} ${deal.location ?? ''}')}';
 
     final uri = Uri.parse(query);
     if (await canLaunchUrl(uri)) {
@@ -407,7 +415,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       isScrollControlled: true,
       builder: (context) {
         return Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,13 +447,15 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
               const SizedBox(height: 12),
               TextField(
                 controller: latController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true, signed: true),
                 decoration: const InputDecoration(labelText: 'Latitude'),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: lngController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true, signed: true),
                 decoration: const InputDecoration(labelText: 'Longitude'),
               ),
               const SizedBox(height: 16),
@@ -480,7 +491,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         Navigator.pop(context);
                         setState(() {
                           _currentPosition = manualPosition;
-                          _locationName = labelController.text.trim().isEmpty ? 'Custom location' : labelController.text.trim();
+                          _locationName = labelController.text.trim().isEmpty
+                              ? 'Custom location'
+                              : labelController.text.trim();
                           _isLoading = true;
                           _error = null;
                         });
@@ -524,16 +537,23 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? Theme.of(context).colorScheme.primary : Colors.white,
+          color:
+              selected ? Theme.of(context).colorScheme.primary : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
           ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: selected ? Colors.white : Theme.of(context).colorScheme.primary),
+            Icon(icon,
+                size: 16,
+                color: selected
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.primary),
             const SizedBox(width: 6),
             Text(
               label,
@@ -562,13 +582,17 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? Theme.of(context).colorScheme.primary : Colors.transparent,
+            color: selected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18, color: selected ? Colors.white : Colors.grey.shade700),
+              Icon(icon,
+                  size: 18,
+                  color: selected ? Colors.white : Colors.grey.shade700),
               const SizedBox(width: 8),
               Text(
                 label,
@@ -609,7 +633,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
               return GestureDetector(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: deal)),
+                  MaterialPageRoute(
+                      builder: (_) => DealDetailScreen(promotion: deal)),
                 ),
                 child: Container(
                   width: 260,
@@ -631,7 +656,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.green.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
@@ -648,7 +674,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           const Spacer(),
                           Text(
                             _formatDistance(deal.distance),
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey),
                           ),
                         ],
                       ),
@@ -657,14 +684,17 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         deal.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
                       ),
                       const Spacer(),
                       Text(
                         deal.merchantName ?? 'Nearby store',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -678,8 +708,11 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   Widget _buildNearbyDealCard(Promotion deal) {
-    final hasPrice = deal.originalPrice != null || deal.discountedPrice != null || deal.price != null;
-    final displayPrice = deal.discountedPrice ?? deal.price ?? deal.originalPrice;
+    final hasPrice = deal.originalPrice != null ||
+        deal.discountedPrice != null ||
+        deal.price != null;
+    final displayPrice =
+        deal.discountedPrice ?? deal.price ?? deal.originalPrice;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -703,11 +736,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (deal.imageDataString != null && deal.imageDataString!.isNotEmpty)
+                if (deal.imageDataString != null &&
+                    deal.imageDataString!.isNotEmpty)
                   Image.network(
                     deal.imageDataString!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: const Color(0xFFEAF2FF)),
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFFEAF2FF)),
                   )
                 else
                   Container(color: const Color(0xFFEAF2FF)),
@@ -730,26 +765,34 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     children: [
                       if ((deal.discount ?? '').isNotEmpty)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.green.shade600,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             deal.discount!,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
                           ),
                         ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.orange.shade600,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           _expiryLabel(deal),
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12),
                         ),
                       ),
                     ],
@@ -759,7 +802,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                   left: 12,
                   bottom: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.92),
                       borderRadius: BorderRadius.circular(12),
@@ -767,11 +811,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on, size: 14, color: Color(0xFF1E88E5)),
+                        const Icon(Icons.location_on,
+                            size: 14, color: Color(0xFF1E88E5)),
                         const SizedBox(width: 4),
                         Text(
                           _formatDistance(deal.distance),
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 12),
                         ),
                       ],
                     ),
@@ -796,7 +842,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                 const SizedBox(height: 6),
                 Text(
                   deal.title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.25),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold, height: 1.25),
                 ),
                 const SizedBox(height: 10),
                 if (hasPrice && displayPrice != null)
@@ -804,7 +851,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     spacing: 10,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      if (deal.originalPrice != null && deal.discountedPrice != null)
+                      if (deal.originalPrice != null &&
+                          deal.discountedPrice != null)
                         Text(
                           'Rs. ${deal.originalPrice!.toStringAsFixed(0)}',
                           style: const TextStyle(
@@ -837,7 +885,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       child: FilledButton(
                         onPressed: () => Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: deal)),
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  DealDetailScreen(promotion: deal)),
                         ),
                         child: const Text('Get Deal'),
                       ),
@@ -869,16 +919,16 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       return _buildEmptyDealsState();
     }
 
-    final initialTarget =
-        _selectedMapDeal?.latitude != null && _selectedMapDeal?.longitude != null
-            ? latlng.LatLng(
-                _selectedMapDeal!.latitude!,
-                _selectedMapDeal!.longitude!,
-              )
-            : latlng.LatLng(
-                _currentPosition!.latitude,
-                _currentPosition!.longitude,
-              );
+    final initialTarget = _selectedMapDeal?.latitude != null &&
+            _selectedMapDeal?.longitude != null
+        ? latlng.LatLng(
+            _selectedMapDeal!.latitude!,
+            _selectedMapDeal!.longitude!,
+          )
+        : latlng.LatLng(
+            _currentPosition!.latitude,
+            _currentPosition!.longitude,
+          );
 
     return Stack(
       children: [
@@ -906,7 +956,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             child: GestureDetector(
               onTap: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: _selectedMapDeal!)),
+                MaterialPageRoute(
+                    builder: (_) =>
+                        DealDetailScreen(promotion: _selectedMapDeal!)),
               ),
               child: Material(
                 elevation: 10,
@@ -924,7 +976,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: Colors.green.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(10),
@@ -941,14 +994,17 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           const Spacer(),
                           Text(
                             _formatDistance(_selectedMapDeal!.distance),
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(
+                                fontSize: 12, color: Colors.grey),
                           ),
                         ],
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        _selectedMapDeal!.merchantName ?? _selectedMapDeal!.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        _selectedMapDeal!.merchantName ??
+                            _selectedMapDeal!.title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -964,7 +1020,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                             child: FilledButton(
                               onPressed: () => Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: _selectedMapDeal!)),
+                                MaterialPageRoute(
+                                    builder: (_) => DealDetailScreen(
+                                        promotion: _selectedMapDeal!)),
                               ),
                               child: const Text('Get Deal'),
                             ),
@@ -972,7 +1030,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => _openDirections(_selectedMapDeal!),
+                              onPressed: () =>
+                                  _openDirections(_selectedMapDeal!),
                               child: const Text('Directions'),
                             ),
                           ),
@@ -1062,7 +1121,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_disabled, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.location_disabled,
+                size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             const Text(
               'Location Required',
@@ -1099,7 +1159,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.location_searching, size: 64, color: Colors.grey.shade400),
+            Icon(Icons.location_searching,
+                size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             const Text(
               'No nearby deals found',
@@ -1115,8 +1176,12 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             Wrap(
               spacing: 10,
               children: [
-                OutlinedButton(onPressed: () => _changeRadius(20), child: const Text('20 km')),
-                OutlinedButton(onPressed: () => _changeRadius(50), child: const Text('50 km')),
+                OutlinedButton(
+                    onPressed: () => _changeRadius(20),
+                    child: const Text('20 km')),
+                OutlinedButton(
+                    onPressed: () => _changeRadius(50),
+                    child: const Text('50 km')),
               ],
             ),
           ],
@@ -1157,19 +1222,22 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           children: [
                             const Text(
                               'Nearby',
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                  fontSize: 22, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(Icons.location_on, size: 16, color: Color(0xFFE53935)),
+                                const Icon(Icons.location_on,
+                                    size: 16, color: Color(0xFFE53935)),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     _locationName,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700),
                                   ),
                                 ),
                               ],
@@ -1208,17 +1276,35 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: [
-                        _buildFilterChip(id: 'all', label: 'All', icon: Icons.grid_view_rounded),
+                        _buildFilterChip(
+                            id: 'all',
+                            label: 'All',
+                            icon: Icons.grid_view_rounded),
                         const SizedBox(width: 8),
-                        _buildFilterChip(id: 'food', label: 'Food', icon: Icons.fastfood_outlined),
+                        _buildFilterChip(
+                            id: 'food',
+                            label: 'Food',
+                            icon: Icons.fastfood_outlined),
                         const SizedBox(width: 8),
-                        _buildFilterChip(id: 'electronics', label: 'Electronics', icon: Icons.devices_outlined),
+                        _buildFilterChip(
+                            id: 'beauty',
+                            label: 'Beauty',
+                            icon: Icons.content_cut_outlined),
                         const SizedBox(width: 8),
-                        _buildFilterChip(id: 'fashion', label: 'Fashion', icon: Icons.checkroom_outlined),
+                        _buildFilterChip(
+                            id: 'shopping',
+                            label: 'Shopping',
+                            icon: Icons.shopping_bag_outlined),
                         const SizedBox(width: 8),
-                        _buildFilterChip(id: 'discount50', label: '50%+', icon: Icons.percent),
+                        _buildFilterChip(
+                            id: 'discount50',
+                            label: '50%+',
+                            icon: Icons.percent),
                         const SizedBox(width: 8),
-                        _buildFilterChip(id: 'ending', label: 'Ending Soon', icon: Icons.timelapse_outlined),
+                        _buildFilterChip(
+                            id: 'ending',
+                            label: 'Ending Soon',
+                            icon: Icons.timelapse_outlined),
                       ],
                     ),
                   ),
@@ -1231,8 +1317,14 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     ),
                     child: Row(
                       children: [
-                        _buildViewToggleButton(mode: 'list', icon: Icons.view_agenda_outlined, label: 'List View'),
-                        _buildViewToggleButton(mode: 'map', icon: Icons.map_outlined, label: 'Map View'),
+                        _buildViewToggleButton(
+                            mode: 'list',
+                            icon: Icons.view_agenda_outlined,
+                            label: 'List View'),
+                        _buildViewToggleButton(
+                            mode: 'map',
+                            icon: Icons.map_outlined,
+                            label: 'Map View'),
                       ],
                     ),
                   ),
@@ -1244,18 +1336,24 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           activeDeals.isEmpty
                               ? 'No active nearby deals'
                               : '${activeDeals.length} active nearby deal${activeDeals.length == 1 ? '' : 's'}',
-                          style: TextStyle(color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                              color: Colors.grey.shade700,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                       PopupMenuButton<String>(
                         onSelected: _setSortMode,
                         itemBuilder: (context) => const [
-                          PopupMenuItem(value: 'distance', child: Text('Closest first')),
-                          PopupMenuItem(value: 'best', child: Text('Best deal nearby')),
-                          PopupMenuItem(value: 'ending', child: Text('Ending soon')),
+                          PopupMenuItem(
+                              value: 'distance', child: Text('Closest first')),
+                          PopupMenuItem(
+                              value: 'best', child: Text('Best deal nearby')),
+                          PopupMenuItem(
+                              value: 'ending', child: Text('Ending soon')),
                         ],
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
@@ -1272,7 +1370,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                                   'ending' => 'Ending Soon',
                                   _ => 'Closest',
                                 },
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                             ],
                           ),
@@ -1295,9 +1394,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -1322,12 +1425,14 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                          Icon(Icons.error_outline,
+                              color: Colors.red.shade700, size: 18),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _error!,
-                              style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                              style: TextStyle(
+                                  color: Colors.red.shade700, fontSize: 13),
                             ),
                           ),
                         ],

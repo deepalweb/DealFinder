@@ -16,68 +16,132 @@ class Category {
   });
 }
 
+const List<String> launchCategoryIds = [
+  'food_dining',
+  'beauty_salon',
+  'repairs_services',
+  'shopping_retail',
+  'health_wellness',
+];
+
 String normalizeCategoryId(String? rawCategory) {
   final value = (rawCategory ?? '').trim().toLowerCase();
   switch (value) {
+    case 'food_dining':
     case 'food':
+    case 'food and dining':
     case 'food bev':
     case 'food beverage':
-      return 'food_bev';
+    case 'cafe':
+    case 'cafes':
+    case 'coffee':
+    case 'coffee shop':
+    case 'hangout':
+      return 'food_dining';
+    case 'beauty_salon':
     case 'health':
     case 'beauty':
     case 'beauty and health':
-      return 'beauty_health';
+    case 'beauty_health':
+    case 'salon':
+    case 'spa':
+    case 'grooming':
+      return 'beauty_salon';
+    case 'daily_essentials':
     case 'home':
     case 'garden':
     case 'home and garden':
-      return 'home_garden';
+    case 'home_garden':
+    case 'grocery':
+    case 'groceries':
+    case 'pharmacy':
+    case 'daily essentials':
+      return 'daily_essentials';
+    case 'repairs_services':
     case 'service':
-      return 'services';
+    case 'services':
+    case 'repair':
+    case 'repairs':
+      return 'repairs_services';
+    case 'shopping':
+    case 'shopping_retail':
+    case 'retail':
+    case 'electronics':
+    case 'fashion':
+    case 'accessories':
+    case 'clothing':
+      return 'shopping_retail';
+    case 'health_wellness':
+    case 'wellness':
+    case 'fitness':
+    case 'clinic':
+    case 'dental':
+      return 'health_wellness';
+    case 'auto':
+    case 'auto_services':
+      return 'auto_services';
+    case 'education_courses':
+    case 'course':
+    case 'courses':
+    case 'education':
+    case 'tuition':
+    case 'training':
+      return 'education_courses';
+    case 'entertainment':
+    case 'entertainment_activities':
+    case 'activities':
+    case 'travel':
+      return 'entertainment_activities';
+    case 'pets':
+      return 'other';
     default:
       return value;
   }
 }
 
-// Predefined list of categories (as per user decision)
-// In a real app, this might come from an API or a more dynamic source.
 final List<Category> predefinedCategories = [
   Category(
-      id: 'food_bev',
-      name: 'Food & Cafes',
+      id: 'food_dining',
+      name: 'Food & Dining',
       localIconPath: 'assets/icons/food_bev.svg'), // Example path
   Category(
-      id: 'electronics',
-      name: 'Electronics',
-      localIconPath: 'assets/icons/electronics.svg'),
-  Category(
-      id: 'fashion',
-      name: 'Fashion',
-      localIconPath: 'assets/icons/fashion.svg'),
-  Category(
-      id: 'travel', name: 'Travel', localIconPath: 'assets/icons/travel.svg'),
-  Category(
-      id: 'home_garden',
-      name: 'Groceries & Essentials',
-      localIconPath: 'assets/icons/home.svg'),
-  Category(
-      id: 'beauty_health',
+      id: 'beauty_salon',
       name: 'Beauty & Salon',
       localIconPath: 'assets/icons/health.svg'),
   Category(
-      id: 'entertainment',
-      name: 'Entertainment',
-      localIconPath: 'assets/icons/entertainment.svg'),
-  Category(
-      id: 'services',
+      id: 'repairs_services',
       name: 'Repairs & Services',
       localIconPath: 'assets/icons/services.svg'),
-  Category(id: 'pets', name: 'Pets', localIconPath: 'assets/icons/other.svg'),
   Category(
-      id: 'education',
-      name: 'Pharmacy & Wellness',
+      id: 'shopping_retail',
+      name: 'Shopping & Retail',
+      localIconPath: 'assets/icons/electronics.svg'),
+  Category(
+      id: 'health_wellness',
+      name: 'Health & Wellness',
+      localIconPath: 'assets/icons/health.svg'),
+  Category(
+      id: 'daily_essentials',
+      name: 'Daily Essentials',
+      localIconPath: 'assets/icons/home.svg'),
+  Category(
+      id: 'auto_services',
+      name: 'Auto Services',
+      localIconPath: 'assets/icons/services.svg'),
+  Category(
+      id: 'education_courses',
+      name: 'Education & Courses',
       localIconPath: 'assets/icons/other.svg'),
+  Category(
+      id: 'entertainment_activities',
+      name: 'Entertainment & Activities',
+      localIconPath: 'assets/icons/entertainment.svg'),
   Category(id: 'other', name: 'Other', localIconPath: 'assets/icons/other.svg'),
 ];
+
+final List<Category> launchCategories = predefinedCategories
+    .where((category) => launchCategoryIds.contains(category.id))
+    .toList();
 
 Category? findCategory(String? categoryId) {
   final normalized = normalizeCategoryId(categoryId);

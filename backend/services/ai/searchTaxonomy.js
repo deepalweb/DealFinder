@@ -5,37 +5,62 @@ const STOP_WORDS = new Set([
 ]);
 
 const CATEGORY_ALIAS_MAP = {
-  fashion: ['fashion', 'clothes', 'clothing', 'apparel', 'wear', 'shirts', 'dress', 'dresses', 'shoes'],
-  electronics: ['electronics', 'electronic', 'gadgets', 'gadget', 'phone', 'phones', 'laptop', 'laptops', 'tv'],
-  food_bev: ['food', 'foods', 'restaurant', 'restaurants', 'cafe', 'cafes', 'coffee', 'drink', 'drinks', 'beverage', 'beverages', 'food bev', 'food and bev', 'budget meal', 'quick bites', 'family deal', 'takeaway'],
-  travel: ['travel', 'trip', 'trips', 'flight', 'flights', 'hotel', 'hotels', 'holiday', 'holidays'],
-  beauty_health: ['beauty', 'health', 'wellness', 'salon', 'spa', 'cosmetics', 'skincare', 'grooming', 'haircut', 'hair', 'spa day'],
-  home_garden: ['home', 'garden', 'furniture', 'kitchen', 'decor', 'household', 'grocery', 'groceries', 'essentials', 'fresh', 'supermarket'],
-  entertainment: ['entertainment', 'movie', 'movies', 'cinema', 'games', 'gaming', 'concert'],
-  services: ['services', 'service', 'repair', 'cleaning', 'consulting', 'mobile repair', 'laptop repair', 'printing', 'same day service'],
-  pets: ['pets', 'pet', 'dog', 'dogs', 'cat', 'cats', 'veterinary'],
-  education: ['education', 'school', 'course', 'courses', 'class', 'classes', 'tuition', 'pharmacy', 'medical', 'wellness'],
+  food_dining: ['food', 'foods', 'restaurant', 'restaurants', 'cafe', 'cafes', 'coffee', 'dessert', 'drink', 'drinks', 'beverage', 'beverages', 'food bev', 'food and bev', 'budget meal', 'quick bites', 'family pack', 'takeaway', 'fast food', 'buffet'],
+  beauty_salon: ['beauty', 'health', 'wellness', 'salon', 'spa', 'cosmetics', 'skincare', 'grooming', 'haircut', 'hair', 'spa day', 'bridal'],
+  repairs_services: ['services', 'service', 'repair', 'repairs', 'cleaning', 'consulting', 'mobile repair', 'laptop repair', 'printer repair', 'electrical', 'same day service'],
+  shopping_retail: ['shopping', 'retail', 'fashion', 'clothes', 'clothing', 'apparel', 'wear', 'shirts', 'dress', 'dresses', 'shoes', 'electronics', 'electronic', 'gadgets', 'gadget', 'phone', 'phones', 'laptop', 'laptops', 'tv', 'accessories'],
+  health_wellness: ['health', 'wellness', 'clinic', 'clinics', 'dental', 'fitness', 'yoga', 'pharmacy', 'medical', 'healthcare'],
+  daily_essentials: ['grocery', 'groceries', 'household', 'daily essentials', 'essentials', 'fresh', 'supermarket'],
+  auto_services: ['auto', 'car wash', 'service center', 'service centres', 'bike repair', 'garage', 'vehicle service'],
+  education_courses: ['education', 'school', 'course', 'courses', 'class', 'classes', 'tuition', 'skill training', 'it courses'],
+  entertainment_activities: ['entertainment', 'movie', 'movies', 'cinema', 'games', 'gaming', 'concert', 'events', 'kids activities', 'activity'],
   other: ['other', 'misc'],
 };
 
 function normalizeCategoryId(value) {
   const raw = String(value || '').trim().toLowerCase();
   switch (raw) {
+    case 'food_dining':
     case 'food':
+    case 'food and dining':
     case 'food bev':
     case 'food beverage':
     case 'food and bev':
-      return 'food_bev';
+      return 'food_dining';
+    case 'beauty_salon':
     case 'health':
     case 'beauty':
     case 'beauty and health':
-      return 'beauty_health';
+    case 'beauty_health':
+      return 'beauty_salon';
+    case 'daily_essentials':
     case 'home':
     case 'garden':
     case 'home and garden':
-      return 'home_garden';
+    case 'home_garden':
+      return 'daily_essentials';
+    case 'repairs_services':
     case 'service':
-      return 'services';
+    case 'services':
+      return 'repairs_services';
+    case 'shopping':
+    case 'shopping_retail':
+    case 'fashion':
+    case 'electronics':
+      return 'shopping_retail';
+    case 'health_wellness':
+      return 'health_wellness';
+    case 'auto_services':
+      return 'auto_services';
+    case 'travel':
+    case 'entertainment':
+    case 'entertainment_activities':
+      return 'entertainment_activities';
+    case 'education':
+    case 'education_courses':
+      return 'education_courses';
+    case 'pets':
+      return 'other';
     case '':
       return '';
     default:
@@ -66,21 +91,25 @@ function expandCategoryQueryValues(categories) {
     values.add(normalized);
 
     switch (normalized) {
-      case 'food_bev':
+      case 'food_dining':
         values.add('food');
         values.add('food bev');
         values.add('food beverage');
         break;
-      case 'beauty_health':
+      case 'beauty_salon':
         values.add('beauty');
         values.add('health');
         break;
-      case 'home_garden':
+      case 'daily_essentials':
         values.add('home');
         values.add('garden');
         break;
-      case 'services':
+      case 'repairs_services':
         values.add('service');
+        break;
+      case 'shopping_retail':
+        values.add('fashion');
+        values.add('electronics');
         break;
       default:
         break;

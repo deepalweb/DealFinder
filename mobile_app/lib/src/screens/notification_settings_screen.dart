@@ -7,21 +7,23 @@ class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({Key? key}) : super(key: key);
 
   @override
-  State<NotificationSettingsScreen> createState() => _NotificationSettingsScreenState();
+  State<NotificationSettingsScreen> createState() =>
+      _NotificationSettingsScreenState();
 }
 
-class _NotificationSettingsScreenState extends State<NotificationSettingsScreen> {
+class _NotificationSettingsScreenState
+    extends State<NotificationSettingsScreen> {
   static const bool _showPushDebugSection = false;
   bool _loading = true;
   bool _sendingTestNotification = false;
   bool _syncingPushToken = false;
   String? _fcmToken;
   String? _pushDebugStatus;
-  
+
   // Channel settings
   bool _pushEnabled = false;
   bool _emailEnabled = true;
-  
+
   // Notification type settings
   bool _nearbyDealsEnabled = true;
   int _nearbyRadius = 5;
@@ -31,22 +33,24 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   bool _priceDropsEnabled = true;
   bool _flashSalesEnabled = true;
   bool _weeklyDigestEnabled = true;
-  
+
   // Quiet hours
   bool _quietHoursEnabled = false;
   TimeOfDay _quietStart = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _quietEnd = const TimeOfDay(hour: 8, minute: 0);
-  
+
   // Categories
   List<String> _selectedCategories = [];
   final List<String> _availableCategories = [
-    'fashion',
-    'electronics',
-    'food',
-    'travel',
-    'health',
-    'entertainment',
-    'home',
+    'food_dining',
+    'beauty_salon',
+    'repairs_services',
+    'shopping_retail',
+    'health_wellness',
+    'daily_essentials',
+    'auto_services',
+    'education_courses',
+    'entertainment_activities',
   ];
 
   @override
@@ -74,20 +78,27 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         // Load channel settings
         _pushEnabled = prefs['channels']?['push']?['enabled'] ?? false;
         _emailEnabled = prefs['channels']?['email']?['enabled'] ?? true;
-        
+
         // Load notification type settings
-        _nearbyDealsEnabled = prefs['preferences']?['nearbyDeals']?['enabled'] ?? true;
+        _nearbyDealsEnabled =
+            prefs['preferences']?['nearbyDeals']?['enabled'] ?? true;
         _nearbyRadius = prefs['preferences']?['nearbyDeals']?['radius'] ?? 5;
-        _favoriteStoresEnabled = prefs['preferences']?['favoriteStores']?['enabled'] ?? true;
-        _expiringDealsEnabled = prefs['preferences']?['expiringDeals']?['enabled'] ?? true;
+        _favoriteStoresEnabled =
+            prefs['preferences']?['favoriteStores']?['enabled'] ?? true;
+        _expiringDealsEnabled =
+            prefs['preferences']?['expiringDeals']?['enabled'] ?? true;
         _expiringHours = prefs['preferences']?['expiringDeals']?['hours'] ?? 24;
-        _priceDropsEnabled = prefs['preferences']?['priceDrops']?['enabled'] ?? true;
-        _flashSalesEnabled = prefs['preferences']?['flashSales']?['enabled'] ?? true;
-        _weeklyDigestEnabled = prefs['preferences']?['weeklyDigest']?['enabled'] ?? true;
-        
+        _priceDropsEnabled =
+            prefs['preferences']?['priceDrops']?['enabled'] ?? true;
+        _flashSalesEnabled =
+            prefs['preferences']?['flashSales']?['enabled'] ?? true;
+        _weeklyDigestEnabled =
+            prefs['preferences']?['weeklyDigest']?['enabled'] ?? true;
+
         // Load quiet hours
         _quietHoursEnabled = prefs['quietHours']?['enabled'] ?? false;
-        final startParts = (prefs['quietHours']?['start'] ?? '22:00').split(':');
+        final startParts =
+            (prefs['quietHours']?['start'] ?? '22:00').split(':');
         final endParts = (prefs['quietHours']?['end'] ?? '08:00').split(':');
         _quietStart = TimeOfDay(
           hour: int.parse(startParts[0]),
@@ -97,10 +108,11 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           hour: int.parse(endParts[0]),
           minute: int.parse(endParts[1]),
         );
-        
+
         // Load categories
-        _selectedCategories = List<String>.from(prefs['preferences']?['categories'] ?? []);
-        
+        _selectedCategories =
+            List<String>.from(prefs['preferences']?['categories'] ?? []);
+
         _loading = false;
       });
     } catch (e) {
@@ -121,9 +133,15 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
           'email': {'enabled': _emailEnabled},
         },
         'preferences': {
-          'nearbyDeals': {'enabled': _nearbyDealsEnabled, 'radius': _nearbyRadius},
+          'nearbyDeals': {
+            'enabled': _nearbyDealsEnabled,
+            'radius': _nearbyRadius
+          },
           'favoriteStores': {'enabled': _favoriteStoresEnabled},
-          'expiringDeals': {'enabled': _expiringDealsEnabled, 'hours': _expiringHours},
+          'expiringDeals': {
+            'enabled': _expiringDealsEnabled,
+            'hours': _expiringHours
+          },
           'priceDrops': {'enabled': _priceDropsEnabled},
           'flashSales': {'enabled': _flashSalesEnabled},
           'weeklyDigest': {'enabled': _weeklyDigestEnabled},
@@ -131,13 +149,15 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
         },
         'quietHours': {
           'enabled': _quietHoursEnabled,
-          'start': '${_quietStart.hour.toString().padLeft(2, '0')}:${_quietStart.minute.toString().padLeft(2, '0')}',
-          'end': '${_quietEnd.hour.toString().padLeft(2, '0')}:${_quietEnd.minute.toString().padLeft(2, '0')}',
+          'start':
+              '${_quietStart.hour.toString().padLeft(2, '0')}:${_quietStart.minute.toString().padLeft(2, '0')}',
+          'end':
+              '${_quietEnd.hour.toString().padLeft(2, '0')}:${_quietEnd.minute.toString().padLeft(2, '0')}',
         },
       };
 
       await ApiService().updateNotificationPreferences(updatedPrefs);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Preferences saved successfully')),
@@ -330,9 +350,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             (value) => setState(() => _emailEnabled = value),
             icon: Icons.email,
           ),
-          
+
           const Divider(height: 32),
-          
+
           // Notification Types Section
           _buildSectionHeader('Notification Types'),
           _buildSwitchTile(
@@ -355,12 +375,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     max: 20,
                     divisions: 19,
                     label: '${_nearbyRadius}km',
-                    onChanged: (value) => setState(() => _nearbyRadius = value.toInt()),
+                    onChanged: (value) =>
+                        setState(() => _nearbyRadius = value.toInt()),
                   ),
                 ],
               ),
             ),
-          
+
           _buildSwitchTile(
             'Favorite Stores',
             'New deals from stores you follow',
@@ -368,7 +389,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             (value) => setState(() => _favoriteStoresEnabled = value),
             icon: Icons.favorite,
           ),
-          
+
           _buildSwitchTile(
             'Expiring Deals',
             'Reminders for deals about to expire',
@@ -389,12 +410,13 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                     max: 72,
                     divisions: 11,
                     label: '${_expiringHours}h',
-                    onChanged: (value) => setState(() => _expiringHours = value.toInt()),
+                    onChanged: (value) =>
+                        setState(() => _expiringHours = value.toInt()),
                   ),
                 ],
               ),
             ),
-          
+
           _buildSwitchTile(
             'Price Drops',
             'Get notified when prices drop',
@@ -402,7 +424,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             (value) => setState(() => _priceDropsEnabled = value),
             icon: Icons.trending_down,
           ),
-          
+
           _buildSwitchTile(
             'Flash Sales',
             'Urgent alerts for limited-time offers',
@@ -410,7 +432,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             (value) => setState(() => _flashSalesEnabled = value),
             icon: Icons.flash_on,
           ),
-          
+
           _buildSwitchTile(
             'Weekly Digest',
             'Summary of top deals every week',
@@ -418,7 +440,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             (value) => setState(() => _weeklyDigestEnabled = value),
             icon: Icons.email_outlined,
           ),
-          
+
           if (_showPushDebugSection) ...[
             const Divider(height: 32),
             _buildSectionHeader('Push Debug'),
@@ -452,14 +474,20 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
                           label: const Text('Refresh Token'),
                         ),
                         ElevatedButton.icon(
-                          onPressed: _syncingPushToken ? null : _syncPushTokenToBackend,
+                          onPressed: _syncingPushToken
+                              ? null
+                              : _syncPushTokenToBackend,
                           icon: const Icon(Icons.cloud_upload),
                           label: Text(
-                            _syncingPushToken ? 'Syncing...' : 'Sync Token to Backend',
+                            _syncingPushToken
+                                ? 'Syncing...'
+                                : 'Sync Token to Backend',
                           ),
                         ),
                         OutlinedButton.icon(
-                          onPressed: (_fcmToken == null || _fcmToken!.isEmpty) ? null : _copyToken,
+                          onPressed: (_fcmToken == null || _fcmToken!.isEmpty)
+                              ? null
+                              : _copyToken,
                           icon: const Icon(Icons.copy),
                           label: const Text('Copy Token'),
                         ),
@@ -471,7 +499,7 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             ),
             const Divider(height: 32),
           ],
-          
+
           // Categories Section
           _buildSectionHeader('Interested Categories'),
           Wrap(
@@ -493,9 +521,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               );
             }).toList(),
           ),
-          
+
           const Divider(height: 32),
-          
+
           // Quiet Hours Section
           _buildSectionHeader('Quiet Hours'),
           _buildSwitchTile(
@@ -535,9 +563,9 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               },
             ),
           ],
-          
+
           const SizedBox(height: 32),
-          
+
           // Test Notification Button
           ElevatedButton.icon(
             onPressed: _sendingTestNotification ? null : _sendTestNotification,
