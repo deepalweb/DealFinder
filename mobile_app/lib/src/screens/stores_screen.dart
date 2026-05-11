@@ -259,7 +259,7 @@ class _StoresScreenState extends State<StoresScreen> {
     final name = merchant['name'] ?? 'Store';
     final category = merchant['category'] ?? 'store';
     Share.share(
-      'Check out $name on DealFinder.\nGreat $category deals and local offers await.',
+      'Check out $name on Deal Finder.\nGreat $category deals and local offers await.',
     );
   }
 

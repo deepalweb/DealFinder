@@ -500,7 +500,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
               onPressed: () {
                 final url = _merchant!['website'] ?? '';
                 Share.share(
-                  'Check out ${_merchant!['name']} on DealFinder!'
+                  'Check out ${_merchant!['name']} on Deal Finder!'
                   '${url.toString().isNotEmpty ? '\n$url' : ''}',
                 );
               },

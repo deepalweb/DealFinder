@@ -1109,7 +1109,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       LocationFetchStatus.serviceDisabled =>
         'Turn on device location to see nearby deals, distance, and directions.',
       LocationFetchStatus.permissionDeniedForever =>
-        'Location permission is blocked for DealFinder. Enable it from app settings.',
+        'Location permission is blocked for Deal Finder. Enable it from app settings.',
       LocationFetchStatus.timeout =>
         'We could not get a live GPS fix in time. Try again outdoors or near a window.',
       _ => 'Turn on location to see nearby deals, distance, and directions.',

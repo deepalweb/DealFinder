@@ -103,7 +103,7 @@ abstract class AppLocalizations {
   /// App title
   ///
   /// In en, this message translates to:
-  /// **'DealFinder'**
+  /// **'Deal Finder'**
   String get appTitle;
 
   /// Welcome message on home screen
@@ -211,7 +211,7 @@ abstract class AppLocalizations {
   /// Footer copyright text
   ///
   /// In en, this message translates to:
-  /// **'© 2025 DealFinder. All rights reserved.'**
+  /// **'© 2025 Deal Finder. All rights reserved.'**
   String get copyright;
 
   /// Empty state for featured deals
@@ -349,7 +349,7 @@ abstract class AppLocalizations {
   /// Register screen subtitle
   ///
   /// In en, this message translates to:
-  /// **'Join DealFinder today'**
+  /// **'Join Deal Finder today'**
   String get registerSubtitle;
 
   /// Full name field label

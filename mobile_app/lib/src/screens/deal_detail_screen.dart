@@ -308,7 +308,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
     final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
     final message = Uri.encodeComponent(
-      'Hi, I am contacting you about "${widget.promotion.title}" on DealFinder.',
+      'Hi, I am contacting you about "${widget.promotion.title}" on Deal Finder.',
     );
     final uri = Uri.parse('https://wa.me/$digits?text=$message');
 

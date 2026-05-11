@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'DealFinder';
+  String get appTitle => 'Deal Finder';
 
   @override
   String welcomeBack(String name) {
@@ -65,7 +65,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get contact => 'Contact';
 
   @override
-  String get copyright => '© 2025 DealFinder. All rights reserved.';
+  String get copyright => '© 2025 Deal Finder. All rights reserved.';
 
   @override
   String get noFeaturedDeals => 'No featured deals available.';
@@ -140,7 +140,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get registerTitle => 'Create Account';
 
   @override
-  String get registerSubtitle => 'Join DealFinder today';
+  String get registerSubtitle => 'Join Deal Finder today';
 
   @override
   String get fullName => 'Full Name';

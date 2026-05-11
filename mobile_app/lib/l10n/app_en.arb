@@ -1,7 +1,7 @@
 {
   "@@locale": "en",
 
-  "appTitle": "DealFinder",
+  "appTitle": "Deal Finder",
   "@appTitle": { "description": "App title" },
 
   "welcomeBack": "Welcome back, {name}!",
@@ -58,7 +58,7 @@
   "contact": "Contact",
   "@contact": { "description": "Footer contact link" },
 
-  "copyright": "© 2025 DealFinder. All rights reserved.",
+  "copyright": "© 2025 Deal Finder. All rights reserved.",
   "@copyright": { "description": "Footer copyright text" },
 
   "noFeaturedDeals": "No featured deals available.",
@@ -136,7 +136,7 @@
   "registerTitle": "Create Account",
   "@registerTitle": { "description": "Register screen title" },
 
-  "registerSubtitle": "Join DealFinder today",
+  "registerSubtitle": "Join Deal Finder today",
   "@registerSubtitle": { "description": "Register screen subtitle" },
 
   "fullName": "Full Name",
