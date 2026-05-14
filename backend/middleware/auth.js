@@ -1,6 +1,17 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User'); // May be needed for more complex role checks if not on JWT
 
+async function resolveMerchantIdFromUser(userPayload) {
+  if (!userPayload?.id) return null;
+
+  try {
+    const dbUser = await User.findById(userPayload.id).select('merchantId');
+    return dbUser?.merchantId ? dbUser.merchantId.toString() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 // JWT Middleware
 function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -81,8 +92,16 @@ async function authorizePromotionOwnerOrAdmin(req, res, next) {
     return next();
   }
 
-  if (req.user.role === 'merchant' && req.user.merchantId) {
+  if (req.user.role === 'merchant') {
     try {
+      if (!req.user.merchantId) {
+        req.user.merchantId = await resolveMerchantIdFromUser(req.user);
+      }
+
+      if (!req.user.merchantId) {
+        return res.status(403).json({ message: 'Forbidden: No merchant profile is linked to this account' });
+      }
+
       const Promotion = require('../models/Promotion');
       const promotion = await Promotion.findById(req.params.id);
       if (!promotion) {

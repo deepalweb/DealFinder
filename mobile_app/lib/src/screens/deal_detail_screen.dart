@@ -16,6 +16,7 @@ import '../services/favorites_manager.dart';
 import '../services/api_service.dart';
 import '../services/recommendation_service.dart';
 import '../services/deal_history_service.dart';
+import '../services/location_service.dart';
 import '../config/app_config.dart';
 import '../screens/merchant_profile_screen.dart';
 import '../utils/deal_expiry_helper.dart';
@@ -47,6 +48,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   String? _userId;
 
   Map<String, dynamic>? _merchantData;
+  double? _liveDistanceMeters;
   int _viewCount = 0;
   int _favoriteCount = 0;
   int _commentCount = 0;
@@ -64,6 +66,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     _loadReviewsAndStats();
     _loadUserAuth();
     _fetchMerchantData();
+    _refreshDistanceFromCurrentLocation();
     _recommendedDealsFuture = _fetchRecommendedDeals();
     _trackView();
     _startCountdownTicker();
@@ -74,6 +77,46 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     _countdownTimer?.cancel();
     _commentController.dispose();
     super.dispose();
+  }
+
+  String? _resolveMerchantLogoUrl(String? rawUrl) {
+    final trimmed = rawUrl?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+
+    if (trimmed.startsWith('data:image')) return trimmed;
+
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed != null && parsed.hasScheme) {
+      if (parsed.scheme == 'http' || parsed.scheme == 'https') {
+        return parsed.toString();
+      }
+      return null;
+    }
+
+    if (trimmed.startsWith('//')) {
+      return 'https:$trimmed';
+    }
+
+    final base = AppConfig.publicBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    return '$base$path';
+  }
+
+  ImageProvider<Object>? _buildMerchantLogoProvider(String? rawUrl) {
+    final resolved = _resolveMerchantLogoUrl(rawUrl);
+    if (resolved == null) return null;
+
+    if (resolved.startsWith('data:image')) {
+      try {
+        final bytes =
+            base64Decode(resolved.substring(resolved.indexOf(',') + 1));
+        return MemoryImage(bytes);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    return NetworkImage(resolved);
   }
 
   void _startCountdownTicker() {
@@ -130,14 +173,59 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     try {
       final data =
           await _apiService.fetchMerchantById(widget.promotion.merchantId!);
+      if (!mounted) return;
       setState(() {
         _merchantData = data;
       });
+      await _refreshDistanceFromCurrentLocation();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _merchantData = null;
       });
     }
+  }
+
+  (double, double)? _merchantCoordinates() {
+    final coords = _merchantData?['location']?['coordinates'];
+    if (coords is List && coords.length >= 2) {
+      final lon = (coords[0] as num?)?.toDouble();
+      final lat = (coords[1] as num?)?.toDouble();
+      if (lat != null && lon != null) {
+        return (lat, lon);
+      }
+    }
+
+    final lat = widget.promotion.latitude;
+    final lon = widget.promotion.longitude;
+    if (lat != null && lon != null) {
+      return (lat, lon);
+    }
+
+    return null;
+  }
+
+  Future<void> _refreshDistanceFromCurrentLocation() async {
+    final coords = _merchantCoordinates();
+    if (coords == null) return;
+
+    final locationResult = await LocationService.resolveCurrentLocation(
+      requestPermission: false,
+      allowLastKnownFallback: true,
+    );
+    final position = locationResult.position;
+    if (position == null || !mounted) return;
+
+    final distanceKm = LocationService.calculateDistance(
+      position.latitude,
+      position.longitude,
+      coords.$1,
+      coords.$2,
+    );
+
+    setState(() {
+      _liveDistanceMeters = distanceKm * 1000;
+    });
   }
 
   Future<List<Promotion>> _fetchRecommendedDeals() async {
@@ -272,6 +360,51 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   String? get _countdownText {
     return DealExpiryHelper.formatCompact(widget.promotion.endDate);
+  }
+
+  double? get _displayDistanceMeters {
+    return _liveDistanceMeters ?? widget.promotion.distance;
+  }
+
+  String _formatDistance(double? distanceMeters) {
+    if (distanceMeters == null) return '';
+    if (distanceMeters < 1000) return '${distanceMeters.round()} m away';
+    return '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
+  }
+
+  String _displayTitle(Promotion promotion) {
+    var title = promotion.title.trim();
+    title = title
+        .replaceFirst(
+          RegExp(r'^[^\w\s]+', unicode: true),
+          '',
+        )
+        .trim();
+
+    final computedDiscount = promotion.discountPercentage;
+    final titleDiscountMatch =
+        RegExp(r'(\d+)\s*%\s*OFF', caseSensitive: false).firstMatch(title);
+    if (computedDiscount != null && titleDiscountMatch != null) {
+      final titleDiscount = int.tryParse(titleDiscountMatch.group(1) ?? '');
+      if (titleDiscount != null && titleDiscount != computedDiscount) {
+        title = title.replaceRange(
+          titleDiscountMatch.start,
+          titleDiscountMatch.end,
+          '$computedDiscount% OFF',
+        );
+      }
+    }
+
+    return title;
+  }
+
+  String _displayHeaderTitle(Promotion promotion) {
+    return promotion.featured == true ? 'Flash Deal' : 'Deal details';
+  }
+
+  String _formatCountdownInline(String countdownText) {
+    if (countdownText == 'Expired') return 'Expired';
+    return 'Ends in $countdownText';
   }
 
   Future<void> _launchPhoneCall() async {
@@ -528,6 +661,46 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final theme = Theme.of(context);
     final dateFormat = DateFormat('MMM d, yyyy');
     final orderLink = _effectiveOrderLink;
+    final deepLink = '${AppConfig.publicBaseUrl}/deal/${promotion.id}';
+    final hasMerchant =
+        promotion.merchantName != null && promotion.merchantName!.isNotEmpty;
+    final hasPriceInfo = promotion.originalPrice != null ||
+        promotion.discountedPrice != null ||
+        promotion.price != null;
+    final headlinePrice = _headlinePriceText(promotion);
+    final originalPriceLabel = _originalPriceText(promotion);
+    final savingsLabel = _savingsText(promotion);
+    final distanceLabel = _formatDistance(_displayDistanceMeters);
+    final displayTitle = _displayTitle(promotion);
+    final displayHeaderTitle = _displayHeaderTitle(promotion);
+    final merchantLogoProvider = _buildMerchantLogoProvider(
+      (_merchantData?['logo'] ?? promotion.merchantLogoUrl)?.toString(),
+    );
+    final statusChips = <Widget>[
+      if (promotion.featured == true)
+        _buildInfoPill(
+          icon: Icons.auto_awesome,
+          label: 'Featured',
+          backgroundColor: const Color(0xFFFFF3E0),
+          foregroundColor: const Color(0xFFB45309),
+        ),
+      if (DealExpiryHelper.isEndingToday(promotion.endDate))
+        _buildInfoPill(
+          icon: Icons.schedule,
+          label: 'Ending today',
+          backgroundColor: const Color(0xFFFFF4ED),
+          foregroundColor: const Color(0xFF9A3412),
+        ),
+      if (promotion.isVerifiedActiveDeal)
+        const DealVerificationBadge(compact: false),
+      if ((promotion.category ?? '').trim().isNotEmpty)
+        _buildInfoPill(
+          icon: Icons.sell_outlined,
+          label: promotion.category!.trim(),
+          backgroundColor: theme.colorScheme.primaryContainer,
+          foregroundColor: theme.colorScheme.onPrimaryContainer,
+        ),
+    ];
     final primaryActionButtons = <Widget>[
       if (_supportsVisit)
         Semantics(
@@ -660,10 +833,64 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ),
         ),
     ];
+    final _StickyActionConfig? stickyPrimaryAction =
+        (_supportsDelivery || _supportsPickup) &&
+                orderLink != null &&
+                orderLink.isNotEmpty
+            ? _StickyActionConfig(
+                label: _supportsDelivery ? 'Order now' : 'Pickup order',
+                icon: Icons.delivery_dining,
+                onPressed: () => _launchURL(orderLink),
+                backgroundColor: const Color(0xFF2E7D32),
+                foregroundColor: Colors.white,
+              )
+            : _supportsVisit
+                ? _StickyActionConfig(
+                    label: 'Visit now',
+                    icon: Icons.storefront_outlined,
+                    onPressed: _openDirections,
+                    backgroundColor: const Color(0xFF1565C0),
+                    foregroundColor: Colors.white,
+                  )
+                : (promotion.url ?? '').isNotEmpty
+                    ? _StickyActionConfig(
+                        label: 'Open deal',
+                        icon: Icons.launch,
+                        onPressed: () => _launchURL(promotion.url!),
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                      )
+                    : (promotion.websiteUrl ?? '').isNotEmpty
+                        ? _StickyActionConfig(
+                            label: 'Website',
+                            icon: Icons.public,
+                            onPressed: () => _launchURL(promotion.websiteUrl!),
+                            backgroundColor: theme.colorScheme.primary,
+                            foregroundColor: theme.colorScheme.onPrimary,
+                          )
+                        : null;
+    final _StickyActionConfig? stickySecondaryAction =
+        (!_supportsVisit || stickyPrimaryAction?.label != 'Visit now')
+            ? _StickyActionConfig(
+                label: 'Directions',
+                icon: Icons.directions,
+                onPressed: _openDirections,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                foregroundColor: theme.colorScheme.onSurface,
+              )
+            : _merchantPhoneNumber.isNotEmpty
+                ? _StickyActionConfig(
+                    label: 'Call',
+                    icon: Icons.call_outlined,
+                    onPressed: _launchPhoneCall,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    foregroundColor: theme.colorScheme.onSurface,
+                  )
+                : null;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(promotion.title, overflow: TextOverflow.ellipsis),
+        title: Text(displayHeaderTitle, overflow: TextOverflow.ellipsis),
         actions: [
           Semantics(
             button: true,
@@ -690,8 +917,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: stickyPrimaryAction == null
+          ? null
+          : _buildStickyActionBar(
+              theme: theme,
+              primaryAction: stickyPrimaryAction,
+              secondaryAction: stickySecondaryAction,
+            ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -705,143 +939,244 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
             const SizedBox(height: 20.0),
 
-            // Shareable Deep Link & Expiry Countdown
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Shareable Link (copy to clipboard)
-                Expanded(
-                  child: GestureDetector(
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_countdownText != null || distanceLabel.isNotEmpty)
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 6,
+                      children: [
+                        if (_countdownText != null)
+                          _buildInlineMetaItem(
+                            icon: _countdownText == 'Expired'
+                                ? Icons.event_busy
+                                : Icons.timer_outlined,
+                            label: _formatCountdownInline(_countdownText!),
+                            color: _countdownText == 'Expired'
+                                ? const Color(0xFFB91C1C)
+                                : const Color(0xFF9A3412),
+                          ),
+                        if (_countdownText != null && distanceLabel.isNotEmpty)
+                          Text(
+                            '•',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.outline,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        if (distanceLabel.isNotEmpty)
+                          _buildInlineMetaItem(
+                            icon: Icons.near_me_outlined,
+                            label: distanceLabel,
+                            color: const Color(0xFF0F4C81),
+                          ),
+                      ],
+                    ),
+                  if (_countdownText != null || distanceLabel.isNotEmpty)
+                    const SizedBox(height: 12),
+                  if (statusChips.isNotEmpty) ...[
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: statusChips,
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+                  Text(
+                    displayTitle,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (hasMerchant) ...[
+                    const SizedBox(height: 10),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: promotion.merchantId == null
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MerchantProfileScreen(
+                                    merchantId: promotion.merchantId!,
+                                  ),
+                                ),
+                              );
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerLowest,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 18,
+                              backgroundColor:
+                                  theme.colorScheme.primaryContainer,
+                              backgroundImage: merchantLogoProvider,
+                              child: merchantLogoProvider != null
+                                  ? null
+                                  : Text(
+                                      promotion.merchantName!.trim().isEmpty
+                                          ? 'M'
+                                          : promotion.merchantName!
+                                              .trim()[0]
+                                              .toUpperCase(),
+                                      style: TextStyle(
+                                        color: theme
+                                            .colorScheme.onPrimaryContainer,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Sold by',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    promotion.merchantName!,
+                                    style:
+                                        theme.textTheme.titleMedium?.copyWith(
+                                      color: theme.colorScheme.onSurface,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (promotion.merchantId != null)
+                              Icon(
+                                Icons.chevron_right,
+                                size: 20,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                  if (hasPriceInfo && headlinePrice != null) ...[
+                    const SizedBox(height: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.end,
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            Text(
+                              headlinePrice,
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                color: const Color(0xFFC2410C),
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            if (originalPriceLabel != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  originalPriceLabel,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (savingsLabel != null) ...[
+                          const SizedBox(height: 8),
+                          _buildInfoPill(
+                            icon: Icons.savings_outlined,
+                            label: savingsLabel,
+                            backgroundColor: const Color(0xFFFFEDD5),
+                            foregroundColor: const Color(0xFF9A3412),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
                     onTap: () async {
-                      final link =
-                          '${AppConfig.publicBaseUrl}/deal/${promotion.id}';
-                      await Clipboard.setData(ClipboardData(text: link));
+                      await Clipboard.setData(ClipboardData(text: deepLink));
                       if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Deal link copied!')),
                       );
                     },
-                    child: Row(
-                      children: [
-                        Icon(Icons.link,
-                            color: theme.colorScheme.primary, size: 20),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Shareable Link',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              decoration: TextDecoration.underline,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.link,
+                            color: theme.colorScheme.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Copy shareable link',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Icon(Icons.copy,
-                            size: 16, color: theme.colorScheme.primary),
-                      ],
-                    ),
-                  ),
-                ),
-                // Expiry Countdown
-                if (_countdownText != null)
-                  Builder(
-                    builder: (context) {
-                      final isExpired = _countdownText == 'Expired';
-                      final urgencyDate = isExpired
-                          ? DateTime.now().subtract(const Duration(minutes: 1))
-                          : promotion.endDate;
-                      final foreground = DealExpiryHelper.urgencyColor(
-                        context,
-                        urgencyDate,
-                      );
-                      final background =
-                          DealExpiryHelper.urgencyBackgroundColor(urgencyDate);
-                      final border =
-                          DealExpiryHelper.urgencyBorderColor(urgencyDate);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: background,
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: border),
-                        ),
-                        child: Text(
-                          _countdownText!,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: foreground,
-                            fontWeight: FontWeight.w800,
+                          Icon(
+                            Icons.copy_outlined,
+                            size: 18,
+                            color: theme.colorScheme.primary,
                           ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12.0),
-
-            // Badges and Highlights (e.g., Featured, New, Popular)
-            Row(
-              children: [
-                if (promotion.featured == true)
-                  Container(
-                    margin: const EdgeInsets.only(right: 6.0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 2.0),
-                    decoration: BoxDecoration(
-                      color: Colors.orange[100],
-                      borderRadius: BorderRadius.circular(8.0),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.orange.withValues(alpha: 0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2))
-                      ],
-                    ),
-                    child: Text('FEATURED',
-                        style: TextStyle(
-                            color: Colors.orange[900],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12)),
-                  ),
-                if (DealExpiryHelper.isEndingToday(promotion.endDate))
-                  Container(
-                    margin: const EdgeInsets.only(right: 6.0),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 2.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF4ED),
-                      borderRadius: BorderRadius.circular(8.0),
-                      border: Border.all(color: const Color(0xFFF9B189)),
-                    ),
-                    child: const Text(
-                      'ENDING TODAY',
-                      style: TextStyle(
-                        color: Color(0xFF9A3412),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        ],
                       ),
                     ),
                   ),
-                if (promotion.isVerifiedActiveDeal)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 6.0),
-                    child: DealVerificationBadge(compact: false),
-                  ),
-              ],
+                ],
+              ),
             ),
-            if (promotion.featured == true || promotion.isVerifiedActiveDeal)
-              const SizedBox(height: 6.0),
-
-            // Promotion Title
-            Text(
-              promotion.title,
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10.0),
+            const SizedBox(height: 16.0),
             Card(
               elevation: 0.5,
               shape: RoundedRectangleBorder(
@@ -852,19 +1187,77 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 child: Column(
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildStatChip(
-                            Icons.visibility_outlined, 'Views', _viewCount),
-                        _buildStatChip(
-                            Icons.favorite_border, 'Likes', _favoriteCount),
-                        _buildStatChip(Icons.chat_bubble_outline, 'Comments',
-                            _commentCount),
-                        _buildStatChip(
-                            Icons.ads_click_outlined, 'Clicks', _clickCount),
-                        _buildStatChip(Icons.directions_outlined, 'Directions',
-                            _directionCount),
+                        Expanded(
+                          child: Text(
+                            'Deal activity',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (_loadingStats)
+                          Text(
+                            'Updating...',
+                            style: theme.textTheme.bodySmall,
+                          ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        const spacing = 10.0;
+                        final columns = constraints.maxWidth < 360 ? 2 : 3;
+                        final itemWidth =
+                            (constraints.maxWidth - ((columns - 1) * spacing)) /
+                                columns;
+                        return Wrap(
+                          spacing: spacing,
+                          runSpacing: spacing,
+                          children: [
+                            SizedBox(
+                              width: itemWidth,
+                              child: _buildStatChip(
+                                Icons.visibility_outlined,
+                                'Views',
+                                _viewCount,
+                              ),
+                            ),
+                            SizedBox(
+                              width: itemWidth,
+                              child: _buildStatChip(
+                                Icons.favorite_border,
+                                'Likes',
+                                _favoriteCount,
+                              ),
+                            ),
+                            SizedBox(
+                              width: itemWidth,
+                              child: _buildStatChip(
+                                Icons.chat_bubble_outline,
+                                'Comments',
+                                _commentCount,
+                              ),
+                            ),
+                            SizedBox(
+                              width: itemWidth,
+                              child: _buildStatChip(
+                                Icons.ads_click_outlined,
+                                'Clicks',
+                                _clickCount,
+                              ),
+                            ),
+                            SizedBox(
+                              width: itemWidth,
+                              child: _buildStatChip(
+                                Icons.directions_outlined,
+                                'Directions',
+                                _directionCount,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                     if (_loadingStats) ...[
                       const SizedBox(height: 10),
@@ -877,8 +1270,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             const SizedBox(height: 16.0),
 
             // Merchant Information (with logo/avatar if available)
-            if (promotion.merchantName != null &&
-                promotion.merchantName!.isNotEmpty)
+            if (hasMerchant)
               GestureDetector(
                 onTap: () {
                   if (promotion.merchantId != null) {
@@ -903,18 +1295,20 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       children: [
                         if (_merchantData != null &&
                             _merchantData!['logo'] != null &&
-                            _merchantData!['logo'].toString().isNotEmpty)
+                            _resolveMerchantLogoUrl(
+                                  _merchantData!['logo'].toString(),
+                                ) !=
+                                null)
                           CircleAvatar(
                             radius: 16,
-                            backgroundImage: _merchantData!['logo']
-                                    .toString()
-                                    .startsWith('http')
-                                ? NetworkImage(_merchantData!['logo'])
-                                : null,
+                            backgroundImage: _buildMerchantLogoProvider(
+                              _merchantData!['logo'].toString(),
+                            ),
                             backgroundColor: Colors.grey[200],
-                            child: _merchantData!['logo']
-                                    .toString()
-                                    .startsWith('http')
+                            child: _buildMerchantLogoProvider(
+                                      _merchantData!['logo'].toString(),
+                                    ) !=
+                                    null
                                 ? null
                                 : const Icon(Icons.storefront_outlined,
                                     color: Colors.grey),
@@ -936,58 +1330,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   ),
                 ),
               ),
-            if (promotion.merchantName != null &&
-                promotion.merchantName!.isNotEmpty)
-              const SizedBox(height: 16.0),
-
-            if (_countdownText != null) ...[
-              Builder(
-                builder: (context) {
-                  final isExpired = _countdownText == 'Expired';
-                  final urgencyDate = isExpired
-                      ? DateTime.now().subtract(const Duration(minutes: 1))
-                      : promotion.endDate;
-                  final foreground =
-                      DealExpiryHelper.urgencyColor(context, urgencyDate);
-                  final background =
-                      DealExpiryHelper.urgencyBackgroundColor(urgencyDate);
-                  final border =
-                      DealExpiryHelper.urgencyBorderColor(urgencyDate);
-                  return Card(
-                    elevation: 0.5,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: border),
-                    ),
-                    color: background,
-                    child: Padding(
-                      padding: const EdgeInsets.all(14.0),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isExpired ? Icons.event_busy : Icons.timer_outlined,
-                            color: foreground,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              isExpired
-                                  ? 'This deal has expired.'
-                                  : 'Offer ends in $_countdownText',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: foreground,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16.0),
-            ],
+            if (hasMerchant) const SizedBox(height: 16.0),
 
             // Discount & Code Section
             if (promotion.discount != null || promotion.code != null)
@@ -1594,24 +1937,22 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                             .toList(),
                       ),
                     const SizedBox(height: 12.0),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _commentController,
-                            enabled: _userToken != null && !_submittingComment,
-                            minLines: 1,
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              hintText: _userToken == null
-                                  ? 'Log in to write a comment'
-                                  : 'Write a comment...',
-                              border: const OutlineInputBorder(),
-                            ),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stackActions = constraints.maxWidth < 420;
+                        final composer = TextField(
+                          controller: _commentController,
+                          enabled: _userToken != null && !_submittingComment,
+                          minLines: 1,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            hintText: _userToken == null
+                                ? 'Log in to write a comment'
+                                : 'Write a comment...',
+                            border: const OutlineInputBorder(),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
+                        );
+                        final button = FilledButton(
                           onPressed: _submittingComment ? null : _submitComment,
                           child: _submittingComment
                               ? const SizedBox(
@@ -1622,8 +1963,29 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                   ),
                                 )
                               : const Text('Post'),
-                        ),
-                      ],
+                        );
+
+                        if (stackActions) {
+                          return Column(
+                            children: [
+                              composer,
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: button,
+                              ),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: composer),
+                            const SizedBox(width: 12),
+                            button,
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -1656,6 +2018,28 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                           Expanded(child: Text(promotion.location!)),
                         ],
                       ),
+                      if (distanceLabel.isNotEmpty) ...[
+                        const SizedBox(height: 8.0),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.near_me_outlined,
+                              size: 18,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8.0),
+                            Expanded(
+                              child: Text(
+                                '$distanceLabel from here',
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: 8.0),
                       if (_merchantData != null &&
                           _merchantData!['latitude'] != null &&
@@ -1842,20 +2226,33 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Widget _buildStatChip(IconData icon, String label, int value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(height: 6),
-        Text(
-          '$value',
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: theme.colorScheme.primary),
+          const SizedBox(height: 10),
+          Text(
+            '$value',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1869,4 +2266,201 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       child: child,
     );
   }
+
+  Widget _buildInfoPill({
+    required IconData icon,
+    required String label,
+    required Color backgroundColor,
+    required Color foregroundColor,
+    Color? borderColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: borderColor == null ? null : Border.all(color: borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: foregroundColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: foregroundColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInlineMetaItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStickyActionBar({
+    required ThemeData theme,
+    required _StickyActionConfig primaryAction,
+    _StickyActionConfig? secondaryAction,
+  }) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          border: Border(
+            top: BorderSide(color: theme.colorScheme.outlineVariant),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 18,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            if (secondaryAction != null) ...[
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: secondaryAction.backgroundColor,
+                    foregroundColor: secondaryAction.foregroundColor,
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: secondaryAction.onPressed,
+                  child: Icon(secondaryAction.icon, size: 22),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: SizedBox(
+                height: 52,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: primaryAction.backgroundColor,
+                    foregroundColor: primaryAction.foregroundColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: primaryAction.onPressed,
+                  icon: Icon(primaryAction.icon, size: 20),
+                  label: Text(
+                    primaryAction.label,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 52,
+              height: 52,
+              child: FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  foregroundColor: _isFavorite
+                      ? Colors.red
+                      : theme.colorScheme.onSurfaceVariant,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: _toggleFavorite,
+                child: Icon(
+                  _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  size: 22,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _headlinePriceText(Promotion promotion) {
+    if (promotion.discountedPrice != null) {
+      return 'Rs. ${promotion.discountedPrice!.toStringAsFixed(2)}';
+    }
+    if (promotion.price != null) {
+      return 'Rs. ${promotion.price!.toStringAsFixed(2)}';
+    }
+    return null;
+  }
+
+  String? _originalPriceText(Promotion promotion) {
+    if (promotion.originalPrice == null || promotion.discountedPrice == null) {
+      return null;
+    }
+    return 'Rs. ${promotion.originalPrice!.toStringAsFixed(2)}';
+  }
+
+  String? _savingsText(Promotion promotion) {
+    if (promotion.originalPrice == null || promotion.discountedPrice == null) {
+      if ((promotion.discount ?? '').trim().isEmpty) return null;
+      return promotion.discount!.trim();
+    }
+
+    final amount = promotion.originalPrice! - promotion.discountedPrice!;
+    if (amount <= 0) return null;
+
+    final percentage = promotion.discountPercentage;
+    if (percentage == null) {
+      return 'Save Rs. ${amount.toStringAsFixed(0)}';
+    }
+    return 'Save $percentage%';
+  }
+}
+
+class _StickyActionConfig {
+  final String label;
+  final IconData icon;
+  final VoidCallback onPressed;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  const _StickyActionConfig({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
 }

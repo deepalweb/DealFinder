@@ -360,7 +360,7 @@ router.post('/login', [
     const { email, password } = req.body;
     
     // Find user
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -370,6 +370,12 @@ router.post('/login', [
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
+
+    user = await ensureMerchantProfileForUser(user, {
+      businessName: user.businessName || user.name,
+      contactInfo: user.email,
+      logo: user.logo,
+    });
     
     // Don't return the password
     const userResponse = user.toObject();
@@ -390,10 +396,26 @@ router.post('/refresh-token', (req, res) => {
   if (!refreshToken || !refreshTokens.has(refreshToken)) {
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
-  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret', (err, user) => {
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret', async (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid or expired refresh token' });
-    const newToken = generateToken(user);
-    res.status(200).json({ token: newToken });
+
+    try {
+      let dbUser = await User.findById(user.id);
+      if (!dbUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      dbUser = await ensureMerchantProfileForUser(dbUser, {
+        businessName: dbUser.businessName || dbUser.name,
+        contactInfo: dbUser.email,
+        logo: dbUser.logo,
+      });
+
+      const newToken = generateToken(dbUser);
+      res.status(200).json({ token: newToken });
+    } catch (refreshError) {
+      res.status(500).json(safeError(refreshError));
+    }
   });
 });
 
