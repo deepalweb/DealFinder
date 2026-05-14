@@ -13,6 +13,7 @@ interface User {
   merchantId?: string;
   profilePicture?: string;
   token: string;
+  refreshToken?: string;
 }
 
 interface AuthContextType {

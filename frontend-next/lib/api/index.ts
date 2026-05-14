@@ -30,6 +30,76 @@ function getToken(): string | null {
   } catch { return null; }
 }
 
+function getStoredUser(): any | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const user = localStorage.getItem('dealFinderUser');
+    return user ? JSON.parse(user) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredUser(user: any) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem('dealFinderUser', JSON.stringify(user));
+  window.dispatchEvent(new StorageEvent('storage', {
+    key: 'dealFinderUser',
+    newValue: JSON.stringify(user),
+  }));
+}
+
+function clearStoredUser() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('dealFinderUser');
+  window.dispatchEvent(new StorageEvent('storage', {
+    key: 'dealFinderUser',
+    newValue: null,
+  }));
+}
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const user = getStoredUser();
+    const refreshToken = user?.refreshToken;
+    if (!refreshToken) return null;
+
+    const res = await fetch(`${API_BASE}/users/refresh-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ refreshToken }),
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      clearStoredUser();
+      return null;
+    }
+
+    const data = await res.json().catch(() => null);
+    if (!data?.token) {
+      clearStoredUser();
+      return null;
+    }
+
+    setStoredUser({ ...user, token: data.token });
+    return data.token as string;
+  })();
+
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+}
+
 function getAiSessionId(): string | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -47,7 +117,7 @@ function getAiSessionId(): string | null {
   }
 }
 
-async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalidate?: number): Promise<T> {
+async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalidate?: number, hasRetried = false): Promise<T> {
   const isGet = !options.method || options.method === 'GET';
   const cacheKey = `${endpoint}`;
 
@@ -71,6 +141,18 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalida
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
+    if (
+      !hasRetried &&
+      typeof window !== 'undefined' &&
+      endpoint !== 'users/refresh-token' &&
+      res.status === 403 &&
+      err?.message === 'Invalid or expired token'
+    ) {
+      const refreshedToken = await refreshAccessToken();
+      if (refreshedToken) {
+        return fetchAPI<T>(endpoint, options, revalidate, true);
+      }
+    }
     throw new Error(err.message || `API Error: ${res.status}`);
   }
   const data = await res.json();
@@ -186,6 +268,7 @@ export const MerchantAPI = {
 export const UserAPI = {
   register: (data: any) => fetchAPI<any>('users/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: any) => fetchAPI<any>('users/login', { method: 'POST', body: JSON.stringify(data) }),
+  refreshToken: (refreshToken: string) => fetchAPI<any>('users/refresh-token', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
   getProfile: (id: string) => fetchAPI<any>(`users/${id}`),
   updateProfile: (id: string, data: any) => fetchAPI<any>(`users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   changePassword: (id: string, data: any) => fetchAPI<any>(`users/${id}/change-password`, { method: 'POST', body: JSON.stringify(data) }),
