@@ -27,7 +27,16 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
   const urgencyText = daysLeft < 0 ? 'Expired' : daysLeft <= 1 ? 'Ending soon' : 'Live now';
   const urgencyBg = daysLeft <= 1 ? 'var(--danger-soft)' : 'rgba(34,197,94,0.1)';
   const urgencyColor = daysLeft <= 1 ? 'var(--danger-color)' : 'var(--success-color)';
-  const distanceKm = promotion.aiMeta?.distanceKm;
+  const merchantDistanceMeters =
+    typeof promotion.merchant === 'object' && typeof promotion.merchant?.distance === 'number'
+      ? promotion.merchant.distance
+      : null;
+  const distanceKm =
+    promotion.aiMeta?.distanceKm !== null && promotion.aiMeta?.distanceKm !== undefined
+      ? promotion.aiMeta.distanceKm
+      : merchantDistanceMeters !== null
+        ? merchantDistanceMeters / 1000
+        : null;
   const distanceText = distanceKm !== null && distanceKm !== undefined 
     ? distanceKm < 1 
       ? `${Math.round(distanceKm * 1000)}m away` 
@@ -159,7 +168,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           </div>
         </div>
 
-        <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: '1.4', height: '2.8rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: '1.4', minHeight: '2.8rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {promotion.title}
         </h3>
 
@@ -172,7 +181,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           </div>
         )}
 
-        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.6', height: '4rem', overflow: 'hidden', margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.6', minHeight: '4rem', overflow: 'hidden', margin: 0, display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' }}>
           {promotion.description}
         </p>
 

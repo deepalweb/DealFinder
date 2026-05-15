@@ -7,7 +7,8 @@ import '../models/promotion.dart';
 import '../services/search_matcher.dart';
 import '../services/search_service.dart';
 import '../utils/deal_filter_support.dart';
-import '../widgets/deal_card.dart';
+import '../widgets/app_empty_state.dart';
+import '../widgets/modern_deal_card.dart';
 import 'deal_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -273,21 +274,34 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F8FF),
       appBar: AppBar(title: const Text('Search Deals')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSearchField(),
-          const SizedBox(height: 16),
-          if (_suggestions.isNotEmpty) ...[
-            _buildSuggestionSection(),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFDFF1FF),
+              Color(0xFFF4F8FF),
+            ],
+          ),
+        ),
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildSearchField(),
             const SizedBox(height: 16),
-          ] else ...[
-            _buildQuickTopicSection(),
-            const SizedBox(height: 16),
-            _buildHistorySection(),
+            if (_suggestions.isNotEmpty) ...[
+              _buildSuggestionSection(),
+              const SizedBox(height: 16),
+            ] else ...[
+              _buildQuickTopicSection(),
+              const SizedBox(height: 16),
+              _buildHistorySection(),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -697,59 +711,69 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     String? actionLabel,
     VoidCallback? onAction,
   }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.search_off_rounded,
-                size: 42,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF14213D),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                height: 1.45,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: 16),
-              FilledButton.tonal(
-                onPressed: onAction,
-                child: Text(actionLabel),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return AppEmptyState(
+      icon: Icons.search_off_rounded,
+      title: title,
+      message: message,
+      actionLabel: actionLabel,
+      onAction: onAction,
+    );
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedCategory = null;
+      _selectedCapabilityPresetId = null;
+    });
+  }
+
+  Widget _buildResultsGrid(List<Promotion> visibleResults) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = width >= 900
+            ? 4
+            : width >= 680
+                ? 3
+                : 2;
+
+        return GridView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 0.68,
+          ),
+          itemCount: visibleResults.length,
+          itemBuilder: (context, index) {
+            final promotion = visibleResults[index];
+            return ModernDealCard(
+              promotion: promotion,
+              showCountdown: promotion.endDate != null,
+              prioritizeDistance: promotion.distance != null,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DealDetailScreen(
+                      promotion: promotion,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F8FF),
       appBar: AppBar(
         title: Text(
           widget.query.trim().isNotEmpty
@@ -757,85 +781,77 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               : 'Browse Deals',
         ),
       ),
-      body: FutureBuilder<List<Promotion>>(
-        future: _futureResults,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              _results.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFDFF1FF),
+              Color(0xFFF4F8FF),
+            ],
+          ),
+        ),
+        child: FutureBuilder<List<Promotion>>(
+          future: _futureResults,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                _results.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return _buildEmptyState(
-              title: 'Search is having trouble',
-              message: 'We could not load the latest results right now.',
-              actionLabel: 'Retry',
-              onAction: _refreshResults,
-            );
-          }
+            if (snapshot.hasError) {
+              return _buildEmptyState(
+                title: 'Search is having trouble',
+                message: 'We could not load the latest results right now.',
+                actionLabel: 'Retry',
+                onAction: _refreshResults,
+              );
+            }
 
-          if (!snapshot.hasData || _results.isEmpty) {
-            return _buildEmptyState(
-              title: widget.query.trim().isNotEmpty
-                  ? 'No results for "${widget.query}"'
-                  : 'No deals found',
-              message: widget.query.trim().isNotEmpty
-                  ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
-                  : 'Try a different quick preset or clear the active filters to see more deals.',
-            );
-          }
+            if (!snapshot.hasData || _results.isEmpty) {
+              return _buildEmptyState(
+                title: widget.query.trim().isNotEmpty
+                    ? 'No results for "${widget.query}"'
+                    : 'No deals found',
+                message: widget.query.trim().isNotEmpty
+                    ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
+                    : 'Try a different quick preset or clear the active filters to see more deals.',
+              );
+            }
 
-          final visibleResults = _visibleResults;
+            final visibleResults = _visibleResults;
 
-          return RefreshIndicator(
-            onRefresh: _refreshResults,
-            child: Column(
-              children: [
-                _buildResultHeader(visibleResults.length),
-                Expanded(
-                  child: visibleResults.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.55,
-                              child: _buildEmptyState(
-                                title: 'No matches in this filter',
-                                message:
-                                    'Try another category or clear the active filter to see more deals.',
-                                actionLabel: 'Clear filters',
-                                onAction: () =>
-                                    setState(() => _selectedCategory = null),
+            return RefreshIndicator(
+              onRefresh: _refreshResults,
+              child: Column(
+                children: [
+                  _buildResultHeader(visibleResults.length),
+                  Expanded(
+                    child: visibleResults.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.55,
+                                child: _buildEmptyState(
+                                  title: 'No matches in this filter',
+                                  message:
+                                      'Try another category or clear the active filter to see more deals.',
+                                  actionLabel: 'Clear filters',
+                                  onAction: _clearAllFilters,
+                                ),
                               ),
-                            ),
-                          ],
-                        )
-                      : ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
-                          itemCount: visibleResults.length,
-                          itemBuilder: (context, index) {
-                            final promotion = visibleResults[index];
-                            return GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => DealDetailScreen(
-                                      promotion: promotion,
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: DealCard(promotion: promotion),
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          );
-        },
+                            ],
+                          )
+                        : _buildResultsGrid(visibleResults),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

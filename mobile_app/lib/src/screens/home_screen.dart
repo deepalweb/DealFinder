@@ -11,7 +11,6 @@ import '../services/cache_service.dart';
 import '../services/push_notification_service.dart';
 import '../widgets/section_header.dart';
 import '../widgets/home_shimmer.dart';
-import '../widgets/flash_sale_card.dart';
 import '../widgets/modern_deal_card.dart';
 import 'deal_detail_screen.dart';
 import 'notifications_screen.dart';
@@ -162,14 +161,22 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadNearbyDeals(double lat, double lng) async {
     try {
-      final nearbyDeals = await _api.fetchNearbyPromotions(
+      final nearbyResult = await _api.fetchNearbyPromotionsWithCache(
         lat,
         lng,
         radiusKm: 10,
+        locationName: _locationName,
       );
       if (mounted) {
         setState(() {
-          _nearbyDealsFromLocation = nearbyDeals;
+          _nearbyDealsFromLocation =
+              nearbyResult.fromCache && nearbyResult.locationChanged
+                  ? []
+                  : nearbyResult.promotions;
+          if (nearbyResult.fromCache && nearbyResult.locationChanged) {
+            _locationIssue =
+                'Nearby deals need internet because you moved away from the last saved area.';
+          }
           // Update deals with distance information
           for (var deal in _nearbyDealsFromLocation) {
             final index = _allDeals.indexWhere((d) => d.id == deal.id);
@@ -360,12 +367,12 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<Promotion> get _allEndingSoonDeals {
     final now = DateTime.now();
-    final endOfToday = DateTime(now.year, now.month, now.day + 1);
+    final cutoff = now.add(const Duration(hours: 48));
     final localEndingSoon = _filteredDeals
         .where((p) =>
             p.endDate != null &&
             p.endDate!.isAfter(now) &&
-            p.endDate!.isBefore(endOfToday))
+            p.endDate!.isBefore(cutoff))
         .toList()
       ..sort((a, b) {
         final byEndDate = a.endDate!.compareTo(b.endDate!);
@@ -378,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen>
           .where((p) =>
               p.endDate != null &&
               p.endDate!.isAfter(now) &&
-              p.endDate!.isBefore(endOfToday))
+              p.endDate!.isBefore(cutoff))
           .toList()
         ..sort((a, b) {
           final byEndDate = a.endDate!.compareTo(b.endDate!);
@@ -407,9 +414,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   String get _endingSoonSectionSubtitle {
     final duration = _nextEndingSoonDuration;
-    if (duration == null) return 'Deals ending today';
+    if (duration == null) return 'Deals ending within 48 hours';
     if (duration == Duration.zero) return 'Last chance deals';
-    return 'Closest expiry today';
+    return 'Closest expiry in the next 48 hours';
   }
 
   List<Promotion> get _newDeals {
@@ -603,7 +610,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
+                    const Text(
                       'Deal Finder',
                       style: TextStyle(
                         fontSize: 16,
@@ -677,11 +684,11 @@ class _HomeScreenState extends State<HomeScreen>
                   onTap: _openNotifications,
                   child: Stack(
                     children: [
-                      Center(
+                      const Center(
                         child: Icon(
                           Icons.notifications_outlined,
                           size: 26,
-                          color: const Color(0xFF0B5C7A),
+                          color: Color(0xFF0B5C7A),
                         ),
                       ),
                       if (_notificationCount > 0)
@@ -1323,7 +1330,7 @@ class _HomeScreenState extends State<HomeScreen>
         // Flash Sales Section
         if (_flashSales.isNotEmpty) ...[
           SectionHeader(
-            title: '⚡ Flash Sales',
+            title: '⚡ Flash Sales 50% OFF',
             subtitle: 'Ending soon - Hurry up!',
             icon: Icons.flash_on,
             onSeeAll: () => _openAllDeals(
@@ -1335,15 +1342,16 @@ class _HomeScreenState extends State<HomeScreen>
           Stack(
             children: [
               SizedBox(
-                height: 240,
+                height: 270,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _flashSales.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => FlashSaleCard(
+                  itemBuilder: (_, i) => ModernDealCard(
                     promotion: _flashSales[i],
-                    width: 180,
+                    width: 170,
+                    showCountdown: true,
                     onTap: () => _openDeal(_flashSales[i]),
                   ),
                 ),
@@ -1407,6 +1415,7 @@ class _HomeScreenState extends State<HomeScreen>
                   itemBuilder: (_, i) => ModernDealCard(
                     promotion: _featuredDeals[i],
                     width: 170,
+                    showCountdown: true,
                     onTap: () => _openDeal(_featuredDeals[i]),
                   ),
                 ),
@@ -1558,13 +1567,14 @@ class _HomeScreenState extends State<HomeScreen>
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.75,
+                childAspectRatio: 0.68,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
               itemCount: _nearbyDeals.length > 4 ? 4 : _nearbyDeals.length,
               itemBuilder: (_, i) => ModernDealCard(
                 promotion: _nearbyDeals[i],
+                prioritizeDistance: true,
                 onTap: () => _openDeal(_nearbyDeals[i]),
               ),
             ),

@@ -676,6 +676,33 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final merchantLogoProvider = _buildMerchantLogoProvider(
       (_merchantData?['logo'] ?? promotion.merchantLogoUrl)?.toString(),
     );
+    final activityItems = [
+      _DealStatItem(
+        icon: Icons.visibility_outlined,
+        label: 'Views',
+        value: _viewCount,
+      ),
+      _DealStatItem(
+        icon: Icons.favorite_border,
+        label: 'Likes',
+        value: _favoriteCount,
+      ),
+      _DealStatItem(
+        icon: Icons.chat_bubble_outline,
+        label: 'Comments',
+        value: _commentCount,
+      ),
+      _DealStatItem(
+        icon: Icons.ads_click_outlined,
+        label: 'Clicks',
+        value: _clickCount,
+      ),
+      _DealStatItem(
+        icon: Icons.directions_outlined,
+        label: 'Directions',
+        value: _directionCount,
+      ),
+    ];
     final statusChips = <Widget>[
       if (promotion.featured == true)
         _buildInfoPill(
@@ -939,606 +966,66 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
             const SizedBox(height: 20.0),
 
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: theme.colorScheme.outlineVariant),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_countdownText != null || distanceLabel.isNotEmpty)
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 10,
-                      runSpacing: 6,
-                      children: [
-                        if (_countdownText != null)
-                          _buildInlineMetaItem(
-                            icon: _countdownText == 'Expired'
-                                ? Icons.event_busy
-                                : Icons.timer_outlined,
-                            label: _formatCountdownInline(_countdownText!),
-                            color: _countdownText == 'Expired'
-                                ? const Color(0xFFB91C1C)
-                                : const Color(0xFF9A3412),
+            _DealSummarySection(
+              title: displayTitle,
+              merchantName: promotion.merchantName,
+              merchantInitial: hasMerchant
+                  ? (promotion.merchantName!.trim().isEmpty
+                      ? 'M'
+                      : promotion.merchantName!.trim()[0].toUpperCase())
+                  : 'M',
+              merchantLogoProvider: merchantLogoProvider,
+              hasMerchant: hasMerchant,
+              canOpenMerchant: promotion.merchantId != null,
+              hasPriceInfo: hasPriceInfo && headlinePrice != null,
+              headlinePrice: headlinePrice,
+              originalPriceLabel: originalPriceLabel,
+              savingsLabel: savingsLabel,
+              countdownText: _countdownText == null
+                  ? null
+                  : _formatCountdownInline(_countdownText!),
+              countdownExpired: _countdownText == 'Expired',
+              distanceLabel: distanceLabel,
+              statusChips: statusChips,
+              onTapMerchant: promotion.merchantId == null
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MerchantProfileScreen(
+                            merchantId: promotion.merchantId!,
                           ),
-                        if (_countdownText != null && distanceLabel.isNotEmpty)
-                          Text(
-                            '•',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.outline,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        if (distanceLabel.isNotEmpty)
-                          _buildInlineMetaItem(
-                            icon: Icons.near_me_outlined,
-                            label: distanceLabel,
-                            color: const Color(0xFF0F4C81),
-                          ),
-                      ],
-                    ),
-                  if (_countdownText != null || distanceLabel.isNotEmpty)
-                    const SizedBox(height: 12),
-                  if (statusChips.isNotEmpty) ...[
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: statusChips,
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-                  Text(
-                    displayTitle,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
-                    ),
-                  ),
-                  if (hasMerchant) ...[
-                    const SizedBox(height: 10),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: promotion.merchantId == null
-                          ? null
-                          : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => MerchantProfileScreen(
-                                    merchantId: promotion.merchantId!,
-                                  ),
-                                ),
-                              );
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
                         ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerLowest,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor:
-                                  theme.colorScheme.primaryContainer,
-                              backgroundImage: merchantLogoProvider,
-                              child: merchantLogoProvider != null
-                                  ? null
-                                  : Text(
-                                      promotion.merchantName!.trim().isEmpty
-                                          ? 'M'
-                                          : promotion.merchantName!
-                                              .trim()[0]
-                                              .toUpperCase(),
-                                      style: TextStyle(
-                                        color: theme
-                                            .colorScheme.onPrimaryContainer,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Sold by',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    promotion.merchantName!,
-                                    style:
-                                        theme.textTheme.titleMedium?.copyWith(
-                                      color: theme.colorScheme.onSurface,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (promotion.merchantId != null)
-                              Icon(
-                                Icons.chevron_right,
-                                size: 20,
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (hasPriceInfo && headlinePrice != null) ...[
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.end,
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            Text(
-                              headlinePrice,
-                              style: theme.textTheme.headlineMedium?.copyWith(
-                                color: const Color(0xFFC2410C),
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            if (originalPriceLabel != null)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text(
-                                  originalPriceLabel,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                    decoration: TextDecoration.lineThrough,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        if (savingsLabel != null) ...[
-                          const SizedBox(height: 8),
-                          _buildInfoPill(
-                            icon: Icons.savings_outlined,
-                            label: savingsLabel,
-                            backgroundColor: const Color(0xFFFFEDD5),
-                            foregroundColor: const Color(0xFF9A3412),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 14),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () async {
-                      await Clipboard.setData(ClipboardData(text: deepLink));
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Deal link copied!')),
                       );
                     },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLowest,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: theme.colorScheme.outlineVariant,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.link,
-                            color: theme.colorScheme.primary,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              'Copy shareable link',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.copy_outlined,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              onCopyLink: () async {
+                await Clipboard.setData(ClipboardData(text: deepLink));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Deal link copied!')),
+                );
+              },
             ),
             const SizedBox(height: 16.0),
-            Card(
-              elevation: 0.5,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Deal activity',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        if (_loadingStats)
-                          Text(
-                            'Updating...',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        const spacing = 10.0;
-                        final columns = constraints.maxWidth < 360 ? 2 : 3;
-                        final itemWidth =
-                            (constraints.maxWidth - ((columns - 1) * spacing)) /
-                                columns;
-                        return Wrap(
-                          spacing: spacing,
-                          runSpacing: spacing,
-                          children: [
-                            SizedBox(
-                              width: itemWidth,
-                              child: _buildStatChip(
-                                Icons.visibility_outlined,
-                                'Views',
-                                _viewCount,
-                              ),
-                            ),
-                            SizedBox(
-                              width: itemWidth,
-                              child: _buildStatChip(
-                                Icons.favorite_border,
-                                'Likes',
-                                _favoriteCount,
-                              ),
-                            ),
-                            SizedBox(
-                              width: itemWidth,
-                              child: _buildStatChip(
-                                Icons.chat_bubble_outline,
-                                'Comments',
-                                _commentCount,
-                              ),
-                            ),
-                            SizedBox(
-                              width: itemWidth,
-                              child: _buildStatChip(
-                                Icons.ads_click_outlined,
-                                'Clicks',
-                                _clickCount,
-                              ),
-                            ),
-                            SizedBox(
-                              width: itemWidth,
-                              child: _buildStatChip(
-                                Icons.directions_outlined,
-                                'Directions',
-                                _directionCount,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                    if (_loadingStats) ...[
-                      const SizedBox(height: 10),
-                      const LinearProgressIndicator(minHeight: 2),
-                    ],
-                  ],
-                ),
-              ),
+            _DealActivitySection(
+              loading: _loadingStats,
+              statBuilder: _buildStatChip,
+              items: activityItems,
             ),
             const SizedBox(height: 16.0),
-
-            // Merchant Information (with logo/avatar if available)
-            if (hasMerchant)
-              GestureDetector(
-                onTap: () {
-                  if (promotion.merchantId != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MerchantProfileScreen(
-                            merchantId: promotion.merchantId!),
-                      ),
-                    );
-                  }
-                },
-                child: Card(
-                  elevation: 0.5,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10.0, vertical: 8.0),
-                    child: Row(
-                      children: [
-                        if (_merchantData != null &&
-                            _merchantData!['logo'] != null &&
-                            _resolveMerchantLogoUrl(
-                                  _merchantData!['logo'].toString(),
-                                ) !=
-                                null)
-                          CircleAvatar(
-                            radius: 16,
-                            backgroundImage: _buildMerchantLogoProvider(
-                              _merchantData!['logo'].toString(),
-                            ),
-                            backgroundColor: Colors.grey[200],
-                            child: _buildMerchantLogoProvider(
-                                      _merchantData!['logo'].toString(),
-                                    ) !=
-                                    null
-                                ? null
-                                : const Icon(Icons.storefront_outlined,
-                                    color: Colors.grey),
-                          )
-                        else
-                          Icon(Icons.storefront_outlined,
-                              size: 20,
-                              color: theme.textTheme.bodyMedium?.color),
-                        const SizedBox(width: 8.0),
-                        Text(
-                          promotion.merchantName!,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            decoration: TextDecoration.underline,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (hasMerchant) const SizedBox(height: 16.0),
-
-            // Discount & Code Section
-            if (promotion.discount != null || promotion.code != null)
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                color:
-                    theme.colorScheme.secondaryContainer.withValues(alpha: 0.3),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (promotion.discount != null)
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Discount:',
-                                  style: theme.textTheme.labelMedium),
-                              Text(
-                                promotion.discount!,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (promotion.code != null)
-                        ElevatedButton.icon(
-                          icon: const Icon(Icons.content_copy, size: 16),
-                          label: Text(promotion.code!),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.secondary,
-                            foregroundColor: theme.colorScheme.onSecondary,
-                          ),
-                          onPressed: () {
-                            Clipboard.setData(
-                                ClipboardData(text: promotion.code!));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Code "${promotion.code}" copied to clipboard!')),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(height: 16.0),
-
-            // Visual Price Section
-            if (promotion.originalPrice != null ||
-                promotion.discountedPrice != null ||
-                promotion.price != null)
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                color: Colors.green[50],
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12.0, vertical: 8.0),
-                  child: Row(
-                    children: [
-                      if (promotion.originalPrice != null)
-                        Text(
-                          'Rs. ${promotion.originalPrice!.toStringAsFixed(2)}',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            decoration: TextDecoration.lineThrough,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      if (promotion.discountedPrice != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            'Rs. ${promotion.discountedPrice!.toStringAsFixed(2)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.green[800],
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ),
-                      if (promotion.price != null &&
-                          promotion.discountedPrice == null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 8.0),
-                          child: Text(
-                            'Rs. ${promotion.price!.toStringAsFixed(2)}',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                            ),
-                          ),
-                        ),
-                      if (promotion.discount != null &&
-                          promotion.discount!.contains('%'))
-                        Container(
-                          margin: const EdgeInsets.only(left: 12.0),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8.0, vertical: 2.0),
-                          decoration: BoxDecoration(
-                            color: Colors.red[100],
-                            borderRadius: BorderRadius.circular(8.0),
-                          ),
-                          child: Text(
-                            promotion.discount!,
-                            style: const TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(height: 16.0),
-
-            // Description, Validity, Terms, all in a Card
-            Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              color: theme.colorScheme.surfaceContainerLowest,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Details:',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6.0),
-                    Text(
-                      promotion.description,
-                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-                    ),
-                    const SizedBox(height: 16.0),
-                    if (promotion.startDate != null ||
-                        promotion.endDate != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Divider(height: 24),
-                          Text(
-                            'Validity:',
-                            style: theme.textTheme.titleMedium
-                                ?.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 6.0),
-                          if (promotion.startDate != null)
-                            Text(
-                                'Starts: ${dateFormat.format(promotion.startDate!)}',
-                                style: theme.textTheme.bodyMedium),
-                          if (promotion.endDate != null)
-                            Text(
-                                'Expires: ${dateFormat.format(promotion.endDate!)}',
-                                style: theme.textTheme.bodyMedium),
-                        ],
-                      ),
-                    if (promotion.termsAndConditions != null &&
-                        promotion.termsAndConditions!.isNotEmpty)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Divider(height: 24),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _showTerms = !_showTerms;
-                              });
-                            },
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Terms & Conditions',
-                                  style: theme.textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold),
-                                ),
-                                Icon(_showTerms
-                                    ? Icons.expand_less
-                                    : Icons.expand_more),
-                              ],
-                            ),
-                          ),
-                          if (_showTerms)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6.0),
-                              child: Text(
-                                promotion.termsAndConditions!,
-                                style: theme.textTheme.bodyMedium,
-                              ),
-                            ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
+            _DealDetailsSection(
+              description: promotion.description,
+              startDate: promotion.startDate,
+              endDate: promotion.endDate,
+              dateFormat: dateFormat,
+              termsAndConditions: promotion.termsAndConditions,
+              showTerms: _showTerms,
+              onToggleTerms: () {
+                setState(() {
+                  _showTerms = !_showTerms;
+                });
+              },
             ),
             const SizedBox(height: 20.0),
             const Divider(height: 32, thickness: 1.2),
@@ -2228,28 +1715,29 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Widget _buildStatChip(IconData icon, String label, int value) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: theme.colorScheme.primary),
-          const SizedBox(height: 10),
+          Icon(icon, size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
           Text(
             '$value',
-            style: theme.textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(width: 6),
           Text(
             label,
-            style: theme.textTheme.bodySmall,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -2299,28 +1787,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildInlineMetaItem({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
-      ],
     );
   }
 
@@ -2446,6 +1912,523 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       return 'Save Rs. ${amount.toStringAsFixed(0)}';
     }
     return 'Save $percentage%';
+  }
+}
+
+class _DealStatItem {
+  final IconData icon;
+  final String label;
+  final int value;
+
+  const _DealStatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+}
+
+class _DealSummarySection extends StatelessWidget {
+  final String title;
+  final String? merchantName;
+  final String merchantInitial;
+  final ImageProvider<Object>? merchantLogoProvider;
+  final bool hasMerchant;
+  final bool canOpenMerchant;
+  final bool hasPriceInfo;
+  final String? headlinePrice;
+  final String? originalPriceLabel;
+  final String? savingsLabel;
+  final String? countdownText;
+  final bool countdownExpired;
+  final String distanceLabel;
+  final List<Widget> statusChips;
+  final VoidCallback? onTapMerchant;
+  final VoidCallback onCopyLink;
+
+  const _DealSummarySection({
+    required this.title,
+    required this.merchantName,
+    required this.merchantInitial,
+    required this.merchantLogoProvider,
+    required this.hasMerchant,
+    required this.canOpenMerchant,
+    required this.hasPriceInfo,
+    required this.headlinePrice,
+    required this.originalPriceLabel,
+    required this.savingsLabel,
+    required this.countdownText,
+    required this.countdownExpired,
+    required this.distanceLabel,
+    required this.statusChips,
+    required this.onTapMerchant,
+    required this.onCopyLink,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (countdownText != null || distanceLabel.isNotEmpty)
+            Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 10,
+              runSpacing: 6,
+              children: [
+                if (countdownText != null)
+                  _InlineMetaItem(
+                    icon: countdownExpired
+                        ? Icons.event_busy
+                        : Icons.timer_outlined,
+                    label: countdownText!,
+                    color: countdownExpired
+                        ? const Color(0xFFB91C1C)
+                        : const Color(0xFF9A3412),
+                  ),
+                if (countdownText != null && distanceLabel.isNotEmpty)
+                  Text(
+                    '•',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.outline,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                if (distanceLabel.isNotEmpty)
+                  const _InlineMetaItem(
+                    icon: Icons.near_me_outlined,
+                    label: '',
+                    color: Color(0xFF0F4C81),
+                  ),
+                if (distanceLabel.isNotEmpty)
+                  Text(
+                    distanceLabel,
+                    style: const TextStyle(
+                      color: Color(0xFF0F4C81),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+              ],
+            ),
+          if (countdownText != null || distanceLabel.isNotEmpty)
+            const SizedBox(height: 12),
+          if (statusChips.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: statusChips,
+            ),
+            const SizedBox(height: 18),
+          ],
+          Text(
+            title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          if (hasMerchant && merchantName != null) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTapMerchant,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      backgroundImage: merchantLogoProvider,
+                      child: merchantLogoProvider != null
+                          ? null
+                          : Text(
+                              merchantInitial,
+                              style: TextStyle(
+                                color: theme.colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sold by',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            merchantName!,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (canOpenMerchant)
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          if (hasPriceInfo && headlinePrice != null) ...[
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.end,
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Text(
+                      headlinePrice!,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: const Color(0xFFC2410C),
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    if (originalPriceLabel != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          originalPriceLabel!,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (savingsLabel != null) ...[
+                  const SizedBox(height: 8),
+                  _StaticInfoPill(
+                    icon: Icons.savings_outlined,
+                    label: savingsLabel!,
+                    backgroundColor: const Color(0xFFFFEDD5),
+                    foregroundColor: const Color(0xFF9A3412),
+                  ),
+                ],
+              ],
+            ),
+          ],
+          const SizedBox(height: 14),
+          InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onCopyLink,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.link,
+                    color: theme.colorScheme.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Copy shareable link',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.copy_outlined,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DealActivitySection extends StatelessWidget {
+  final bool loading;
+  final List<_DealStatItem> items;
+  final Widget Function(IconData icon, String label, int value) statBuilder;
+
+  const _DealActivitySection({
+    required this.loading,
+    required this.items,
+    required this.statBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Deal activity',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (loading)
+                  Text(
+                    'Updating...',
+                    style: theme.textTheme.bodySmall,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: items
+                  .map((item) => statBuilder(item.icon, item.label, item.value))
+                  .toList(),
+            ),
+            if (loading) ...[
+              const SizedBox(height: 10),
+              const LinearProgressIndicator(minHeight: 2),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DealDetailsSection extends StatelessWidget {
+  final String description;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final DateFormat dateFormat;
+  final String? termsAndConditions;
+  final bool showTerms;
+  final VoidCallback onToggleTerms;
+
+  const _DealDetailsSection({
+    required this.description,
+    required this.startDate,
+    required this.endDate,
+    required this.dateFormat,
+    required this.termsAndConditions,
+    required this.showTerms,
+    required this.onToggleTerms,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.colorScheme.surfaceContainerLowest,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Details:',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6.0),
+            Text(
+              description,
+              style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 16.0),
+            if (startDate != null || endDate != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 24),
+                  Text(
+                    'Validity:',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6.0),
+                  if (startDate != null)
+                    Text(
+                      'Starts: ${dateFormat.format(startDate!)}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  if (endDate != null)
+                    Text(
+                      'Expires: ${dateFormat.format(endDate!)}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                ],
+              ),
+            if (termsAndConditions != null && termsAndConditions!.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Divider(height: 24),
+                  GestureDetector(
+                    onTap: onToggleTerms,
+                    child: Row(
+                      children: [
+                        Text(
+                          'Terms & Conditions',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Icon(showTerms ? Icons.expand_less : Icons.expand_more),
+                      ],
+                    ),
+                  ),
+                  if (showTerms)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6.0),
+                      child: Text(
+                        termsAndConditions!,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineMetaItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _InlineMetaItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        if (label.isNotEmpty) ...[
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _StaticInfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  const _StaticInfoPill({
+    required this.icon,
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: foregroundColor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: foregroundColor,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

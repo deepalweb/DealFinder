@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +11,8 @@ import '../models/promotion.dart';
 import '../config/app_config.dart';
 import 'cache_service.dart';
 
-String _extractErrorMessage(http.Response response, {String fallback = 'Request failed'}) {
+String _extractErrorMessage(http.Response response,
+    {String fallback = 'Request failed'}) {
   try {
     final errorBody = jsonDecode(response.body);
     if (errorBody is Map<String, dynamic>) {
@@ -65,8 +67,65 @@ class CuratedHomeSectionsResponse {
   });
 }
 
+class NearbyPromotionsResult {
+  final List<Promotion> promotions;
+  final bool fromCache;
+  final bool locationChanged;
+  final DateTime? cachedAt;
+  final String? cachedLocationName;
+  final double? cachedDistanceKm;
+
+  const NearbyPromotionsResult({
+    required this.promotions,
+    this.fromCache = false,
+    this.locationChanged = false,
+    this.cachedAt,
+    this.cachedLocationName,
+    this.cachedDistanceKm,
+  });
+}
+
 class ApiService {
   static String get _baseUrl => AppConfig.baseUrl;
+
+  static const Set<String> _inactivePromotionStatuses = {
+    'expired',
+    'rejected',
+    'admin_paused',
+    'inactive',
+    'deleted',
+  };
+
+  List<Promotion> _visibleConsumerPromotions(Iterable<Promotion> promotions) {
+    return promotions.where((promotion) {
+      final status = promotion.status?.trim().toLowerCase();
+      if (status != null && _inactivePromotionStatuses.contains(status)) {
+        return false;
+      }
+      return promotion.hasStarted && !promotion.isExpired;
+    }).toList();
+  }
+
+  List<Promotion> _withDistanceFrom(
+    double latitude,
+    double longitude,
+    Iterable<Promotion> promotions,
+  ) {
+    return promotions.map((promotion) {
+      if (promotion.latitude == null || promotion.longitude == null) {
+        return promotion;
+      }
+
+      final distanceMeters = Geolocator.distanceBetween(
+        latitude,
+        longitude,
+        promotion.latitude!,
+        promotion.longitude!,
+      );
+
+      return promotion.copyWith(distance: distanceMeters);
+    }).toList();
+  }
 
   static Future<void> warmUp() async {
     try {
@@ -76,114 +135,71 @@ class ApiService {
     } catch (_) {}
   }
 
-  // Makes an authenticated request, auto-refreshes token on 401
-  Future<http.Response> _authGet(String url) async {
+  Future<http.Response> _sendAuthenticatedRequest(
+    String method,
+    String url, {
+    Map<String, dynamic>? body,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('userToken');
-    var response = await http.get(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json'
-      },
-    ).timeout(const Duration(seconds: 30));
+
+    Future<http.Response> send(String? bearerToken) {
+      final headers = <String, String>{
+        'Authorization': 'Bearer $bearerToken',
+        'Content-Type': 'application/json',
+      };
+      final uri = Uri.parse(url);
+      final encodedBody = jsonEncode(body ?? const <String, dynamic>{});
+
+      switch (method.toUpperCase()) {
+        case 'GET':
+          return http
+              .get(uri, headers: headers)
+              .timeout(const Duration(seconds: 30));
+        case 'POST':
+          return http
+              .post(uri, headers: headers, body: encodedBody)
+              .timeout(const Duration(seconds: 30));
+        case 'PUT':
+          return http
+              .put(uri, headers: headers, body: encodedBody)
+              .timeout(const Duration(seconds: 30));
+        case 'DELETE':
+          return http
+              .delete(uri, headers: headers)
+              .timeout(const Duration(seconds: 30));
+      }
+
+      throw UnsupportedError('Unsupported HTTP method: $method');
+    }
+
+    var response = await send(token);
     if (response.statusCode == 401) {
       token = await _refreshToken();
       if (token != null) {
-        response = await http.get(
-          Uri.parse(url),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json'
-          },
-        ).timeout(const Duration(seconds: 30));
+        response = await send(token);
       }
     }
     return response;
   }
 
-  Future<http.Response> _authPost(String url, {Map<String, dynamic>? body}) async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('userToken');
-    var response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(body ?? const <String, dynamic>{}),
-    ).timeout(const Duration(seconds: 30));
-    if (response.statusCode == 401) {
-      token = await _refreshToken();
-      if (token != null) {
-        response = await http.post(
-          Uri.parse(url),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(body ?? const <String, dynamic>{}),
-        ).timeout(const Duration(seconds: 30));
-      }
-    }
-    return response;
+  // Makes an authenticated request, auto-refreshes token on 401
+  Future<http.Response> _authGet(String url) {
+    return _sendAuthenticatedRequest('GET', url);
+  }
+
+  Future<http.Response> _authPost(String url,
+      {Map<String, dynamic>? body}) async {
+    return _sendAuthenticatedRequest('POST', url, body: body);
   }
 
   Future<http.Response> _authDelete(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('userToken');
-    var response = await http.delete(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    ).timeout(const Duration(seconds: 30));
-    if (response.statusCode == 401) {
-      token = await _refreshToken();
-      if (token != null) {
-        response = await http.delete(
-          Uri.parse(url),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ).timeout(const Duration(seconds: 30));
-      }
-    }
-    return response;
+    return _sendAuthenticatedRequest('DELETE', url);
   }
 
   Future<http.Response> _authPut(String url,
       {Map<String, dynamic>? body}) async {
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('userToken');
-    var response = await http
-        .put(
-          Uri.parse(url),
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-          body: jsonEncode(body ?? const <String, dynamic>{}),
-        )
-        .timeout(const Duration(seconds: 30));
-    if (response.statusCode == 401) {
-      token = await _refreshToken();
-      if (token != null) {
-        response = await http
-            .put(
-              Uri.parse(url),
-              headers: {
-                'Authorization': 'Bearer $token',
-                'Content-Type': 'application/json',
-              },
-              body: jsonEncode(body ?? const <String, dynamic>{}),
-            )
-            .timeout(const Duration(seconds: 30));
-      }
-    }
-    return response;
+    return _sendAuthenticatedRequest('PUT', url, body: body);
   }
 
   Future<String?> _refreshToken() async {
@@ -231,7 +247,8 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
-        final promotions = body.map((e) => Promotion.fromJson(e)).toList();
+        final promotions =
+            _visibleConsumerPromotions(body.map((e) => Promotion.fromJson(e)));
         try {
           await CacheService.savePromotions(promotions);
           if (kDebugMode) {
@@ -441,7 +458,9 @@ class ApiService {
     if (!forceRefresh) {
       final cached = await CacheService.loadMerchants();
       if (cached != null && cached.isNotEmpty) {
-        if (kDebugMode) debugPrint('Loaded ${cached.length} merchants from cache');
+        if (kDebugMode) {
+          debugPrint('Loaded ${cached.length} merchants from cache');
+        }
         return cached;
       }
     }
@@ -483,7 +502,9 @@ class ApiService {
         await http.get(Uri.parse('${_baseUrl}promotions?search=$query'));
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
-      return body.map((dynamic item) => Promotion.fromJson(item)).toList();
+      return _visibleConsumerPromotions(
+        body.map((dynamic item) => Promotion.fromJson(item)),
+      );
     } else {
       throw Exception(
           'Failed to search promotions. Status code: ${response.statusCode}, Body: ${response.body}');
@@ -496,7 +517,9 @@ class ApiService {
         await http.get(Uri.parse('${_baseUrl}promotions?category=$category'));
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
-      return body.map((dynamic item) => Promotion.fromJson(item)).toList();
+      return _visibleConsumerPromotions(
+        body.map((dynamic item) => Promotion.fromJson(item)),
+      );
     } else {
       throw Exception(
           'Failed to filter promotions. Status code: ${response.statusCode}, Body: ${response.body}');
@@ -677,24 +700,23 @@ class ApiService {
         .timeout(const Duration(seconds: 30));
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      return data
-          .whereType<Map<String, dynamic>>()
-          .where((promotion) {
-            final merchant = promotion['merchant'];
-            if (merchant is Map<String, dynamic>) {
-              return merchant['_id']?.toString() == merchantId;
-            }
-            return merchant?.toString() == merchantId ||
-                promotion['merchantId']?.toString() == merchantId;
-          })
-          .toList();
+      return data.whereType<Map<String, dynamic>>().where((promotion) {
+        final merchant = promotion['merchant'];
+        if (merchant is Map<String, dynamic>) {
+          return merchant['_id']?.toString() == merchantId;
+        }
+        return merchant?.toString() == merchantId ||
+            promotion['merchantId']?.toString() == merchantId;
+      }).toList();
     } else {
       throw Exception('Failed to load promotions for merchant');
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchFollowingMerchants(String userId) async {
-    final response = await _authGet('${_baseUrl}users/$userId/following-merchants');
+  Future<List<Map<String, dynamic>>> fetchFollowingMerchants(
+      String userId) async {
+    final response =
+        await _authGet('${_baseUrl}users/$userId/following-merchants');
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.whereType<Map<String, dynamic>>().toList();
@@ -849,7 +871,22 @@ class ApiService {
   }
 
   Future<List<Promotion>> fetchNearbyPromotions(double lat, double lng,
-      {double radiusKm = 10}) async {
+      {double radiusKm = 10, String? locationName}) async {
+    final result = await fetchNearbyPromotionsWithCache(
+      lat,
+      lng,
+      radiusKm: radiusKm,
+      locationName: locationName,
+    );
+    return result.promotions;
+  }
+
+  Future<NearbyPromotionsResult> fetchNearbyPromotionsWithCache(
+    double lat,
+    double lng, {
+    double radiusKm = 10,
+    String? locationName,
+  }) async {
     try {
       if (kDebugMode) {
         debugPrint(
@@ -888,7 +925,23 @@ class ApiService {
       if (response.statusCode == 200) {
         final List<dynamic> body = jsonDecode(response.body);
         if (kDebugMode) debugPrint('Loaded ${body.length} nearby promotions');
-        return body.map((item) => Promotion.fromJson(item)).toList();
+        final promotions = _withDistanceFrom(
+          lat,
+          lng,
+          _visibleConsumerPromotions(
+            body.map((item) => Promotion.fromJson(item)),
+          ),
+        );
+        try {
+          await CacheService.saveNearbyPromotions(
+            latitude: lat,
+            longitude: lng,
+            radiusKm: radiusKm,
+            promotions: promotions,
+            locationName: locationName,
+          );
+        } catch (_) {}
+        return NearbyPromotionsResult(promotions: promotions);
       }
 
       if (kDebugMode) {
@@ -898,28 +951,75 @@ class ApiService {
       throw Exception('Server returned error: ${response.statusCode}');
     } on TimeoutException catch (e) {
       if (kDebugMode) debugPrint('Nearby timeout: $e');
+      final cached = await CacheService.loadNearbyPromotions(
+        latitude: lat,
+        longitude: lng,
+        radiusKm: radiusKm,
+      );
+      if (cached != null) {
+        return NearbyPromotionsResult(
+          promotions: _withDistanceFrom(lat, lng, cached.promotions),
+          fromCache: true,
+          locationChanged: !cached.isSameArea,
+          cachedAt: cached.cachedAt,
+          cachedLocationName: cached.locationName,
+          cachedDistanceKm: cached.distanceFromCurrentKm,
+        );
+      }
       throw Exception(
           'Request timed out. The server might be slow or there are too many merchants to process.');
     } catch (e) {
       if (kDebugMode) debugPrint('Nearby deals error: $e');
+      final cached = await CacheService.loadNearbyPromotions(
+        latitude: lat,
+        longitude: lng,
+        radiusKm: radiusKm,
+      );
+      if (cached != null) {
+        return NearbyPromotionsResult(
+          promotions: _withDistanceFrom(lat, lng, cached.promotions),
+          fromCache: true,
+          locationChanged: !cached.isSameArea,
+          cachedAt: cached.cachedAt,
+          cachedLocationName: cached.locationName,
+          cachedDistanceKm: cached.distanceFromCurrentKm,
+        );
+      }
       rethrow;
     }
   }
 
   Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async {
-    final response = await http.get(
-      Uri.parse('${_baseUrl}promotions/sections'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    ).timeout(const Duration(seconds: 20));
+    try {
+      final response = await http.get(
+        Uri.parse('${_baseUrl}promotions/sections'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 20));
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to load curated sections');
+      if (response.statusCode != 200) {
+        throw Exception('Failed to load curated sections');
+      }
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      try {
+        await CacheService.saveCuratedHomeSections(data);
+      } catch (_) {}
+      return _parseCuratedHomeSections(data);
+    } catch (_) {
+      final cached =
+          await CacheService.loadCuratedHomeSections(forceStale: true);
+      if (cached != null) {
+        return _parseCuratedHomeSections(cached);
+      }
+      rethrow;
     }
+  }
 
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
+  CuratedHomeSectionsResponse _parseCuratedHomeSections(
+      Map<String, dynamic> data) {
     final sections = data['sections'] is Map<String, dynamic>
         ? data['sections'] as Map<String, dynamic>
         : const <String, dynamic>{};
@@ -927,10 +1027,9 @@ class ApiService {
     List<Promotion> parseList(String key) {
       final raw = data[key];
       if (raw is! List) return [];
-      return raw
-          .whereType<Map<String, dynamic>>()
-          .map(Promotion.fromJson)
-          .toList();
+      return _visibleConsumerPromotions(
+        raw.whereType<Map<String, dynamic>>().map(Promotion.fromJson),
+      );
     }
 
     bool parseManaged(String key) {
@@ -983,10 +1082,9 @@ class ApiService {
     final items = data['items'];
     if (items is! List) return [];
 
-    return items
-        .whereType<Map<String, dynamic>>()
-        .map(Promotion.fromJson)
-        .toList();
+    return _visibleConsumerPromotions(
+      items.whereType<Map<String, dynamic>>().map(Promotion.fromJson),
+    );
   }
 
   // Notification API methods

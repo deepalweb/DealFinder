@@ -28,6 +28,7 @@ String normalizeCategoryId(String? rawCategory) {
   final value = (rawCategory ?? '').trim().toLowerCase();
   switch (value) {
     case 'food_dining':
+    case 'food_bev':
     case 'food':
     case 'food and dining':
     case 'food bev':

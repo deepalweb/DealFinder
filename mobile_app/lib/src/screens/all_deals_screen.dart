@@ -29,6 +29,11 @@ class AllDealsScreen extends StatefulWidget {
 }
 
 class _AllDealsScreenState extends State<AllDealsScreen> {
+  static const String primaryNearMe = 'near_me';
+  static const String primaryBestDeals = 'best_deals';
+  static const String primaryEndingSoon = 'ending_soon';
+  static const String primaryPopular = 'popular';
+
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
 
@@ -40,8 +45,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   double _minDiscount = 0;
   String? _selectedCategory;
   String? _selectedCapabilityPresetId;
-  bool _showFilters = false;
   String? _activeSectionPreset;
+  String? _activePrimaryFilter;
 
   @override
   void initState() {
@@ -151,11 +156,18 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return false;
       }
 
+      if (!_matchesPrimaryFilter(promo)) {
+        return false;
+      }
+
       return true;
     }).toList();
 
     // Apply sorting
     filtered.sort((a, b) {
+      final primaryCompare = _comparePrimaryFilterOrder(a, b);
+      if (primaryCompare != 0) return primaryCompare;
+
       switch (_sortBy) {
         case 'recent':
           if (a.createdAt == null && b.createdAt == null) return 0;
@@ -239,10 +251,59 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     }
   }
 
+  bool _matchesPrimaryFilter(Promotion promo) {
+    final now = DateTime.now();
+
+    switch (_activePrimaryFilter) {
+      case primaryNearMe:
+        return promo.distance != null && promo.distance! <= 10000;
+      case primaryBestDeals:
+        return _discountSignal(promo) > 0;
+      case primaryEndingSoon:
+        final cutoff = now.add(const Duration(hours: 48));
+        return promo.endDate != null &&
+            promo.endDate!.isAfter(now) &&
+            promo.endDate!.isBefore(cutoff);
+      case primaryPopular:
+        return promo.featured == true || promo.ratingsCount > 0;
+      default:
+        return true;
+    }
+  }
+
+  int _comparePrimaryFilterOrder(Promotion a, Promotion b) {
+    switch (_activePrimaryFilter) {
+      case primaryNearMe:
+        return (a.distance ?? double.infinity).compareTo(
+          b.distance ?? double.infinity,
+        );
+      case primaryBestDeals:
+        return _discountSignal(b).compareTo(_discountSignal(a));
+      case primaryEndingSoon:
+        if (a.endDate == null && b.endDate == null) return 0;
+        if (a.endDate == null) return 1;
+        if (b.endDate == null) return -1;
+        return a.endDate!.compareTo(b.endDate!);
+      case primaryPopular:
+        final featuredCompare =
+            (b.featured == true ? 1 : 0).compareTo(a.featured == true ? 1 : 0);
+        if (featuredCompare != 0) return featuredCompare;
+        return b.ratingsCount.compareTo(a.ratingsCount);
+      default:
+        return 0;
+    }
+  }
+
   double _extractDiscount(String? discount) {
     if (discount == null) return 0;
     final match = RegExp(r'(\d+)').firstMatch(discount);
     return match != null ? double.parse(match.group(1)!) : 0;
+  }
+
+  double _discountSignal(Promotion promo) {
+    final structured = promo.discountPercentage;
+    if (structured != null) return structured.toDouble();
+    return _extractDiscount(promo.discount);
   }
 
   String _getCategoryName(String categoryId) {
@@ -312,6 +373,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     setState(() {
       _selectedCategory = clearEntryContext ? null : widget.initialCategoryId;
       _selectedCapabilityPresetId = null;
+      _activePrimaryFilter = null;
       _minPrice = 0;
       _maxPrice = 10000;
       _minDiscount = 0;
@@ -321,9 +383,229 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     });
   }
 
+  Future<void> _openFilterSheet() async {
+    final minController = TextEditingController(
+      text: _minPrice > 0 ? _minPrice.toInt().toString() : '',
+    );
+    final maxController = TextEditingController(
+      text: _maxPrice < 10000 ? _maxPrice.toInt().toString() : '',
+    );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  16 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_activeSectionPreset != null ||
+                          widget.initialCategoryId != null)
+                        _buildContextBanner(),
+                      const Text(
+                        'Filters',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF14213D),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Use quick filters or narrow the price range to refine what you see.',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'Quick filters',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: dealCapabilityPresets
+                            .map(
+                              (preset) => FilterChip(
+                                avatar: Icon(preset.icon, size: 18),
+                                label: Text(preset.label),
+                                selected:
+                                    _selectedCapabilityPresetId == preset.id,
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _selectedCapabilityPresetId =
+                                        selected ? preset.id : null;
+                                  });
+                                  setSheetState(() {});
+                                },
+                              ),
+                            )
+                            .toList(),
+                      ),
+                      const SizedBox(height: 18),
+                      ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: const EdgeInsets.only(bottom: 12),
+                        title: const Text(
+                          'Categories',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: Text(
+                          _selectedCategory == null
+                              ? 'Optional'
+                              : _getCategoryName(_selectedCategory!),
+                        ),
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilterChip(
+                                  label: const Text('All'),
+                                  selected: _selectedCategory == null,
+                                  onSelected: (_) {
+                                    setState(() => _selectedCategory = null);
+                                    setSheetState(() {});
+                                  },
+                                ),
+                                ...predefinedCategories.map(
+                                  (cat) => FilterChip(
+                                    label: Text(cat.name),
+                                    selected: _selectedCategory == cat.id,
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        _selectedCategory =
+                                            selected ? cat.id : null;
+                                      });
+                                      setSheetState(() {});
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Price range',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: minController,
+                              decoration: const InputDecoration(
+                                labelText: 'Min',
+                                prefixText: 'Rs. ',
+                                isDense: true,
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  _minPrice = double.tryParse(value) ?? 0;
+                                });
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextField(
+                              controller: maxController,
+                              decoration: const InputDecoration(
+                                labelText: 'Max',
+                                prefixText: 'Rs. ',
+                                isDense: true,
+                              ),
+                              keyboardType: TextInputType.number,
+                              onChanged: (value) {
+                                setState(() {
+                                  _maxPrice = double.tryParse(value) ?? 10000;
+                                });
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        'Minimum Discount: ${_minDiscount.toInt()}%',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      Slider(
+                        value: _minDiscount,
+                        min: 0,
+                        max: 100,
+                        divisions: 20,
+                        label: '${_minDiscount.toInt()}%',
+                        onChanged: (value) {
+                          setState(() => _minDiscount = value);
+                          setSheetState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Clear filters'),
+                              onPressed: () {
+                                _resetFilters();
+                                minController.clear();
+                                maxController.clear();
+                                setSheetState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Done'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    minController.dispose();
+    maxController.dispose();
+  }
+
   bool get _hasActiveUserFilters {
     return _selectedCategory != widget.initialCategoryId ||
         _selectedCapabilityPresetId != null ||
+        _activePrimaryFilter != null ||
         _minPrice > 0 ||
         _maxPrice < 10000 ||
         _minDiscount > 0 ||
@@ -351,6 +633,16 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           avatar: Icon(selectedCapability.icon, size: 16),
           label: Text(selectedCapability.label),
           onDeleted: () => setState(() => _selectedCapabilityPresetId = null),
+        ),
+      );
+    }
+
+    if (_activePrimaryFilter != null) {
+      chips.add(
+        InputChip(
+          avatar: Icon(_primaryFilterIcon(_activePrimaryFilter!), size: 16),
+          label: Text(_primaryFilterLabel(_activePrimaryFilter!)),
+          onDeleted: () => setState(() => _activePrimaryFilter = null),
         ),
       );
     }
@@ -398,10 +690,11 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         actions: [
           IconButton(
             icon: Icon(
-                _showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
-            onPressed: () {
-              setState(() => _showFilters = !_showFilters);
-            },
+              _hasActiveUserFilters
+                  ? Icons.filter_alt
+                  : Icons.filter_alt_outlined,
+            ),
+            onPressed: _openFilterSheet,
             tooltip: 'Filters',
           ),
           PopupMenuButton<String>(
@@ -524,161 +817,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       ),
       body: Column(
         children: [
-          // Filter Panel
-          if (_showFilters)
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_activeSectionPreset != null ||
-                      widget.initialCategoryId != null)
-                    _buildContextBanner(),
-                  const Text('Filters',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-
-                  const Text('Quick filters',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: dealCapabilityPresets
-                        .map(
-                          (preset) => FilterChip(
-                            avatar: Icon(preset.icon, size: 18),
-                            label: Text(preset.label),
-                            selected: _selectedCapabilityPresetId == preset.id,
-                            onSelected: (selected) {
-                              setState(() {
-                                _selectedCapabilityPresetId =
-                                    selected ? preset.id : null;
-                              });
-                            },
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
-
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: const EdgeInsets.only(bottom: 16),
-                    title: const Text(
-                      'Categories',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      _selectedCategory == null
-                          ? 'Optional'
-                          : _getCategoryName(_selectedCategory!),
-                    ),
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            FilterChip(
-                              label: const Text('All'),
-                              selected: _selectedCategory == null,
-                              onSelected: (selected) {
-                                setState(() => _selectedCategory = null);
-                              },
-                            ),
-                            ...predefinedCategories.map(
-                              (cat) => FilterChip(
-                                label: Text(cat.name),
-                                selected: _selectedCategory == cat.id,
-                                onSelected: (selected) {
-                                  setState(() {
-                                    _selectedCategory =
-                                        selected ? cat.id : null;
-                                  });
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Price Range Filter
-                  const Text('Price Range',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          decoration: const InputDecoration(
-                            labelText: 'Min',
-                            prefixText: 'Rs. ',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            setState(
-                                () => _minPrice = double.tryParse(value) ?? 0);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextField(
-                          decoration: const InputDecoration(
-                            labelText: 'Max',
-                            prefixText: 'Rs. ',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            setState(() =>
-                                _maxPrice = double.tryParse(value) ?? 10000);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Discount Filter
-                  Text('Minimum Discount: ${_minDiscount.toInt()}%',
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  Slider(
-                    value: _minDiscount,
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    label: '${_minDiscount.toInt()}%',
-                    onChanged: (value) {
-                      setState(() => _minDiscount = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Reset Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Clear filters'),
-                      onPressed: () {
-                        _resetFilters();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
+          _buildPrimaryFilterBar(),
           if (_hasActiveUserFilters)
             Container(
               width: double.infinity,
@@ -752,6 +891,109 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildPrimaryFilterBar() {
+    return Container(
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildPrimaryFilterChip(
+              id: primaryNearMe,
+              label: 'Near Me',
+              icon: Icons.location_on_outlined,
+            ),
+            const SizedBox(width: 8),
+            _buildPrimaryFilterChip(
+              id: primaryBestDeals,
+              label: 'Best Deals',
+              icon: Icons.local_fire_department_outlined,
+            ),
+            const SizedBox(width: 8),
+            _buildPrimaryFilterChip(
+              id: primaryEndingSoon,
+              label: 'Ending Soon',
+              icon: Icons.hourglass_bottom_rounded,
+            ),
+            const SizedBox(width: 8),
+            _buildPrimaryFilterChip(
+              id: primaryPopular,
+              label: 'Popular',
+              icon: Icons.star_outline_rounded,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryFilterChip({
+    required String id,
+    required String label,
+    required IconData icon,
+  }) {
+    final selected = _activePrimaryFilter == id;
+    return FilterChip(
+      avatar: Icon(
+        icon,
+        size: 18,
+        color: selected ? Colors.white : const Color(0xFF2563EB),
+      ),
+      label: Text(label),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : const Color(0xFF0F172A),
+        fontWeight: FontWeight.w700,
+      ),
+      backgroundColor: const Color(0xFFF3F7FF),
+      selectedColor: const Color(0xFF2563EB),
+      side: BorderSide(
+        color: selected ? const Color(0xFF2563EB) : const Color(0xFFD8E4FB),
+      ),
+      selected: selected,
+      onSelected: (_) {
+        setState(() {
+          _activePrimaryFilter = selected ? null : id;
+        });
+      },
+      showCheckmark: false,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+    );
+  }
+
+  String _primaryFilterLabel(String id) {
+    switch (id) {
+      case primaryNearMe:
+        return 'Near Me';
+      case primaryBestDeals:
+        return 'Best Deals';
+      case primaryEndingSoon:
+        return 'Ending Soon';
+      case primaryPopular:
+        return 'Popular';
+      default:
+        return id;
+    }
+  }
+
+  IconData _primaryFilterIcon(String id) {
+    switch (id) {
+      case primaryNearMe:
+        return Icons.location_on_outlined;
+      case primaryBestDeals:
+        return Icons.local_fire_department_outlined;
+      case primaryEndingSoon:
+        return Icons.hourglass_bottom_rounded;
+      case primaryPopular:
+        return Icons.star_outline_rounded;
+      default:
+        return Icons.filter_alt_outlined;
+    }
   }
 
   Widget _buildContextBanner() {

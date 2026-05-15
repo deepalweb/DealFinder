@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+
 import '../models/promotion.dart';
 
 class FlashSaleCard extends StatefulWidget {
@@ -39,7 +41,6 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
 
   void _startTimer() {
     if (widget.promotion.endDate == null) return;
-    
     _updateTimeLeft();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _updateTimeLeft();
@@ -47,15 +48,27 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
   }
 
   void _updateTimeLeft() {
-    if (widget.promotion.endDate == null) return;
-    
-    final diff = widget.promotion.endDate!.difference(DateTime.now());
-    if (mounted) {
-      setState(() => _timeLeft = diff.isNegative ? Duration.zero : diff);
-    }
+    final endDate = widget.promotion.endDate;
+    if (endDate == null || !mounted) return;
+    final diff = endDate.difference(DateTime.now());
+    setState(() {
+      _timeLeft = diff.isNegative ? Duration.zero : diff;
+    });
   }
 
-  String _formatTime(int value) => value.toString().padLeft(2, '0');
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  String _formatCountdown(Duration duration) {
+    if (duration.inHours < 24) {
+      return '${_twoDigits(duration.inHours)}h '
+          '${_twoDigits(duration.inMinutes % 60)}m '
+          '${_twoDigits(duration.inSeconds % 60)}s';
+    }
+
+    return '${duration.inDays}d '
+        '${_twoDigits(duration.inHours % 24)}h '
+        '${_twoDigits(duration.inMinutes % 60)}m';
+  }
 
   Widget _buildImage() {
     final img = widget.promotion.imageDataString;
@@ -70,8 +83,12 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
     if (img.startsWith('data:image')) {
       try {
         final bytes = base64Decode(img.substring(img.indexOf(',') + 1));
-        return Image.memory(bytes, fit: BoxFit.cover, width: double.infinity,
-            errorBuilder: (_, __, ___) => shimmer);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          errorBuilder: (_, __, ___) => shimmer,
+        );
       } catch (_) {
         return shimmer;
       }
@@ -93,12 +110,12 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
   @override
   Widget build(BuildContext context) {
     final p = widget.promotion;
-    final hasTime = _timeLeft != null && _timeLeft!.inSeconds > 0;
+    final hasTimeLeft = _timeLeft != null && _timeLeft != Duration.zero;
 
     return GestureDetector(
       onTap: widget.onTap,
       child: Container(
-        width: widget.width ?? 180,
+        width: widget.width ?? 196,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -114,7 +131,6 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image with flash badge
             Stack(
               children: [
                 SizedBox(
@@ -122,12 +138,12 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
                   width: double.infinity,
                   child: _buildImage(),
                 ),
-                // Flash badge
                 Positioned(
                   top: 8,
                   left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFF6B6B), Color(0xFFFF5252)],
@@ -137,7 +153,11 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.flash_on, color: Colors.white, size: 14),
+                        const Icon(
+                          Icons.flash_on,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           p.discount ?? 'FLASH',
@@ -153,79 +173,67 @@ class _FlashSaleCardState extends State<FlashSaleCard> {
                 ),
               ],
             ),
-            // Info section
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    p.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A1A1A),
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  // Merchant
-                  if (p.merchantName != null)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      p.merchantName!,
-                      maxLines: 1,
+                      p.title,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF9E9E9E),
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                        height: 1.3,
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  // Countdown timer
-                  if (hasTime)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF3E0),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFFFB74D), width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.timer, size: 14, color: Color(0xFFFF6F00)),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_formatTime(_timeLeft!.inHours)}:${_formatTime(_timeLeft!.inMinutes % 60)}:${_formatTime(_timeLeft!.inSeconds % 60)}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFFF6F00),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Expired',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
+                    const SizedBox(height: 6),
+                    if (p.merchantName != null && p.merchantName!.isNotEmpty)
+                      Text(
+                        p.merchantName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF757575),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          hasTimeLeft
+                              ? Icons.timer_outlined
+                              : Icons.timer_off_outlined,
+                          size: 14,
+                          color: hasTimeLeft
+                              ? const Color(0xFFFF6F00)
+                              : const Color(0xFF64748B),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          hasTimeLeft
+                              ? _formatCountdown(_timeLeft!)
+                              : 'Expired',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            color: hasTimeLeft
+                                ? const Color(0xFFFF6F00)
+                                : const Color(0xFF64748B),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
                     ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

@@ -36,6 +36,11 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   String _activeFilter = 'all';
   Promotion? _selectedMapDeal;
   LocationFetchStatus? _locationStatus;
+  bool _showingCachedResults = false;
+  bool _cachedLocationChanged = false;
+  DateTime? _cachedAt;
+  String? _cachedLocationName;
+  double? _cachedDistanceKm;
 
   List<Promotion> get _mappableDeals => _filteredDeals
       .where((deal) => deal.latitude != null && deal.longitude != null)
@@ -129,20 +134,26 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     final searchRadius = radius ?? _selectedRadius;
 
     try {
-      final nearbyDeals = await _apiService.fetchNearbyPromotions(
+      final nearbyResult = await _apiService.fetchNearbyPromotionsWithCache(
         position.latitude,
         position.longitude,
         radiusKm: searchRadius,
+        locationName: _locationName,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _nearbyDeals = nearbyDeals;
+        _nearbyDeals = nearbyResult.promotions;
         _sortDeals(_nearbyDeals);
         _focusFirstMapDeal();
         _isLoading = false;
         _error = null;
+        _showingCachedResults = nearbyResult.fromCache;
+        _cachedLocationChanged = nearbyResult.locationChanged;
+        _cachedAt = nearbyResult.cachedAt;
+        _cachedLocationName = nearbyResult.cachedLocationName;
+        _cachedDistanceKm = nearbyResult.cachedDistanceKm;
       });
     } on TimeoutException {
       setState(() {
@@ -206,6 +217,41 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     final days = promotion.endDate!.difference(now).inDays;
     if (days == 0) return 'Ends today';
     return 'Ends in ${days + 1}d';
+  }
+
+  String? _nearbyCacheNotice() {
+    if (!_showingCachedResults) return null;
+
+    final updatedText = _cachedAt == null
+        ? null
+        : 'Updated ${_formatAge(_cachedAt!)}';
+
+    if (_cachedLocationChanged) {
+      final area = _cachedLocationName?.trim().isNotEmpty == true
+          ? _cachedLocationName!.trim()
+          : 'your last saved area';
+      final distance = _cachedDistanceKm == null
+          ? null
+          : '${_cachedDistanceKm!.toStringAsFixed(_cachedDistanceKm! >= 10 ? 0 : 1)} km away';
+      return [
+        'Offline - showing cached deals from $area.',
+        if (distance != null) 'Current location is about $distance from that area.',
+        if (updatedText != null) updatedText,
+      ].join(' ');
+    }
+
+    return [
+      'Offline - showing cached nearby deals for this area.',
+      if (updatedText != null) updatedText,
+    ].join(' ');
+  }
+
+  String _formatAge(DateTime cachedAt) {
+    final diff = DateTime.now().difference(cachedAt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
   }
 
   Future<void> _changeRadius(double newRadius) async {
@@ -1190,6 +1236,49 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     );
   }
 
+  Widget _buildCacheBanner() {
+    final message = _nearbyCacheNotice();
+    if (message == null) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _cachedLocationChanged
+            ? const Color(0xFFFFF4E5)
+            : const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: _cachedLocationChanged
+              ? const Color(0xFFFFB74D)
+              : const Color(0xFFFFCC80),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _cachedLocationChanged ? Icons.travel_explore : Icons.wifi_off,
+            size: 18,
+            color: const Color(0xFFEF6C00),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF8D4E00),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeDeals = _filteredDeals;
@@ -1252,7 +1341,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
+                  _buildCacheBanner(),
                   TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(_focusFirstMapDeal),

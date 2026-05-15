@@ -11,6 +11,7 @@ class ModernDealCard extends StatefulWidget {
   final VoidCallback? onTap;
   final double? width;
   final bool showCountdown;
+  final bool prioritizeDistance;
 
   const ModernDealCard({
     super.key,
@@ -18,6 +19,7 @@ class ModernDealCard extends StatefulWidget {
     this.onTap,
     this.width,
     this.showCountdown = false,
+    this.prioritizeDistance = false,
   });
 
   @override
@@ -68,6 +70,12 @@ class _ModernDealCardState extends State<ModernDealCard> {
     return '${(distanceMeters / 1000).toStringAsFixed(1)}km';
   }
 
+  String _formatDistanceWithContext(double? distanceMeters) {
+    final distance = _formatDistance(distanceMeters);
+    if (distance.isEmpty) return '';
+    return '$distance away';
+  }
+
   Widget _buildImage() {
     return ImageHelper.buildOptimizedImage(
       widget.promotion.imageDataString,
@@ -83,6 +91,60 @@ class _ModernDealCardState extends State<ModernDealCard> {
     return null;
   }
 
+  String? _nearbyLocationLabel(Promotion promotion) {
+    final location = promotion.location?.trim();
+    if (location != null && location.isNotEmpty) return location;
+
+    final category = promotion.category?.trim();
+    if (category != null && category.isNotEmpty) return category;
+
+    return null;
+  }
+
+  int? _savingAmount(Promotion promotion) {
+    if (promotion.originalPrice == null || promotion.discountedPrice == null) {
+      return null;
+    }
+
+    final savings = promotion.originalPrice! - promotion.discountedPrice!;
+    if (savings <= 0) return null;
+    return savings.round();
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required Color background,
+    required Color foreground,
+    bool compact = false,
+  }) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 3 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: compact ? 10 : 11, color: foreground),
+          SizedBox(width: compact ? 3 : 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: compact ? 9 : 10,
+              color: foreground,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatCountdown(Duration duration) {
     final totalHours = duration.inHours;
     final days = duration.inDays;
@@ -91,197 +153,208 @@ class _ModernDealCardState extends State<ModernDealCard> {
     final seconds = duration.inSeconds % 60;
 
     if (totalHours >= 24) {
-      return '${days}d ${hours.toString().padLeft(2, '0')}:'
-          '${minutes.toString().padLeft(2, '0')}:'
-          '${seconds.toString().padLeft(2, '0')}';
+      return '${days}d ${hours.toString().padLeft(2, '0')}h '
+          '${minutes.toString().padLeft(2, '0')}m';
     }
 
-    return '${totalHours.toString().padLeft(2, '0')}:'
-        '${minutes.toString().padLeft(2, '0')}:'
-        '${seconds.toString().padLeft(2, '0')}';
+    return '${totalHours.toString().padLeft(2, '0')}h '
+        '${minutes.toString().padLeft(2, '0')}m '
+        '${seconds.toString().padLeft(2, '0')}s';
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.promotion;
-    final distance = _formatDistance(p.distance);
-    final showCountdown =
-        widget.showCountdown && _timeLeft != null && p.endDate != null;
-    final primaryModeLabel = _primaryModeLabel(p);
-
     return GestureDetector(
       onTap: widget.onTap,
-      child: Container(
-        width: widget.width,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final p = widget.promotion;
+          final distance = _formatDistance(p.distance);
+          final distanceWithContext = _formatDistanceWithContext(p.distance);
+          final showCountdown =
+              widget.showCountdown && _timeLeft != null && p.endDate != null;
+          final primaryModeLabel = _primaryModeLabel(p);
+          final locationLabel = _nearbyLocationLabel(p);
+          final savingAmount = _savingAmount(p);
+          final effectiveWidth = widget.width ?? constraints.maxWidth;
+          final compact = effectiveWidth <= 175;
+          final badgeCompact = compact;
+          final imageFlex = compact ? 5 : 6;
+          final contentFlex = compact ? 5 : 4;
+          final contentPadding = compact ? 8.0 : 10.0;
+          final titleFontSize = compact ? 12.0 : 13.0;
+          final merchantFontSize = compact ? 10.0 : 11.0;
+          final bodyFontSize = compact ? 9.5 : 10.0;
+          final priceFontSize = compact ? 13.0 : 14.0;
+          final metaSummaryParts = <String>[
+            if (locationLabel != null && locationLabel.isNotEmpty)
+              locationLabel,
+            if (savingAmount != null) 'Save Rs.$savingAmount',
+          ];
+          final metaSummary = metaSummaryParts.join(' • ');
+
+          return Container(
+            width: widget.width,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image section
-            Expanded(
-              flex: 6,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildImage(),
-                  // Gradient overlay
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.3),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Discount badge
-                  if (p.discount != null && p.discount!.isNotEmpty)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: imageFlex,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildImage(),
+                      Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE53935),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.2),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          p.discount!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.black.withValues(alpha: 0.3),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                  if (showCountdown)
-                    Positioned(
-                      left: 8,
-                      right: 8,
-                      bottom: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _timeLeft == Duration.zero
-                                  ? Icons.timer_off_outlined
-                                  : Icons.timer_outlined,
-                              size: 13,
-                              color: _timeLeft == Duration.zero
-                                  ? DealExpiryHelper.urgencyColor(
-                                      context,
-                                      p.endDate,
-                                    )
-                                  : const Color(0xFF9A3412),
+                      if (p.discount != null && p.discount!.isNotEmpty)
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 7 : 8,
+                              vertical: compact ? 3 : 4,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              _timeLeft == Duration.zero
-                                  ? 'Expired'
-                                  : _formatCountdown(_timeLeft!),
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                color: _timeLeft == Duration.zero
-                                    ? DealExpiryHelper.urgencyColor(
-                                        context,
-                                        p.endDate,
-                                      )
-                                    : const Color(0xFF9A3412),
-                              ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE53935),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  // Featured badge
-                  if (p.featured == true)
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.orange[700],
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.star, color: Colors.white, size: 10),
-                            SizedBox(width: 2),
-                            Text(
-                              'HOT',
+                            child: Text(
+                              p.discount!,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 9,
+                                fontSize: compact ? 10 : 11,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Info section
-            Expanded(
-              flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Title
-                    Text(
-                      p.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A1A1A),
-                        height: 1.3,
-                      ),
-                    ),
-                    Column(
+                      if (showCountdown)
+                        Positioned(
+                          left: 8,
+                          right: 8,
+                          bottom: 8,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 8 : 10,
+                              vertical: compact ? 5 : 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.38),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _timeLeft == Duration.zero
+                                      ? Icons.timer_off_outlined
+                                      : Icons.timer_outlined,
+                                  size: compact ? 12 : 14,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _timeLeft == Duration.zero
+                                      ? 'Expired'
+                                      : _formatCountdown(_timeLeft!),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: compact ? 10.5 : 12,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (p.featured == true)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 5 : 6,
+                              vertical: compact ? 2 : 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.orange[700],
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.star,
+                                  color: Colors.white,
+                                  size: compact ? 9 : 10,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  'HOT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: compact ? 8 : 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: contentFlex,
+                  child: Padding(
+                    padding: EdgeInsets.all(contentPadding),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Merchant name with logo
+                        Text(
+                          p.title,
+                          maxLines: compact ? 2 : 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: titleFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1A1A1A),
+                            height: 1.25,
+                          ),
+                        ),
+                        SizedBox(height: compact ? 4 : 6),
                         if (p.merchantName != null &&
                             p.merchantName!.isNotEmpty)
                           Row(
@@ -290,56 +363,62 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                   p.merchantLogoUrl!.isNotEmpty)
                                 _buildLogo(p.merchantLogoUrl!)
                               else
-                                const Icon(Icons.store,
-                                    size: 11, color: Color(0xFF1E88E5)),
+                                const Icon(
+                                  Icons.store,
+                                  size: 11,
+                                  color: Color(0xFF1E88E5),
+                                ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   p.merchantName!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF1E88E5),
-                                    fontWeight: FontWeight.w500,
+                                  style: TextStyle(
+                                    fontSize: merchantFontSize,
+                                    color: const Color(0xFF1E88E5),
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        if (p.isVerifiedActiveDeal) ...[
-                          const SizedBox(height: 4),
-                          const DealVerificationBadge(),
-                        ],
-                        if (primaryModeLabel != null) ...[
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F8E9),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              primaryModeLabel,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF33691E),
+                        SizedBox(height: compact ? 4 : 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (p.isVerifiedActiveDeal)
+                              const DealVerificationBadge(),
+                            if (primaryModeLabel != null)
+                              _buildInfoChip(
+                                icon: promotionModeIcon(primaryModeLabel),
+                                label: primaryModeLabel,
+                                background: const Color(0xFFF1F8E9),
+                                foreground: const Color(0xFF33691E),
+                                compact: badgeCompact,
                               ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 4),
+                            if (widget.prioritizeDistance &&
+                                distance.isNotEmpty)
+                              _buildInfoChip(
+                                icon: Icons.near_me_rounded,
+                                label: distanceWithContext,
+                                background: const Color(0xFFE3F2FD),
+                                foreground: const Color(0xFF1E88E5),
+                                compact: badgeCompact,
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: compact ? 4 : 6),
                         if (showCountdown && _timeLeft != null) ...[
                           Text(
                             _timeLeft == Duration.zero
                                 ? 'Offer expired'
                                 : 'Ends in ${_formatCountdown(_timeLeft!)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: bodyFontSize,
                               fontWeight: FontWeight.w700,
                               color: _timeLeft == Duration.zero
                                   ? DealExpiryHelper.urgencyColor(
@@ -349,85 +428,123 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                   : const Color(0xFF9A3412),
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: compact ? 4 : 6),
                         ],
-                        // Price and distance
+                        if (metaSummary.isNotEmpty) ...[
+                          Text(
+                            metaSummary,
+                            maxLines: compact ? 1 : 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: bodyFontSize,
+                              color: const Color(0xFF64748B),
+                              height: 1.3,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: compact ? 4 : 6),
+                        ],
+                        const Spacer(),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            // Price
                             if (p.discountedPrice != null ||
                                 p.originalPrice != null ||
                                 p.price != null)
                               Expanded(
-                                child: Row(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
                                       'Rs.${(p.discountedPrice ?? p.price ?? p.originalPrice)!.toStringAsFixed(0)}',
-                                      style: const TextStyle(
-                                        fontSize: 14,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: priceFontSize,
                                         fontWeight: FontWeight.bold,
-                                        color: Color(0xFFE53935),
+                                        color: const Color(0xFFE53935),
                                       ),
                                     ),
                                     if (p.originalPrice != null &&
-                                        p.discountedPrice != null) ...[
-                                      const SizedBox(width: 4),
+                                        p.discountedPrice != null)
                                       Text(
                                         'Rs.${p.originalPrice!.toStringAsFixed(0)}',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          color: Color(0xFF9E9E9E),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: compact ? 9 : 10,
+                                          color: const Color(0xFF9E9E9E),
                                           decoration:
                                               TextDecoration.lineThrough,
                                         ),
                                       ),
-                                    ],
                                   ],
                                 ),
                               )
                             else
                               const Spacer(),
-                            // Distance
-                            if (distance.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFE3F2FD),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(Icons.location_on,
-                                        size: 10, color: Color(0xFF1E88E5)),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      distance,
-                                      style: const TextStyle(
-                                        fontSize: 10,
+                            if (!widget.prioritizeDistance &&
+                                distance.isNotEmpty)
+                              Flexible(
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: compact ? 5 : 6,
+                                    vertical: compact ? 2 : 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFE3F2FD),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on,
+                                        size: 10,
                                         color: Color(0xFF1E88E5),
-                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 2),
+                                      Flexible(
+                                        child: Text(
+                                          distanceWithContext,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: compact ? 9 : 10,
+                                            color: const Color(0xFF1E88E5),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                           ],
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
+  }
+
+  IconData promotionModeIcon(String label) {
+    switch (label) {
+      case 'Delivery':
+        return Icons.delivery_dining;
+      case 'Pickup':
+        return Icons.shopping_bag_outlined;
+      case 'Visit':
+        return Icons.storefront_outlined;
+      default:
+        return Icons.local_offer_outlined;
+    }
   }
 }

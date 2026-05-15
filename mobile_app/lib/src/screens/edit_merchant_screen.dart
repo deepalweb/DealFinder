@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart' as latlng;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -38,6 +40,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
   final _addressController = TextEditingController();
   final _logoUrlController = TextEditingController();
   final _bannerUrlController = TextEditingController();
+  final _latitudeController = TextEditingController();
+  final _longitudeController = TextEditingController();
 
   // Social media controllers
   final _facebookController = TextEditingController();
@@ -46,6 +50,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
   final _tiktokController = TextEditingController();
 
   bool _isSubmitting = false;
+  bool _hasUnsavedChanges = false;
+  bool _suspendChangeTracking = true;
   String? _token;
   String _merchantType = 'offline';
   bool _deliveryAvailable = false;
@@ -56,11 +62,17 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
   String? _uploadedBannerUrl;
   double? _latitude;
   double? _longitude;
+  static const Set<String> _merchantTypeOptions = {
+    'offline',
+    'online',
+    'hybrid',
+  };
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+    _registerFormListeners();
     _loadToken();
     _loadMerchantData();
   }
@@ -74,6 +86,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
   }
 
   void _loadMerchantData() {
+    _suspendChangeTracking = true;
     if (widget.merchantData != null) {
       _nameController.text = widget.merchantData!['name'] ?? '';
       _profileController.text = widget.merchantData!['profile'] ??
@@ -87,8 +100,11 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
       _contactNumberController.text = widget.merchantData!['contactNumber'] ??
           widget.merchantData!['phone'] ??
           '';
-      _merchantType =
+      final rawMerchantType =
           (widget.merchantData!['merchantType'] ?? 'offline').toString();
+      _merchantType = _merchantTypeOptions.contains(rawMerchantType)
+          ? rawMerchantType
+          : 'offline';
       _deliveryAvailable = widget.merchantData!['deliveryAvailable'] == true;
       _pickupAvailable = widget.merchantData!['pickupAvailable'] == true;
       _addressController.text = widget.merchantData!['address'] ?? '';
@@ -101,8 +117,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
       if (location != null && location['coordinates'] != null) {
         final coords = location['coordinates'] as List;
         if (coords.length >= 2) {
-          _longitude = coords[0].toDouble();
-          _latitude = coords[1].toDouble();
+          _setLocation(coords[1].toDouble(), coords[0].toDouble());
         }
       }
 
@@ -115,6 +130,93 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
         _twitterController.text = socialMedia['twitter'] ?? '';
         _tiktokController.text = socialMedia['tiktok'] ?? '';
       }
+    }
+    _hasUnsavedChanges = false;
+    _suspendChangeTracking = false;
+  }
+
+  String? get _selectedCategoryValue {
+    final value = normalizeCategoryId(_categoryController.text);
+    if (value.isEmpty) return null;
+    final exists = predefinedCategories.any(
+      (category) => category.id != 'other' && category.id == value,
+    );
+    return exists ? value : null;
+  }
+
+  String get _selectedMerchantTypeValue {
+    return _merchantTypeOptions.contains(_merchantType)
+        ? _merchantType
+        : 'offline';
+  }
+
+  void _setLocation(double latitude, double longitude) {
+    _latitude = latitude;
+    _longitude = longitude;
+    _latitudeController.text = latitude.toStringAsFixed(6);
+    _longitudeController.text = longitude.toStringAsFixed(6);
+    _markDirty();
+  }
+
+  void _registerFormListeners() {
+    final controllers = [
+      _nameController,
+      _profileController,
+      _categoryController,
+      _websiteController,
+      _orderLinkController,
+      _contactInfoController,
+      _contactNumberController,
+      _addressController,
+      _logoUrlController,
+      _bannerUrlController,
+      _latitudeController,
+      _longitudeController,
+      _facebookController,
+      _instagramController,
+      _twitterController,
+      _tiktokController,
+    ];
+
+    for (final controller in controllers) {
+      controller.addListener(_markDirty);
+    }
+  }
+
+  void _markDirty() {
+    if (_suspendChangeTracking || _hasUnsavedChanges || !mounted) return;
+    setState(() => _hasUnsavedChanges = true);
+  }
+
+  Future<bool> _confirmDiscardChanges() async {
+    if (!_hasUnsavedChanges || _isSubmitting) return true;
+
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard changes?'),
+        content: const Text(
+          'You have unsaved store profile changes. Leave this screen without saving?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Keep editing'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    return shouldDiscard ?? false;
+  }
+
+  Future<void> _handleCancel() async {
+    if (await _confirmDiscardChanges() && mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -131,6 +233,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
     _addressController.dispose();
     _logoUrlController.dispose();
     _bannerUrlController.dispose();
+    _latitudeController.dispose();
+    _longitudeController.dispose();
     _facebookController.dispose();
     _instagramController.dispose();
     _twitterController.dispose();
@@ -246,6 +350,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           widget.merchantId, merchantData, _token!);
 
       if (mounted) {
+        _hasUnsavedChanges = false;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Store updated successfully!'),
@@ -269,88 +374,101 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        title: const Text('Edit Store Profile'),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Basic'),
-            Tab(text: 'Contact'),
-            Tab(text: 'Social'),
-            Tab(text: 'Branding'),
-            Tab(text: 'Location'),
-          ],
-        ),
-      ),
-      body: Form(
-        key: _formKey,
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildBasicInfoTab(),
-            _buildContactTab(),
-            _buildSocialTab(),
-            _buildBrandingTab(),
-            _buildLocationTab(),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
+    return PopScope(
+        canPop: !_hasUnsavedChanges || _isSubmitting,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) return;
+          await _handleCancel();
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            elevation: 0,
+            title: const Text('Edit Store Profile'),
+            bottom: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white70,
+              indicatorColor: Colors.white,
+              indicatorWeight: 3,
+              tabs: const [
+                Tab(text: 'Basic'),
+                Tab(text: 'Contact'),
+                Tab(text: 'Social'),
+                Tab(text: 'Branding'),
+                Tab(text: 'Location'),
+              ],
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(color: Colors.grey[400]!),
-                  ),
-                  child: const Text('Cancel'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitChanges,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Save Changes'),
-                ),
-              ),
-            ],
           ),
-        ),
-      ),
-    );
+          body: Form(
+            key: _formKey,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildBasicInfoTab(),
+                _buildContactTab(),
+                _buildSocialTab(),
+                _buildBrandingTab(),
+                _buildLocationTab(),
+              ],
+            ),
+          ),
+          bottomNavigationBar: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+            child: SafeArea(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _handleCancel,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.grey[400]!),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton(
+                      onPressed: _isSubmitting ? null : _submitChanges,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: _isSubmitting
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Text('Saving...'),
+                              ],
+                            )
+                          : const Text('Save Changes'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ));
   }
 
   Widget _buildBasicInfoTab() {
@@ -384,9 +502,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            initialValue: _categoryController.text.isEmpty
-                ? null
-                : _categoryController.text,
+            initialValue: _selectedCategoryValue,
             decoration: InputDecoration(
               labelText: 'Category',
               filled: true,
@@ -414,7 +530,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            initialValue: _merchantType,
+            initialValue: _selectedMerchantTypeValue,
             decoration: InputDecoration(
               labelText: 'Store Type',
               filled: true,
@@ -444,6 +560,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                   _deliveryAvailable = true;
                 }
               });
+              _markDirty();
             },
           ),
           const SizedBox(height: 16),
@@ -546,6 +663,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                         _merchantType = 'offline';
                       }
                     });
+                    _markDirty();
                   },
                 ),
                 SwitchListTile(
@@ -566,6 +684,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                         _merchantType = 'offline';
                       }
                     });
+                    _markDirty();
                   },
                 ),
               ],
@@ -988,6 +1107,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                       setState(() {
                         _latitude = null;
                         _longitude = null;
+                        _latitudeController.clear();
+                        _longitudeController.clear();
                       });
                     },
                   ),
@@ -1031,8 +1152,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                 }
 
                 setState(() {
-                  _latitude = position.latitude;
-                  _longitude = position.longitude;
+                  _setLocation(position.latitude, position.longitude);
                 });
 
                 if (mounted) {
@@ -1056,6 +1176,54 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 50),
             ),
+          ),
+          const SizedBox(height: 24),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(
+              height: 240,
+              child: FlutterMap(
+                options: MapOptions(
+                  initialCenter: latlng.LatLng(
+                    _latitude ?? 6.9271,
+                    _longitude ?? 79.8612,
+                  ),
+                  initialZoom: _latitude != null && _longitude != null ? 15 : 8,
+                  onTap: (_, point) {
+                    setState(() {
+                      _setLocation(point.latitude, point.longitude);
+                    });
+                  },
+                ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.dealfinder.mobile',
+                  ),
+                  if (_latitude != null && _longitude != null)
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: latlng.LatLng(_latitude!, _longitude!),
+                          width: 44,
+                          height: 44,
+                          child: Icon(
+                            Icons.location_on,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 36,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Tap the map to place your store marker',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 24),
           const Divider(),
@@ -1087,10 +1255,12 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                       decimal: true, signed: true),
-                  initialValue: _latitude?.toString() ?? '',
+                  controller: _latitudeController,
                   onChanged: (value) {
                     final lat = double.tryParse(value);
-                    if (lat != null) {
+                    if (lat != null && _longitude != null) {
+                      setState(() => _setLocation(lat, _longitude!));
+                    } else if (lat != null) {
                       setState(() => _latitude = lat);
                     }
                   },
@@ -1115,10 +1285,12 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                       decimal: true, signed: true),
-                  initialValue: _longitude?.toString() ?? '',
+                  controller: _longitudeController,
                   onChanged: (value) {
                     final lng = double.tryParse(value);
-                    if (lng != null) {
+                    if (lng != null && _latitude != null) {
+                      setState(() => _setLocation(_latitude!, lng));
+                    } else if (lng != null) {
                       setState(() => _longitude = lng);
                     }
                   },

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
 import '../services/favorites_manager.dart';
+import '../widgets/app_empty_state.dart';
 import '../widgets/deal_card.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final String userId;
   final String token;
-  const FavoritesScreen({Key? key, required this.userId, required this.token}) : super(key: key);
+  const FavoritesScreen({Key? key, required this.userId, required this.token})
+      : super(key: key);
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
@@ -32,9 +34,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     try {
       final ids = await FavoritesManager.getFavorites();
       if (ids.isEmpty) return [];
-      
+
       final allPromos = await ApiService().fetchPromotions();
-      final favorites = allPromos.where((promo) => ids.contains(promo.id)).toList();
+      final favorites =
+          allPromos.where((promo) => ids.contains(promo.id)).toList();
       return favorites;
     } catch (e) {
       return [];
@@ -65,7 +68,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return AppEmptyState(
+              icon: Icons.error_outline,
+              title: 'Could not load favorites',
+              message: 'Please try again in a moment.',
+              actionLabel: 'Retry',
+              onAction: _loadFavorites,
+            );
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return RefreshIndicator(
               onRefresh: () async => _loadFavorites(),
@@ -73,16 +82,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: SizedBox(
                   height: MediaQuery.of(context).size.height * 0.6,
-                  child: const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text('No favorite deals yet'),
-                        Text('Start favoriting deals to see them here!'),
-                      ],
-                    ),
+                  child: AppEmptyState(
+                    icon: Icons.favorite_border,
+                    title: 'No favorite deals yet',
+                    message:
+                        'Start saving deals you love and they will appear here.',
+                    actionLabel: 'Refresh',
+                    onAction: _loadFavorites,
                   ),
                 ),
               ),
