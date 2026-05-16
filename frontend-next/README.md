@@ -8,8 +8,14 @@ Example:
 
 ```bash
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
+# optional alias if you want to provide the full public API origin explicitly
+NEXT_PUBLIC_API_BASE=http://localhost:8080
 NEXT_PUBLIC_GA_ID=G-KW321NZHVV
 ```
+
+Production note:
+
+Set `NEXT_PUBLIC_BACKEND_URL` (or `NEXT_PUBLIC_API_BASE`) to the backend host explicitly. The frontend should not assume the website origin also serves `/api`.
 
 First, run the development server:
 
