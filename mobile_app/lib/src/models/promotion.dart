@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 class Promotion {
+  static const Duration _colomboOffset = Duration(hours: 5, minutes: 30);
+
   final String id;
   final String title;
   final String description;
@@ -89,14 +91,29 @@ class Promotion {
     return ((originalPrice! - discountedPrice!) / originalPrice! * 100).round();
   }
 
+  static DateTime _colomboNow() {
+    final nowUtc = DateTime.now().toUtc();
+    return nowUtc.add(_colomboOffset);
+  }
+
+  static DateTime _startOfColomboDay([DateTime? reference]) {
+    final colombo = reference ?? _colomboNow();
+    return DateTime.utc(colombo.year, colombo.month, colombo.day)
+        .subtract(_colomboOffset);
+  }
+
+  static DateTime _endOfColomboDayExclusive([DateTime? reference]) {
+    return _startOfColomboDay(reference).add(const Duration(days: 1));
+  }
+
   bool get hasStarted {
-    final now = DateTime.now();
-    return startDate == null || !startDate!.isAfter(now);
+    final endExclusive = _endOfColomboDayExclusive();
+    return startDate == null || startDate!.isBefore(endExclusive);
   }
 
   bool get isExpired {
-    final now = DateTime.now();
-    return endDate != null && endDate!.isBefore(now);
+    final start = _startOfColomboDay();
+    return endDate != null && endDate!.isBefore(start);
   }
 
   bool get hasVerifiedActiveStatus {

@@ -11,6 +11,8 @@ IconData getCategoryIcon(String category) {
       return Icons.build;
     case 'shopping_retail':
       return Icons.shopping_bag;
+    case 'electronics':
+      return Icons.devices_rounded;
     case 'health_wellness':
       return Icons.favorite;
     case 'daily_essentials':

@@ -987,6 +987,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               countdownExpired: _countdownText == 'Expired',
               distanceLabel: distanceLabel,
               statusChips: statusChips,
+              activityItems: activityItems,
+              statBuilder: _buildStatChip,
               onTapMerchant: promotion.merchantId == null
                   ? null
                   : () {
@@ -1006,12 +1008,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   const SnackBar(content: Text('Deal link copied!')),
                 );
               },
-            ),
-            const SizedBox(height: 16.0),
-            _DealActivitySection(
-              loading: _loadingStats,
-              statBuilder: _buildStatChip,
-              items: activityItems,
             ),
             const SizedBox(height: 16.0),
             _DealDetailsSection(
@@ -1714,32 +1710,34 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Widget _buildStatChip(IconData icon, String label, int value) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          Text(
-            '$value',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
+    return Tooltip(
+      message: '$label: $value',
+      child: Semantics(
+        label: '$label $value',
+        child: Container(
+          constraints: const BoxConstraints(minWidth: 76),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
           ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: theme.colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                '$value',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.1,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1942,6 +1940,8 @@ class _DealSummarySection extends StatelessWidget {
   final bool countdownExpired;
   final String distanceLabel;
   final List<Widget> statusChips;
+  final List<_DealStatItem> activityItems;
+  final Widget Function(IconData icon, String label, int value) statBuilder;
   final VoidCallback? onTapMerchant;
   final VoidCallback onCopyLink;
 
@@ -1960,6 +1960,8 @@ class _DealSummarySection extends StatelessWidget {
     required this.countdownExpired,
     required this.distanceLabel,
     required this.statusChips,
+    required this.activityItems,
+    required this.statBuilder,
     required this.onTapMerchant,
     required this.onCopyLink,
   });
@@ -1976,13 +1978,42 @@ class _DealSummarySection extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          Text(
+            title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          if (activityItems.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < activityItems.length; i++) ...[
+                    statBuilder(
+                      activityItems[i].icon,
+                      activityItems[i].label,
+                      activityItems[i].value,
+                    ),
+                    if (i != activityItems.length - 1) const SizedBox(width: 6),
+                  ],
+                ],
+              ),
+            ),
+          ],
+          if (countdownText != null ||
+              distanceLabel.isNotEmpty ||
+              statusChips.isNotEmpty)
+            const SizedBox(height: 14),
           if (countdownText != null || distanceLabel.isNotEmpty)
             Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
+              spacing: 8,
               runSpacing: 6,
               children: [
                 if (countdownText != null)
@@ -1994,29 +2025,20 @@ class _DealSummarySection extends StatelessWidget {
                     color: countdownExpired
                         ? const Color(0xFFB91C1C)
                         : const Color(0xFF9A3412),
-                  ),
-                if (countdownText != null && distanceLabel.isNotEmpty)
-                  Text(
-                    '•',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.outline,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    backgroundColor: countdownExpired
+                        ? const Color(0xFFFEE2E2)
+                        : const Color(0xFFFFEDD5),
+                    borderColor: countdownExpired
+                        ? const Color(0xFFFCA5A5)
+                        : const Color(0xFFFDBA74),
                   ),
                 if (distanceLabel.isNotEmpty)
-                  const _InlineMetaItem(
+                  _InlineMetaItem(
                     icon: Icons.near_me_outlined,
-                    label: '',
-                    color: Color(0xFF0F4C81),
-                  ),
-                if (distanceLabel.isNotEmpty)
-                  Text(
-                    distanceLabel,
-                    style: const TextStyle(
-                      color: Color(0xFF0F4C81),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
+                    label: distanceLabel,
+                    color: const Color(0xFF0F4C81),
+                    backgroundColor: const Color(0xFFE0F2FE),
+                    borderColor: const Color(0xFF93C5FD),
                   ),
               ],
             ),
@@ -2030,13 +2052,6 @@ class _DealSummarySection extends StatelessWidget {
             ),
             const SizedBox(height: 18),
           ],
-          Text(
-            title,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              height: 1.2,
-            ),
-          ),
           if (hasMerchant && merchantName != null) ...[
             const SizedBox(height: 10),
             InkWell(
@@ -2193,65 +2208,6 @@ class _DealSummarySection extends StatelessWidget {
   }
 }
 
-class _DealActivitySection extends StatelessWidget {
-  final bool loading;
-  final List<_DealStatItem> items;
-  final Widget Function(IconData icon, String label, int value) statBuilder;
-
-  const _DealActivitySection({
-    required this.loading,
-    required this.items,
-    required this.statBuilder,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      elevation: 0.5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Deal activity',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (loading)
-                  Text(
-                    'Updating...',
-                    style: theme.textTheme.bodySmall,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: items
-                  .map((item) => statBuilder(item.icon, item.label, item.value))
-                  .toList(),
-            ),
-            if (loading) ...[
-              const SizedBox(height: 10),
-              const LinearProgressIndicator(minHeight: 2),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _DealDetailsSection extends StatelessWidget {
   final String description;
   final DateTime? startDate;
@@ -2360,31 +2316,50 @@ class _InlineMetaItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final Color? backgroundColor;
+  final Color? borderColor;
+  final String labelSuffix;
 
   const _InlineMetaItem({
     required this.icon,
     required this.label,
     required this.color,
+    this.backgroundColor,
+    this.borderColor,
+    this.labelSuffix = '',
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: color),
-        if (label.isNotEmpty) ...[
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
+    final hasLabel = label.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: borderColor ?? color.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17, color: color),
+          if (hasLabel) ...[
+            const SizedBox(width: 6),
+            Text(
+              '$label$labelSuffix',
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                height: 1,
+              ),
             ),
-          ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

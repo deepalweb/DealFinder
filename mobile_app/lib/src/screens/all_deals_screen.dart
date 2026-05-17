@@ -15,6 +15,8 @@ class AllDealsScreen extends StatefulWidget {
   final String? initialCategoryId;
   final String? initialSectionPreset;
   final String? initialContextTitle;
+  final String? initialPrimaryFilter;
+  final double? initialMinDiscount;
 
   const AllDealsScreen({
     super.key,
@@ -22,6 +24,8 @@ class AllDealsScreen extends StatefulWidget {
     this.initialCategoryId,
     this.initialSectionPreset,
     this.initialContextTitle,
+    this.initialPrimaryFilter,
+    this.initialMinDiscount,
   });
 
   @override
@@ -29,10 +33,10 @@ class AllDealsScreen extends StatefulWidget {
 }
 
 class _AllDealsScreenState extends State<AllDealsScreen> {
-  static const String primaryNearMe = 'near_me';
-  static const String primaryBestDeals = 'best_deals';
+  static const String primaryUnder1km = 'under_1km';
+  static const String primaryHalfOff = 'half_off';
   static const String primaryEndingSoon = 'ending_soon';
-  static const String primaryPopular = 'popular';
+  static const String primaryNewDeals = 'new_deals';
 
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
@@ -54,6 +58,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     _sortBy = widget.initialSortBy ?? _sortBy;
     _selectedCategory = widget.initialCategoryId;
     _activeSectionPreset = widget.initialSectionPreset;
+    _activePrimaryFilter = widget.initialPrimaryFilter;
+    _minDiscount = widget.initialMinDiscount ?? _minDiscount;
     _loadPromotions();
   }
 
@@ -255,17 +261,19 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     final now = DateTime.now();
 
     switch (_activePrimaryFilter) {
-      case primaryNearMe:
-        return promo.distance != null && promo.distance! <= 10000;
-      case primaryBestDeals:
-        return _discountSignal(promo) > 0;
+      case primaryUnder1km:
+        return promo.distance != null && promo.distance! <= 1000;
+      case primaryHalfOff:
+        return _discountSignal(promo) >= 50;
       case primaryEndingSoon:
         final cutoff = now.add(const Duration(hours: 48));
         return promo.endDate != null &&
             promo.endDate!.isAfter(now) &&
             promo.endDate!.isBefore(cutoff);
-      case primaryPopular:
-        return promo.featured == true || promo.ratingsCount > 0;
+      case primaryNewDeals:
+        final recentCutoff = now.subtract(const Duration(days: 7));
+        final publishedAt = promo.createdAt ?? promo.startDate;
+        return publishedAt != null && publishedAt.isAfter(recentCutoff);
       default:
         return true;
     }
@@ -273,22 +281,24 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   int _comparePrimaryFilterOrder(Promotion a, Promotion b) {
     switch (_activePrimaryFilter) {
-      case primaryNearMe:
+      case primaryUnder1km:
         return (a.distance ?? double.infinity).compareTo(
           b.distance ?? double.infinity,
         );
-      case primaryBestDeals:
+      case primaryHalfOff:
         return _discountSignal(b).compareTo(_discountSignal(a));
       case primaryEndingSoon:
         if (a.endDate == null && b.endDate == null) return 0;
         if (a.endDate == null) return 1;
         if (b.endDate == null) return -1;
         return a.endDate!.compareTo(b.endDate!);
-      case primaryPopular:
-        final featuredCompare =
-            (b.featured == true ? 1 : 0).compareTo(a.featured == true ? 1 : 0);
-        if (featuredCompare != 0) return featuredCompare;
-        return b.ratingsCount.compareTo(a.ratingsCount);
+      case primaryNewDeals:
+        final aDate = a.createdAt ?? a.startDate;
+        final bDate = b.createdAt ?? b.startDate;
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
       default:
         return 0;
     }
@@ -319,6 +329,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       'food_dining': Icons.restaurant,
       'beauty_salon': Icons.content_cut,
       'repairs_services': Icons.build,
+      'electronics': Icons.devices_rounded,
       'shopping_retail': Icons.shopping_bag,
       'health_wellness': Icons.favorite,
       'daily_essentials': Icons.local_grocery_store,
@@ -335,6 +346,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       'food_dining': Color(0xFFFF6B6B),
       'beauty_salon': Color(0xFFFF6B9D),
       'repairs_services': Color(0xFF3498DB),
+      'electronics': Color(0xFF06B6D4),
       'shopping_retail': Color(0xFFFFBE0B),
       'health_wellness': Color(0xFF10B981),
       'daily_essentials': Color(0xFF38A3A5),
@@ -903,27 +915,27 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         child: Row(
           children: [
             _buildPrimaryFilterChip(
-              id: primaryNearMe,
-              label: 'Near Me',
-              icon: Icons.location_on_outlined,
-            ),
-            const SizedBox(width: 8),
-            _buildPrimaryFilterChip(
-              id: primaryBestDeals,
-              label: 'Best Deals',
-              icon: Icons.local_fire_department_outlined,
-            ),
-            const SizedBox(width: 8),
-            _buildPrimaryFilterChip(
               id: primaryEndingSoon,
               label: 'Ending Soon',
               icon: Icons.hourglass_bottom_rounded,
             ),
             const SizedBox(width: 8),
             _buildPrimaryFilterChip(
-              id: primaryPopular,
-              label: 'Popular',
-              icon: Icons.star_outline_rounded,
+              id: primaryUnder1km,
+              label: 'Under 1km',
+              icon: Icons.location_on_outlined,
+            ),
+            const SizedBox(width: 8),
+            _buildPrimaryFilterChip(
+              id: primaryHalfOff,
+              label: '50%+ OFF',
+              icon: Icons.local_offer_outlined,
+            ),
+            const SizedBox(width: 8),
+            _buildPrimaryFilterChip(
+              id: primaryNewDeals,
+              label: 'New Deals',
+              icon: Icons.auto_awesome_outlined,
             ),
           ],
         ),
@@ -968,14 +980,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   String _primaryFilterLabel(String id) {
     switch (id) {
-      case primaryNearMe:
-        return 'Near Me';
-      case primaryBestDeals:
-        return 'Best Deals';
+      case primaryUnder1km:
+        return 'Under 1km';
+      case primaryHalfOff:
+        return '50%+ OFF';
       case primaryEndingSoon:
         return 'Ending Soon';
-      case primaryPopular:
-        return 'Popular';
+      case primaryNewDeals:
+        return 'New Deals';
       default:
         return id;
     }
@@ -983,14 +995,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   IconData _primaryFilterIcon(String id) {
     switch (id) {
-      case primaryNearMe:
+      case primaryUnder1km:
         return Icons.location_on_outlined;
-      case primaryBestDeals:
-        return Icons.local_fire_department_outlined;
+      case primaryHalfOff:
+        return Icons.local_offer_outlined;
       case primaryEndingSoon:
         return Icons.hourglass_bottom_rounded;
-      case primaryPopular:
-        return Icons.star_outline_rounded;
+      case primaryNewDeals:
+        return Icons.auto_awesome_outlined;
       default:
         return Icons.filter_alt_outlined;
     }
@@ -1277,14 +1289,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             ),
             // Deals List
             SizedBox(
-              height: 280,
+              height: 340,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.all(16),
                 itemCount: displayDeals.length,
                 itemBuilder: (context, index) {
                   return Container(
-                    width: 160,
+                    width: 184,
                     margin: EdgeInsets.only(
                       right: index < displayDeals.length - 1 ? 12 : 0,
                     ),
@@ -1334,14 +1346,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               ),
             ),
             SizedBox(
-              height: 280,
+              height: 340,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: 4,
                 itemBuilder: (context, index) {
                   return Container(
-                    width: 160,
+                    width: 184,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     child: Shimmer.fromColors(
                       baseColor: Colors.grey[300]!,

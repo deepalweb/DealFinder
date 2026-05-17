@@ -88,6 +88,18 @@ class SearchMatcher {
       'ෆැෂන්',
       'ඉලෙක්ට්\u200dරොනික්',
     ],
+    'electronics': [
+      'electronics',
+      'electronic',
+      'tech',
+      'gadget',
+      'mobile',
+      'phone',
+      'smartphone',
+      'laptop',
+      'computer',
+      'ඉලෙක්ට්‍රොනික්',
+    ],
     'health_wellness': [
       'health',
       'wellness',

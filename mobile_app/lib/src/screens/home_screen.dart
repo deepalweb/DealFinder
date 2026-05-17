@@ -12,12 +12,12 @@ import '../services/push_notification_service.dart';
 import '../widgets/section_header.dart';
 import '../widgets/home_shimmer.dart';
 import '../widgets/modern_deal_card.dart';
+import '../widgets/category_icon.dart';
 import 'deal_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'search_screen.dart';
 import 'nearby_deals_screen.dart';
 import 'all_deals_screen.dart';
-import 'deals_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onNavigateToFavorites;
@@ -455,6 +455,10 @@ class _HomeScreenState extends State<HomeScreen>
     return deals.take(8).toList();
   }
 
+  List<Promotion> get _recommendedDeals {
+    return _trendingDeals;
+  }
+
   List<Promotion> get _bannerSectionDeals {
     if (_bannerDeals.isNotEmpty || _bannerManaged) {
       return _bannerDeals.take(5).toList();
@@ -469,6 +473,9 @@ class _HomeScreenState extends State<HomeScreen>
     String? sectionPreset,
     String? sortBy,
     String? contextTitle,
+    String? categoryId,
+    String? primaryFilter,
+    double? minDiscount,
   }) {
     Navigator.push(
       context,
@@ -476,8 +483,10 @@ class _HomeScreenState extends State<HomeScreen>
         builder: (_) => AllDealsScreen(
           initialSectionPreset: sectionPreset,
           initialSortBy: sortBy,
-          initialCategoryId: _selectedCategory,
+          initialCategoryId: categoryId ?? _selectedCategory,
           initialContextTitle: contextTitle,
+          initialPrimaryFilter: primaryFilter,
+          initialMinDiscount: minDiscount,
         ),
       ),
     );
@@ -490,27 +499,6 @@ class _HomeScreenState extends State<HomeScreen>
         builder: (_) => const NotificationsScreen(),
       ),
     ).then((_) => _loadNotificationCount());
-  }
-
-  void _openPopularDeals() {
-    final curated = _hotDeals.isNotEmpty ? _hotDeals : _featuredDeals;
-    if (curated.isNotEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DealsListScreen(
-            promotions: curated,
-            title: 'Popular',
-          ),
-        ),
-      );
-      return;
-    }
-
-    _openAllDeals(
-      sortBy: 'recent',
-      contextTitle: 'Popular',
-    );
   }
 
   @override
@@ -543,6 +531,7 @@ class _HomeScreenState extends State<HomeScreen>
                   _buildDiscoveryHero(),
                   if (!_loading && _bannerSectionDeals.isNotEmpty)
                     _buildFeaturedBanner(),
+                  _buildQuickPicksSection(),
                   if (_isOffline) _buildOfflineBanner(),
                   if (_loading)
                     const SliverToBoxAdapter(child: HomeShimmer())
@@ -742,6 +731,90 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _buildQuickActionsCard() {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD7E5FA)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF8EA6C9).withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickBrowseCard(
+                  emoji: '🔥',
+                  title: 'Ending Soon',
+                  accent: const Color(0xFFEF4444),
+                  onTap: () => _openAllDeals(
+                    sectionPreset: 'ending_soon',
+                    sortBy: 'ending_soon',
+                    primaryFilter: 'ending_soon',
+                    contextTitle: 'Ending Soon',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildQuickBrowseCard(
+                  emoji: '📍',
+                  title: 'Under 1km',
+                  accent: const Color(0xFF0EA5E9),
+                  onTap: () => _openAllDeals(
+                    sortBy: 'distance',
+                    primaryFilter: 'under_1km',
+                    contextTitle: 'Under 1km',
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickBrowseCard(
+                  emoji: '💸',
+                  title: '50%+ OFF',
+                  accent: const Color(0xFF10B981),
+                  onTap: () => _openAllDeals(
+                    sortBy: 'discount',
+                    primaryFilter: 'half_off',
+                    minDiscount: 50,
+                    contextTitle: '50%+ OFF',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildQuickBrowseCard(
+                  emoji: '🆕',
+                  title: 'New Deals',
+                  accent: const Color(0xFF6366F1),
+                  onTap: () => _openAllDeals(
+                    sectionPreset: 'new_this_week',
+                    sortBy: 'recent',
+                    primaryFilter: 'new_deals',
+                    contextTitle: 'New Deals',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildQuickBrowseCard({
     required String emoji,
     required String title,
@@ -751,48 +824,37 @@ class _HomeScreenState extends State<HomeScreen>
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 124,
-        margin: const EdgeInsets.only(right: 10),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6F9FE),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFD9E5F6)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF93A7C7).withValues(alpha: 0.12),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          color: accent.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: accent.withValues(alpha: 0.22)),
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 30,
-              height: 30,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: accent.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(9),
               ),
               alignment: Alignment.center,
               child: Text(
                 emoji,
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 13),
               ),
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
               ),
             ),
           ],
@@ -911,7 +973,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF87A4D8).withValues(alpha: 0.18),
+                              color: const Color(0xFF87A4D8)
+                                  .withValues(alpha: 0.18),
                               blurRadius: 18,
                               offset: const Offset(0, 8),
                             ),
@@ -979,65 +1042,32 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Quick picks near you',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF334155),
-                  letterSpacing: 0.3,
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 72,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _buildQuickBrowseCard(
-                      emoji: '📍',
-                      title: 'Near Me',
-                      accent: const Color(0xFF0EA5E9),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const NearbyDealsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                    _buildQuickBrowseCard(
-                      emoji: '🔥',
-                      title: 'Best Deals',
-                      accent: const Color(0xFFEF4444),
-                      onTap: () => _openAllDeals(
-                        sortBy: 'discount',
-                        contextTitle: 'Best Deals',
-                      ),
-                    ),
-                    _buildQuickBrowseCard(
-                      emoji: '⏳',
-                      title: 'Ending Soon',
-                      accent: const Color(0xFFF59E0B),
-                      onTap: () => _openAllDeals(
-                        sectionPreset: 'ending_soon',
-                        sortBy: 'ending_soon',
-                        contextTitle: 'Ending Soon',
-                      ),
-                    ),
-                    _buildQuickBrowseCard(
-                      emoji: '⭐',
-                      title: 'Popular',
-                      accent: const Color(0xFF8B5CF6),
-                      onTap: _openPopularDeals,
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickPicksSection() {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Quick picks near you',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF334155),
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildQuickActionsCard(),
+          ],
         ),
       ),
     );
@@ -1327,141 +1357,14 @@ class _HomeScreenState extends State<HomeScreen>
 
     return SliverList(
       delegate: SliverChildListDelegate([
-        // Flash Sales Section
-        if (_flashSales.isNotEmpty) ...[
-          SectionHeader(
-            title: '⚡ Flash Sales 50% OFF',
-            subtitle: 'Ending soon - Hurry up!',
-            icon: Icons.flash_on,
-            onSeeAll: () => _openAllDeals(
-              sectionPreset: 'flash_sales',
-              sortBy: 'ending_soon',
-              contextTitle: 'Flash Sales',
-            ),
-          ),
-          Stack(
-            children: [
-              SizedBox(
-                height: 270,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _flashSales.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => ModernDealCard(
-                    promotion: _flashSales[i],
-                    width: 170,
-                    showCountdown: true,
-                    onTap: () => _openDeal(_flashSales[i]),
-                  ),
-                ),
-              ),
-              // Swipe indicator - right side
-              if (_flashSales.length > 2)
-                Positioned(
-                  right: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.chevron_right,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-
-        // Featured Deals Section
-        if (_featuredDeals.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          SectionHeader(
-            title: '⏰ Ending Soon',
-            subtitle: _endingSoonSectionSubtitle,
-            icon: Icons.access_time,
-            onSeeAll: () => _openAllDeals(
-              sectionPreset: 'ending_soon',
-              sortBy: 'ending_soon',
-              contextTitle: 'Ending Soon',
-            ),
-          ),
-          Stack(
-            children: [
-              SizedBox(
-                height: 240,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _featuredDeals.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => ModernDealCard(
-                    promotion: _featuredDeals[i],
-                    width: 170,
-                    showCountdown: true,
-                    onTap: () => _openDeal(_featuredDeals[i]),
-                  ),
-                ),
-              ),
-              // Swipe indicator - right side
-              if (_featuredDeals.length > 2)
-                Positioned(
-                  right: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.chevron_right,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-
-        // Nearby Deals Section
+        // Top Deals Near You Section
         if (_nearbyDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           SectionHeader(
-            title: '📍 Near You',
+            title: '🔥 Top Deals Near You',
             subtitle: _locationName == 'Near You'
-                ? 'Deals around your location'
-                : 'Deals around $_locationName',
+                ? 'Best nearby deals sorted by distance and value'
+                : 'Best nearby deals around $_locationName',
             icon: Icons.location_on,
             onSeeAll: () => Navigator.push(
               context,
@@ -1493,24 +1396,22 @@ class _HomeScreenState extends State<HomeScreen>
                             color: Color(0xFF2E7D32), size: 18),
                       ),
                       const SizedBox(width: 12),
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Closest deals first',
+                            Text(
+                              'Nearest live pick',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
                                 color: Color(0xFF14213D),
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
                             Text(
-                              _nearbyDeals.first.distance != null
-                                  ? 'Closest deal is ${(_nearbyDeals.first.distance! < 1000 ? '${_nearbyDeals.first.distance!.round()}m' : '${(_nearbyDeals.first.distance! / 1000).toStringAsFixed(1)}km')} away. Open the map for directions and distance context.'
-                                  : 'Open the nearby map view to compare distance, direction, and location context.',
-                              style: const TextStyle(
+                              'See nearby deals sorted by distance.',
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF475569),
                                 height: 1.45,
@@ -1567,7 +1468,7 @@ class _HomeScreenState extends State<HomeScreen>
               physics: const NeverScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.68,
+                childAspectRatio: 0.54,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
@@ -1582,7 +1483,7 @@ class _HomeScreenState extends State<HomeScreen>
         ] else if (_position == null) ...[
           const SizedBox(height: 8),
           const SectionHeader(
-            title: '📍 Near You',
+            title: '🔥 Top Deals Near You',
             subtitle: 'Enable location to see nearby deals',
             icon: Icons.location_on,
           ),
@@ -1642,23 +1543,281 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
 
-        // New This Week Section
-        if (_newDeals.isNotEmpty) ...[
+        // Ending Soon Section
+        if (_featuredDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           SectionHeader(
-            title: '🆕 New This Week',
-            subtitle: 'Fresh deals just added',
-            icon: Icons.fiber_new,
+            title: '⏰ Ending Soon',
+            subtitle: _endingSoonSectionSubtitle,
+            icon: Icons.access_time,
             onSeeAll: () => _openAllDeals(
-              sectionPreset: 'new_this_week',
-              sortBy: 'recent',
-              contextTitle: 'New This Week',
+              sectionPreset: 'ending_soon',
+              sortBy: 'ending_soon',
+              contextTitle: 'Ending Soon',
             ),
           ),
           Stack(
             children: [
               SizedBox(
-                height: 240,
+                height: 340,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _featuredDeals.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => ModernDealCard(
+                    promotion: _featuredDeals[i],
+                    width: 184,
+                    showCountdown: true,
+                    onTap: () => _openDeal(_featuredDeals[i]),
+                  ),
+                ),
+              ),
+              if (_featuredDeals.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+
+        // Recommended Section
+        if (_recommendedDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '🎯 Recommended For You',
+            subtitle: _nearbyDeals.isNotEmpty
+                ? 'Popular picks based on what is working near you'
+                : 'Popular picks while we learn your preferences',
+            icon: Icons.auto_awesome,
+            onSeeAll: () => _openAllDeals(
+              sortBy: 'discount',
+              contextTitle: 'Recommended For You',
+            ),
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 340,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _recommendedDeals.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => ModernDealCard(
+                    promotion: _recommendedDeals[i],
+                    width: 184,
+                    onTap: () => _openDeal(_recommendedDeals[i]),
+                  ),
+                ),
+              ),
+              if (_recommendedDeals.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+
+        // Categories Section
+        const SizedBox(height: 8),
+        SectionHeader(
+          title: '📂 Browse Categories',
+          subtitle: 'Jump into the deal type you care about fastest',
+          icon: Icons.grid_view_rounded,
+          onSeeAll: () => _openAllDeals(contextTitle: 'All Categories'),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 1.05,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount:
+                launchCategories.length > 6 ? 6 : launchCategories.length,
+            itemBuilder: (_, i) {
+              final category = launchCategories[i];
+              return InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => _openAllDeals(
+                  contextTitle: category.name,
+                  categoryId: category.id,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CategoryIcon(
+                        category: category.id,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        category.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Flash Sales Section
+        if (_flashSales.isNotEmpty) ...[
+          SectionHeader(
+            title: '⚡ Flash Sales',
+            subtitle: 'Time-sensitive promotions worth checking now',
+            icon: Icons.flash_on,
+            onSeeAll: () => _openAllDeals(
+              sectionPreset: 'flash_sales',
+              sortBy: 'ending_soon',
+              contextTitle: 'Flash Sales',
+            ),
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 360,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _flashSales.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => ModernDealCard(
+                    promotion: _flashSales[i],
+                    width: 184,
+                    showCountdown: true,
+                    onTap: () => _openDeal(_flashSales[i]),
+                  ),
+                ),
+              ),
+              if (_flashSales.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+
+        // New Deals Section
+        if (_newDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '🆕 New Deals',
+            subtitle: 'Fresh deals just added',
+            icon: Icons.fiber_new,
+            onSeeAll: () => _openAllDeals(
+              sectionPreset: 'new_this_week',
+              sortBy: 'recent',
+              contextTitle: 'New Deals',
+            ),
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 340,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1666,7 +1825,7 @@ class _HomeScreenState extends State<HomeScreen>
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (_, i) => ModernDealCard(
                     promotion: _newDeals[i],
-                    width: 170,
+                    width: 184,
                     onTap: () => _openDeal(_newDeals[i]),
                   ),
                 ),
@@ -1705,103 +1864,43 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
 
-        // Trending Now Section
-        if (_trendingDeals.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          SectionHeader(
-            title: '📈 Trending Now',
-            subtitle: 'Strong discounts and popular picks',
-            icon: Icons.trending_up_rounded,
-            onSeeAll: () => _openAllDeals(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: OutlinedButton(
+            onPressed: () => _openAllDeals(
               sortBy: 'discount',
-              contextTitle: 'Trending Now',
+              contextTitle: 'All Deals',
             ),
-          ),
-          Stack(
-            children: [
-              SizedBox(
-                height: 240,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _trendingDeals.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => ModernDealCard(
-                    promotion: _trendingDeals[i],
-                    width: 170,
-                    onTap: () => _openDeal(_trendingDeals[i]),
-                  ),
-                ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
               ),
-              if (_trendingDeals.length > 2)
-                Positioned(
-                  right: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.chevron_right,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            child: OutlinedButton(
-              onPressed: () => _openAllDeals(
-                sortBy: 'discount',
-                contextTitle: 'All Deals',
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Browse All ${_filteredDeals.length} Deals',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.arrow_forward,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Browse All ${_filteredDeals.length} Deals',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ]),
     );
   }

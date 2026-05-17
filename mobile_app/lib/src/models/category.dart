@@ -20,6 +20,7 @@ const List<String> launchCategoryIds = [
   'food_dining',
   'beauty_salon',
   'repairs_services',
+  'electronics',
   'shopping_retail',
   'health_wellness',
 ];
@@ -67,11 +68,20 @@ String normalizeCategoryId(String? rawCategory) {
     case 'shopping':
     case 'shopping_retail':
     case 'retail':
-    case 'electronics':
     case 'fashion':
     case 'accessories':
     case 'clothing':
       return 'shopping_retail';
+    case 'electronics':
+    case 'electronic':
+    case 'tech':
+    case 'gadget':
+    case 'mobile':
+    case 'phone':
+    case 'smartphone':
+    case 'laptop':
+    case 'computer':
+      return 'electronics';
     case 'health_wellness':
     case 'wellness':
     case 'fitness':
@@ -113,6 +123,10 @@ final List<Category> predefinedCategories = [
       id: 'repairs_services',
       name: 'Repairs & Services',
       localIconPath: 'assets/icons/services.svg'),
+  Category(
+      id: 'electronics',
+      name: 'Electronics',
+      localIconPath: 'assets/icons/electronics.svg'),
   Category(
       id: 'shopping_retail',
       name: 'Shopping & Retail',

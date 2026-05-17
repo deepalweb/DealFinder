@@ -42,6 +42,36 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
       ? `${Math.round(distanceKm * 1000)}m away` 
       : `${distanceKm.toFixed(1)}km away`
     : null;
+  const distancePillStyle = {
+    fontSize: '0.8rem',
+    padding: '0.34rem 0.72rem',
+    borderRadius: '999px',
+    background: 'linear-gradient(135deg, rgba(37,99,235,0.18), rgba(14,165,233,0.12))',
+    color: '#0f3a8a',
+    border: '1px solid rgba(37,99,235,0.24)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.38rem',
+    fontWeight: 800,
+    lineHeight: 1,
+    boxShadow: '0 8px 20px rgba(37,99,235,0.12)'
+  } as const;
+  const expiryPillStyle = {
+    fontSize: '0.8rem',
+    padding: '0.34rem 0.72rem',
+    borderRadius: '999px',
+    background: daysLeft <= 1
+      ? 'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(251,191,36,0.14))'
+      : 'rgba(15,23,42,0.06)',
+    color: daysLeft <= 1 ? '#b45309' : '#334155',
+    border: `1px solid ${daysLeft <= 1 ? 'rgba(249, 115, 22, 0.28)' : 'rgba(148, 163, 184, 0.3)'}`,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.38rem',
+    fontWeight: 800,
+    lineHeight: 1,
+    boxShadow: daysLeft <= 1 ? '0 8px 20px rgba(249,115,22,0.12)' : 'none'
+  } as const;
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -134,35 +164,13 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             <i className="fas fa-store-alt" style={{ marginRight: '0.3rem' }}></i>{merchantName}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {distanceText && (
-              <span style={{ 
-                fontSize: '0.72rem', 
-                padding: '0.25rem 0.6rem', 
-                borderRadius: '999px', 
-                background: 'rgba(59,130,246,0.1)', 
-                color: '#2563eb', 
-                border: '1px solid rgba(59,130,246,0.2)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.3rem',
-                fontWeight: 700
-              }}>
+              <span style={distancePillStyle}>
                 <i className="fas fa-location-arrow"></i> {distanceText}
               </span>
             )}
-            <span style={{ 
-              fontSize: '0.72rem', 
-              padding: '0.25rem 0.6rem', 
-              borderRadius: '999px', 
-              background: daysLeft <= 1 ? 'var(--warning-soft)' : 'var(--light-gray)', 
-              color: daysLeft <= 1 ? 'var(--warning-color)' : 'var(--text-secondary)', 
-              border: `1px solid ${daysLeft <= 1 ? 'rgba(249, 115, 22, 0.3)' : 'var(--border-color)'}`, 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.3rem',
-              fontWeight: 700
-            }}>
+            <span style={expiryPillStyle}>
               <i className="far fa-clock"></i> {expiryText}
             </span>
           </div>

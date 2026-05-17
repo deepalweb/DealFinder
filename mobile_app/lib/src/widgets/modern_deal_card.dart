@@ -177,32 +177,29 @@ class _ModernDealCardState extends State<ModernDealCard> {
           final locationLabel = _nearbyLocationLabel(p);
           final savingAmount = _savingAmount(p);
           final effectiveWidth = widget.width ?? constraints.maxWidth;
-          final compact = effectiveWidth <= 175;
+          final compact = effectiveWidth <= 190;
           final badgeCompact = compact;
           final imageFlex = compact ? 5 : 6;
-          final contentFlex = compact ? 5 : 4;
-          final contentPadding = compact ? 8.0 : 10.0;
-          final titleFontSize = compact ? 12.0 : 13.0;
-          final merchantFontSize = compact ? 10.0 : 11.0;
-          final bodyFontSize = compact ? 9.5 : 10.0;
-          final priceFontSize = compact ? 13.0 : 14.0;
-          final metaSummaryParts = <String>[
-            if (locationLabel != null && locationLabel.isNotEmpty)
-              locationLabel,
-            if (savingAmount != null) 'Save Rs.$savingAmount',
-          ];
-          final metaSummary = metaSummaryParts.join(' • ');
+          final contentFlex = compact ? 7 : 5;
+          final contentPadding = compact ? 10.0 : 12.0;
+          final titleFontSize = compact ? 13.0 : 14.5;
+          final merchantFontSize = compact ? 10.5 : 11.5;
+          final bodyFontSize = compact ? 10.0 : 11.0;
+          final priceFontSize = compact ? 14.0 : 16.0;
+          final supportingMeta = widget.prioritizeDistance
+              ? locationLabel
+              : (savingAmount != null ? 'Save Rs.$savingAmount' : locationLabel);
 
           return Container(
             width: widget.width,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -345,13 +342,14 @@ class _ModernDealCardState extends State<ModernDealCard> {
                       children: [
                         Text(
                           p.title,
-                          maxLines: compact ? 2 : 2,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: titleFontSize,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             color: const Color(0xFF1A1A1A),
-                            height: 1.25,
+                            height: 1.2,
+                            letterSpacing: -0.1,
                           ),
                         ),
                         SizedBox(height: compact ? 4 : 6),
@@ -377,74 +375,13 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                   style: TextStyle(
                                     fontSize: merchantFontSize,
                                     color: const Color(0xFF1E88E5),
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        SizedBox(height: compact ? 4 : 6),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: [
-                            if (p.isVerifiedActiveDeal)
-                              const DealVerificationBadge(),
-                            if (primaryModeLabel != null)
-                              _buildInfoChip(
-                                icon: promotionModeIcon(primaryModeLabel),
-                                label: primaryModeLabel,
-                                background: const Color(0xFFF1F8E9),
-                                foreground: const Color(0xFF33691E),
-                                compact: badgeCompact,
-                              ),
-                            if (widget.prioritizeDistance &&
-                                distance.isNotEmpty)
-                              _buildInfoChip(
-                                icon: Icons.near_me_rounded,
-                                label: distanceWithContext,
-                                background: const Color(0xFFE3F2FD),
-                                foreground: const Color(0xFF1E88E5),
-                                compact: badgeCompact,
-                              ),
-                          ],
-                        ),
-                        SizedBox(height: compact ? 4 : 6),
-                        if (showCountdown && _timeLeft != null) ...[
-                          Text(
-                            _timeLeft == Duration.zero
-                                ? 'Offer expired'
-                                : 'Ends in ${_formatCountdown(_timeLeft!)}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: bodyFontSize,
-                              fontWeight: FontWeight.w700,
-                              color: _timeLeft == Duration.zero
-                                  ? DealExpiryHelper.urgencyColor(
-                                      context,
-                                      p.endDate,
-                                    )
-                                  : const Color(0xFF9A3412),
-                            ),
-                          ),
-                          SizedBox(height: compact ? 4 : 6),
-                        ],
-                        if (metaSummary.isNotEmpty) ...[
-                          Text(
-                            metaSummary,
-                            maxLines: compact ? 1 : 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: bodyFontSize,
-                              color: const Color(0xFF64748B),
-                              height: 1.3,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          SizedBox(height: compact ? 4 : 6),
-                        ],
-                        const Spacer(),
+                        SizedBox(height: compact ? 6 : 10),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
@@ -462,8 +399,9 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: priceFontSize,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w900,
                                         color: const Color(0xFFE53935),
+                                        letterSpacing: -0.2,
                                       ),
                                     ),
                                     if (p.originalPrice != null &&
@@ -489,12 +427,12 @@ class _ModernDealCardState extends State<ModernDealCard> {
                               Flexible(
                                 child: Container(
                                   padding: EdgeInsets.symmetric(
-                                    horizontal: compact ? 5 : 6,
-                                    vertical: compact ? 2 : 3,
+                                    horizontal: compact ? 7 : 8,
+                                    vertical: compact ? 4 : 5,
                                   ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFE3F2FD),
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(999),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -511,9 +449,9 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            fontSize: compact ? 9 : 10,
+                                            fontSize: compact ? 10 : 11,
                                             color: const Color(0xFF1E88E5),
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ),
@@ -523,6 +461,66 @@ class _ModernDealCardState extends State<ModernDealCard> {
                               ),
                           ],
                         ),
+                        SizedBox(height: compact ? 6 : 10),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            if (p.isVerifiedActiveDeal)
+                              const DealVerificationBadge(),
+                            if (primaryModeLabel != null)
+                              _buildInfoChip(
+                                icon: promotionModeIcon(primaryModeLabel),
+                                label: primaryModeLabel,
+                                background: const Color(0xFFF1F8E9),
+                                foreground: const Color(0xFF33691E),
+                                compact: badgeCompact,
+                              ),
+                            if (widget.prioritizeDistance &&
+                                distance.isNotEmpty)
+                              _buildInfoChip(
+                                icon: Icons.near_me_rounded,
+                                label: distanceWithContext,
+                                background: const Color(0xFFE3F2FD),
+                                foreground: const Color(0xFF1E88E5),
+                                compact: badgeCompact,
+                              ),
+                          ],
+                        ),
+                        if (showCountdown && _timeLeft != null) ...[
+                          SizedBox(height: compact ? 6 : 8),
+                          Text(
+                            _timeLeft == Duration.zero
+                                ? 'Offer expired'
+                                : 'Ends in ${_formatCountdown(_timeLeft!)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: bodyFontSize,
+                              fontWeight: FontWeight.w700,
+                              color: _timeLeft == Duration.zero
+                                  ? DealExpiryHelper.urgencyColor(
+                                      context,
+                                      p.endDate,
+                                    )
+                                  : const Color(0xFF9A3412),
+                            ),
+                          ),
+                        ],
+                        if (supportingMeta != null && supportingMeta.isNotEmpty) ...[
+                          SizedBox(height: compact ? 6 : 8),
+                          Text(
+                            supportingMeta,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: bodyFontSize,
+                              color: const Color(0xFF64748B),
+                              height: 1.25,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

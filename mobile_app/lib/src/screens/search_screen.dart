@@ -744,7 +744,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.68,
+            childAspectRatio: 0.56,
           ),
           itemCount: visibleResults.length,
           itemBuilder: (context, index) {

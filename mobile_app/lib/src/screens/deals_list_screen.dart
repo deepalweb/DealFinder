@@ -173,7 +173,7 @@ class _DealsListScreenState extends State<DealsListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.62,
+        childAspectRatio: 0.56,
         crossAxisSpacing: 2,
         mainAxisSpacing: 2,
       ),
@@ -199,7 +199,7 @@ class _DealsListScreenState extends State<DealsListScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.62,
+          childAspectRatio: 0.56,
           crossAxisSpacing: 2,
           mainAxisSpacing: 2,
         ),

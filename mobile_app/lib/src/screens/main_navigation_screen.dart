@@ -19,32 +19,53 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
-
-  late final List<Widget> _screens;
+  final List<int> _screenVersions = List<int>.filled(5, 0);
 
   @override
   void initState() {
     super.initState();
-    _screens = [
-      HomeScreen(
-          onNavigateToFavorites: () => setState(() => _selectedIndex = 3)),
-      const AllDealsScreen(),
-      const StoresScreen(),
-      FavoritesScreen(userId: widget.userId, token: widget.token),
-      const UserProfileScreen(),
-    ];
   }
 
   void _onItemTapped(int index) {
     setState(() {
+      if (index <= 2) {
+        _screenVersions[index] += 1;
+      }
       _selectedIndex = index;
     });
+  }
+
+  Widget _buildScreen(int index) {
+    switch (index) {
+      case 0:
+        return KeyedSubtree(
+          key: ValueKey('home-${_screenVersions[0]}'),
+          child: HomeScreen(
+            onNavigateToFavorites: () => setState(() => _selectedIndex = 3),
+          ),
+        );
+      case 1:
+        return KeyedSubtree(
+          key: ValueKey('all-deals-${_screenVersions[1]}'),
+          child: const AllDealsScreen(),
+        );
+      case 2:
+        return KeyedSubtree(
+          key: ValueKey('stores-${_screenVersions[2]}'),
+          child: const StoresScreen(),
+        );
+      case 3:
+        return FavoritesScreen(userId: widget.userId, token: widget.token);
+      case 4:
+      default:
+        return const UserProfileScreen();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: _buildScreen(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,

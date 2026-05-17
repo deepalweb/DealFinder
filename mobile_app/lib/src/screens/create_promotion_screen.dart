@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../services/cache_service.dart';
 import '../services/image_helper.dart';
 import '../models/category.dart';
 import '../models/promotion.dart';
@@ -434,6 +435,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       } else {
         await _apiService.createPromotion(promotionData, _token!);
       }
+
+      await CacheService.clearAll();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

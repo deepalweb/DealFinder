@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
+import '../services/cache_service.dart';
 import 'create_promotion_screen.dart';
 import 'deal_detail_screen.dart';
 import 'edit_merchant_screen.dart';
@@ -266,6 +267,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
 
     try {
       await _apiService.deletePromotion(promotion.id, _token!);
+      await CacheService.clearAll();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
