@@ -7,6 +7,7 @@ import '../services/cache_service.dart';
 import '../services/image_helper.dart';
 import '../models/category.dart';
 import '../models/promotion.dart';
+import '../utils/bank_card_promotion_support.dart';
 
 class CreatePromotionScreen extends StatefulWidget {
   final String merchantId;
@@ -40,6 +41,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   final _originalPriceController = TextEditingController();
   final _discountedPriceController = TextEditingController();
   final _percentageOffController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _minimumSpendController = TextEditingController();
+  final _maximumBenefitController = TextEditingController();
 
   String? _selectedCategory;
   DateTime? _startDate;
@@ -52,9 +56,24 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
   bool _visitAvailable = true;
   bool _deliveryAvailable = false;
   bool _pickupAvailable = false;
+  String? _selectedBankOfferType;
+  final Set<String> _selectedCardTypes = <String>{};
   final List<File> _imageFiles = [];
   final List<String> _existingImageUrls = [];
   List<String> _uploadedImageUrls = [];
+
+  static const List<Map<String, String>> _bankOfferTypes = [
+    {'value': 'discount', 'label': 'Discount'},
+    {'value': 'cashback', 'label': 'Cashback'},
+    {'value': 'installment', 'label': 'Installment'},
+    {'value': 'dining', 'label': 'Dining'},
+    {'value': 'grocery', 'label': 'Grocery'},
+    {'value': 'fuel', 'label': 'Fuel'},
+    {'value': 'travel', 'label': 'Travel'},
+    {'value': 'electronics', 'label': 'Electronics'},
+    {'value': 'online', 'label': 'Online'},
+    {'value': 'other', 'label': 'Other'},
+  ];
 
   bool get _hasValidMerchantId =>
       RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(widget.merchantId);
@@ -64,6 +83,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       widget.merchantId.startsWith('demo-');
 
   bool get _isEditing => widget.existingPromotion != null;
+  bool get _isBankCardCategory =>
+      normalizeCategoryId(_selectedCategory) ==
+      BankCardPromotionSupport.categoryId;
 
   int get _totalImageCount => _existingImageUrls.length + _imageFiles.length;
 
@@ -106,6 +128,14 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     _existingImageUrls
       ..clear()
       ..addAll(_extractExistingImageUrls(promo, isDuplicate: isDuplicate));
+    _bankNameController.text = promo.bankName ?? '';
+    _minimumSpendController.text = promo.minimumSpend?.toStringAsFixed(0) ?? '';
+    _maximumBenefitController.text =
+        promo.maximumBenefit?.toStringAsFixed(0) ?? '';
+    _selectedBankOfferType = promo.offerType;
+    _selectedCardTypes
+      ..clear()
+      ..addAll(promo.cardTypes);
 
     if (promo.originalPrice != null) {
       _originalPriceController.text = promo.originalPrice.toString();
@@ -202,7 +232,21 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     _originalPriceController.dispose();
     _discountedPriceController.dispose();
     _percentageOffController.dispose();
+    _bankNameController.dispose();
+    _minimumSpendController.dispose();
+    _maximumBenefitController.dispose();
     super.dispose();
+  }
+
+  String? _validateBankOfferField(String? _) {
+    if (!_isBankCardCategory) return null;
+    if (_selectedCardTypes.isEmpty) {
+      return 'Select at least one card type';
+    }
+    if ((_selectedBankOfferType ?? '').isEmpty) {
+      return 'Offer type is required';
+    }
+    return null;
   }
 
   Future<void> _pickImages() async {
@@ -344,6 +388,17 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       return;
     }
 
+    if (_isBankCardCategory) {
+      final validationMessage = _validateBankOfferField(null);
+      if (validationMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(validationMessage)),
+        );
+        _tabController.animateTo(0);
+        return;
+      }
+    }
+
     if (_token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -424,6 +479,17 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
         if (mergedImageUrls.isNotEmpty) 'image': mergedImageUrls.first,
         if (mergedImageUrls.isNotEmpty) 'images': mergedImageUrls,
         if (_hasValidMerchantId) 'merchantId': widget.merchantId,
+        if (_isBankCardCategory) 'bankName': _bankNameController.text.trim(),
+        if (_isBankCardCategory) 'cardTypes': _selectedCardTypes.toList(),
+        if (_isBankCardCategory && _selectedBankOfferType != null)
+          'offerType': _selectedBankOfferType,
+        if (_isBankCardCategory &&
+            _minimumSpendController.text.trim().isNotEmpty)
+          'minimumSpend': double.parse(_minimumSpendController.text.trim()),
+        if (_isBankCardCategory &&
+            _maximumBenefitController.text.trim().isNotEmpty)
+          'maximumBenefit':
+              double.parse(_maximumBenefitController.text.trim()),
       };
 
       if (_isEditing) {
@@ -921,13 +987,173 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
               );
             }).toList(),
             onChanged: (value) {
-              setState(() => _selectedCategory = value);
+              setState(() {
+                _selectedCategory = value;
+                if (!_isBankCardCategory) {
+                  _bankNameController.clear();
+                  _minimumSpendController.clear();
+                  _maximumBenefitController.clear();
+                  _selectedBankOfferType = null;
+                  _selectedCardTypes.clear();
+                }
+              });
             },
             validator: (value) {
               if (value == null) return 'Category is required';
               return null;
             },
           ),
+          if (_isBankCardCategory) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7FAFF),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFD7E5FA)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F0FE),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.credit_card_rounded,
+                          color: Color(0xFF0F4C81),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bank Card Offer Details',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Add the bank, eligible cards, and offer conditions clearly.',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _bankNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Bank Name *',
+                      hintText: 'HNB, Sampath, Commercial Bank',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.account_balance_outlined),
+                    ),
+                    validator: (value) {
+                      if (!_isBankCardCategory) return null;
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Bank name is required';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedBankOfferType,
+                    decoration: const InputDecoration(
+                      labelText: 'Offer Type *',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                    ),
+                    items: _bankOfferTypes
+                        .map(
+                          (option) => DropdownMenuItem(
+                            value: option['value'],
+                            child: Text(option['label']!),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedBankOfferType = value);
+                    },
+                    validator: (_) => _isBankCardCategory &&
+                            (_selectedBankOfferType ?? '').isEmpty
+                        ? 'Offer type is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Eligible Card Types *',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      _buildCardTypeChip('credit', 'Credit'),
+                      _buildCardTypeChip('debit', 'Debit'),
+                      _buildCardTypeChip('prepaid', 'Prepaid'),
+                    ],
+                  ),
+                  if (_selectedCardTypes.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Select at least one card type.',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _minimumSpendController,
+                          decoration: const InputDecoration(
+                            labelText: 'Minimum Spend',
+                            hintText: '5000',
+                            border: OutlineInputBorder(),
+                            prefixText: 'Rs. ',
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _maximumBenefitController,
+                          decoration: const InputDecoration(
+                            labelText: 'Maximum Benefit',
+                            hintText: '2500',
+                            border: OutlineInputBorder(),
+                            prefixText: 'Rs. ',
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           TextFormField(
             controller: _urlController,
@@ -1193,8 +1419,51 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                               : 'Visit or order'),
                   _buildSummaryRow(
                       'Category', getCategoryLabel(_selectedCategory)),
+                  if (_isBankCardCategory)
+                    _buildSummaryRow(
+                      'Bank',
+                      _bankNameController.text.trim().isEmpty
+                          ? '—'
+                          : _bankNameController.text.trim(),
+                    ),
+                  if (_isBankCardCategory)
+                    _buildSummaryRow(
+                      'Card Types',
+                      _selectedCardTypes.isEmpty
+                          ? '—'
+                          : _selectedCardTypes
+                              .map((type) => type[0].toUpperCase() + type.substring(1))
+                              .join(', '),
+                    ),
+                  if (_isBankCardCategory)
+                    _buildSummaryRow(
+                      'Offer Type',
+                      _selectedBankOfferType == null
+                          ? '—'
+                          : _bankOfferTypes
+                                  .firstWhere(
+                                    (option) =>
+                                        option['value'] == _selectedBankOfferType,
+                                    orElse: () => {
+                                      'label': _selectedBankOfferType!,
+                                    },
+                                  )['label'] ??
+                              _selectedBankOfferType!,
+                    ),
                   _buildSummaryRow(
                       'Duration', daysLeft > 0 ? '$daysLeft days' : '—'),
+                  if (_isBankCardCategory &&
+                      _minimumSpendController.text.trim().isNotEmpty)
+                    _buildSummaryRow(
+                      'Min Spend',
+                      'Rs. ${_minimumSpendController.text.trim()}',
+                    ),
+                  if (_isBankCardCategory &&
+                      _maximumBenefitController.text.trim().isNotEmpty)
+                    _buildSummaryRow(
+                      'Max Benefit',
+                      'Rs. ${_maximumBenefitController.text.trim()}',
+                    ),
                   _buildSummaryRow('Featured', _featured ? 'Yes ⭐' : 'No'),
                   _buildSummaryRow('Images', '${_imageFiles.length}/5'),
                 ],
@@ -1222,6 +1491,41 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCardTypeChip(String value, String label) {
+    final selected = _selectedCardTypes.contains(value);
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      avatar: Icon(
+        Icons.credit_card_rounded,
+        size: 16,
+        color: selected ? Colors.white : const Color(0xFF0F4C81),
+      ),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : const Color(0xFF0F172A),
+        fontWeight: FontWeight.w700,
+      ),
+      backgroundColor: const Color(0xFFF3F7FF),
+      selectedColor: const Color(0xFF0F4C81),
+      side: BorderSide(
+        color: selected ? const Color(0xFF0F4C81) : const Color(0xFFD8E4FB),
+      ),
+      onSelected: (next) {
+        setState(() {
+          if (next) {
+            _selectedCardTypes.add(value);
+          } else {
+            _selectedCardTypes.remove(value);
+          }
+        });
+      },
+      showCheckmark: false,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
     );
   }
 }

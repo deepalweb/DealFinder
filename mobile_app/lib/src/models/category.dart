@@ -17,9 +17,9 @@ class Category {
 }
 
 const List<String> launchCategoryIds = [
+  'bank_cards',
   'food_dining',
   'beauty_salon',
-  'repairs_services',
   'electronics',
   'shopping_retail',
   'health_wellness',
@@ -88,6 +88,17 @@ String normalizeCategoryId(String? rawCategory) {
     case 'clinic':
     case 'dental':
       return 'health_wellness';
+    case 'bank_cards':
+    case 'bank card':
+    case 'bank cards':
+    case 'bank offers':
+    case 'card offers':
+    case 'credit card':
+    case 'credit cards':
+    case 'debit card':
+    case 'debit cards':
+    case 'banking':
+      return 'bank_cards';
     case 'auto':
     case 'auto_services':
       return 'auto_services';
@@ -111,6 +122,10 @@ String normalizeCategoryId(String? rawCategory) {
 }
 
 final List<Category> predefinedCategories = [
+  Category(
+      id: 'bank_cards',
+      name: 'Bank Cards',
+      localIconPath: 'assets/icons/other.svg'),
   Category(
       id: 'food_dining',
       name: 'Food & Dining',

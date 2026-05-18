@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 
 import '../models/category.dart';
 import '../models/promotion.dart';
-import '../services/search_matcher.dart';
 import '../services/search_service.dart';
+import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_filter_support.dart';
 import '../widgets/app_empty_state.dart';
 import '../widgets/modern_deal_card.dart';
@@ -118,7 +118,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Search by product, store, category, or Sinhala keywords.',
+            'Search by product, store, category, card offer, or Sinhala keywords.',
             style: TextStyle(
               color: Color(0xFF64748B),
               height: 1.4,
@@ -367,7 +367,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return sorted.where(
       (promotion) {
         final categoryMatches = _selectedCategory == null ||
-            SearchMatcher.normalizeCategory(promotion.category) ==
+            BankCardPromotionSupport.effectiveCategoryId(promotion) ==
                 _selectedCategory;
         final capabilityMatches = _selectedCapabilityPresetId == null ||
             matchesDealCapabilityPreset(

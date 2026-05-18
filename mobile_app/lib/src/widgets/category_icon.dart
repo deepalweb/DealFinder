@@ -3,6 +3,8 @@ import '../models/category.dart';
 
 IconData getCategoryIcon(String category) {
   switch (normalizeCategoryId(category)) {
+    case 'bank_cards':
+      return Icons.credit_card_rounded;
     case 'food_dining':
       return Icons.restaurant;
     case 'beauty_salon':

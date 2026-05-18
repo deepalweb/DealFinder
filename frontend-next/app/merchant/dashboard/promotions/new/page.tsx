@@ -4,10 +4,22 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { PromotionAPI, ImageAPI, MerchantAPI, UserAPI } from '@/lib/api';
+import { PROMOTION_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import { getCurrencySymbol } from '@/lib/currency';
 import toast from 'react-hot-toast';
 
-const CATS = ['fashion','electronics','travel','health','entertainment','home','pets','food','education'];
+const BANK_OFFER_TYPES = [
+  { value: 'discount', label: 'Discount' },
+  { value: 'cashback', label: 'Cashback' },
+  { value: 'installment', label: 'Installment' },
+  { value: 'dining', label: 'Dining' },
+  { value: 'grocery', label: 'Grocery' },
+  { value: 'fuel', label: 'Fuel' },
+  { value: 'travel', label: 'Travel' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'online', label: 'Online' },
+  { value: 'other', label: 'Other' },
+] as const;
 
 function NewPromotionContent() {
   const { user, updateUser } = useAuth();
@@ -28,9 +40,10 @@ function NewPromotionContent() {
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-  const defaultForm = { title:'', description:'', discount:'', code:'', category:'electronics', startDate: today, endDate: nextMonth.toISOString().split('T')[0], image:'', images:[] as string[], url:'', featured: false, originalPrice:'', discountedPrice:'', dealType:'percentage', percentageOff:'' };
+  const defaultForm = { title:'', description:'', discount:'', code:'', category:'electronics', startDate: today, endDate: nextMonth.toISOString().split('T')[0], image:'', images:[] as string[], url:'', featured: false, originalPrice:'', discountedPrice:'', dealType:'percentage', percentageOff:'', bankName:'', cardTypes: [] as string[], offerType:'', minimumSpend:'', maximumBenefit:'' };
   const [form, setForm] = useState(defaultForm);
   const [original, setOriginal] = useState(defaultForm);
+  const isBankCardCategory = normalizeCategoryId(form.category) === 'bank_cards';
 
   const resolveMerchantId = async () => {
     const currentMerchantId = user?.merchantId?.toString() || user?.merchantId;
@@ -78,7 +91,7 @@ function NewPromotionContent() {
       if (editId) {
         PromotionAPI.getById(editId).then(p => {
           const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
-          const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'', dealType:'percentage', percentageOff:'' };
+          const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'', dealType:'percentage', percentageOff:'', bankName: p.bankName || '', cardTypes: Array.isArray(p.cardTypes) ? p.cardTypes : [], offerType: p.offerType || '', minimumSpend: p.minimumSpend?.toString() || '', maximumBenefit: p.maximumBenefit?.toString() || '' };
           setForm(data); setOriginal(data); setImagePreviews(p.images?.length ? p.images : (p.image ? [p.image] : []));
         }).catch(() => toast.error('Failed to load promotion.'));
       }
@@ -91,6 +104,13 @@ function NewPromotionContent() {
   useEffect(() => { if (form.image && form.image.startsWith('http')) setImagePreviews(prev => prev.length ? prev : [form.image]); }, [form.image]);
 
   const update = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
+  const toggleCardType = (value: string) =>
+    setForm((prev) => ({
+      ...prev,
+      cardTypes: prev.cardTypes.includes(value)
+        ? prev.cardTypes.filter((entry) => entry !== value)
+        : [...prev.cardTypes, value],
+    }));
 
   const handleImageFiles = (files: FileList) => {
     const remaining = 5 - imageFiles.length;
@@ -128,6 +148,9 @@ function NewPromotionContent() {
     if (!form.title.trim()) { toast.error('Title is required'); setActiveTab('details'); return; }
     if (!form.discount.trim()) { toast.error('Discount is required'); setActiveTab('details'); return; }
     if (!form.code.trim()) { toast.error('Promo code is required'); setActiveTab('details'); return; }
+    if (isBankCardCategory && !form.bankName.trim()) { toast.error('Bank name is required'); setActiveTab('details'); return; }
+    if (isBankCardCategory && !form.offerType) { toast.error('Offer type is required'); setActiveTab('details'); return; }
+    if (isBankCardCategory && form.cardTypes.length === 0) { toast.error('Select at least one card type'); setActiveTab('details'); return; }
     if (form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) >= parseFloat(form.originalPrice)) { toast.error('Discounted price must be less than original price'); setActiveTab('pricing'); return; }
     
     setSaving(true);
@@ -164,6 +187,16 @@ function NewPromotionContent() {
       if (!data.originalPrice || data.originalPrice === '') delete data.originalPrice;
       if (!data.discountedPrice || data.discountedPrice === '') delete data.discountedPrice;
       if (!data.url || data.url === '') delete data.url;
+      if (!isBankCardCategory) {
+        delete data.bankName;
+        delete data.cardTypes;
+        delete data.offerType;
+        delete data.minimumSpend;
+        delete data.maximumBenefit;
+      } else {
+        if (!data.minimumSpend) delete data.minimumSpend;
+        if (!data.maximumBenefit) delete data.maximumBenefit;
+      }
       
       if (editId) { 
         await PromotionAPI.update(editId, data); 
@@ -399,10 +432,84 @@ function NewPromotionContent() {
                       <div>
                         <label style={labelStyle}>Category <span style={{ color:'#ef4444' }}>*</span></label>
                         <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)} onFocus={focus} onBlur={blur}>
-                          {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
+                          {PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                         </select>
                       </div>
                     </div>
+
+                    {isBankCardCategory && (
+                      <div className="fade-in" style={{ padding:'1rem', borderRadius:'1rem', background:'rgba(15,76,129,0.04)', border:'1px solid rgba(15,76,129,0.14)' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'0.6rem', marginBottom:'1rem' }}>
+                          <div style={{ width:'36px', height:'36px', borderRadius:'0.75rem', background:'rgba(15,76,129,0.12)', display:'flex', alignItems:'center', justifyContent:'center', color:'#0f4c81' }}>
+                            <i className="fas fa-credit-card"></i>
+                          </div>
+                          <div>
+                            <div style={{ fontWeight:800, color:'var(--text-primary)' }}>Bank Card Offer Details</div>
+                            <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>Add structured bank, card, and offer information.</div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label style={labelStyle}>Bank Name <span style={{ color:'#ef4444' }}>*</span></label>
+                            <input style={inputStyle} value={form.bankName} onChange={e => update('bankName', e.target.value)} placeholder="HNB, Sampath, Commercial Bank" onFocus={focus} onBlur={blur} />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Offer Type <span style={{ color:'#ef4444' }}>*</span></label>
+                            <select style={inputStyle} value={form.offerType} onChange={e => update('offerType', e.target.value)} onFocus={focus} onBlur={blur}>
+                              <option value="">Select offer type</option>
+                              {BANK_OFFER_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                            </select>
+                          </div>
+                        </div>
+                        <div style={{ marginTop:'1rem' }}>
+                          <label style={labelStyle}>Eligible Card Types <span style={{ color:'#ef4444' }}>*</span></label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              { value: 'credit', label: 'Credit' },
+                              { value: 'debit', label: 'Debit' },
+                              { value: 'prepaid', label: 'Prepaid' },
+                            ].map(card => {
+                              const selected = form.cardTypes.includes(card.value);
+                              return (
+                                <button
+                                  key={card.value}
+                                  type="button"
+                                  onClick={() => toggleCardType(card.value)}
+                                  style={{
+                                    padding:'0.55rem 0.9rem',
+                                    borderRadius:'9999px',
+                                    border:`1.5px solid ${selected ? '#0f4c81' : 'var(--border-color)'}`,
+                                    background:selected ? '#0f4c81' : 'var(--card-bg)',
+                                    color:selected ? '#fff' : 'var(--text-primary)',
+                                    fontWeight:700,
+                                    cursor:'pointer',
+                                    fontSize:'0.82rem'
+                                  }}
+                                >
+                                  <i className="fas fa-credit-card" style={{ marginRight:'0.45rem' }}></i>{card.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ marginTop:'1rem' }}>
+                          <div>
+                            <label style={labelStyle}>Minimum Spend</label>
+                            <div style={{ position:'relative' }}>
+                              <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
+                              <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.minimumSpend} onChange={e => update('minimumSpend', e.target.value)} placeholder="5000" onFocus={focus} onBlur={blur} />
+                            </div>
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Maximum Benefit</label>
+                            <div style={{ position:'relative' }}>
+                              <span style={{ position:'absolute', left:'1rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', fontWeight:600 }}>{currencySymbol}</span>
+                              <input type="number" step="0.01" min="0" style={{ ...inputStyle, paddingLeft:'2rem' }} value={form.maximumBenefit} onChange={e => update('maximumBenefit', e.target.value)} placeholder="2500" onFocus={focus} onBlur={blur} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div>
                       <label style={labelStyle}>Promotion URL</label>
@@ -525,7 +632,12 @@ function NewPromotionContent() {
                         ['Title', form.title || '—'],
                         ['Discount', form.discount || '—'],
                         ['Code', form.code || '—'],
-                        ['Category', form.category],
+                        ['Category', PROMOTION_CATEGORIES.find(category => category.id === form.category)?.name || form.category],
+                        ...(isBankCardCategory ? [
+                          ['Bank', form.bankName || '—'],
+                          ['Card Types', form.cardTypes.length ? form.cardTypes.map(type => type.charAt(0).toUpperCase() + type.slice(1)).join(', ') : '—'],
+                          ['Offer Type', BANK_OFFER_TYPES.find(option => option.value === form.offerType)?.label || form.offerType || '—'],
+                        ] : []),
                         ['Duration', daysLeft > 0 ? `${daysLeft} days (${form.startDate} → ${form.endDate})` : '—'],
                         ['Featured', form.featured ? 'Yes ⭐' : 'No'],
                       ].map(([k, v]) => (

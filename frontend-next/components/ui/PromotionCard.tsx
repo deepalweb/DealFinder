@@ -72,6 +72,19 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
     lineHeight: 1,
     boxShadow: daysLeft <= 1 ? '0 8px 20px rgba(249,115,22,0.12)' : 'none'
   } as const;
+  const isBankCardOffer = promotion.category === 'bank_cards' || promotion.bankName || (Array.isArray(promotion.cardTypes) && promotion.cardTypes.length > 0) || promotion.offerType;
+  const bankMetaChips = [
+    promotion.bankName,
+    ...(Array.isArray(promotion.cardTypes)
+      ? promotion.cardTypes.map((type: string) => type.charAt(0).toUpperCase() + type.slice(1))
+      : []),
+    promotion.offerType
+      ? promotion.offerType
+          .split('_')
+          .map((part: string) => (part ? `${part[0].toUpperCase()}${part.slice(1)}` : part))
+          .join(' ')
+      : null,
+  ].filter(Boolean);
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -179,6 +192,27 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
         <h3 style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', margin: '0 0 0.5rem', lineHeight: '1.4', minHeight: '2.8rem', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
           {promotion.title}
         </h3>
+
+        {isBankCardOffer && bankMetaChips.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', marginBottom: '0.65rem' }}>
+            {bankMetaChips.slice(0, 3).map((chip) => (
+              <span
+                key={chip}
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  padding: '0.28rem 0.55rem',
+                  borderRadius: '999px',
+                  background: 'rgba(15,76,129,0.08)',
+                  color: '#0f4c81',
+                  border: '1px solid rgba(15,76,129,0.16)',
+                }}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
 
         {avgRating && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.6rem' }}>

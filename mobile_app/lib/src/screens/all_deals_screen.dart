@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../models/promotion.dart';
 import '../models/category.dart';
+import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_filter_support.dart';
 import '../widgets/modern_deal_card.dart';
 import 'deals_list_screen.dart';
@@ -37,6 +38,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   static const String primaryHalfOff = 'half_off';
   static const String primaryEndingSoon = 'ending_soon';
   static const String primaryNewDeals = 'new_deals';
+  static const String primaryBankCards = 'bank_cards';
 
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
@@ -115,10 +117,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     }).toList();
   }
 
-  String _normalizeCategory(String? category) {
-    return normalizeCategoryId(category).isEmpty
-        ? 'other'
-        : normalizeCategoryId(category);
+  String _effectiveCategory(Promotion promotion) {
+    return BankCardPromotionSupport.effectiveCategoryId(promotion);
   }
 
   Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
@@ -127,7 +127,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     // Apply filters
     var filtered = promotions.where((promo) {
       // Category filter
-      final normalizedCategory = _normalizeCategory(promo.category);
+      final normalizedCategory = _effectiveCategory(promo);
       if (_selectedCategory != null &&
           normalizedCategory != _selectedCategory) {
         return false;
@@ -220,7 +220,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
     // Group by category - only add categories that have deals
     for (var promo in filtered) {
-      final category = _normalizeCategory(promo.category);
+      final category = _effectiveCategory(promo);
       if (!grouped.containsKey(category)) {
         grouped[category] = [];
       }
@@ -265,6 +265,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return promo.distance != null && promo.distance! <= 1000;
       case primaryHalfOff:
         return _discountSignal(promo) >= 50;
+      case primaryBankCards:
+        return BankCardPromotionSupport.isBankCardPromotion(promo);
       case primaryEndingSoon:
         final cutoff = now.add(const Duration(hours: 48));
         return promo.endDate != null &&
@@ -286,6 +288,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           b.distance ?? double.infinity,
         );
       case primaryHalfOff:
+        return _discountSignal(b).compareTo(_discountSignal(a));
+      case primaryBankCards:
+        final bankCompare = (BankCardPromotionSupport.bankName(a) ?? '').compareTo(
+          BankCardPromotionSupport.bankName(b) ?? '',
+        );
+        if (bankCompare != 0) return bankCompare;
         return _discountSignal(b).compareTo(_discountSignal(a));
       case primaryEndingSoon:
         if (a.endDate == null && b.endDate == null) return 0;
@@ -330,6 +338,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       'beauty_salon': Icons.content_cut,
       'repairs_services': Icons.build,
       'electronics': Icons.devices_rounded,
+      'bank_cards': Icons.credit_card_rounded,
       'shopping_retail': Icons.shopping_bag,
       'health_wellness': Icons.favorite,
       'daily_essentials': Icons.local_grocery_store,
@@ -347,6 +356,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       'beauty_salon': Color(0xFFFF6B9D),
       'repairs_services': Color(0xFF3498DB),
       'electronics': Color(0xFF06B6D4),
+      'bank_cards': Color(0xFF0F4C81),
       'shopping_retail': Color(0xFFFFBE0B),
       'health_wellness': Color(0xFF10B981),
       'daily_essentials': Color(0xFF38A3A5),
@@ -377,6 +387,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       case 'new_this_week':
         return 'Showing recently added deals so fresh offers stay easy to find.';
       default:
+        if (_selectedCategory == BankCardPromotionSupport.categoryId ||
+            _activePrimaryFilter == primaryBankCards) {
+          return 'Showing bank card promotions, cashback offers, and installment deals.';
+        }
         return null;
     }
   }
@@ -933,6 +947,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             ),
             const SizedBox(width: 8),
             _buildPrimaryFilterChip(
+              id: primaryBankCards,
+              label: 'Bank Cards',
+              icon: Icons.credit_card_rounded,
+            ),
+            const SizedBox(width: 8),
+            _buildPrimaryFilterChip(
               id: primaryNewDeals,
               label: 'New Deals',
               icon: Icons.auto_awesome_outlined,
@@ -984,6 +1004,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return 'Under 1km';
       case primaryHalfOff:
         return '50%+ OFF';
+      case primaryBankCards:
+        return 'Bank Cards';
       case primaryEndingSoon:
         return 'Ending Soon';
       case primaryNewDeals:
@@ -999,6 +1021,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return Icons.location_on_outlined;
       case primaryHalfOff:
         return Icons.local_offer_outlined;
+      case primaryBankCards:
+        return Icons.credit_card_rounded;
       case primaryEndingSoon:
         return Icons.hourglass_bottom_rounded;
       case primaryNewDeals:

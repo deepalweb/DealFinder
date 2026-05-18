@@ -19,6 +19,7 @@ import '../services/deal_history_service.dart';
 import '../services/location_service.dart';
 import '../config/app_config.dart';
 import '../screens/merchant_profile_screen.dart';
+import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_expiry_helper.dart';
 import '../widgets/deal_verification_badge.dart';
 import '../widgets/rating_widget.dart';
@@ -1010,6 +1011,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               },
             ),
             const SizedBox(height: 16.0),
+            if (BankCardPromotionSupport.isBankCardPromotion(promotion)) ...[
+              _BankCardOfferSection(promotion: promotion),
+              const SizedBox(height: 16.0),
+            ],
             _DealDetailsSection(
               description: promotion.description,
               startDate: promotion.startDate,
@@ -2305,6 +2310,122 @@ class _DealDetailsSection extends StatelessWidget {
                     ),
                 ],
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BankCardOfferSection extends StatelessWidget {
+  final Promotion promotion;
+
+  const _BankCardOfferSection({required this.promotion});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bankName = BankCardPromotionSupport.bankName(promotion);
+    final cardTypes = BankCardPromotionSupport.cardTypes(promotion);
+    final offerTypes = BankCardPromotionSupport.offerTypes(promotion);
+    final minimumSpend =
+        BankCardPromotionSupport.minimumSpendLabel(promotion);
+    final maximumBenefit =
+        BankCardPromotionSupport.maximumBenefitLabel(promotion);
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.colorScheme.surfaceContainerLowest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F0FE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.credit_card_rounded,
+                    color: Color(0xFF0F4C81),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Card Offer Details',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Check eligible cards, offer type, and spend conditions.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (bankName != null)
+                  _StaticInfoPill(
+                    icon: Icons.account_balance_outlined,
+                    label: bankName,
+                    backgroundColor: const Color(0xFFF3E8FF),
+                    foregroundColor: const Color(0xFF7C3AED),
+                  ),
+                if (cardTypes.isNotEmpty)
+                  _StaticInfoPill(
+                    icon: Icons.credit_card_outlined,
+                    label: cardTypes.join(' + '),
+                    backgroundColor: const Color(0xFFE8F0FE),
+                    foregroundColor: const Color(0xFF0F4C81),
+                  ),
+                if (offerTypes.isNotEmpty)
+                  _StaticInfoPill(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: offerTypes.join(' • '),
+                    backgroundColor: const Color(0xFFECFDF5),
+                    foregroundColor: const Color(0xFF047857),
+                  ),
+                if (minimumSpend != null)
+                  _StaticInfoPill(
+                    icon: Icons.payments_outlined,
+                    label: minimumSpend,
+                    backgroundColor: const Color(0xFFFFF7ED),
+                    foregroundColor: const Color(0xFFC2410C),
+                  ),
+                if (maximumBenefit != null)
+                  _StaticInfoPill(
+                    icon: Icons.savings_outlined,
+                    label: maximumBenefit,
+                    backgroundColor: const Color(0xFFFFEDD5),
+                    foregroundColor: const Color(0xFF9A3412),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Before paying, confirm the exact eligible bank, card type, discount cap, and whether the offer applies in-store, online, or on selected days only.',
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
+            ),
           ],
         ),
       ),

@@ -41,6 +41,11 @@ class Promotion {
   final bool merchantDeliveryAvailable;
   final bool merchantPickupAvailable;
   final String? merchantOrderLink;
+  final String? bankName;
+  final List<String> cardTypes;
+  final String? offerType;
+  final double? minimumSpend;
+  final double? maximumBenefit;
 
   Promotion({
     required this.id,
@@ -79,6 +84,11 @@ class Promotion {
     this.merchantDeliveryAvailable = false,
     this.merchantPickupAvailable = false,
     this.merchantOrderLink,
+    this.bankName,
+    this.cardTypes = const [],
+    this.offerType,
+    this.minimumSpend,
+    this.maximumBenefit,
   });
 
   // Safe discount percentage calculation
@@ -264,6 +274,16 @@ class Promotion {
       merchantPickupAvailable:
           merchantData?['pickupAvailable'] as bool? ?? false,
       merchantOrderLink: merchantData?['orderLink'] as String?,
+      bankName: json['bankName'] as String?,
+      cardTypes: (json['cardTypes'] as List?)
+              ?.whereType<String>()
+              .map((type) => type.trim().toLowerCase())
+              .where((type) => type.isNotEmpty)
+              .toList() ??
+          const [],
+      offerType: json['offerType'] as String?,
+      minimumSpend: (json['minimumSpend'] as num?)?.toDouble(),
+      maximumBenefit: (json['maximumBenefit'] as num?)?.toDouble(),
     );
   }
 
@@ -315,6 +335,11 @@ class Promotion {
       'merchantOrderLink': merchantOrderLink,
       'merchantDeliveryAvailable': merchantDeliveryAvailable,
       'merchantPickupAvailable': merchantPickupAvailable,
+      'bankName': bankName,
+      'cardTypes': cardTypes,
+      'offerType': offerType,
+      'minimumSpend': minimumSpend,
+      'maximumBenefit': maximumBenefit,
     };
   }
 
@@ -355,6 +380,11 @@ class Promotion {
     bool? merchantDeliveryAvailable,
     bool? merchantPickupAvailable,
     String? merchantOrderLink,
+    String? bankName,
+    List<String>? cardTypes,
+    String? offerType,
+    double? minimumSpend,
+    double? maximumBenefit,
   }) {
     return Promotion(
       id: id ?? this.id,
@@ -395,6 +425,11 @@ class Promotion {
       merchantPickupAvailable:
           merchantPickupAvailable ?? this.merchantPickupAvailable,
       merchantOrderLink: merchantOrderLink ?? this.merchantOrderLink,
+      bankName: bankName ?? this.bankName,
+      cardTypes: cardTypes ?? this.cardTypes,
+      offerType: offerType ?? this.offerType,
+      minimumSpend: minimumSpend ?? this.minimumSpend,
+      maximumBenefit: maximumBenefit ?? this.maximumBenefit,
     );
   }
 }

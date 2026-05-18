@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
+import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_expiry_helper.dart';
 import 'deal_verification_badge.dart';
 
@@ -176,6 +177,11 @@ class _ModernDealCardState extends State<ModernDealCard> {
           final primaryModeLabel = _primaryModeLabel(p);
           final locationLabel = _nearbyLocationLabel(p);
           final savingAmount = _savingAmount(p);
+          final bankName = BankCardPromotionSupport.bankName(p);
+          final cardTypes = BankCardPromotionSupport.cardTypes(p);
+          final offerTypes = BankCardPromotionSupport.offerTypes(p);
+          final isBankCardPromotion =
+              BankCardPromotionSupport.isBankCardPromotion(p);
           final effectiveWidth = widget.width ?? constraints.maxWidth;
           final compact = effectiveWidth <= 190;
           final badgeCompact = compact;
@@ -186,9 +192,14 @@ class _ModernDealCardState extends State<ModernDealCard> {
           final merchantFontSize = compact ? 10.5 : 11.5;
           final bodyFontSize = compact ? 10.0 : 11.0;
           final priceFontSize = compact ? 14.0 : 16.0;
-          final supportingMeta = widget.prioritizeDistance
-              ? locationLabel
-              : (savingAmount != null ? 'Save Rs.$savingAmount' : locationLabel);
+          final supportingMeta = isBankCardPromotion
+              ? bankName ??
+                  (offerTypes.isNotEmpty ? offerTypes.join(' • ') : locationLabel)
+              : widget.prioritizeDistance
+                  ? locationLabel
+                  : (savingAmount != null
+                      ? 'Save Rs.$savingAmount'
+                      : locationLabel);
 
           return Container(
             width: widget.width,
@@ -468,6 +479,24 @@ class _ModernDealCardState extends State<ModernDealCard> {
                           children: [
                             if (p.isVerifiedActiveDeal)
                               const DealVerificationBadge(),
+                            if (isBankCardPromotion)
+                              _buildInfoChip(
+                                icon: Icons.credit_card_rounded,
+                                label: cardTypes.isNotEmpty
+                                    ? cardTypes.join(' + ')
+                                    : 'Card Offer',
+                                background: const Color(0xFFE8F0FE),
+                                foreground: const Color(0xFF0F4C81),
+                                compact: badgeCompact,
+                              ),
+                            if (isBankCardPromotion && offerTypes.isNotEmpty)
+                              _buildInfoChip(
+                                icon: Icons.account_balance_wallet_outlined,
+                                label: offerTypes.first,
+                                background: const Color(0xFFECFDF5),
+                                foreground: const Color(0xFF047857),
+                                compact: badgeCompact,
+                              ),
                             if (primaryModeLabel != null)
                               _buildInfoChip(
                                 icon: promotionModeIcon(primaryModeLabel),

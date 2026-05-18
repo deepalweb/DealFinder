@@ -2,6 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
 import 'search_matcher.dart';
+import '../utils/bank_card_promotion_support.dart';
 
 class SearchService {
   static const String _searchHistoryKey = 'searchHistory';
@@ -47,7 +48,9 @@ class SearchService {
           if ((deal.merchantName ?? '').trim().isNotEmpty) {
             suggestions.add(deal.merchantName!);
           }
-          final aliases = SearchMatcher.categoryTerms(deal.category);
+          final aliases = SearchMatcher.categoryTerms(
+            BankCardPromotionSupport.effectiveCategoryId(deal),
+          );
           if (aliases.isNotEmpty) {
             suggestions.add(aliases.first);
           }
@@ -85,7 +88,13 @@ class SearchService {
       // Category filter
       if (category != null && category.isNotEmpty) {
         final normalizedCategory = SearchMatcher.normalizeCategory(category);
-        results = results.where((deal) => SearchMatcher.normalizeCategory(deal.category) == normalizedCategory).toList();
+        results = results
+            .where(
+              (deal) =>
+                  BankCardPromotionSupport.effectiveCategoryId(deal) ==
+                  normalizedCategory,
+            )
+            .toList();
       }
       
       // Price range filter

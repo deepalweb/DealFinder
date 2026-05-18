@@ -25,6 +25,28 @@ const promotionSchema = new mongoose.Schema({
   featured: { type: Boolean, default: false },
   originalPrice: { type: Number },
   discountedPrice: { type: Number },
+  bankName: { type: String, trim: true },
+  cardTypes: [{
+    type: String,
+    enum: ['credit', 'debit', 'prepaid'],
+  }],
+  offerType: {
+    type: String,
+    enum: [
+      'discount',
+      'cashback',
+      'installment',
+      'dining',
+      'grocery',
+      'fuel',
+      'travel',
+      'electronics',
+      'online',
+      'other',
+    ],
+  },
+  minimumSpend: { type: Number, min: 0 },
+  maximumBenefit: { type: Number, min: 0 },
   status: {
     type: String,
     enum: [

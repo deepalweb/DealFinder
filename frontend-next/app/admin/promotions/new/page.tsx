@@ -3,13 +3,23 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { MerchantAPI, PromotionAPI } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
+import { PROMOTION_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import toast from 'react-hot-toast';
 
-const CATS = ['food', 'supermarkets', 'fashion', 'electronics', 'travel', 'health', 'entertainment', 'home'];
+const BANK_OFFER_TYPES = [
+  { value: 'discount', label: 'Discount' },
+  { value: 'cashback', label: 'Cashback' },
+  { value: 'installment', label: 'Installment' },
+  { value: 'dining', label: 'Dining' },
+  { value: 'grocery', label: 'Grocery' },
+  { value: 'fuel', label: 'Fuel' },
+  { value: 'travel', label: 'Travel' },
+  { value: 'electronics', label: 'Electronics' },
+  { value: 'online', label: 'Online' },
+  { value: 'other', label: 'Other' },
+] as const;
 
 export default function AdminNewDealPage() {
-  const { user } = useAuth();
   const router = useRouter();
   const [merchants, setMerchants] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -31,7 +41,13 @@ export default function AdminNewDealPage() {
     originalPrice: '',
     discountedPrice: '',
     featured: false,
+    bankName: '',
+    cardTypes: [] as string[],
+    offerType: '',
+    minimumSpend: '',
+    maximumBenefit: '',
   });
+  const isBankCardCategory = normalizeCategoryId(form.category) === 'bank_cards';
 
   useEffect(() => {
     MerchantAPI.getAll()
@@ -40,6 +56,13 @@ export default function AdminNewDealPage() {
   }, []);
 
   const update = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
+  const toggleCardType = (value: string) =>
+    setForm((prev) => ({
+      ...prev,
+      cardTypes: prev.cardTypes.includes(value)
+        ? prev.cardTypes.filter((entry) => entry !== value)
+        : [...prev.cardTypes, value],
+    }));
 
   const generateCode = () => {
     const code = (form.title.split(' ').map((w: string) => w[0]).join('').toUpperCase() || 'DEAL') + Math.floor(Math.random() * 90 + 10);
@@ -52,6 +75,9 @@ export default function AdminNewDealPage() {
     if (!form.title.trim()) { toast.error('Title is required'); return; }
     if (!form.discount.trim()) { toast.error('Discount is required'); return; }
     if (!form.code.trim()) { toast.error('Promo code is required'); return; }
+    if (isBankCardCategory && !form.bankName.trim()) { toast.error('Bank name is required'); return; }
+    if (isBankCardCategory && !form.offerType) { toast.error('Offer type is required'); return; }
+    if (isBankCardCategory && form.cardTypes.length === 0) { toast.error('Select at least one card type'); return; }
     if (form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) >= parseFloat(form.originalPrice)) {
       toast.error('Discounted price must be less than original price'); return;
     }
@@ -66,6 +92,16 @@ export default function AdminNewDealPage() {
       if (!data.discountedPrice) delete data.discountedPrice;
       if (!data.url) delete data.url;
       if (!data.image) delete data.image;
+      if (!isBankCardCategory) {
+        delete data.bankName;
+        delete data.cardTypes;
+        delete data.offerType;
+        delete data.minimumSpend;
+        delete data.maximumBenefit;
+      } else {
+        if (!data.minimumSpend) delete data.minimumSpend;
+        if (!data.maximumBenefit) delete data.maximumBenefit;
+      }
       await PromotionAPI.create(data);
       toast.success('Deal created and set live!');
       router.push('/admin/promotions');
@@ -140,9 +176,80 @@ export default function AdminNewDealPage() {
           <div>
             <label style={labelStyle}>Category</label>
             <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)}>
-              {CATS.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+              {PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </div>
+
+          {isBankCardCategory && (
+            <div style={{ padding: '1rem', borderRadius: '1rem', background: 'rgba(15,76,129,0.04)', border: '1px solid rgba(15,76,129,0.14)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '0.75rem', background: 'rgba(15,76,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f4c81' }}>
+                  <i className="fas fa-credit-card"></i>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>Bank Card Offer Details</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Add the structured fields used by mobile and web card-offer views.</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label style={labelStyle}>Bank Name <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input style={inputStyle} value={form.bankName} onChange={e => update('bankName', e.target.value)} placeholder="HNB, Sampath, Commercial Bank" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Offer Type <span style={{ color: '#ef4444' }}>*</span></label>
+                  <select style={inputStyle} value={form.offerType} onChange={e => update('offerType', e.target.value)}>
+                    <option value="">Select offer type</option>
+                    {BANK_OFFER_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '1rem' }}>
+                <label style={labelStyle}>Eligible Card Types <span style={{ color: '#ef4444' }}>*</span></label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'credit', label: 'Credit' },
+                    { value: 'debit', label: 'Debit' },
+                    { value: 'prepaid', label: 'Prepaid' },
+                  ].map(card => {
+                    const selected = form.cardTypes.includes(card.value);
+                    return (
+                      <button
+                        key={card.value}
+                        type="button"
+                        onClick={() => toggleCardType(card.value)}
+                        style={{
+                          padding: '0.55rem 0.9rem',
+                          borderRadius: '9999px',
+                          border: `1.5px solid ${selected ? '#0f4c81' : 'var(--border-color)'}`,
+                          background: selected ? '#0f4c81' : 'var(--card-bg)',
+                          color: selected ? '#fff' : 'var(--text-primary)',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          fontSize: '0.82rem',
+                        }}
+                      >
+                        <i className="fas fa-credit-card" style={{ marginRight: '0.45rem' }}></i>{card.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ marginTop: '1rem' }}>
+                <div>
+                  <label style={labelStyle}>Minimum Spend</label>
+                  <input type="number" step="0.01" min="0" style={inputStyle} value={form.minimumSpend} onChange={e => update('minimumSpend', e.target.value)} placeholder="5000" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Maximum Benefit</label>
+                  <input type="number" step="0.01" min="0" style={inputStyle} value={form.maximumBenefit} onChange={e => update('maximumBenefit', e.target.value)} placeholder="2500" />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">

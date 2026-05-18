@@ -1,5 +1,6 @@
 import '../models/category.dart';
 import '../models/promotion.dart';
+import '../utils/bank_card_promotion_support.dart';
 
 class SearchMatcher {
   static final Map<String, List<String>> _categoryAliases = {
@@ -161,6 +162,24 @@ class SearchMatcher {
       'other',
       'misc',
     ],
+    'bank_cards': [
+      'bank',
+      'banks',
+      'bank card',
+      'bank cards',
+      'credit card',
+      'credit cards',
+      'debit card',
+      'debit cards',
+      'cashback',
+      'installment',
+      'instalment',
+      'emi',
+      'visa',
+      'mastercard',
+      'card offer',
+      'bank offer',
+    ],
   };
 
   static String normalize(String value) {
@@ -228,8 +247,11 @@ class SearchMatcher {
     final title = normalize(promotion.title);
     final merchant = normalize(promotion.merchantName ?? '');
     final description = normalize(promotion.description);
-    final categoryTerms =
-        SearchMatcher.categoryTerms(promotion.category).map(normalize).toList();
+    final effectiveCategory = BankCardPromotionSupport.effectiveCategoryId(promotion);
+    final categoryTerms = <String>[
+      ...SearchMatcher.categoryTerms(effectiveCategory),
+      ...BankCardPromotionSupport.searchTerms(promotion),
+    ].map(normalize).toList();
 
     var score = 0;
     if (title == normalizedQuery) score += 120;
@@ -258,11 +280,14 @@ class SearchMatcher {
         promotion.title,
         promotion.description,
         promotion.merchantName,
-        promotion.category,
+        BankCardPromotionSupport.effectiveCategoryId(promotion),
         promotion.location,
         promotion.code,
       ],
-      extraTerms: categoryTerms(promotion.category),
+      extraTerms: [
+        ...categoryTerms(BankCardPromotionSupport.effectiveCategoryId(promotion)),
+        ...BankCardPromotionSupport.searchTerms(promotion),
+      ],
     );
   }
 

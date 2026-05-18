@@ -9,6 +9,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import PromotionCard from '@/components/ui/PromotionCard';
 import toast from 'react-hot-toast';
 
+function formatOfferType(value?: string | null) {
+  if (!value) return null;
+  return value
+    .split('_')
+    .map((part) => (part ? `${part[0].toUpperCase()}${part.slice(1)}` : part))
+    .join(' ');
+}
+
 export default function DealPageClient({ dealId }: { dealId: string }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -152,6 +160,18 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   const currencySymbol = deal ? getCurrencySymbol(deal.merchant?.currency) : '$';
   const daysLeft = deal ? Math.ceil((new Date(deal.endDate).getTime() - renderedAt) / 86400000) : 0;
   const isExpired = daysLeft < 0;
+  const isBankCardOffer = !!deal && (
+    deal.category === 'bank_cards' ||
+    deal.bankName ||
+    (Array.isArray(deal.cardTypes) && deal.cardTypes.length > 0) ||
+    deal.offerType ||
+    deal.minimumSpend !== undefined ||
+    deal.maximumBenefit !== undefined
+  );
+  const formattedCardTypes = Array.isArray(deal?.cardTypes)
+    ? deal.cardTypes.map((type: string) => type.charAt(0).toUpperCase() + type.slice(1)).join(', ')
+    : '';
+  const formattedOfferType = formatOfferType(deal?.offerType);
 
   if (loading) return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -245,6 +265,52 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
               </div>
 
               <p style={{ color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '1.25rem', fontSize: '0.95rem' }}>{deal.description}</p>
+
+              {isBankCardOffer && (
+                <div style={{ marginBottom: '1.25rem', padding: '1rem 1.1rem', borderRadius: '1rem', background: 'rgba(15,76,129,0.04)', border: '1px solid rgba(15,76,129,0.14)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.9rem' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '0.75rem', background: 'rgba(15,76,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0f4c81' }}>
+                      <i className="fas fa-credit-card"></i>
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 800, color: 'var(--text-primary)' }}>Card Offer Details</p>
+                      <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Structured bank and card information for this promotion.</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {deal.bankName && (
+                      <div>
+                        <p style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Bank</p>
+                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>{deal.bankName}</p>
+                      </div>
+                    )}
+                    {formattedCardTypes && (
+                      <div>
+                        <p style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Eligible Cards</p>
+                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>{formattedCardTypes}</p>
+                      </div>
+                    )}
+                    {formattedOfferType && (
+                      <div>
+                        <p style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Offer Type</p>
+                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>{formattedOfferType}</p>
+                      </div>
+                    )}
+                    {deal.minimumSpend !== undefined && deal.minimumSpend !== null && (
+                      <div>
+                        <p style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Minimum Spend</p>
+                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>{currencySymbol}{Number(deal.minimumSpend).toLocaleString()}</p>
+                      </div>
+                    )}
+                    {deal.maximumBenefit !== undefined && deal.maximumBenefit !== null && (
+                      <div>
+                        <p style={{ margin: '0 0 0.2rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Maximum Benefit</p>
+                        <p style={{ margin: 0, fontWeight: 700, color: 'var(--text-primary)' }}>{currencySymbol}{Number(deal.maximumBenefit).toLocaleString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Trust Signals */}
               <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem', padding: '1rem', borderRadius: '0.875rem', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)' }}>

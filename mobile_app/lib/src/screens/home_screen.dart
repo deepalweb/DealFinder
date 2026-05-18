@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../services/cache_service.dart';
 import '../services/push_notification_service.dart';
+import '../utils/bank_card_promotion_support.dart';
 import '../widgets/section_header.dart';
 import '../widgets/home_shimmer.dart';
 import '../widgets/modern_deal_card.dart';
@@ -315,7 +316,9 @@ class _HomeScreenState extends State<HomeScreen>
     final filtered = _allDeals
         .where((p) =>
             (p.endDate == null || p.endDate!.isAfter(now)) &&
-            (_selectedCategory == null || p.category == _selectedCategory))
+            (_selectedCategory == null ||
+                BankCardPromotionSupport.effectiveCategoryId(p) ==
+                    _selectedCategory))
         .toList()
       ..sort(_compareByRecent);
     return filtered;
@@ -434,7 +437,9 @@ class _HomeScreenState extends State<HomeScreen>
         .where((p) =>
             p.hasStarted &&
             (p.endDate == null || p.endDate!.isAfter(now)) &&
-            (_selectedCategory == null || p.category == _selectedCategory))
+            (_selectedCategory == null ||
+                BankCardPromotionSupport.effectiveCategoryId(p) ==
+                    _selectedCategory))
         .toList()
       ..sort((a, b) {
         final featuredCompare =
@@ -457,6 +462,23 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<Promotion> get _recommendedDeals {
     return _trendingDeals;
+  }
+
+  List<Promotion> get _bankCardDeals {
+    final now = DateTime.now();
+    final deals = _filteredDeals
+        .where((p) =>
+            BankCardPromotionSupport.isBankCardPromotion(p) &&
+            (p.endDate == null || p.endDate!.isAfter(now)))
+        .toList()
+      ..sort((a, b) {
+        final discountCompare = _discountSignal(b).compareTo(
+          _discountSignal(a),
+        );
+        if (discountCompare != 0) return discountCompare;
+        return _compareByRecent(a, b);
+      });
+    return deals.take(10).toList();
   }
 
   List<Promotion> get _bannerSectionDeals {
@@ -781,6 +803,18 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(height: 8),
           Row(
             children: [
+              Expanded(
+                child: _buildQuickBrowseCard(
+                  emoji: '💳',
+                  title: 'Bank Cards',
+                  accent: const Color(0xFF0F4C81),
+                  onTap: () => _openAllDeals(
+                    categoryId: BankCardPromotionSupport.categoryId,
+                    contextTitle: 'Bank Card Offers',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: _buildQuickBrowseCard(
                   emoji: '💸',
@@ -1669,6 +1703,66 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
 
+        if (_bankCardDeals.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: '💳 Bank Card Offers',
+            subtitle: 'Credit and debit card promotions from your banks',
+            icon: Icons.credit_card_rounded,
+            onSeeAll: () => _openAllDeals(
+              categoryId: BankCardPromotionSupport.categoryId,
+              contextTitle: 'Bank Card Offers',
+            ),
+          ),
+          Stack(
+            children: [
+              SizedBox(
+                height: 340,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _bankCardDeals.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, i) => ModernDealCard(
+                    promotion: _bankCardDeals[i],
+                    width: 184,
+                    onTap: () => _openDeal(_bankCardDeals[i]),
+                  ),
+                ),
+              ),
+              if (_bankCardDeals.length > 2)
+                Positioned(
+                  right: 16,
+                  top: 0,
+                  bottom: 0,
+                  child: IgnorePointer(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.chevron_right,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+
         // Categories Section
         const SizedBox(height: 8),
         SectionHeader(
@@ -1689,7 +1783,7 @@ class _HomeScreenState extends State<HomeScreen>
               mainAxisSpacing: 12,
             ),
             itemCount:
-                launchCategories.length > 6 ? 6 : launchCategories.length,
+                launchCategories.length > 9 ? 9 : launchCategories.length,
             itemBuilder: (_, i) {
               final category = launchCategories[i];
               return InkWell(

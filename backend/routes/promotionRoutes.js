@@ -98,6 +98,56 @@ function sanitizePromotionPayload(promotion) {
   return sanitized;
 }
 
+function normalizeCardTypes(cardTypes) {
+  if (!Array.isArray(cardTypes)) return [];
+  return cardTypes
+    .map((type) => String(type || '').trim().toLowerCase())
+    .filter((type) => ['credit', 'debit', 'prepaid'].includes(type));
+}
+
+function normalizeBankOfferInput(body = {}) {
+  return {
+    bankName: typeof body.bankName === 'string' ? body.bankName.trim() : '',
+    cardTypes: normalizeCardTypes(body.cardTypes),
+    offerType: typeof body.offerType === 'string' ? body.offerType.trim().toLowerCase() : '',
+    minimumSpend:
+      body.minimumSpend === undefined || body.minimumSpend === null || body.minimumSpend === ''
+        ? undefined
+        : parseFloat(body.minimumSpend),
+    maximumBenefit:
+      body.maximumBenefit === undefined || body.maximumBenefit === null || body.maximumBenefit === ''
+        ? undefined
+        : parseFloat(body.maximumBenefit),
+  };
+}
+
+function validateBankCardOffer(body = {}, { partial = false } = {}) {
+  const errors = [];
+  const { bankName, cardTypes, offerType, minimumSpend, maximumBenefit } =
+    normalizeBankOfferInput(body);
+
+  if (!partial || bankName || cardTypes.length || offerType || minimumSpend !== undefined || maximumBenefit !== undefined) {
+    if (!bankName) {
+      errors.push({ msg: 'Bank name is required for bank card offers.', path: 'bankName' });
+    }
+    if (!cardTypes.length) {
+      errors.push({ msg: 'At least one card type is required for bank card offers.', path: 'cardTypes' });
+    }
+    if (!offerType) {
+      errors.push({ msg: 'Offer type is required for bank card offers.', path: 'offerType' });
+    }
+  }
+
+  if (minimumSpend !== undefined && Number.isNaN(minimumSpend)) {
+    errors.push({ msg: 'Minimum spend must be a valid number.', path: 'minimumSpend' });
+  }
+  if (maximumBenefit !== undefined && Number.isNaN(maximumBenefit)) {
+    errors.push({ msg: 'Maximum benefit must be a valid number.', path: 'maximumBenefit' });
+  }
+
+  return { errors, normalized: { bankName, cardTypes, offerType, minimumSpend, maximumBenefit } };
+}
+
 // --- Move analytics routes to the top to avoid /:id conflicts ---
 // Get analytics for a merchant (Protected: merchant self or admin)
 // This requires a different auth logic: authorizeMerchantSelfOrAdmin, but applied to merchantId in params
@@ -277,6 +327,11 @@ router.get('/nearby', async (req, res) => {
                   featured: 1,
                   originalPrice: 1,
                   discountedPrice: 1,
+                  bankName: 1,
+                  cardTypes: 1,
+                  offerType: 1,
+                  minimumSpend: 1,
+                  maximumBenefit: 1,
                   status: 1,
                   createdAt: 1
                 }
@@ -519,6 +574,11 @@ router.post('/', authenticateJWT, [
       }
       return true;
     }),
+  body('bankName').optional().isString(),
+  body('cardTypes').optional().isArray().withMessage('Card types must be an array.'),
+  body('offerType').optional().isString(),
+  body('minimumSpend').optional().isNumeric().withMessage('Minimum spend must be a number.'),
+  body('maximumBenefit').optional().isNumeric().withMessage('Maximum benefit must be a number.'),
   body('status').optional().isIn(['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
     .withMessage('Invalid status value provided for creation.'),
 ], async (req, res) => {
@@ -546,10 +606,28 @@ router.post('/', authenticateJWT, [
       merchantId,
       featured,
       originalPrice,
-      discountedPrice
+      discountedPrice,
+      bankName,
+      cardTypes,
+      offerType,
+      minimumSpend,
+      maximumBenefit,
     } = req.body;
     const normalizedStartDate = normalizePromotionDateInput(startDate, 'start');
     const normalizedEndDate = normalizePromotionDateInput(endDate, 'end');
+    const normalizedBankOffer = normalizeBankOfferInput({
+      bankName,
+      cardTypes,
+      offerType,
+      minimumSpend,
+      maximumBenefit,
+    });
+    if (category === 'bank_cards') {
+      const { errors: bankErrors } = validateBankCardOffer(req.body);
+      if (bankErrors.length) {
+        return res.status(400).json({ message: 'Validation failed', errors: bankErrors });
+      }
+    }
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
@@ -608,6 +686,11 @@ router.post('/', authenticateJWT, [
       featured: featured === true || featured === 'true',
       originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
       discountedPrice: discountedPrice ? parseFloat(discountedPrice) : undefined,
+      bankName: normalizedBankOffer.bankName || undefined,
+      cardTypes: normalizedBankOffer.cardTypes,
+      offerType: normalizedBankOffer.offerType || undefined,
+      minimumSpend: normalizedBankOffer.minimumSpend,
+      maximumBenefit: normalizedBankOffer.maximumBenefit,
       status: initialStatus
     };
 
@@ -679,6 +762,11 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       // For now, assuming if prices are sent, they are sent together or this check is sufficient.
       return true;
     }),
+  body('bankName').optional().isString(),
+  body('cardTypes').optional().isArray().withMessage('Card types must be an array.'),
+  body('offerType').optional().isString(),
+  body('minimumSpend').optional().isNumeric().withMessage('Minimum spend must be a number.'),
+  body('maximumBenefit').optional().isNumeric().withMessage('Maximum benefit must be a number.'),
   body('status').optional().isIn(['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'])
     .withMessage('Invalid status value provided for update.'),
 ], async (req, res) => {
@@ -705,7 +793,12 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       pickupAvailable,
       featured,
       originalPrice,
-      discountedPrice
+      discountedPrice,
+      bankName,
+      cardTypes,
+      offerType,
+      minimumSpend,
+      maximumBenefit,
     } = req.body;
     const normalizedStartDate = startDate !== undefined ? normalizePromotionDateInput(startDate, 'start') : undefined;
     const normalizedEndDate = endDate !== undefined ? normalizePromotionDateInput(endDate, 'end') : undefined;
@@ -714,6 +807,33 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       title, description, discount, code, category, image, url,
       featured: featured === true || featured === 'true'
     };
+    const nextCategory = category;
+    const hasBankOfferFields =
+      bankName !== undefined ||
+      cardTypes !== undefined ||
+      offerType !== undefined ||
+      minimumSpend !== undefined ||
+      maximumBenefit !== undefined;
+    if (nextCategory === 'bank_cards' || hasBankOfferFields) {
+      const { errors: bankErrors, normalized } = validateBankCardOffer(
+        {
+          bankName,
+          cardTypes,
+          offerType,
+          minimumSpend,
+          maximumBenefit,
+        },
+        { partial: nextCategory !== 'bank_cards' },
+      );
+      if (bankErrors.length && nextCategory === 'bank_cards') {
+        return res.status(400).json({ errors: bankErrors });
+      }
+      if (bankName !== undefined) updateData.bankName = normalized.bankName || undefined;
+      if (cardTypes !== undefined) updateData.cardTypes = normalized.cardTypes;
+      if (offerType !== undefined) updateData.offerType = normalized.offerType || undefined;
+      if (minimumSpend !== undefined) updateData.minimumSpend = normalized.minimumSpend;
+      if (maximumBenefit !== undefined) updateData.maximumBenefit = normalized.maximumBenefit;
+    }
     if (fulfillmentType !== undefined) updateData.fulfillmentType = fulfillmentType;
     if (orderLink !== undefined) updateData.orderLink = orderLink;
     if (visitAvailable !== undefined) {
@@ -761,6 +881,21 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
         if (existingPromo && existingPromo.discountedPrice !== undefined && existingPromo.discountedPrice >= updateData.originalPrice) {
             return res.status(400).json({ errors: [{ msg: 'The new original price makes the existing discounted price invalid.' }] });
         }
+    }
+
+    if (updateData.category === 'bank_cards' && !hasBankOfferFields) {
+      const existingPromo = await Promotion.findById(req.params.id)
+        .select('bankName cardTypes offerType minimumSpend maximumBenefit');
+      const { errors: bankErrors } = validateBankCardOffer({
+        bankName: existingPromo?.bankName,
+        cardTypes: existingPromo?.cardTypes,
+        offerType: existingPromo?.offerType,
+        minimumSpend: existingPromo?.minimumSpend,
+        maximumBenefit: existingPromo?.maximumBenefit,
+      });
+      if (bankErrors.length) {
+        return res.status(400).json({ errors: bankErrors });
+      }
     }
 
     // Handle status update by admin

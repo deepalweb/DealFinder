@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
+import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_expiry_helper.dart';
 import 'deal_verification_badge.dart';
 
@@ -202,6 +203,11 @@ class _DealCardState extends State<DealCard> {
   // ── Compact grid card (Temu-style) ──────────────────────────────────────
   Widget _buildCompact(ThemeData theme, Promotion p, List<Widget> modeBadges) {
     final distance = _formatDistance(p.distance);
+    final bankName = BankCardPromotionSupport.bankName(p);
+    final cardTypes = BankCardPromotionSupport.cardTypes(p);
+    final offerTypes = BankCardPromotionSupport.offerTypes(p);
+    final isBankCardPromotion =
+        BankCardPromotionSupport.isBankCardPromotion(p);
     return Card(
       margin: const EdgeInsets.all(3),
       elevation: 1,
@@ -345,6 +351,30 @@ class _DealCardState extends State<DealCard> {
                   const SizedBox(height: 4),
                   const DealVerificationBadge(),
                 ],
+                if (isBankCardPromotion) ...[
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      _CompactMetaBadge(
+                        icon: Icons.credit_card_rounded,
+                        label: cardTypes.isNotEmpty
+                            ? cardTypes.join(' + ')
+                            : 'Card Offer',
+                        color: const Color(0xFF0F4C81),
+                        background: const Color(0xFFE8F0FE),
+                      ),
+                      if (offerTypes.isNotEmpty)
+                        _CompactMetaBadge(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: offerTypes.first,
+                          color: const Color(0xFF047857),
+                          background: const Color(0xFFECFDF5),
+                        ),
+                    ],
+                  ),
+                ],
                 if (modeBadges.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Wrap(
@@ -371,6 +401,19 @@ class _DealCardState extends State<DealCard> {
                     ],
                   ),
                 ],
+                if (bankName != null && bankName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    bankName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.grey[700],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -382,6 +425,11 @@ class _DealCardState extends State<DealCard> {
   // ── Full list card ────────────────────────────────────────────────────────
   Widget _buildList(ThemeData theme, Promotion p, List<Widget> modeBadges) {
     final distance = _formatDistance(p.distance);
+    final bankName = BankCardPromotionSupport.bankName(p);
+    final cardTypes = BankCardPromotionSupport.cardTypes(p);
+    final offerTypes = BankCardPromotionSupport.offerTypes(p);
+    final isBankCardPromotion =
+        BankCardPromotionSupport.isBankCardPromotion(p);
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 2,
@@ -491,6 +539,37 @@ class _DealCardState extends State<DealCard> {
                     spacing: 6,
                     runSpacing: 6,
                     children: modeBadges,
+                  ),
+                ],
+                if (isBankCardPromotion) ...[
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _CompactMetaBadge(
+                        icon: Icons.credit_card_rounded,
+                        label: cardTypes.isNotEmpty
+                            ? cardTypes.join(' + ')
+                            : 'Card Offer',
+                        color: const Color(0xFF0F4C81),
+                        background: const Color(0xFFE8F0FE),
+                      ),
+                      if (offerTypes.isNotEmpty)
+                        _CompactMetaBadge(
+                          icon: Icons.account_balance_wallet_outlined,
+                          label: offerTypes.first,
+                          color: const Color(0xFF047857),
+                          background: const Color(0xFFECFDF5),
+                        ),
+                      if (bankName != null && bankName.isNotEmpty)
+                        _CompactMetaBadge(
+                          icon: Icons.account_balance_outlined,
+                          label: bankName,
+                          color: const Color(0xFF7C3AED),
+                          background: const Color(0xFFF3E8FF),
+                        ),
+                    ],
                   ),
                 ],
                 const SizedBox(height: 6),
@@ -629,6 +708,46 @@ class _ImageActionButton extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: Icon(icon, size: 18, color: color ?? Colors.grey[700]),
+      ),
+    );
+  }
+}
+
+class _CompactMetaBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color background;
+
+  const _CompactMetaBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
