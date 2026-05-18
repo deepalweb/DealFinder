@@ -308,22 +308,32 @@ function NewPromotionContent() {
                       <p style={hintStyle}>{form.description.length}/300 characters</p>
                     </div>
 
-                    {/* Deal Type Dropdown */}
                     <div>
-                      <label style={labelStyle}>Deal Type <span style={{ color:'#ef4444' }}>*</span></label>
-                      <select style={inputStyle} value={form.dealType} onChange={e => { update('dealType', e.target.value); update('discount', ''); update('originalPrice', ''); update('discountedPrice', ''); update('percentageOff', ''); }} onFocus={focus} onBlur={blur}>
-                        <option value="percentage">Percentage Discount (e.g., 20% off)</option>
-                        <option value="bogo">Buy 1 Get 1 Free</option>
-                        <option value="fixed">Fixed Amount Off (e.g., $50 off)</option>
-                        <option value="price_drop">Price Drop</option>
-                        <option value="bundle">Bundle Deal</option>
-                        <option value="flash">Flash Sale</option>
+                      <label style={labelStyle}>Category <span style={{ color:'#ef4444' }}>*</span></label>
+                      <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)} onFocus={focus} onBlur={blur}>
+                        {PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
-                      <p style={hintStyle}>Select the type of discount you&apos;re offering</p>
+                      <p style={hintStyle}>Choose Bank Cards to switch to the dedicated card-offer flow.</p>
                     </div>
 
-                    {/* Conditional Fields Based on Deal Type */}
-                    {form.dealType === 'percentage' && (
+                    {!isBankCardCategory && (
+                      <>
+                        {/* Deal Type Dropdown */}
+                        <div>
+                          <label style={labelStyle}>Deal Type <span style={{ color:'#ef4444' }}>*</span></label>
+                          <select style={inputStyle} value={form.dealType} onChange={e => { update('dealType', e.target.value); update('discount', ''); update('originalPrice', ''); update('discountedPrice', ''); update('percentageOff', ''); }} onFocus={focus} onBlur={blur}>
+                            <option value="percentage">Percentage Discount (e.g., 20% off)</option>
+                            <option value="bogo">Buy 1 Get 1 Free</option>
+                            <option value="fixed">Fixed Amount Off (e.g., $50 off)</option>
+                            <option value="price_drop">Price Drop</option>
+                            <option value="bundle">Bundle Deal</option>
+                            <option value="flash">Flash Sale</option>
+                          </select>
+                          <p style={hintStyle}>Select the type of discount you&apos;re offering</p>
+                        </div>
+
+                        {/* Conditional Fields Based on Deal Type */}
+                        {form.dealType === 'percentage' && (
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <label style={labelStyle}>Original Price <span style={{ color:'#ef4444' }}>*</span></label>
@@ -348,9 +358,9 @@ function NewPromotionContent() {
                           <p style={hintStyle}>Calculated automatically</p>
                         </div>
                       </div>
-                    )}
+                        )}
 
-                    {form.dealType === 'bogo' && (
+                        {form.dealType === 'bogo' && (
                       <div>
                         <label style={labelStyle}>Product Price <span style={{ color:'#ef4444' }}>*</span></label>
                         <div style={{ position:'relative' }}>
@@ -359,9 +369,9 @@ function NewPromotionContent() {
                         </div>
                         <p style={hintStyle}>Price of one item</p>
                       </div>
-                    )}
+                        )}
 
-                    {form.dealType === 'fixed' && (
+                        {form.dealType === 'fixed' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label style={labelStyle}>Original Price</label>
@@ -379,9 +389,9 @@ function NewPromotionContent() {
                           <p style={hintStyle}>Fixed amount off the price</p>
                         </div>
                       </div>
-                    )}
+                        )}
 
-                    {form.dealType === 'price_drop' && (
+                        {form.dealType === 'price_drop' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label style={labelStyle}>Was <span style={{ color:'#ef4444' }}>*</span></label>
@@ -398,27 +408,44 @@ function NewPromotionContent() {
                           </div>
                         </div>
                       </div>
-                    )}
+                        )}
 
-                    {(form.dealType === 'bundle' || form.dealType === 'flash') && (
+                        {(form.dealType === 'bundle' || form.dealType === 'flash') && (
                       <div>
                         <label style={labelStyle}>Discount <span style={{ color:'#ef4444' }}>*</span></label>
                         <input style={inputStyle} value={form.discount} onChange={e => update('discount', e.target.value)} required placeholder={form.dealType === 'bundle' ? 'e.g., 3 for $99' : 'e.g., 50% off'} onFocus={focus} onBlur={blur} />
                         <p style={hintStyle}>Describe the {form.dealType === 'bundle' ? 'bundle' : 'flash sale'} offer</p>
                       </div>
-                    )}
+                        )}
 
-                    {/* Savings Display */}
-                    {form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) < parseFloat(form.originalPrice) && (
+                        {/* Savings Display */}
+                        {form.originalPrice && form.discountedPrice && parseFloat(form.discountedPrice) < parseFloat(form.originalPrice) && (
                       <div className="fade-in" style={{ padding:'1rem', borderRadius:'0.875rem', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.2)' }}>
                         <p style={{ margin:0, fontSize:'0.875rem', fontWeight:600, color:'#059669' }}>
                           <i className="fas fa-check-circle mr-2"></i>
                           Customers save {currencySymbol}{(parseFloat(form.originalPrice) - parseFloat(form.discountedPrice)).toFixed(2)} ({Math.round((1 - parseFloat(form.discountedPrice)/parseFloat(form.originalPrice))*100)}% off)
                         </p>
                       </div>
+                        )}
+                      </>
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {isBankCardCategory && (
+                        <div>
+                          <label style={labelStyle}>Offer Summary <span style={{ color:'#ef4444' }}>*</span></label>
+                          <input
+                            style={inputStyle}
+                            value={form.discount}
+                            onChange={e => update('discount', e.target.value)}
+                            required
+                            placeholder="e.g. 20% cashback up to Rs1500"
+                            onFocus={focus}
+                            onBlur={blur}
+                          />
+                          <p style={hintStyle}>This replaces the generic deal type for bank card promotions.</p>
+                        </div>
+                      )}
                       <div>
                         <label style={labelStyle}>Promo Code <span style={{ color:'#ef4444' }}>*</span></label>
                         <div style={{ position:'relative' }}>
@@ -428,12 +455,6 @@ function NewPromotionContent() {
                           </button>
                         </div>
                         <p style={hintStyle}>Click Auto to generate from title</p>
-                      </div>
-                      <div>
-                        <label style={labelStyle}>Category <span style={{ color:'#ef4444' }}>*</span></label>
-                        <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)} onFocus={focus} onBlur={blur}>
-                          {PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
-                        </select>
                       </div>
                     </div>
 

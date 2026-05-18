@@ -158,8 +158,19 @@ export default function AdminNewDealPage() {
           {/* Discount + Code */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label style={labelStyle}>Discount <span style={{ color: '#ef4444' }}>*</span></label>
-              <input style={inputStyle} value={form.discount} onChange={e => update('discount', e.target.value)} required placeholder="20%, Rs.500, BOGO" />
+              <label style={labelStyle}>{isBankCardCategory ? 'Offer Summary' : 'Discount'} <span style={{ color: '#ef4444' }}>*</span></label>
+              <input
+                style={inputStyle}
+                value={form.discount}
+                onChange={e => update('discount', e.target.value)}
+                required
+                placeholder={isBankCardCategory ? 'e.g. 20% cashback up to Rs1500' : '20%, Rs.500, BOGO'}
+              />
+              {isBankCardCategory && (
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
+                  Bank card promotions use this summary instead of a generic deal type.
+                </p>
+              )}
             </div>
             <div>
               <label style={labelStyle}>Promo Code <span style={{ color: '#ef4444' }}>*</span></label>
