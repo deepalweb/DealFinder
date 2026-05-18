@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { BankOfferAPI } from '@/lib/api';
+import { BankOfferAPI, ImageAPI } from '@/lib/api';
 import { PROMOTION_CATEGORIES } from '@/lib/categories';
 import toast from 'react-hot-toast';
 
@@ -25,7 +25,11 @@ function AdminBankOfferForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get('edit');
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
 
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date();
@@ -75,6 +79,8 @@ function AdminBankOfferForm() {
           featured: !!offer.featured,
           priority: typeof offer.priority === 'number' ? String(offer.priority) : '0',
         });
+        setImagePreview(offer.image || (Array.isArray(offer.images) ? offer.images[0] || '' : ''));
+        setImageFile(null);
       })
       .catch(() => toast.error('Failed to load bank offer.'));
   }, [editId, today]);
@@ -105,6 +111,33 @@ function AdminBankOfferForm() {
     update('code', code);
   };
 
+  const handleImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be 5MB or smaller.');
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const clearImageSelection = () => {
+    setImageFile(null);
+    setImagePreview('');
+    update('image', '');
+    if (imageInputRef.current) {
+      imageInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) return toast.error('Title is required');
@@ -117,15 +150,24 @@ function AdminBankOfferForm() {
 
     setSaving(true);
     try {
+      let imageUrl = form.image.trim();
+      if (imageFile) {
+        setUploading(true);
+        imageUrl = await ImageAPI.uploadSingle(imageFile, 'bank-offers');
+      }
+
       const payload: any = {
         ...form,
         code: form.code.trim().toUpperCase(),
         priority: parseInt(form.priority || '0', 10) || 0,
         featured: Boolean(form.featured),
+        image: imageUrl,
+        images: imageUrl ? [imageUrl] : [],
       };
       if (!payload.minimumSpend) delete payload.minimumSpend;
       if (!payload.maximumBenefit) delete payload.maximumBenefit;
       if (!payload.image) delete payload.image;
+      if (!payload.images?.length) delete payload.images;
       if (!payload.url) delete payload.url;
       if (!payload.termsAndConditions) delete payload.termsAndConditions;
 
@@ -140,6 +182,7 @@ function AdminBankOfferForm() {
     } catch (error: any) {
       toast.error(error.message || 'Failed to save bank offer.');
     } finally {
+      setUploading(false);
       setSaving(false);
     }
   };
@@ -275,15 +318,83 @@ function AdminBankOfferForm() {
             <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: '100px' }} value={form.termsAndConditions} onChange={(e) => update('termsAndConditions', e.target.value)} placeholder="Add any bank-specific terms, exclusions, and redemption rules." />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label style={labelStyle}>Image URL</label>
-              <input style={inputStyle} value={form.image} onChange={(e) => update('image', e.target.value)} placeholder="https://example.com/bank-offer.jpg" />
+          <div>
+            <label style={labelStyle}>Offer Image</label>
+            {imagePreview ? (
+              <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)' }}>
+                <img src={imagePreview} alt="Bank offer preview" style={{ width: '100%', maxHeight: '260px', objectFit: 'cover', display: 'block' }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.85rem 1rem', gap: '0.75rem' }}>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    {imageFile ? `${imageFile.name} selected` : 'Using saved or pasted image URL'}
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      style={{ padding: '0.45rem 0.8rem', borderRadius: '0.6rem', border: '1px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Replace
+                    </button>
+                    <button
+                      type="button"
+                      onClick={clearImageSelection}
+                      style={{ padding: '0.45rem 0.8rem', borderRadius: '0.6rem', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.06)', color: '#dc2626', cursor: 'pointer', fontWeight: 600 }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => imageInputRef.current?.click()}
+                style={{ borderRadius: '1rem', border: '2px dashed var(--border-color)', minHeight: '190px', background: 'var(--light-gray)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'border-color 0.2s' }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+              >
+                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                  <i className="fas fa-cloud-upload-alt" style={{ fontSize: '2.4rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', display: 'block' }}></i>
+                  <p style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)', margin: '0 0 0.3rem' }}>Click to upload a bank-offer image</p>
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>PNG, JPG, WEBP up to 5MB</p>
+                </div>
+              </div>
+            )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleImageFile(file);
+              }}
+            />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0 0.75rem' }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>or paste image URL</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
             </div>
-            <div>
-              <label style={labelStyle}>Landing URL</label>
-              <input style={inputStyle} value={form.url} onChange={(e) => update('url', e.target.value)} placeholder="https://bank.example.com/offer" />
-            </div>
+
+            <input
+              style={inputStyle}
+              value={imageFile ? '' : form.image}
+              onChange={(e) => {
+                const value = e.target.value;
+                setImageFile(null);
+                update('image', value);
+                setImagePreview(value);
+              }}
+              placeholder="https://example.com/bank-offer.jpg"
+            />
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+              Uploaded images are stored automatically when you save the bank offer.
+            </p>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Landing URL</label>
+            <input style={inputStyle} value={form.url} onChange={(e) => update('url', e.target.value)} placeholder="https://bank.example.com/offer" />
           </div>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.875rem 1rem', borderRadius: '0.75rem', border: `1.5px solid ${form.featured ? 'var(--primary-color)' : 'var(--border-color)'}`, background: form.featured ? 'rgba(99,102,241,0.04)' : 'transparent' }}>
@@ -298,8 +409,8 @@ function AdminBankOfferForm() {
             <button type="button" onClick={() => router.push('/admin/bank-offers')} style={{ padding: '0.7rem 1.5rem', borderRadius: '0.625rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
               Cancel
             </button>
-            <button type="submit" disabled={saving} className="btn btn-primary" style={{ padding: '0.7rem 1.75rem' }}>
-              {saving ? <><i className="fas fa-spinner fa-spin"></i> Saving...</> : <><i className="fas fa-credit-card"></i> {editId ? 'Update Bank Offer' : 'Create Bank Offer'}</>}
+            <button type="submit" disabled={saving || uploading} className="btn btn-primary" style={{ padding: '0.7rem 1.75rem' }}>
+              {saving || uploading ? <><i className="fas fa-spinner fa-spin"></i> {uploading ? 'Uploading image...' : 'Saving...'}</> : <><i className="fas fa-credit-card"></i> {editId ? 'Update Bank Offer' : 'Create Bank Offer'}</>}
             </button>
           </div>
         </div>
