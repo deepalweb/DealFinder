@@ -19,6 +19,8 @@ const BANK_OFFER_TYPES = [
   { value: 'other', label: 'Other' },
 ] as const;
 
+const STORE_PROMOTION_CATEGORIES = PROMOTION_CATEGORIES.filter((category) => category.id !== 'bank_cards');
+
 export default function AdminNewDealPage() {
   const router = useRouter();
   const [merchants, setMerchants] = useState<any[]>([]);
@@ -187,7 +189,7 @@ export default function AdminNewDealPage() {
           <div>
             <label style={labelStyle}>Category</label>
             <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)}>
-              {PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+              {STORE_PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
           </div>
 

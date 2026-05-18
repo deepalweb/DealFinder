@@ -103,6 +103,7 @@ app.get('/api/config', (req, res) => {
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
 const promotionRoutes = require('./routes/promotionRoutes');
+const bankOfferRoutes = require('./routes/bankOfferRoutes');
 const merchantRoutes = require('./routes/merchantRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes');
@@ -117,6 +118,7 @@ app.use('/api/users/register', registerLimiter);
 app.use('/api', apiLimiter);
 app.use('/api/users', userRoutes);
 app.use('/api/promotions', promotionRoutes);
+app.use('/api/bank-offers', bankOfferRoutes);
 app.use('/api/merchants', merchantRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/images', imageRoutes);

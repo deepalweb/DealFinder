@@ -199,6 +199,21 @@ export const PromotionAPI = {
   addRating: (id: string, data: any) => fetchAPI<any>(`promotions/${id}/ratings`, { method: 'POST', body: JSON.stringify(data) }),
 };
 
+export const BankOfferAPI = {
+  getAll: (params?: { limit?: number }) => {
+    const q = params ? new URLSearchParams(params as any).toString() : '';
+    return fetchAPI<any[]>(`bank-offers${q ? `?${q}` : ''}`, { cache: 'no-store' });
+  },
+  getAdminAll: () => fetchAPI<any[]>('bank-offers/admin', { cache: 'no-store' }),
+  getById: (id: string) => fetchAPI<any>(`bank-offers/${id}`, { cache: 'no-store' }),
+  create: (data: any) => fetchAPI<any>('bank-offers', { method: 'POST', body: JSON.stringify(data) })
+    .then((res) => { invalidateCache('bank-offers'); return res; }),
+  update: (id: string, data: any) => fetchAPI<any>(`bank-offers/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+    .then((res) => { invalidateCache('bank-offers'); return res; }),
+  delete: (id: string) => fetchAPI<any>(`bank-offers/${id}`, { method: 'DELETE' })
+    .then((res) => { invalidateCache('bank-offers'); return res; }),
+};
+
 // AI
 export const AiAPI = {
   search: (data: {

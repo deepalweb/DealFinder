@@ -87,6 +87,10 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       normalizeCategoryId(_selectedCategory) ==
       BankCardPromotionSupport.categoryId;
 
+  List<Category> get _merchantPromotionCategories => predefinedCategories
+      .where((category) => category.id != 'other' && category.id != 'bank_cards')
+      .toList();
+
   int get _totalImageCount => _existingImageUrls.length + _imageFiles.length;
 
   @override
@@ -238,17 +242,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     super.dispose();
   }
 
-  String? _validateBankOfferField(String? _) {
-    if (!_isBankCardCategory) return null;
-    if (_selectedCardTypes.isEmpty) {
-      return 'Select at least one card type';
-    }
-    if ((_selectedBankOfferType ?? '').isEmpty) {
-      return 'Offer type is required';
-    }
-    return null;
-  }
-
   Future<void> _pickImages() async {
     if (_totalImageCount >= 5) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -389,14 +382,15 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     }
 
     if (_isBankCardCategory) {
-      final validationMessage = _validateBankOfferField(null);
-      if (validationMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(validationMessage)),
-        );
-        _tabController.animateTo(0);
-        return;
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Bank card offers are now managed separately from merchant promotions.',
+          ),
+        ),
+      );
+      _tabController.animateTo(0);
+      return;
     }
 
     if (_token == null) {
@@ -978,8 +972,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.category),
             ),
-            items: predefinedCategories
-                .where((category) => category.id != 'other')
+            items: _merchantPromotionCategories
                 .map((category) {
               return DropdownMenuItem(
                 value: category.id,

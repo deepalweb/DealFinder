@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { PromotionAPI, UserAPI } from '@/lib/api';
+import { BankOfferAPI, PromotionAPI, UserAPI } from '@/lib/api';
 import { getCurrencySymbol } from '@/lib/currency';
 import { useAuth } from '@/contexts/AuthContext';
 import PromotionCard from '@/components/ui/PromotionCard';
@@ -36,15 +36,33 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [distance, setDistance] = useState<number | null>(null);
   const [renderedAt] = useState(() => Date.now());
+  const [isBankOfferRecord, setIsBankOfferRecord] = useState(false);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([
-      PromotionAPI.getById(dealId),
-      PromotionAPI.getComments(dealId),
-      PromotionAPI.getRatings(dealId),
-      PromotionAPI.getAnalyticsByPromotion(dealId).catch(() => null),
-    ]).then(([d, c, r, a]) => {
+    const loadDeal = async () => {
+      let d: any;
+      let c: any[] = [];
+      let r: any[] = [];
+      let a: any = null;
+      let bankOffer = false;
+
+      try {
+        d = await PromotionAPI.getById(dealId);
+      } catch {
+        d = await BankOfferAPI.getById(dealId);
+        bankOffer = true;
+      }
+
+      if (!bankOffer) {
+        [c, r, a] = await Promise.all([
+          PromotionAPI.getComments(dealId),
+          PromotionAPI.getRatings(dealId),
+          PromotionAPI.getAnalyticsByPromotion(dealId).catch(() => null),
+        ]);
+      }
+
+      setIsBankOfferRecord(bankOffer);
       setDeal(d);
       setComments(c);
       setRatings(r);
@@ -62,7 +80,11 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
           setMerchantDeals(deals.filter((p: any) => (p._id || p.id) !== dealId).slice(0, 4));
         }).catch(() => {});
       }
-      PromotionAPI.getAll().then((all: any[]) => {
+      Promise.all([
+        PromotionAPI.getAll().catch(() => []),
+        BankOfferAPI.getAll().catch(() => []),
+      ]).then(([promotions, bankOffers]) => {
+        const all = [...promotions, ...bankOffers];
         setRelatedDeals(all.filter((p: any) => p.category === d.category && (p._id || p.id) !== dealId).slice(0, 4));
       }).catch(() => {});
       
@@ -83,7 +105,8 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
           () => {}
         );
       }
-    }).catch(() => toast.error('Deal not found.')).finally(() => setLoading(false));
+    };
+    loadDeal().catch(() => toast.error('Deal not found.')).finally(() => setLoading(false));
   }, [dealId, user]);
 
   // Countdown timer effect
@@ -122,6 +145,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   };
 
   const handleFavorite = async () => {
+    if (isBankOfferRecord) return;
     if (!user) { router.push('/login'); return; }
     const next = !isFavorite;
     setIsFavorite(next);
@@ -134,6 +158,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBankOfferRecord) return;
     if (!user) { router.push('/login'); return; }
     if (!commentText.trim()) return;
     try {
@@ -145,6 +170,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   };
 
   const handleRate = async (value: number) => {
+    if (isBankOfferRecord) return;
     if (!user) { router.push('/login'); return; }
     try {
       const updated = await PromotionAPI.addRating(dealId, { userId: user._id, value });
@@ -155,7 +181,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
   };
 
   const avgRating = ratings.length > 0 ? ratings.reduce((s: number, r: any) => s + r.value, 0) / ratings.length : null;
-  const merchantName = deal ? (typeof deal.merchant === 'object' ? deal.merchant?.name : deal.merchant) : '';
+  const merchantName = deal ? ((typeof deal.merchant === 'object' ? deal.merchant?.name : deal.merchant) || deal.bankName || (isBankOfferRecord ? 'Bank Offer' : '')) : '';
   const merchantId = deal ? (typeof deal.merchant === 'object' ? deal.merchant?._id : deal.merchant) : null;
   const currencySymbol = deal ? getCurrencySymbol(deal.merchant?.currency) : '$';
   const daysLeft = deal ? Math.ceil((new Date(deal.endDate).getTime() - renderedAt) / 86400000) : 0;
@@ -240,11 +266,11 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   {merchantId ? (
                     <Link href={`/merchants/${merchantId}`} style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <i className="fas fa-store-alt"></i>{merchantName}
+                      <i className={`fas ${isBankOfferRecord ? 'fa-credit-card' : 'fa-store-alt'}`}></i>{merchantName}
                     </Link>
                   ) : (
                     <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      <i className="fas fa-store-alt mr-1"></i>{merchantName}
+                      <i className={`fas ${isBankOfferRecord ? 'fa-credit-card' : 'fa-store-alt'} mr-1`}></i>{merchantName}
                     </span>
                   )}
                   {deal.category && (
@@ -313,8 +339,9 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
               )}
 
               {/* Trust Signals */}
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem', padding: '1rem', borderRadius: '0.875rem', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)' }}>
-                {analytics?.clicks > 0 && (
+              {!isBankOfferRecord && (
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.25rem', padding: '1rem', borderRadius: '0.875rem', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                  {analytics?.clicks > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <i className="fas fa-fire" style={{ color: '#f59e0b', fontSize: '0.9rem' }}></i>
                     <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -330,19 +357,20 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
                     </span>
                   </div>
                 )}
-                {!isExpired && daysLeft <= 3 && (
+                  {!isExpired && daysLeft <= 3 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <i className="fas fa-bolt" style={{ color: '#ef4444', fontSize: '0.9rem' }}></i>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444' }}>
+                        Ending soon!
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <i className="fas fa-bolt" style={{ color: '#ef4444', fontSize: '0.9rem' }}></i>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ef4444' }}>
-                      Ending soon!
-                    </span>
+                    <i className="fas fa-shield-check" style={{ color: '#059669', fontSize: '0.9rem' }}></i>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669' }}>Verified Deal</span>
                   </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <i className="fas fa-shield-check" style={{ color: '#059669', fontSize: '0.9rem' }}></i>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669' }}>Verified Deal</span>
                 </div>
-              </div>
+              )}
 
               {/* Live Countdown Timer */}
               {!isExpired && daysLeft <= 7 && (
@@ -410,71 +438,77 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
               <div className="flex gap-3 flex-wrap mb-6">
                 {deal.url && (
                   <a href={deal.url} target="_blank" rel="noopener noreferrer"
-                    onClick={() => PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {})}
+                    onClick={() => { if (!isBankOfferRecord) PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {}); }}
                     className="btn btn-primary" style={{ flex: 1, justifyContent: 'center', minWidth: '160px', padding: '0.875rem', fontSize: '1rem', fontWeight: 700 }}>
                     <i className="fas fa-bolt"></i> Claim Deal Now
                   </a>
                 )}
-                <button onClick={handleFavorite} className="btn" style={{ border: `1.5px solid ${isFavorite ? 'rgba(239,68,68,0.3)' : 'var(--border-color)'}`, background: isFavorite ? 'rgba(239,68,68,0.06)' : 'var(--card-bg)', color: isFavorite ? '#ef4444' : 'var(--text-secondary)', padding: '0.75rem 1.25rem' }}>
-                  <i className={`${isFavorite ? 'fas' : 'far'} fa-heart`}></i> {isFavorite ? 'Saved' : 'Save'}
-                </button>
+                {!isBankOfferRecord && (
+                  <button onClick={handleFavorite} className="btn" style={{ border: `1.5px solid ${isFavorite ? 'rgba(239,68,68,0.3)' : 'var(--border-color)'}`, background: isFavorite ? 'rgba(239,68,68,0.06)' : 'var(--card-bg)', color: isFavorite ? '#ef4444' : 'var(--text-secondary)', padding: '0.75rem 1.25rem' }}>
+                    <i className={`${isFavorite ? 'fas' : 'far'} fa-heart`}></i> {isFavorite ? 'Saved' : 'Save'}
+                  </button>
+                )}
                 <button onClick={handleShare} className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)', padding: '0.75rem 1.25rem' }}>
                   <i className="fas fa-share-alt"></i> Share
                 </button>
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
-                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-                  <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontSize: '1rem' }}>
-                    <i className="fas fa-star mr-2" style={{ color: '#fbbf24' }}></i>Rate this deal
-                  </h3>
-                  {avgRating && (
-                    <div className="flex items-center gap-1">
-                      {[1,2,3,4,5].map(s => <i key={s} className={`fa-star ${avgRating >= s ? 'fas' : 'far'}`} style={{ fontSize: '0.875rem', color: '#fbbf24' }}></i>)}
-                      <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>{avgRating.toFixed(1)} ({ratings.length} ratings)</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  {[1,2,3,4,5].map(s => (
-                    <button key={s} type="button" onClick={() => handleRate(s)} onMouseEnter={() => setHoverRating(s)} onMouseLeave={() => setHoverRating(0)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.75rem', color: (hoverRating || userRating) >= s ? '#fbbf24' : '#d1d5db', transition: 'all 0.15s', transform: hoverRating === s ? 'scale(1.2)' : 'scale(1)' }}>
-                      <i className="fas fa-star"></i>
-                    </button>
-                  ))}
-                  {userRating > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Your rating: {userRating}/5</span>}
-                </div>
-                {!user && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}><Link href="/login" style={{ color: 'var(--primary-color)', fontWeight: 600 }}>Login</Link> to rate this deal</p>}
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-                <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1rem' }}>
-                  <i className="fas fa-comments mr-2" style={{ color: 'var(--primary-color)' }}></i>Comments ({comments.length})
-                </h3>
-                <div style={{ maxHeight: '280px', overflowY: 'auto', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                  {comments.length === 0 ? (
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'center', padding: '1.5rem 0' }}>No comments yet. Be the first to comment!</p>
-                  ) : comments.map((c, i) => (
-                    <div key={i} style={{ padding: '0.875rem', borderRadius: '0.75rem', background: 'var(--light-gray)', border: '1px solid var(--border-color)' }}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#f43f5e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
-                          {(c.user?.name || 'U').charAt(0).toUpperCase()}
+              {!isBankOfferRecord && (
+                <>
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginBottom: '1.5rem' }}>
+                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                      <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontSize: '1rem' }}>
+                        <i className="fas fa-star mr-2" style={{ color: '#fbbf24' }}></i>Rate this deal
+                      </h3>
+                      {avgRating && (
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(s => <i key={s} className={`fa-star ${avgRating >= s ? 'fas' : 'far'}`} style={{ fontSize: '0.875rem', color: '#fbbf24' }}></i>)}
+                          <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginLeft: '0.25rem' }}>{avgRating.toFixed(1)} ({ratings.length} ratings)</span>
                         </div>
-                        <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary-color)' }}>{c.user?.name || 'User'}</span>
-                        {c.createdAt && <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>{new Date(c.createdAt).toLocaleDateString()}</span>}
-                      </div>
-                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{c.text}</p>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <form onSubmit={handleComment} className="flex gap-2">
-                  <input type="text" value={commentText} onChange={e => setCommentText(e.target.value)}
-                    placeholder={user ? 'Write a comment...' : 'Login to comment'}
-                    disabled={!user}
-                    style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.75rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', fontSize: '0.875rem', outline: 'none' }} />
-                  <button type="submit" className="btn btn-primary" disabled={!user} style={{ padding: '0.75rem 1.25rem' }}>Post</button>
-                </form>
-              </div>
+                    <div className="flex items-center gap-1">
+                      {[1,2,3,4,5].map(s => (
+                        <button key={s} type="button" onClick={() => handleRate(s)} onMouseEnter={() => setHoverRating(s)} onMouseLeave={() => setHoverRating(0)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.75rem', color: (hoverRating || userRating) >= s ? '#fbbf24' : '#d1d5db', transition: 'all 0.15s', transform: hoverRating === s ? 'scale(1.2)' : 'scale(1)' }}>
+                          <i className="fas fa-star"></i>
+                        </button>
+                      ))}
+                      {userRating > 0 && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>Your rating: {userRating}/5</span>}
+                    </div>
+                    {!user && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}><Link href="/login" style={{ color: 'var(--primary-color)', fontWeight: 600 }}>Login</Link> to rate this deal</p>}
+                  </div>
+
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                    <h3 style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1rem' }}>
+                      <i className="fas fa-comments mr-2" style={{ color: 'var(--primary-color)' }}></i>Comments ({comments.length})
+                    </h3>
+                    <div style={{ maxHeight: '280px', overflowY: 'auto', marginBottom: '1rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                      {comments.length === 0 ? (
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'center', padding: '1.5rem 0' }}>No comments yet. Be the first to comment!</p>
+                      ) : comments.map((c, i) => (
+                        <div key={i} style={{ padding: '0.875rem', borderRadius: '0.75rem', background: 'var(--light-gray)', border: '1px solid var(--border-color)' }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#f43f5e)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem', fontWeight: 700, flexShrink: 0 }}>
+                              {(c.user?.name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary-color)' }}>{c.user?.name || 'User'}</span>
+                            {c.createdAt && <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>{new Date(c.createdAt).toLocaleDateString()}</span>}
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{c.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <form onSubmit={handleComment} className="flex gap-2">
+                      <input type="text" value={commentText} onChange={e => setCommentText(e.target.value)}
+                        placeholder={user ? 'Write a comment...' : 'Login to comment'}
+                        disabled={!user}
+                        style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '0.75rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', fontSize: '0.875rem', outline: 'none' }} />
+                      <button type="submit" className="btn btn-primary" disabled={!user} style={{ padding: '0.75rem 1.25rem' }}>Post</button>
+                    </form>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -499,7 +533,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
             </div>
             {deal.url && (
               <a href={deal.url} target="_blank" rel="noopener noreferrer"
-                onClick={() => PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {})}
+                onClick={() => { if (!isBankOfferRecord) PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {}); }}
                 className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '1rem', padding: '0.875rem', fontWeight: 700 }}>
                 <i className="fas fa-bolt"></i> Claim Deal Now
               </a>
@@ -568,7 +602,7 @@ export default function DealPageClient({ dealId }: { dealId: string }) {
       {deal.url && (
         <div className="md:hidden" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '0.875rem', background: 'var(--card-bg)', borderTop: '1.5px solid var(--border-color)', boxShadow: '0 -4px 12px rgba(0,0,0,0.08)', zIndex: 50 }}>
           <a href={deal.url} target="_blank" rel="noopener noreferrer"
-            onClick={() => PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {})}
+            onClick={() => { if (!isBankOfferRecord) PromotionAPI.recordClick(dealId, { type: 'click' }).catch(() => {}); }}
             className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '0.875rem', fontSize: '1rem', fontWeight: 700 }}>
             <i className="fas fa-bolt"></i> Claim Deal Now
           </a>

@@ -7,7 +7,7 @@ import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
-import { AiAPI, PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
+import { AiAPI, BankOfferAPI, PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 
 type Promotion = {
   _id?: string;
@@ -208,7 +208,11 @@ export default function HomePage() {
     const fetchData = async () => {
       try {
         invalidateCache('promotions');
-        const promotionsPromise = PromotionAPI.getAll({ limit: 48 });
+        invalidateCache('bank-offers');
+        const promotionsPromise = Promise.all([
+          PromotionAPI.getAll({ limit: 48 }),
+          BankOfferAPI.getAll({ limit: 24 }).catch(() => []),
+        ]).then(([promotions, bankOffers]) => [...promotions, ...bankOffers]);
         const favoritesPromise = user ? UserAPI.getFavorites(user._id).catch(() => []) : Promise.resolve([]);
 
         const [promotionsData, favoritesData] = await Promise.all([promotionsPromise, favoritesPromise]);

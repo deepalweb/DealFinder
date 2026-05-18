@@ -21,6 +21,8 @@ const BANK_OFFER_TYPES = [
   { value: 'other', label: 'Other' },
 ] as const;
 
+const STORE_PROMOTION_CATEGORIES = PROMOTION_CATEGORIES.filter((category) => category.id !== 'bank_cards');
+
 function NewPromotionContent() {
   const { user, updateUser } = useAuth();
   const router = useRouter();
@@ -90,6 +92,11 @@ function NewPromotionContent() {
 
       if (editId) {
         PromotionAPI.getById(editId).then(p => {
+          if (normalizeCategoryId(p.category) === 'bank_cards') {
+            toast.error('Bank card offers are now managed separately from merchant promotions.');
+            router.push('/merchant/dashboard');
+            return;
+          }
           const fmt = (d: string) => new Date(d).toISOString().split('T')[0];
           const data = { title: p.title||'', description: p.description||'', discount: p.discount||'', code: p.code||'', category: p.category||'electronics', startDate: fmt(p.startDate), endDate: fmt(p.endDate), image: p.image||'', images: p.images||[], url: p.url||'', featured: !!p.featured, originalPrice: p.originalPrice?.toString()||'', discountedPrice: p.discountedPrice?.toString()||'', dealType:'percentage', percentageOff:'', bankName: p.bankName || '', cardTypes: Array.isArray(p.cardTypes) ? p.cardTypes : [], offerType: p.offerType || '', minimumSpend: p.minimumSpend?.toString() || '', maximumBenefit: p.maximumBenefit?.toString() || '' };
           setForm(data); setOriginal(data); setImagePreviews(p.images?.length ? p.images : (p.image ? [p.image] : []));
@@ -311,9 +318,9 @@ function NewPromotionContent() {
                     <div>
                       <label style={labelStyle}>Category <span style={{ color:'#ef4444' }}>*</span></label>
                       <select style={inputStyle} value={form.category} onChange={e => update('category', e.target.value)} onFocus={focus} onBlur={blur}>
-                        {PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
+                        {STORE_PROMOTION_CATEGORIES.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
-                      <p style={hintStyle}>Choose Bank Cards to switch to the dedicated card-offer flow.</p>
+                      <p style={hintStyle}>Select the store category that best matches this promotion.</p>
                     </div>
 
                     {!isBankCardCategory && (

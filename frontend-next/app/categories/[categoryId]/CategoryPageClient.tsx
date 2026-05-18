@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { AiAPI, PromotionAPI } from '@/lib/api';
+import { AiAPI, BankOfferAPI, PromotionAPI } from '@/lib/api';
 import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
@@ -128,8 +128,11 @@ export default function CategoryPageClient() {
           };
         } else {
           // Fallback to regular API when no search term
-          const allPromotions = await PromotionAPI.getAll({ limit: 200 });
-          results = allPromotions || [];
+          const [allPromotions, bankOffers] = await Promise.all([
+            PromotionAPI.getAll({ limit: 200 }),
+            BankOfferAPI.getAll({ limit: 100 }).catch(() => []),
+          ]);
+          results = [...(allPromotions || []), ...(bankOffers || [])];
           meta = {
             aiUsed: false,
             source: 'database',

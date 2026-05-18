@@ -19,7 +19,10 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
   const [renderedAt] = useState(() => Date.now());
 
   const id = promotion._id || promotion.id;
-  const merchantName = typeof promotion.merchant === 'object' ? promotion.merchant?.name : promotion.merchant || '';
+  const isBankCardOffer = promotion.category === 'bank_cards' || promotion.bankName || (Array.isArray(promotion.cardTypes) && promotion.cardTypes.length > 0) || promotion.offerType;
+  const merchantName = typeof promotion.merchant === 'object'
+    ? promotion.merchant?.name
+    : promotion.merchant || promotion.bankName || (isBankCardOffer ? 'Bank Offer' : '');
   const daysLeft = Math.ceil((new Date(promotion.endDate).getTime() - renderedAt) / 86400000);
   const expiryText = daysLeft < 0 ? 'Expired' : daysLeft === 0 ? 'Ends today' : `${daysLeft}d left`;
   const coords = promotion.merchant?.location?.coordinates;
@@ -72,7 +75,6 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
     lineHeight: 1,
     boxShadow: daysLeft <= 1 ? '0 8px 20px rgba(249,115,22,0.12)' : 'none'
   } as const;
-  const isBankCardOffer = promotion.category === 'bank_cards' || promotion.bankName || (Array.isArray(promotion.cardTypes) && promotion.cardTypes.length > 0) || promotion.offerType;
   const bankMetaChips = [
     promotion.bankName,
     ...(Array.isArray(promotion.cardTypes)
@@ -88,6 +90,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isBankCardOffer && !promotion.merchant) return;
     if (!user) { router.push('/login'); return; }
     const next = !isFavorite;
     setIsFavorite(next);
@@ -124,7 +127,8 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
           justifyContent: 'center', 
           fontSize: '1rem', 
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          transform: isFavorite ? 'scale(1.1)' : 'scale(1)'
+          transform: isFavorite ? 'scale(1.1)' : 'scale(1)',
+          opacity: isBankCardOffer && !promotion.merchant ? 0.55 : 1,
         }}
         onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
         onMouseLeave={e => e.currentTarget.style.transform = isFavorite ? 'scale(1.1)' : 'scale(1)'}
@@ -175,7 +179,7 @@ export default function PromotionCard({ promotion, isFavorite: initialFav = fals
       <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary-color)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            <i className="fas fa-store-alt" style={{ marginRight: '0.3rem' }}></i>{merchantName}
+            <i className={`fas ${isBankCardOffer ? 'fa-credit-card' : 'fa-store-alt'}`} style={{ marginRight: '0.3rem' }}></i>{merchantName}
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             {distanceText && (

@@ -623,10 +623,10 @@ router.post('/', authenticateJWT, [
       maximumBenefit,
     });
     if (category === 'bank_cards') {
-      const { errors: bankErrors } = validateBankCardOffer(req.body);
-      if (bankErrors.length) {
-        return res.status(400).json({ message: 'Validation failed', errors: bankErrors });
-      }
+      return res.status(400).json({
+        message: 'Bank card offers are now managed separately from merchant promotions.',
+        errors: [{ msg: 'Use the bank offers flow instead of creating bank_cards promotions.', path: 'category' }],
+      });
     }
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
@@ -815,24 +815,10 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       minimumSpend !== undefined ||
       maximumBenefit !== undefined;
     if (nextCategory === 'bank_cards' || hasBankOfferFields) {
-      const { errors: bankErrors, normalized } = validateBankCardOffer(
-        {
-          bankName,
-          cardTypes,
-          offerType,
-          minimumSpend,
-          maximumBenefit,
-        },
-        { partial: nextCategory !== 'bank_cards' },
-      );
-      if (bankErrors.length && nextCategory === 'bank_cards') {
-        return res.status(400).json({ errors: bankErrors });
-      }
-      if (bankName !== undefined) updateData.bankName = normalized.bankName || undefined;
-      if (cardTypes !== undefined) updateData.cardTypes = normalized.cardTypes;
-      if (offerType !== undefined) updateData.offerType = normalized.offerType || undefined;
-      if (minimumSpend !== undefined) updateData.minimumSpend = normalized.minimumSpend;
-      if (maximumBenefit !== undefined) updateData.maximumBenefit = normalized.maximumBenefit;
+      return res.status(400).json({
+        message: 'Bank card offers are now managed separately from merchant promotions.',
+        errors: [{ msg: 'Move this offer into the bank offers module instead of updating it as a promotion.', path: 'category' }],
+      });
     }
     if (fulfillmentType !== undefined) updateData.fulfillmentType = fulfillmentType;
     if (orderLink !== undefined) updateData.orderLink = orderLink;
@@ -883,19 +869,11 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
         }
     }
 
-    if (updateData.category === 'bank_cards' && !hasBankOfferFields) {
-      const existingPromo = await Promotion.findById(req.params.id)
-        .select('bankName cardTypes offerType minimumSpend maximumBenefit');
-      const { errors: bankErrors } = validateBankCardOffer({
-        bankName: existingPromo?.bankName,
-        cardTypes: existingPromo?.cardTypes,
-        offerType: existingPromo?.offerType,
-        minimumSpend: existingPromo?.minimumSpend,
-        maximumBenefit: existingPromo?.maximumBenefit,
+    if (updateData.category === 'bank_cards') {
+      return res.status(400).json({
+        message: 'Bank card offers are now managed separately from merchant promotions.',
+        errors: [{ msg: 'Move this offer into the bank offers module instead of updating it as a promotion.', path: 'category' }],
       });
-      if (bankErrors.length) {
-        return res.status(400).json({ errors: bankErrors });
-      }
     }
 
     // Handle status update by admin

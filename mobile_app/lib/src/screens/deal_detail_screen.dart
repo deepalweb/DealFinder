@@ -8,8 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as latlng;
 import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
@@ -55,16 +53,22 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   int _commentCount = 0;
   int _clickCount = 0;
   int _directionCount = 0;
-  bool _loadingStats = true;
   Timer? _countdownTimer;
 
   late Future<List<Promotion>> _recommendedDealsFuture;
+  bool get _isPlatformBankOffer =>
+      BankCardPromotionSupport.isBankCardPromotion(widget.promotion) &&
+      widget.promotion.merchantId == null;
 
   @override
   void initState() {
     super.initState();
     _loadFavoriteStatus();
-    _loadReviewsAndStats();
+    if (!_isPlatformBankOffer) {
+      _loadReviewsAndStats();
+    } else {
+      _loadingComments = false;
+    }
     _loadUserAuth();
     _fetchMerchantData();
     _refreshDistanceFromCurrentLocation();
@@ -133,6 +137,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     await DealHistoryService.addToHistory(widget.promotion.id);
     await RecommendationService.trackView(
         widget.promotion.id, widget.promotion.category);
+    if (_isPlatformBankOffer) return;
     try {
       await _apiService.recordPromotionClick(widget.promotion.id, type: 'view');
       await _fetchPromotionStats();
@@ -507,7 +512,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _fetchPromotionStats() async {
-    setState(() => _loadingStats = true);
     try {
       final stats = await _apiService.fetchPromotionStats(widget.promotion.id);
       setState(() {
@@ -526,9 +530,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         _commentCount = _comments.length;
         _reviewCount = _ratings.length;
       });
-    } finally {
-      setState(() => _loadingStats = false);
-    }
+    } finally {}
   }
 
   String _normalizeId(dynamic value) {
@@ -569,6 +571,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _submitRating(double rating) async {
+    if (_isPlatformBankOffer) return;
     if (_userToken == null) {
       _showAuthRequiredMessage('rate this deal');
       return;
@@ -615,6 +618,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _submitComment() async {
+    if (_isPlatformBankOffer) return;
     if (_userToken == null) {
       _showAuthRequiredMessage('comment on this deal');
       return;
@@ -1145,451 +1149,419 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             const SizedBox(height: 20.0),
             const Divider(height: 32, thickness: 1.2),
 
-            // Recommendations/Similar Deals
-            Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              color: theme.colorScheme.surfaceContainerLowest,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'You might also like',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12.0),
-                    FutureBuilder<List<Promotion>>(
-                      future: _recommendedDealsFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const SizedBox(
-                            height: 180,
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        } else if (snapshot.hasError) {
-                          return const SizedBox(
-                            height: 180,
-                            child: Center(
-                                child: Text('Error loading recommendations')),
-                          );
-                        } else if (!snapshot.hasData ||
-                            snapshot.data!.isEmpty) {
-                          return const SizedBox(
-                            height: 180,
-                            child: Center(
-                                child: Text('No recommendations available')),
-                          );
-                        } else {
-                          final recommendedDeals = snapshot.data!;
-                          return SizedBox(
-                            height: 180,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: recommendedDeals.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(width: 12),
-                              itemBuilder: (context, index) {
-                                final deal = recommendedDeals[index];
-                                return Container(
-                                  width: 140,
-                                  decoration: BoxDecoration(
-                                    color: theme
-                                        .colorScheme.surfaceContainerHighest,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                          color: Colors.black12,
-                                          blurRadius: 4,
-                                          offset: Offset(0, 2))
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  DealDetailScreen(
-                                                      promotion: deal),
-                                            ),
-                                          );
-                                        },
-                                        child: Container(
-                                          height: 70,
-                                          width: double.infinity,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[300],
-                                            borderRadius:
-                                                BorderRadius.circular(8),
-                                          ),
-                                          clipBehavior: Clip.antiAlias,
-                                          child: _buildRecommendationImage(
-                                              deal.imageDataString),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        deal.title,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                                fontWeight: FontWeight.bold),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        deal.description,
-                                        style: theme.textTheme.bodySmall,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildRecommendationsSection(theme),
+            _buildRatingsReviewsSection(theme),
             const SizedBox(height: 20.0),
             const Divider(height: 32, thickness: 1.2),
 
-            // Ratings & Reviews Section
-            Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-              color: theme.colorScheme.surfaceContainerLowest,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Ratings & Reviews',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12.0),
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        RatingWidget(
-                          rating: _averageRating,
-                          size: 24,
-                          allowHalfRating: true,
-                        ),
-                        Text(
-                          _averageRating.toStringAsFixed(1),
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '($_reviewCount ${_reviewCount == 1 ? 'rating' : 'ratings'})',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16.0),
-                    Text(
-                      'Rate this deal',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8.0),
-                    InteractiveRatingWidget(
-                      initialRating: _userRating,
-                      onRatingChanged: _submitRating,
-                      size: 32,
-                      enabled: _userToken != null && !_submittingRating,
-                    ),
-                    const SizedBox(height: 8.0),
-                    if (_userRating > 0)
-                      Text(
-                        'Your rating: ${_userRating.toStringAsFixed(0)}/5',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    if (_submittingRating) ...[
-                      const SizedBox(height: 8.0),
-                      const LinearProgressIndicator(minHeight: 2),
-                    ],
-                    if (_userToken == null) ...[
-                      const SizedBox(height: 8.0),
-                      Text(
-                        'Log in to rate this deal.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16.0),
-                    Text(
-                      'Comments ($_commentCount)',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8.0),
-                    if (_loadingComments)
-                      const Center(child: CircularProgressIndicator()),
-                    if (!_loadingComments && _comments.isEmpty)
-                      Text(
-                        'No comments yet. Be the first to comment!',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    if (!_loadingComments && _comments.isNotEmpty)
-                      Column(
-                        children: _comments
-                            .map((c) => Card(
-                                  elevation: 0.5,
-                                  margin:
-                                      const EdgeInsets.symmetric(vertical: 4),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8)),
-                                  child: ListTile(
-                                    leading: c['user']?['profilePicture'] !=
-                                                null &&
-                                            c['user']!['profilePicture']
-                                                .toString()
-                                                .isNotEmpty
-                                        ? CircleAvatar(
-                                            backgroundImage: NetworkImage(
-                                                c['user']!['profilePicture']),
-                                            backgroundColor: Colors.grey[200],
-                                          )
-                                        : CircleAvatar(
-                                            backgroundColor: theme
-                                                .colorScheme.primaryContainer,
-                                            child: Text(
-                                              ((c['user']?['name'] ?? 'U')
-                                                          .toString()
-                                                          .trim()
-                                                          .isNotEmpty
-                                                      ? (c['user']?['name'] ??
-                                                              'U')
-                                                          .toString()
-                                                          .trim()[0]
-                                                      : 'U')
-                                                  .toUpperCase(),
-                                              style: TextStyle(
-                                                color: theme.colorScheme
-                                                    .onPrimaryContainer,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                    title: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            c['user']?['name'] ?? 'User',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: theme.colorScheme.primary,
-                                            ),
-                                          ),
-                                        ),
-                                        if (_formatReviewDate(c['createdAt'])
-                                            .isNotEmpty)
-                                          Text(
-                                            _formatReviewDate(c['createdAt']),
-                                            style: theme.textTheme.bodySmall,
-                                          ),
-                                      ],
-                                    ),
-                                    subtitle: Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        c['text'] ?? '',
-                                        style: theme.textTheme.bodyMedium,
-                                      ),
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
-                      ),
-                    const SizedBox(height: 12.0),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final stackActions = constraints.maxWidth < 420;
-                        final composer = TextField(
-                          controller: _commentController,
-                          enabled: _userToken != null && !_submittingComment,
-                          minLines: 1,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            hintText: _userToken == null
-                                ? 'Log in to write a comment'
-                                : 'Write a comment...',
-                            border: const OutlineInputBorder(),
-                          ),
-                        );
-                        final button = FilledButton(
-                          onPressed: _submittingComment ? null : _submitComment,
-                          child: _submittingComment
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Text('Post'),
-                        );
-
-                        if (stackActions) {
-                          return Column(
-                            children: [
-                              composer,
-                              const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: button,
-                              ),
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          children: [
-                            Expanded(child: composer),
-                            const SizedBox(width: 12),
-                            button,
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20.0),
-            const Divider(height: 32, thickness: 1.2),
-
-            // Map/Location Section
-            if (promotion.location != null && promotion.location!.isNotEmpty)
-              Card(
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                color: theme.colorScheme.surfaceContainerLowest,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Location',
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8.0),
-                      Row(
-                        children: [
-                          Icon(Icons.location_on,
-                              color: theme.colorScheme.primary),
-                          const SizedBox(width: 8.0),
-                          Expanded(child: Text(promotion.location!)),
-                        ],
-                      ),
-                      if (distanceLabel.isNotEmpty) ...[
-                        const SizedBox(height: 8.0),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.near_me_outlined,
-                              size: 18,
-                              color: theme.colorScheme.primary,
-                            ),
-                            const SizedBox(width: 8.0),
-                            Expanded(
-                              child: Text(
-                                '$distanceLabel from here',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 8.0),
-                      if (_merchantData != null &&
-                          _merchantData!['latitude'] != null &&
-                          _merchantData!['longitude'] != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12.0),
-                          child: SizedBox(
-                            height: 140,
-                            child: FlutterMap(
-                              options: MapOptions(
-                                initialCenter: latlng.LatLng(
-                                  (_merchantData!['latitude'] as num)
-                                      .toDouble(),
-                                  (_merchantData!['longitude'] as num)
-                                      .toDouble(),
-                                ),
-                                initialZoom: 15,
-                                interactionOptions: const InteractionOptions(
-                                  flags: InteractiveFlag.none,
-                                ),
-                              ),
-                              children: [
-                                TileLayer(
-                                  urlTemplate:
-                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                  userAgentPackageName: 'com.dealfinder.mobile',
-                                ),
-                                MarkerLayer(
-                                  markers: [
-                                    Marker(
-                                      point: latlng.LatLng(
-                                        (_merchantData!['latitude'] as num)
-                                            .toDouble(),
-                                        (_merchantData!['longitude'] as num)
-                                            .toDouble(),
-                                      ),
-                                      width: 44,
-                                      height: 44,
-                                      child: Icon(
-                                        Icons.location_on,
-                                        color: theme.colorScheme.primary,
-                                        size: 36,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.directions),
-                        label: const Text('Get Directions'),
-                        onPressed: _openDirections,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            _buildLocationSection(theme, distanceLabel),
             const SizedBox(height: 20.0),
 
             const SizedBox(height: 10.0),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecommendationsSection(ThemeData theme) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.colorScheme.surfaceContainerLowest,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You might also like',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12.0),
+            FutureBuilder<List<Promotion>>(
+              future: _recommendedDealsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 180,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return const SizedBox(
+                    height: 180,
+                    child: Center(
+                      child: Text('Error loading recommendations'),
+                    ),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const SizedBox(
+                    height: 180,
+                    child: Center(
+                      child: Text('No recommendations available'),
+                    ),
+                  );
+                }
+
+                final recommendedDeals = snapshot.data!;
+                return SizedBox(
+                  height: 180,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: recommendedDeals.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final deal = recommendedDeals[index];
+                      return Container(
+                        width: 140,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        DealDetailScreen(promotion: deal),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                height: 70,
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: _buildRecommendationImage(
+                                  deal.imageDataString,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              deal.title,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              deal.description,
+                              style: theme.textTheme.bodySmall,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRatingsReviewsSection(ThemeData theme) {
+    if (_isPlatformBankOffer) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: [
+        const SizedBox(height: 20.0),
+        const Divider(height: 32, thickness: 1.2),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: theme.colorScheme.surfaceContainerLowest,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ratings & Reviews',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12.0),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    RatingWidget(
+                      rating: _averageRating,
+                      size: 24,
+                      allowHalfRating: true,
+                    ),
+                    Text(
+                      _averageRating.toStringAsFixed(1),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '($_reviewCount ${_reviewCount == 1 ? 'rating' : 'ratings'})',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
+                Text(
+                  'Rate this deal',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8.0),
+                InteractiveRatingWidget(
+                  initialRating: _userRating,
+                  onRatingChanged: _submitRating,
+                  size: 32,
+                  enabled: _userToken != null && !_submittingRating,
+                ),
+                const SizedBox(height: 8.0),
+                if (_userRating > 0)
+                  Text(
+                    'Your rating: ${_userRating.toStringAsFixed(0)}/5',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                if (_submittingRating) ...[
+                  const SizedBox(height: 8.0),
+                  const LinearProgressIndicator(minHeight: 2),
+                ],
+                if (_userToken == null) ...[
+                  const SizedBox(height: 8.0),
+                  Text(
+                    'Log in to rate this deal.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 16.0),
+                Text(
+                  'Comments ($_commentCount)',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8.0),
+                if (_loadingComments)
+                  const Center(child: CircularProgressIndicator()),
+                if (!_loadingComments && _comments.isEmpty)
+                  Text(
+                    'No comments yet. Be the first to comment!',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                if (!_loadingComments && _comments.isNotEmpty)
+                  Column(
+                    children: _comments
+                        .map(
+                          (c) => Card(
+                            elevation: 0.5,
+                            margin: const EdgeInsets.symmetric(vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListTile(
+                              leading: c['user']?['profilePicture'] != null &&
+                                      c['user']!['profilePicture']
+                                          .toString()
+                                          .isNotEmpty
+                                  ? CircleAvatar(
+                                      backgroundImage: NetworkImage(
+                                        c['user']!['profilePicture'],
+                                      ),
+                                      backgroundColor: Colors.grey[200],
+                                    )
+                                  : CircleAvatar(
+                                      backgroundColor: theme
+                                          .colorScheme.primaryContainer,
+                                      child: Text(
+                                        ((c['user']?['name'] ?? 'U')
+                                                    .toString()
+                                                    .trim()
+                                                    .isNotEmpty
+                                                ? (c['user']?['name'] ?? 'U')
+                                                    .toString()
+                                                    .trim()[0]
+                                                : 'U')
+                                            .toUpperCase(),
+                                        style: TextStyle(
+                                          color: theme.colorScheme
+                                              .onPrimaryContainer,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      c['user']?['name'] ?? 'User',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  if (_formatReviewDate(c['createdAt'])
+                                      .isNotEmpty)
+                                    Text(
+                                      _formatReviewDate(c['createdAt']),
+                                      style: theme.textTheme.bodySmall,
+                                    ),
+                                ],
+                              ),
+                              subtitle: Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Text(
+                                  c['text'] ?? '',
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                const SizedBox(height: 12.0),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stackActions = constraints.maxWidth < 420;
+                    final composer = TextField(
+                      controller: _commentController,
+                      enabled: _userToken != null && !_submittingComment,
+                      minLines: 1,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: _userToken == null
+                            ? 'Log in to write a comment'
+                            : 'Write a comment...',
+                        border: const OutlineInputBorder(),
+                      ),
+                    );
+                    final button = FilledButton(
+                      onPressed: _submittingComment ? null : _submitComment,
+                      child: _submittingComment
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Post'),
+                    );
+
+                    if (stackActions) {
+                      return Column(
+                        children: [
+                          composer,
+                          const SizedBox(height: 12),
+                          SizedBox(width: double.infinity, child: button),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: composer),
+                        const SizedBox(width: 12),
+                        button,
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationSection(ThemeData theme, String distanceLabel) {
+    if (widget.promotion.location == null ||
+        widget.promotion.location!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.colorScheme.surfaceContainerLowest,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Location',
+              style: theme.textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8.0),
+            Row(
+              children: [
+                Icon(Icons.location_on, color: theme.colorScheme.primary),
+                const SizedBox(width: 8.0),
+                Expanded(child: Text(widget.promotion.location!)),
+              ],
+            ),
+            if (distanceLabel.isNotEmpty) ...[
+              const SizedBox(height: 8.0),
+              Row(
+                children: [
+                  Icon(
+                    Icons.near_me_outlined,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      '$distanceLabel from here',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 12.0),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.directions),
+              label: const Text('Get Directions'),
+              onPressed: _openDirections,
+            ),
           ],
         ),
       ),
@@ -1983,9 +1955,9 @@ class _DealSummarySection extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
             title,
             style: theme.textTheme.headlineSmall?.copyWith(
@@ -2439,15 +2411,12 @@ class _InlineMetaItem extends StatelessWidget {
   final Color color;
   final Color? backgroundColor;
   final Color? borderColor;
-  final String labelSuffix;
-
   const _InlineMetaItem({
     required this.icon,
     required this.label,
     required this.color,
     this.backgroundColor,
     this.borderColor,
-    this.labelSuffix = '',
   });
 
   @override
@@ -2470,7 +2439,7 @@ class _InlineMetaItem extends StatelessWidget {
           if (hasLabel) ...[
             const SizedBox(width: 6),
             Text(
-              '$label$labelSuffix',
+              label,
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w800,

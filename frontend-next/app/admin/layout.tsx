@@ -10,6 +10,7 @@ const NAV = [
   { href: '/admin/users', icon: 'fa-users', label: 'Users' },
   { href: '/admin/merchants', icon: 'fa-store', label: 'Merchants' },
   { href: '/admin/promotions', icon: 'fa-tags', label: 'Promotions' },
+  { href: '/admin/bank-offers', icon: 'fa-credit-card', label: 'Bank Offers' },
   { href: '/admin/sections', icon: 'fa-layer-group', label: 'Sections' },
 ];
 
@@ -54,6 +55,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/promotions/new" style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.85rem 1rem', borderRadius:'0.95rem', textDecoration:'none', fontSize:'0.875rem', fontWeight:700, marginTop:'0.5rem', background:'var(--primary-gradient)', color:'#fff', boxShadow:'0 16px 30px rgba(37,99,235,0.25)' }}>
             <i className="fas fa-bolt" style={{ width:'16px', textAlign:'center' }}></i>
             Quick Add Deal
+          </Link>
+          <Link href="/admin/bank-offers/new" style={{ display:'flex', alignItems:'center', gap:'0.75rem', padding:'0.8rem 1rem', borderRadius:'0.95rem', textDecoration:'none', fontSize:'0.84rem', fontWeight:700, marginTop:'0.5rem', background:'rgba(15,76,129,0.14)', color:'#dbeafe', border:'1px solid rgba(125,211,252,0.18)' }}>
+            <i className="fas fa-credit-card" style={{ width:'16px', textAlign:'center' }}></i>
+            Add Bank Offer
           </Link>
         </nav>
 

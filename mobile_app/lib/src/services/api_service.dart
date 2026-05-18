@@ -242,13 +242,22 @@ class ApiService {
     // Fetch from network
     try {
       if (kDebugMode) debugPrint('Fetching promotions from network...');
-      final response = await http
+      final promotionResponse = await http
           .get(Uri.parse('${_baseUrl}promotions?limit=50'))
           .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) {
-        final List<dynamic> body = jsonDecode(response.body);
-        final promotions =
-            _visibleConsumerPromotions(body.map((e) => Promotion.fromJson(e)));
+      final bankOfferResponse = await http
+          .get(Uri.parse('${_baseUrl}bank-offers?limit=50'))
+          .timeout(const Duration(seconds: 15))
+          .catchError((_) => http.Response('[]', 200));
+      if (promotionResponse.statusCode == 200) {
+        final List<dynamic> promotionBody = jsonDecode(promotionResponse.body);
+        final List<dynamic> bankOfferBody = bankOfferResponse.statusCode == 200
+            ? jsonDecode(bankOfferResponse.body)
+            : const [];
+        final promotions = _visibleConsumerPromotions([
+          ...promotionBody.map((e) => Promotion.fromJson(e)),
+          ...bankOfferBody.map((e) => Promotion.fromJson(e)),
+        ]);
         try {
           await CacheService.savePromotions(promotions);
           if (kDebugMode) {
@@ -258,7 +267,7 @@ class ApiService {
         return promotions;
       }
       throw Exception(
-          'Failed to load promotions. Status code: ${response.statusCode}');
+          'Failed to load deals. Status code: ${promotionResponse.statusCode}');
     } catch (e) {
       if (kDebugMode) debugPrint('Network error: $e');
       final cached = await CacheService.loadPromotions(forceStale: true);
