@@ -29,7 +29,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   bool _isLoading = false;
   String? _error;
   Position? _currentPosition;
-  double _selectedRadius = 10.0;
+  double _selectedRadius = 5.0;
   String _locationName = 'Detecting location';
   String _sortBy = 'distance';
   String _viewMode = 'list';
@@ -222,9 +222,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   String? _nearbyCacheNotice() {
     if (!_showingCachedResults) return null;
 
-    final updatedText = _cachedAt == null
-        ? null
-        : 'Updated ${_formatAge(_cachedAt!)}';
+    final updatedText =
+        _cachedAt == null ? null : 'Updated ${_formatAge(_cachedAt!)}';
 
     if (_cachedLocationChanged) {
       final area = _cachedLocationName?.trim().isNotEmpty == true
@@ -235,7 +234,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
           : '${_cachedDistanceKm!.toStringAsFixed(_cachedDistanceKm! >= 10 ? 0 : 1)} km away';
       return [
         'Offline - showing cached deals from $area.',
-        if (distance != null) 'Current location is about $distance from that area.',
+        if (distance != null)
+          'Current location is about $distance from that area.',
         if (updatedText != null) updatedText,
       ].join(' ');
     }

@@ -165,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen>
       final nearbyResult = await _api.fetchNearbyPromotionsWithCache(
         lat,
         lng,
-        radiusKm: 10,
+        radiusKm: 5,
         locationName: _locationName,
       );
       if (mounted) {
@@ -754,98 +754,152 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildQuickActionsCard() {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD7E5FA)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8EA6C9).withValues(alpha: 0.12),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _buildQuickBrowseCard(
-                  emoji: '🔥',
-                  title: 'Ending Soon',
-                  accent: const Color(0xFFEF4444),
-                  onTap: () => _openAllDeals(
-                    sectionPreset: 'ending_soon',
-                    sortBy: 'ending_soon',
-                    primaryFilter: 'ending_soon',
-                    contextTitle: 'Ending Soon',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildQuickBrowseCard(
-                  emoji: '📍',
-                  title: 'Under 1km',
-                  accent: const Color(0xFF0EA5E9),
-                  onTap: () => _openAllDeals(
-                    sortBy: 'distance',
-                    primaryFilter: 'under_1km',
-                    contextTitle: 'Under 1km',
-                  ),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 8.0;
+        final compactBottomRow = constraints.maxWidth < 340;
+
+        return Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7FAFF),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFD7E5FA)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF8EA6C9).withValues(alpha: 0.12),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
+          child: Column(
             children: [
-              Expanded(
-                child: _buildQuickBrowseCard(
-                  emoji: '💳',
-                  title: 'Bank Cards',
-                  accent: const Color(0xFF0F4C81),
-                  onTap: () => _openAllDeals(
-                    categoryId: BankCardPromotionSupport.categoryId,
-                    contextTitle: 'Bank Card Offers',
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQuickBrowseCard(
+                      emoji: '🔥',
+                      title: 'Ending Soon',
+                      accent: const Color(0xFFEF4444),
+                      onTap: () => _openAllDeals(
+                        sectionPreset: 'ending_soon',
+                        sortBy: 'ending_soon',
+                        primaryFilter: 'ending_soon',
+                        contextTitle: 'Ending Soon',
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildQuickBrowseCard(
-                  emoji: '💸',
-                  title: '50%+ OFF',
-                  accent: const Color(0xFF10B981),
-                  onTap: () => _openAllDeals(
-                    sortBy: 'discount',
-                    primaryFilter: 'half_off',
-                    minDiscount: 50,
-                    contextTitle: '50%+ OFF',
+                  const SizedBox(width: gap),
+                  Expanded(
+                    child: _buildQuickBrowseCard(
+                      emoji: '📍',
+                      title: 'Under 1km',
+                      accent: const Color(0xFF0EA5E9),
+                      onTap: () => _openAllDeals(
+                        sortBy: 'distance',
+                        primaryFilter: 'under_1km',
+                        contextTitle: 'Under 1km',
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildQuickBrowseCard(
-                  emoji: '🆕',
-                  title: 'New Deals',
-                  accent: const Color(0xFF6366F1),
-                  onTap: () => _openAllDeals(
-                    sectionPreset: 'new_this_week',
-                    sortBy: 'recent',
-                    primaryFilter: 'new_deals',
-                    contextTitle: 'New Deals',
-                  ),
+              const SizedBox(height: gap),
+              if (!compactBottomRow)
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildQuickBrowseCard(
+                        emoji: '💳',
+                        title: 'Bank Cards',
+                        accent: const Color(0xFF0F4C81),
+                        onTap: () => _openAllDeals(
+                          categoryId: BankCardPromotionSupport.categoryId,
+                          contextTitle: 'Bank Card Offers',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: gap),
+                    Expanded(
+                      child: _buildQuickBrowseCard(
+                        emoji: '💸',
+                        title: '50%+ OFF',
+                        accent: const Color(0xFF10B981),
+                        onTap: () => _openAllDeals(
+                          sortBy: 'discount',
+                          primaryFilter: 'half_off',
+                          minDiscount: 50,
+                          contextTitle: '50%+ OFF',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: gap),
+                    Expanded(
+                      child: _buildQuickBrowseCard(
+                        emoji: '🆕',
+                        title: 'New Deals',
+                        accent: const Color(0xFF6366F1),
+                        onTap: () => _openAllDeals(
+                          sectionPreset: 'new_this_week',
+                          sortBy: 'recent',
+                          primaryFilter: 'new_deals',
+                          contextTitle: 'New Deals',
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickBrowseCard(
+                            emoji: '💳',
+                            title: 'Bank Cards',
+                            accent: const Color(0xFF0F4C81),
+                            onTap: () => _openAllDeals(
+                              categoryId: BankCardPromotionSupport.categoryId,
+                              contextTitle: 'Bank Card Offers',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: gap),
+                        Expanded(
+                          child: _buildQuickBrowseCard(
+                            emoji: '💸',
+                            title: '50%+ OFF',
+                            accent: const Color(0xFF10B981),
+                            onTap: () => _openAllDeals(
+                              sortBy: 'discount',
+                              primaryFilter: 'half_off',
+                              minDiscount: 50,
+                              contextTitle: '50%+ OFF',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: gap),
+                    _buildQuickBrowseCard(
+                      emoji: '🆕',
+                      title: 'New Deals',
+                      accent: const Color(0xFF6366F1),
+                      onTap: () => _openAllDeals(
+                        sectionPreset: 'new_this_week',
+                        sortBy: 'recent',
+                        primaryFilter: 'new_deals',
+                        contextTitle: 'New Deals',
+                      ),
+                    ),
+                  ],
                 ),
-              ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -857,42 +911,79 @@ class _HomeScreenState extends State<HomeScreen>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        decoration: BoxDecoration(
-          color: accent.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: accent.withValues(alpha: 0.22)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(9),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 13),
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 112;
+
+          return Container(
+            constraints: const BoxConstraints(minHeight: 52),
+            padding: EdgeInsets.symmetric(
+              horizontal: narrow ? 8 : 10,
+              vertical: narrow ? 8 : 10,
             ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
-              ),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withValues(alpha: 0.22)),
             ),
-          ],
-        ),
+            child: narrow
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildQuickBrowseIcon(accent, emoji),
+                      const SizedBox(height: 6),
+                      Text(
+                        title,
+                        maxLines: 2,
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          height: 1.1,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _buildQuickBrowseIcon(accent, emoji),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildQuickBrowseIcon(Color accent, String emoji) {
+    return Container(
+      width: 28,
+      height: 28,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        emoji,
+        style: const TextStyle(fontSize: 13),
       ),
     );
   }

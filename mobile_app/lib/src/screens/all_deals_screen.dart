@@ -39,6 +39,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   static const String primaryEndingSoon = 'ending_soon';
   static const String primaryNewDeals = 'new_deals';
   static const String primaryBankCards = 'bank_cards';
+  static const double _defaultMaxPrice = double.infinity;
 
   late Future<List<Promotion>> _promotionsFuture;
   final ApiService _apiService = ApiService();
@@ -47,7 +48,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   String _sortBy =
       'recent'; // recent, discount, price_low, price_high, ending_soon, distance
   double _minPrice = 0;
-  double _maxPrice = 10000;
+  double _maxPrice = _defaultMaxPrice;
   double _minDiscount = 0;
   String? _selectedCategory;
   String? _selectedCapabilityPresetId;
@@ -120,6 +121,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   String _effectiveCategory(Promotion promotion) {
     return BankCardPromotionSupport.effectiveCategoryId(promotion);
   }
+
+  bool get _hasMaxPriceFilter => _maxPrice.isFinite;
 
   Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
     final Map<String, List<Promotion>> grouped = {};
@@ -401,7 +404,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       _selectedCapabilityPresetId = null;
       _activePrimaryFilter = null;
       _minPrice = 0;
-      _maxPrice = 10000;
+      _maxPrice = _defaultMaxPrice;
       _minDiscount = 0;
       _activeSectionPreset =
           clearEntryContext ? null : widget.initialSectionPreset;
@@ -414,7 +417,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       text: _minPrice > 0 ? _minPrice.toInt().toString() : '',
     );
     final maxController = TextEditingController(
-      text: _maxPrice < 10000 ? _maxPrice.toInt().toString() : '',
+      text: _hasMaxPriceFilter ? _maxPrice.toInt().toString() : '',
     );
 
     await showModalBottomSheet<void>(
@@ -566,7 +569,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                               keyboardType: TextInputType.number,
                               onChanged: (value) {
                                 setState(() {
-                                  _maxPrice = double.tryParse(value) ?? 10000;
+                                  _maxPrice =
+                                      double.tryParse(value) ?? _defaultMaxPrice;
                                 });
                                 setSheetState(() {});
                               },
@@ -633,7 +637,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         _selectedCapabilityPresetId != null ||
         _activePrimaryFilter != null ||
         _minPrice > 0 ||
-        _maxPrice < 10000 ||
+        _hasMaxPriceFilter ||
         _minDiscount > 0 ||
         _sortBy != (widget.initialSortBy ?? 'recent');
   }
@@ -673,17 +677,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       );
     }
 
-    if (_minPrice > 0 || _maxPrice < 10000) {
+    if (_minPrice > 0 || _hasMaxPriceFilter) {
       chips.add(
         InputChip(
           avatar: const Icon(Icons.payments_outlined, size: 16),
-          label: Text(
-            'Rs. ${_minPrice.toInt()} - Rs. ${_maxPrice.toInt()}',
-          ),
+          label: Text(_hasMaxPriceFilter
+              ? 'Rs. ${_minPrice.toInt()} - Rs. ${_maxPrice.toInt()}'
+              : 'Rs. ${_minPrice.toInt()}+'),
           onDeleted: () {
             setState(() {
               _minPrice = 0;
-              _maxPrice = 10000;
+              _maxPrice = _defaultMaxPrice;
             });
           },
         ),

@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'home_screen.dart';
@@ -20,6 +21,37 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
   final List<int> _screenVersions = List<int>.filled(5, 0);
+  static const _navItems = <({
+    IconData activeIcon,
+    IconData icon,
+    String Function(AppLocalizations) label,
+  })>[
+    (
+      activeIcon: CupertinoIcons.house_fill,
+      icon: CupertinoIcons.house,
+      label: _homeLabel,
+    ),
+    (
+      activeIcon: CupertinoIcons.compass_fill,
+      icon: CupertinoIcons.compass,
+      label: _exploreLabel,
+    ),
+    (
+      activeIcon: Icons.storefront_rounded,
+      icon: Icons.storefront_outlined,
+      label: _storesLabel,
+    ),
+    (
+      activeIcon: CupertinoIcons.heart_fill,
+      icon: CupertinoIcons.heart,
+      label: _favoritesLabel,
+    ),
+    (
+      activeIcon: CupertinoIcons.person_fill,
+      icon: CupertinoIcons.person,
+      label: _profileLabel,
+    ),
+  ];
 
   @override
   void initState() {
@@ -64,38 +96,158 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+
     return Scaffold(
+      extendBody: true,
       body: _buildScreen(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
-            label: AppLocalizations.of(context)!.home,
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          margin: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFFFDFEFE),
+                Color(0xFFF6FAFF),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE2EBF5)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x140F172A),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Color(0x0D0F4C81),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(
-                _selectedIndex == 1 ? Icons.explore : Icons.explore_outlined),
-            label: 'Explore',
+          child: Row(
+            children: List.generate(_navItems.length, (index) {
+              final item = _navItems[index];
+              final selected = index == _selectedIndex;
+              final label = item.label(localizations);
+
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: _NavigationBarItem(
+                    selected: selected,
+                    icon: item.icon,
+                    activeIcon: item.activeIcon,
+                    label: label,
+                    onTap: () => _onItemTapped(index),
+                  ),
+                ),
+              );
+            }),
           ),
-          BottomNavigationBarItem(
-            icon:
-                Icon(_selectedIndex == 2 ? Icons.store : Icons.store_outlined),
-            label: 'Stores',
+        ),
+      ),
+    );
+  }
+
+  static String _homeLabel(AppLocalizations l10n) => l10n.home;
+  static String _exploreLabel(AppLocalizations _) => 'Explore';
+  static String _storesLabel(AppLocalizations _) => 'Stores';
+  static String _favoritesLabel(AppLocalizations l10n) => l10n.favorites;
+  static String _profileLabel(AppLocalizations l10n) => l10n.profile;
+}
+
+class _NavigationBarItem extends StatelessWidget {
+  const _NavigationBarItem({
+    required this.selected,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: EdgeInsets.symmetric(
+            horizontal: selected ? 10 : 8,
+            vertical: 8,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(
-                _selectedIndex == 3 ? Icons.favorite : Icons.favorite_border),
-            label: AppLocalizations.of(context)!.favorites,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            gradient: selected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      colorScheme.primary,
+                      const Color(0xFF1976D2),
+                    ],
+                  )
+                : null,
+            color: selected ? null : Colors.transparent,
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x261E88E5),
+                      blurRadius: 12,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
-          BottomNavigationBarItem(
-            icon:
-                Icon(_selectedIndex == 4 ? Icons.person : Icons.person_outline),
-            label: AppLocalizations.of(context)!.profile,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedScale(
+                scale: selected ? 1.04 : 1,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: Icon(
+                  selected ? activeIcon : icon,
+                  size: 21,
+                  color: selected ? Colors.white : const Color(0xFF708198),
+                ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  color: selected ? Colors.white : const Color(0xFF708198),
+                  letterSpacing: 0,
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

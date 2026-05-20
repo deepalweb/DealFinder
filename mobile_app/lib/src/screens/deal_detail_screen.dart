@@ -352,6 +352,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   bool get _supportsVisit => widget.promotion.supportsVisit;
 
+  bool get _showsVisitNow => _supportsVisit && !_isPlatformBankOffer;
+
   bool get _supportsDelivery => widget.promotion.supportsDelivery;
 
   bool get _supportsPickup => widget.promotion.supportsPickup;
@@ -734,7 +736,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         ),
     ];
     final primaryActionButtons = <Widget>[
-      if (_supportsVisit)
+      if (_showsVisitNow)
         Semantics(
           button: true,
           label: 'Get directions to merchant',
@@ -876,7 +878,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 backgroundColor: const Color(0xFF2E7D32),
                 foregroundColor: Colors.white,
               )
-            : _supportsVisit
+            : _showsVisitNow
                 ? _StickyActionConfig(
                     label: 'Visit now',
                     icon: Icons.storefront_outlined,
@@ -902,7 +904,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                           )
                         : null;
     final _StickyActionConfig? stickySecondaryAction =
-        (!_supportsVisit || stickyPrimaryAction?.label != 'Visit now')
+        (!_showsVisitNow || stickyPrimaryAction?.label != 'Visit now')
             ? _StickyActionConfig(
                 label: 'Directions',
                 icon: Icons.directions,
@@ -1098,7 +1100,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     );
                   }
 
-                  if (!_supportsVisit) {
+                  if (!_showsVisitNow) {
                     rows.add(
                       _buildActionButtonShell(
                         width: fullWidth,

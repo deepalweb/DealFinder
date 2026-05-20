@@ -8,6 +8,21 @@ class SearchService {
   static const String _searchHistoryKey = 'searchHistory';
   static const String _savedSearchesKey = 'savedSearches';
 
+  static double _effectivePrice(Promotion deal) {
+    return deal.discountedPrice ?? deal.price ?? deal.originalPrice ?? 0;
+  }
+
+  static double _discountSignal(Promotion deal) {
+    final percentage = deal.discountPercentage;
+    if (percentage != null) return percentage.toDouble();
+
+    final rawDiscount = deal.discount;
+    if (rawDiscount == null || rawDiscount.isEmpty) return 0;
+
+    final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(rawDiscount);
+    return match != null ? double.tryParse(match.group(1)!) ?? 0 : 0;
+  }
+
   static Future<List<String>> getSearchHistory() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList(_searchHistoryKey) ?? [];
@@ -100,7 +115,7 @@ class SearchService {
       // Price range filter
       if (minPrice != null || maxPrice != null) {
         results = results.where((deal) {
-          final price = deal.discountedPrice ?? deal.price ?? 0;
+          final price = _effectivePrice(deal);
           return (minPrice == null || price >= minPrice) &&
                  (maxPrice == null || price <= maxPrice);
         }).toList();
@@ -140,18 +155,14 @@ class SearchService {
       switch (sortBy) {
         case 'price_low':
           results.sort((a, b) => 
-            (a.discountedPrice ?? a.price ?? 0).compareTo(b.discountedPrice ?? b.price ?? 0));
+            _effectivePrice(a).compareTo(_effectivePrice(b)));
           break;
         case 'price_high':
           results.sort((a, b) => 
-            (b.discountedPrice ?? b.price ?? 0).compareTo(a.discountedPrice ?? a.price ?? 0));
+            _effectivePrice(b).compareTo(_effectivePrice(a)));
           break;
         case 'discount':
-          results.sort((a, b) {
-            final aDiscount = double.tryParse(a.discount?.replaceAll('%', '') ?? '0') ?? 0;
-            final bDiscount = double.tryParse(b.discount?.replaceAll('%', '') ?? '0') ?? 0;
-            return bDiscount.compareTo(aDiscount);
-          });
+          results.sort((a, b) => _discountSignal(b).compareTo(_discountSignal(a)));
           break;
         case 'newest':
           results.sort((a, b) => 

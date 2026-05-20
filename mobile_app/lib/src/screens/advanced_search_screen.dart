@@ -13,6 +13,8 @@ class AdvancedSearchScreen extends StatefulWidget {
 }
 
 class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
+  static const RangeValues _defaultPriceRange = RangeValues(0, 100000);
+
   final _searchController = TextEditingController();
   List<Promotion> _searchResults = [];
   List<String> _searchSuggestions = [];
@@ -21,7 +23,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   bool _showSuggestions = false;
   
   // Filter options
-  RangeValues _priceRange = const RangeValues(0, 1000);
+  RangeValues _priceRange = _defaultPriceRange;
   String? _selectedCategory;
   String? _selectedMerchant;
   String _sortBy = 'relevance';
@@ -73,7 +75,17 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
 
   Future<void> _performSearch() async {
     final query = _searchController.text.trim();
-    if (query.isEmpty) return;
+    final hasCustomPriceRange =
+        _priceRange.start > _defaultPriceRange.start ||
+        _priceRange.end < _defaultPriceRange.end;
+    final hasFilterOnlySearch =
+        (_selectedCategory?.isNotEmpty ?? false) ||
+        (_selectedMerchant?.isNotEmpty ?? false) ||
+        _hasDiscountOnly ||
+        _expiresAfter != null ||
+        _sortBy != 'relevance' ||
+        hasCustomPriceRange;
+    if (query.isEmpty && !hasFilterOnlySearch) return;
     
     setState(() {
       _isLoading = true;
@@ -86,8 +98,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
       final results = await SearchService.performAdvancedSearch(
         query: query,
         category: _selectedCategory,
-        minPrice: _priceRange.start,
-        maxPrice: _priceRange.end,
+        minPrice: hasCustomPriceRange ? _priceRange.start : null,
+        maxPrice: hasCustomPriceRange ? _priceRange.end : null,
         merchant: _selectedMerchant,
         hasDiscount: _hasDiscountOnly,
         expiresAfter: _expiresAfter,
@@ -232,12 +244,16 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Price Range: Rs.${_priceRange.start.round()} - Rs.${_priceRange.end.round()}'),
+                    Text(
+                      _priceRange == _defaultPriceRange
+                          ? 'Price Range: Any'
+                          : 'Price Range: Rs.${_priceRange.start.round()} - Rs.${_priceRange.end.round()}',
+                    ),
                     RangeSlider(
                       values: _priceRange,
-                      min: 0,
-                      max: 1000,
-                      divisions: 20,
+                      min: _defaultPriceRange.start,
+                      max: _defaultPriceRange.end,
+                      divisions: 100,
                       onChanged: (values) => setState(() => _priceRange = values),
                     ),
                   ],

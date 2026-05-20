@@ -343,6 +343,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return data;
   }
 
+  double _effectivePrice(Promotion promotion) {
+    return promotion.discountedPrice ??
+        promotion.price ??
+        promotion.originalPrice ??
+        0;
+  }
+
   List<Promotion> get _sortedResults {
     final sorted = List<Promotion>.from(_results);
     switch (_selectedSort) {
@@ -353,10 +360,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         );
         break;
       case 'price_low':
-        sorted.sort((a, b) => (a.price ?? 0).compareTo(b.price ?? 0));
+        sorted.sort((a, b) => _effectivePrice(a).compareTo(_effectivePrice(b)));
         break;
       case 'price_high':
-        sorted.sort((a, b) => (b.price ?? 0).compareTo(a.price ?? 0));
+        sorted.sort((a, b) => _effectivePrice(b).compareTo(_effectivePrice(a)));
         break;
     }
     return sorted;

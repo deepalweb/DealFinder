@@ -171,51 +171,92 @@ class LocationService {
     try {
       // Check cache first (24 hour TTL)
       final prefs = await SharedPreferences.getInstance();
-      final cacheKey = 'location_name_${lat.toStringAsFixed(2)}_${lng.toStringAsFixed(2)}';
+      final cacheKey =
+          'location_name_${lat.toStringAsFixed(4)}_${lng.toStringAsFixed(4)}';
       final cachedName = prefs.getString(cacheKey);
       final cacheTime = prefs.getInt('${cacheKey}_time');
-      
+
       if (cachedName != null && cacheTime != null) {
         final age = DateTime.now().millisecondsSinceEpoch - cacheTime;
-        if (age < 24 * 60 * 60 * 1000) { // 24 hours
+        if (age < 24 * 60 * 60 * 1000) {
+          // 24 hours
           return cachedName;
         }
       }
-      
+
       // Using OpenStreetMap Nominatim (free, no API key required)
       final url = Uri.parse(
-        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=10&addressdetails=1'
-      );
-      
+          'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1');
+
       final response = await http.get(
         url,
         headers: {'User-Agent': 'DealFinder-Mobile-App'},
       ).timeout(const Duration(seconds: 5));
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final address = data['address'];
-        
-        // Try to get city, town, or village name
-        String? locationName = address['city'] ?? 
-                               address['town'] ?? 
-                               address['village'] ?? 
-                               address['suburb'] ?? 
-                               address['county'];
-        
+        final address = data['address'] as Map<String, dynamic>?;
+        final locationName = _buildLocationLabel(address);
+
         // Cache the result
         if (locationName != null) {
           await prefs.setString(cacheKey, locationName);
-          await prefs.setInt('${cacheKey}_time', DateTime.now().millisecondsSinceEpoch);
+          await prefs.setInt(
+              '${cacheKey}_time', DateTime.now().millisecondsSinceEpoch);
         }
-        
+
         return locationName;
       }
     } catch (_) {}
     return null;
   }
 
-  static double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  static String? _buildLocationLabel(Map<String, dynamic>? address) {
+    if (address == null) return null;
+
+    String? pick(List<String> keys) {
+      for (final key in keys) {
+        final value = address[key]?.toString().trim();
+        if (value != null && value.isNotEmpty) {
+          return value;
+        }
+      }
+      return null;
+    }
+
+    final road = pick([
+      'road',
+      'pedestrian',
+      'footway',
+      'residential',
+    ]);
+    final localArea = pick([
+      'neighbourhood',
+      'suburb',
+      'quarter',
+      'city_district',
+      'hamlet',
+    ]);
+    final city = pick([
+      'city',
+      'town',
+      'village',
+      'municipality',
+      'county',
+      'state_district',
+    ]);
+
+    if (road != null && localArea != null) {
+      return '$road, $localArea';
+    }
+    if (localArea != null && city != null && localArea != city) {
+      return '$localArea, $city';
+    }
+    return localArea ?? city ?? road;
+  }
+
+  static double calculateDistance(
+      double lat1, double lon1, double lat2, double lon2) {
     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000; // km
   }
 
