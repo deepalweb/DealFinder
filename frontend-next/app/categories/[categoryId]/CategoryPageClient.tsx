@@ -7,6 +7,7 @@ import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const SORT_OPTIONS = [
   { id: 'newest', label: 'Newest' },
@@ -46,6 +47,7 @@ function getDateValue(value?: string) {
 export default function CategoryPageClient() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const router = useRouter();
+  const { language } = useLanguage();
   const searchParams = useSearchParams();
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,10 +62,38 @@ export default function CategoryPageClient() {
     resultCount?: number;
   } | null>(null);
   const [currentTimestamp] = useState(() => Date.now());
+  const copy = {
+    allDeals: language === 'en' ? 'All Deals' : language === 'si' ? 'සියලු Deals' : 'அனைத்து Deals',
+    loadingDeals: language === 'en' ? 'Loading deals...' : language === 'si' ? 'Deals load වෙමින්...' : 'Deals load ஆகிறது...',
+    heroAll:
+      language === 'en'
+        ? 'Browse the full marketplace with better sorting, quicker scanning, and fewer dead ends.'
+        : language === 'si'
+          ? 'වඩා හොඳ sorting සහ ඉක්මන් scanning සමඟ සියලු deals බලන්න.'
+          : 'சிறந்த sorting மற்றும் வேகமான scanning உடன் அனைத்து deals ஐ பாருங்கள்.',
+    heroCategory:
+      language === 'en'
+        ? 'Explore offers with local urgency, smarter filtering, and faster comparison.'
+        : language === 'si'
+          ? 'Local urgency, smart filtering, සහ ඉක්මන් comparison සමඟ offers බලන්න.'
+          : 'Local urgency, smart filtering, மற்றும் வேகமான comparison உடன் offers ஐ பாருங்கள்.',
+    searchPlaceholder:
+      language === 'en'
+        ? 'Search deals, descriptions, or merchants'
+        : language === 'si'
+          ? 'Deals, descriptions, හෝ merchants සොයන්න'
+          : 'Deals, descriptions, அல்லது merchants தேடுங்கள்',
+    liveOnly: language === 'en' ? 'Live Only' : language === 'si' ? 'Live පමණයි' : 'Live மட்டும்',
+    includeExpired: language === 'en' ? 'Include Expired' : language === 'si' ? 'Expired ඇතුළත්' : 'Expired சேர்க்கவும்',
+    reset: language === 'en' ? 'Reset' : language === 'si' ? 'Reset' : 'Reset',
+    noMatches: language === 'en' ? 'No deals match this view' : language === 'si' ? 'මෙම view එකට ගැළපෙන deals නොමැත' : 'இந்த view க்கு பொருந்தும் deals இல்லை',
+    resetFilters: language === 'en' ? 'Reset Filters' : language === 'si' ? 'Filters reset කරන්න' : 'Filters reset செய்யுங்கள்',
+    showExpired: language === 'en' ? 'Show Expired Deals' : language === 'si' ? 'Expired deals පෙන්වන්න' : 'Expired deals ஐ காண்பிக்கவும்',
+  };
 
   const rawCategoryId = typeof categoryId === 'string' ? categoryId : 'all';
   const currentCategoryId = normalizeCategoryId(rawCategoryId);
-  const currentCat = DEALFINDER_CATEGORIES.find((c) => c.id === currentCategoryId) || { id: currentCategoryId, name: 'All Deals', icon: 'fa-tag' };
+  const currentCat = DEALFINDER_CATEGORIES.find((c) => c.id === currentCategoryId) || { id: currentCategoryId, name: copy.allDeals, icon: 'fa-tag' };
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
 
@@ -184,17 +214,17 @@ export default function CategoryPageClient() {
   if (sortBy === 'merchant') filtered.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
 
   const showingLabel = loading
-    ? 'Loading deals...'
+    ? copy.loadingDeals
     : `${filtered.length} result${filtered.length === 1 ? '' : 's'}${searchTerm ? ` for "${searchTerm}"` : ''}`;
 
   return (
     <div>
       <HeroSection
         icon={currentCat.icon}
-        title={currentCat.name}
+        title={currentCategoryId === 'all' ? copy.allDeals : currentCat.name}
         subtitle={currentCategoryId === 'all'
-          ? 'Browse the full marketplace with better sorting, quicker scanning, and fewer dead ends.'
-          : `Explore ${currentCat.name.toLowerCase()} offers with local urgency, smarter filtering, and faster comparison.`}
+          ? copy.heroAll
+          : `${currentCat.name} ${copy.heroCategory}`}
         gradient="linear-gradient(135deg, rgba(36,20,95,0.96) 0%, rgba(79,42,232,0.92) 48%, rgba(59,130,246,0.82) 100%)"
         bgImage="https://images.unsplash.com/photo-1481437156560-3205f6a55735?auto=format&fit=crop&w=1600&q=80"
         minHeight="320px"
@@ -306,7 +336,7 @@ export default function CategoryPageClient() {
               <i className="fas fa-search"></i>
               <input
                 type="text"
-                placeholder="Search deals, descriptions, or merchants"
+                placeholder={copy.searchPlaceholder}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="modern-input"
@@ -353,7 +383,7 @@ export default function CategoryPageClient() {
               }}
             >
               <i className={`fas ${activeOnly ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
-              {activeOnly ? 'Live Only' : 'Include Expired'}
+              {activeOnly ? copy.liveOnly : copy.includeExpired}
             </button>
             <button
               onClick={() => {
@@ -370,7 +400,7 @@ export default function CategoryPageClient() {
               }}
             >
               <i className="fas fa-rotate-left"></i>
-              Reset
+              {copy.reset}
             </button>
           </div>
 
@@ -460,7 +490,7 @@ export default function CategoryPageClient() {
             <div className="empty-icon">
               <i className="fas fa-search"></i>
             </div>
-            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>No deals match this view</h2>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>{copy.noMatches}</h2>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', maxWidth: '34rem', marginInline: 'auto', lineHeight: 1.7 }}>
               {searchTerm
                 ? `Nothing matched "${searchTerm}" in ${currentCat.name}. Try a broader keyword or switch the sort and status filters.`
@@ -481,11 +511,11 @@ export default function CategoryPageClient() {
                   border: '1px solid var(--border-color)',
                 }}
               >
-                Reset Filters
+                {copy.resetFilters}
               </button>
               {activeOnly && (
                 <button className="btn btn-primary" onClick={() => setActiveOnly(false)}>
-                  Show Expired Deals
+                  {copy.showExpired}
                 </button>
               )}
             </div>

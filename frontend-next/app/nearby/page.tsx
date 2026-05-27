@@ -6,10 +6,12 @@ import { PromotionAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
+import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 
 export default function NearbyPage() {
   const router = useRouter();
+  const { language } = useLanguage();
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<any[]>([]);
@@ -20,6 +22,31 @@ export default function NearbyPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [radius, setRadius] = useState(10);
   const [view, setView] = useState<'list' | 'map'>('list');
+
+  const copy = {
+    title: language === 'en' ? 'Nearby Deals' : language === 'si' ? 'ඔබ අසල Deals' : 'அருகிலுள்ள Deals',
+    subtitle:
+      language === 'en'
+        ? 'Discover amazing promotions close to you'
+        : language === 'si'
+          ? 'ඔබ අසලම තිබෙන හොඳ promotions සොයාගන්න'
+          : 'உங்கள் அருகிலுள்ள சிறந்த promotions ஐ கண்டறியுங்கள்',
+    searching: language === 'en' ? 'Searching...' : language === 'si' ? 'සොයමින්...' : 'தேடுகிறது...',
+    findNearMe: language === 'en' ? 'Find Deals Near Me' : language === 'si' ? 'මට අසල deals සොයන්න' : 'என் அருகிலுள்ள deals ஐ காண்க',
+    list: language === 'en' ? 'List' : language === 'si' ? 'ලැයිස්තුව' : 'பட்டியல்',
+    map: language === 'en' ? 'Map' : language === 'si' ? 'සිතියම' : 'வரைபடம்',
+    foundWithin: language === 'en' ? 'deals within' : language === 'si' ? 'ක් ඇතුළත deals' : 'குள் deals',
+    locationActive: language === 'en' ? 'Location active' : language === 'si' ? 'Location සක්‍රීයයි' : 'Location செயல்பாட்டில் உள்ளது',
+    noNearbyTitle: language === 'en' ? 'No deals found nearby' : language === 'si' ? 'අසල deals හමු නොවුණි' : 'அருகில் deals எதுவும் இல்லை',
+    noNearbyBody: language === 'en' ? 'Try increasing the search radius' : language === 'si' ? 'Search radius එක වැඩි කර බලන්න' : 'Search radius ஐ அதிகரித்து முயற்சிக்கவும்',
+    shareLocationTitle: language === 'en' ? 'Share your location' : language === 'si' ? 'ඔබගේ location එක share කරන්න' : 'உங்கள் location ஐ பகிருங்கள்',
+    shareLocationBody:
+      language === 'en'
+        ? 'Click "Find Deals Near Me" to discover promotions in your area'
+        : language === 'si'
+          ? '"මට අසල deals සොයන්න" ක්ලික් කර ඔබගේ ප්‍රදේශයේ promotions බලන්න'
+          : '"என் அருகிலுள்ள deals ஐ காண்க" என்பதை அழுத்தி உங்கள் பகுதியின் promotions ஐ பாருங்கள்',
+  };
 
   const fetchDeals = async (lat: number, lon: number, r: number) => {
     setLoading(true);
@@ -161,8 +188,8 @@ export default function NearbyPage() {
       {/* Hero */}
       <HeroSection
         icon="fa-map-marker-alt"
-        title="Nearby Deals"
-        subtitle="Discover amazing promotions close to you"
+        title={copy.title}
+        subtitle={copy.subtitle}
         gradient="linear-gradient(135deg, rgba(16,185,129,0.92) 0%, rgba(5,150,105,0.9) 50%, rgba(13,148,136,0.88) 100%)"
         bgImage="https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1600&auto=format&fit=crop&q=60"
       >
@@ -177,14 +204,14 @@ export default function NearbyPage() {
         <div className="flex justify-center gap-3 flex-wrap">
           <button onClick={getLocation} disabled={loading} className="btn"
             style={{ background: '#fff', color: '#059669', fontWeight: 700, padding: '0.75rem 1.75rem', fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }}>
-            {loading ? <><i className="fas fa-spinner fa-spin"></i> Searching...</> : <><i className="fas fa-location-arrow"></i> Find Deals Near Me</>}
+            {loading ? <><i className="fas fa-spinner fa-spin"></i> {copy.searching}</> : <><i className="fas fa-location-arrow"></i> {copy.findNearMe}</>}
           </button>
           {promotions.length > 0 && (
             <div style={{ display: 'flex', background: 'rgba(255,255,255,0.15)', borderRadius: '9999px', padding: '4px', border: '2px solid rgba(255,255,255,0.3)' }}>
               {(['list', 'map'] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
                   style={{ padding: '0.4rem 1rem', borderRadius: '9999px', fontSize: '0.85rem', fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all 0.2s', background: view === v ? '#fff' : 'transparent', color: view === v ? '#059669' : '#fff' }}>
-                  <i className={`fas ${v === 'list' ? 'fa-list' : 'fa-map'} mr-1`}></i>{v === 'list' ? 'List' : 'Map'}
+                  <i className={`fas ${v === 'list' ? 'fa-list' : 'fa-map'} mr-1`}></i>{v === 'list' ? copy.list : copy.map}
                 </button>
               ))}
             </div>
@@ -209,9 +236,9 @@ export default function NearbyPage() {
             <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
               <h2 className="section-title" style={{ margin: 0 }}>
                 <i className="fas fa-map-marker-alt" style={{ color: 'var(--primary-color)' }}></i>
-                {promotions.length} deals within {radius}km
+                {promotions.length} {copy.foundWithin} {radius}km
               </h2>
-              {userLocation && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}><i className="fas fa-circle" style={{ color: '#10b981', fontSize: '0.5rem' }}></i> Location active</span>}
+              {userLocation && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}><i className="fas fa-circle" style={{ color: '#10b981', fontSize: '0.5rem' }}></i> {copy.locationActive}</span>}
             </div>
 
             {/* Map view */}
@@ -252,8 +279,8 @@ export default function NearbyPage() {
         ) : !loading && !error && userLocation ? (
           <div className="empty-state">
             <div className="empty-icon"><i className="fas fa-map-pin"></i></div>
-            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No deals found nearby</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Try increasing the search radius</p>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{copy.noNearbyTitle}</h2>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>{copy.noNearbyBody}</p>
             <div className="flex justify-center gap-2 flex-wrap">
               {[20, 50, 100].map(r => <button key={r} onClick={() => handleRadiusChange(r)} className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Try {r}km</button>)}
             </div>
@@ -261,8 +288,8 @@ export default function NearbyPage() {
         ) : !loading && !error && (
           <div className="empty-state">
             <div className="empty-icon"><i className="fas fa-map-location-dot"></i></div>
-            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Share your location</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>Click &quot;Find Deals Near Me&quot; to discover promotions in your area</p>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{copy.shareLocationTitle}</h2>
+            <p style={{ color: 'var(--text-secondary)' }}>{copy.shareLocationBody}</p>
           </div>
         )}
       </div>

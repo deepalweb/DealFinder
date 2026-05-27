@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { Toaster } from 'react-hot-toast';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -87,14 +88,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ) : null}
       </head>
       <body suppressHydrationWarning>
-        <AuthProvider>
-          <ConditionalLayout>{children}</ConditionalLayout>
-          <Toaster position="bottom-right" toastOptions={{
-            style: { borderRadius: '0.75rem', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem' },
-            success: { style: { background: '#dcfce7', color: '#166534' } },
-            error: { style: { background: '#fee2e2', color: '#991b1b' } },
-          }} />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <ConditionalLayout>{children}</ConditionalLayout>
+            <Toaster position="bottom-right" toastOptions={{
+              style: { borderRadius: '0.75rem', fontFamily: 'Inter, sans-serif', fontSize: '0.875rem' },
+              success: { style: { background: '#dcfce7', color: '#166534' } },
+              error: { style: { background: '#fee2e2', color: '#991b1b' } },
+            }} />
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

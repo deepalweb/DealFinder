@@ -7,6 +7,7 @@ import { DEALFINDER_CATEGORIES, getCategoryIcon, getCategoryLabel, normalizeCate
 import { MerchantAPI } from '@/lib/api';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Merchant = {
   _id?: string;
@@ -41,11 +42,46 @@ function getSafeLogo(logo?: string, name?: string) {
 }
 
 export default function MerchantsPageClient() {
+  const { language } = useLanguage();
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCat, setSelectedCat] = useState('all');
   const [sortBy, setSortBy] = useState('most-deals');
+
+  const copy = {
+    heroTitle: language === 'en' ? 'Stores Worth' : language === 'si' ? 'පළමුව බලන්න වටිනා' : 'முதலில் பார்க்க வேண்டிய',
+    heroAccent: language === 'en' ? 'Checking First' : language === 'si' ? 'Stores' : 'Stores',
+    heroSubtitle:
+      language === 'en'
+        ? 'Find the merchants with the strongest live offers, clearer category signals, and faster paths to the deals that matter.'
+        : language === 'si'
+          ? 'සජීවී offers, category clues, සහ හොඳම deals වෙත ඉක්මන් මාර්ග ඇති merchants සොයාගන්න.'
+          : 'சிறந்த live offers, தெளிவான category signals, மற்றும் சிறந்த deals க்கு வேகமான பாதைகள் கொண்ட merchants ஐ கண்டுபிடியுங்கள்.',
+    searchPlaceholder:
+      language === 'en'
+        ? 'Search stores, nearby brands, or category types...'
+        : language === 'si'
+          ? 'Stores, nearby brands, හෝ categories සොයන්න...'
+          : 'Stores, nearby brands, அல்லது categories தேடுங்கள்...',
+    storeDiscovery: language === 'en' ? 'Store discovery' : language === 'si' ? 'Store discovery' : 'Store discovery',
+    loadingStores: language === 'en' ? 'Loading stores...' : language === 'si' ? 'Stores load වෙමින්...' : 'Stores load ஆகிறது...',
+    storesInView: language === 'en' ? 'stores in view' : language === 'si' ? 'stores දැනට පෙන්වයි' : 'stores தற்போது காட்டப்படுகின்றன',
+    filterHelp:
+      language === 'en'
+        ? 'Filter by category, rank by deal density or audience, and jump into merchants that are active right now.'
+        : language === 'si'
+          ? 'Category අනුව filter කර active merchants ඉක්මනින් සොයාගන්න.'
+          : 'Category மூலம் filter செய்து active merchants ஐ விரைவாக கண்டுபிடிக்கவும்.',
+    activeFilters: language === 'en' ? 'Active filters' : language === 'si' ? 'සක්‍රීය filters' : 'Active filters',
+    noStores: language === 'en' ? 'No stores found' : language === 'si' ? 'Stores හමු නොවුණි' : 'Stores எதுவும் இல்லை',
+    resetFilters: language === 'en' ? 'Reset Store Filters' : language === 'si' ? 'Store filters reset කරන්න' : 'Store filters ஐ reset செய்யுங்கள்',
+    spotlight: language === 'en' ? 'Spotlight' : language === 'si' ? 'Spotlight' : 'Spotlight',
+    storesAttention: language === 'en' ? 'Stores Getting Attention' : language === 'si' ? 'අවධානයට ලක්වෙන stores' : 'கவனம் பெறும் stores',
+    directory: language === 'en' ? 'Store directory' : language === 'si' ? 'Store directory' : 'Store directory',
+    browseStores: language === 'en' ? 'Browse All Matching Stores' : language === 'si' ? 'ගැළපෙන සියලු stores බලන්න' : 'பொருந்தும் அனைத்து stores ஐ பாருங்கள்',
+    visitStore: language === 'en' ? 'Visit Store' : language === 'si' ? 'Store එක බලන්න' : 'Store ஐ பாருங்கள்',
+  };
 
   useEffect(() => {
     MerchantAPI.getAll()
@@ -111,9 +147,9 @@ export default function MerchantsPageClient() {
     <div>
       <HeroSection
         icon="fa-store"
-        title="Stores Worth"
-        titleAccent="Checking First"
-        subtitle="Find the merchants with the strongest live offers, clearer category signals, and faster paths to the deals that matter."
+        title={copy.heroTitle}
+        titleAccent={copy.heroAccent}
+        subtitle={copy.heroSubtitle}
         bgImage="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&auto=format&fit=crop&q=60"
         gradient="linear-gradient(135deg, rgba(36,20,95,0.96) 0%, rgba(79,42,232,0.9) 54%, rgba(59,130,246,0.8) 100%)"
         minHeight="320px"
@@ -158,7 +194,7 @@ export default function MerchantsPageClient() {
           ></i>
           <input
             type="text"
-            placeholder="Search stores, nearby brands, or category types..."
+            placeholder={copy.searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -206,13 +242,13 @@ export default function MerchantsPageClient() {
           <div>
             <div className="page-eyebrow">
               <i className="fas fa-store"></i>
-              Store discovery
+              {copy.storeDiscovery}
             </div>
             <div style={{ marginTop: '0.9rem', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {loading ? 'Loading stores...' : `${filtered.length} store${filtered.length === 1 ? '' : 's'} in view`}
+              {loading ? copy.loadingStores : `${filtered.length} ${copy.storesInView}`}
             </div>
             <p style={{ margin: '0.45rem 0 0', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Filter by category, rank by deal density or audience, and jump into merchants that are active right now.
+              {copy.filterHelp}
             </p>
           </div>
           <div className="stat-tile" style={{ padding: '1rem 1.1rem' }}>
@@ -291,7 +327,7 @@ export default function MerchantsPageClient() {
             }}
           >
             <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Active filters
+              {copy.activeFilters}
             </span>
             <span className="status-chip" style={{ background: 'rgba(37,99,235,0.08)', color: 'var(--primary-color)' }}>
               <i className="fas fa-layer-group"></i>
@@ -344,7 +380,7 @@ export default function MerchantsPageClient() {
         ) : filtered.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon"><i className="fas fa-store-slash"></i></div>
-            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No stores found</h2>
+            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{copy.noStores}</h2>
             <p style={{ color: 'var(--text-secondary)', maxWidth: '34rem', margin: '0 auto 1.2rem', lineHeight: 1.7 }}>
               Try a broader search or jump back to all categories. The goal here is to make good merchants easier to spot, not hide them.
             </p>
@@ -356,7 +392,7 @@ export default function MerchantsPageClient() {
               }}
               className="btn btn-primary"
             >
-              Reset Store Filters
+              {copy.resetFilters}
             </button>
           </div>
         ) : (
@@ -375,11 +411,11 @@ export default function MerchantsPageClient() {
                 >
                   <div>
                     <div style={{ color: 'var(--highlight-color)', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                      Spotlight
+                      {copy.spotlight}
                     </div>
                     <h2 className="section-title" style={{ marginBottom: 0 }}>
                       <i className="fas fa-star" style={{ color: 'var(--highlight-color)' }}></i>
-                      Stores Getting Attention
+                      {copy.storesAttention}
                     </h2>
                   </div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
@@ -451,11 +487,11 @@ export default function MerchantsPageClient() {
               >
                 <div>
                   <div style={{ color: 'var(--primary-color)', fontSize: '0.82rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                    Store directory
+                    {copy.directory}
                   </div>
                   <h2 className="section-title" style={{ marginBottom: 0 }}>
                     <i className="fas fa-store"></i>
-                    Browse All Matching Stores
+                    {copy.browseStores}
                   </h2>
                 </div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
@@ -534,7 +570,7 @@ export default function MerchantsPageClient() {
                           className="btn btn-primary"
                           style={{ fontSize: '0.8rem', padding: '0.5rem 1rem' }}
                         >
-                          Visit Store
+                          {copy.visitStore}
                         </Link>
                       </div>
                     </div>

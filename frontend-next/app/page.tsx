@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { type LanguageCode, useLanguage } from '@/contexts/LanguageContext';
 import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
 import { AiAPI, BankOfferAPI, PromotionAPI, UserAPI, invalidateCache } from '@/lib/api';
 
@@ -41,7 +42,6 @@ type Promotion = {
 };
 
 type FavoritePromotion = Promotion;
-
 const DOWNLOAD_URL = 'https://drive.google.com/uc?export=download&id=12xY8BPO4HqN6oH4vj0wcJSwXiDM0tDKu';
 
 const CATEGORIES = DEALFINDER_CATEGORIES.filter((category) =>
@@ -59,6 +59,369 @@ const TRENDING_SEARCHES = [
   'Hotel deals Colombo',
   'Dialog packages',
 ];
+
+const HOME_COPY: Record<LanguageCode, {
+  heroBadge: string;
+  heroTitle: string;
+  heroDescription: string;
+  primaryCta: string;
+  secondaryCta: string;
+  pills: string[];
+  searchLabel: string;
+  searchPlaceholder: string;
+  searchButton: string;
+  trendingLabel: string;
+  statsEyebrow: string;
+  statsTitle: string;
+  statsDescription: string;
+  positioningEyebrow: string;
+  positioningTitle: string;
+  positioningDescription: string;
+  highlightTitles: [string, string];
+  highlightPoints: [string[], string[]];
+  trustEyebrow: string;
+  trustTitle: string;
+  verificationSteps: string[];
+  trustBoxTitle: string;
+  trustBoxText: string;
+  compareEyebrow: string;
+  compareTitle: string;
+  compareDescription: string;
+  comparisonTitles: [string, string];
+  comparisonItems: [string[], string[]];
+  previewEyebrow: string;
+  previewTitle: string;
+  previewCards: { label: string; title: string; body: string }[];
+  previewDetailLabel: string;
+  previewWhyLabel: string;
+  previewWhyItems: string[];
+  liveSectionEyebrow: string;
+  liveSectionTitle: string;
+  endingSoonEyebrow: string;
+  endingSoonTitle: string;
+  nearbyEyebrow: string;
+  nearbyTitle: string;
+  categoryTitle: string;
+  categoryMeta: string;
+  categoryFooter: string;
+  businessEyebrow: string;
+  businessTitle: string;
+  businessDescription: string;
+  businessBenefits: string[];
+  businessPrimary: string;
+  businessSecondary: string;
+  businessPanelTitle: string;
+  businessPanelItems: { label: string; value: string }[];
+  finalEyebrow: string;
+  finalTitle: string;
+  finalDescription: string;
+  finalPrimary: string;
+  finalSecondary: string;
+}> = {
+  en: {
+    heroBadge: 'Sri Lanka deal discovery for shoppers who want real, current offers',
+    heroTitle: 'The fastest way to find Sri Lankan deals that are still valid',
+    heroDescription: 'Stop checking bank apps, restaurant pages, Instagram promos, and WhatsApp groups one by one. DealFinder puts food promos, bank offers, hotel deals, electronics discounts, and nearby finds in one place.',
+    primaryCta: "Get Today's Best Deals",
+    secondaryCta: 'Browse Live Deals',
+    pills: ['Verified offer details', 'Nearby deal discovery', 'Bank offers and local promos'],
+    searchLabel: 'Search what you actually want to save on',
+    searchPlaceholder: 'Pizza deals Colombo, hotel buffet, bank offers...',
+    searchButton: 'See Matches',
+    trendingLabel: 'Trending searches',
+    statsEyebrow: 'Live platform snapshot',
+    statsTitle: 'Real signals instead of padded vanity metrics',
+    statsDescription: 'This section reflects live inventory, merchant breadth, and current coverage so the proof feels more credible at a glance.',
+    positioningEyebrow: 'Sri Lanka deals hub',
+    positioningTitle: 'Find restaurant deals, bank offers, hotel promotions, and shopping discounts in Sri Lanka',
+    positioningDescription: 'DealFinder helps shoppers discover Sri Lanka deals faster by bringing together Colombo restaurant offers, supermarket discounts, bank card promotions, hotel deals, electronics sales, and nearby flash offers in one place.',
+    highlightTitles: ['Popular deal searches in Sri Lanka', 'What businesses can promote'],
+    highlightPoints: [
+      [
+        'Find Sri Lanka bank offers, card promotions, and supermarket discounts in one place',
+        'Browse restaurant deals in Colombo, buffet offers, and hotel promotions without jumping across apps',
+        'Check electronics deals, fashion discounts, and nearby offers before they expire',
+      ],
+      [
+        'Restaurant promotions, cafe deals, buffet discounts, and food delivery offers',
+        'Hotel deals, weekend stay offers, spa packages, and travel promotions in Sri Lanka',
+        'Retail discounts, mobile deals, bank card offers, and seasonal flash sales',
+      ],
+    ],
+    trustEyebrow: 'Trusted deal details',
+    trustTitle: 'Why shoppers trust these Sri Lanka offers',
+    verificationSteps: [
+      'Live Sri Lanka deals show clear expiry timing so shoppers can spot limited-time offers quickly.',
+      'Nearby deals only use your location when you allow it, helping you find promotions close to you.',
+      'Each deal stays connected to the original store, restaurant, hotel, bank offer, or merchant source.',
+    ],
+    trustBoxTitle: 'Real deals, not empty coupon pages',
+    trustBoxText: 'The homepage focuses on live deal counts, real merchant coverage, and useful categories such as food deals, hotel offers, bank promotions, and retail discounts in Sri Lanka.',
+    compareEyebrow: 'Better than scattered searching',
+    compareTitle: 'A smarter way to find Sri Lanka deals than checking Daraz, bank apps, and promo pages separately',
+    compareDescription: 'Shoppers looking for Sri Lanka bank offers, restaurant deals, hotel promotions, supermarket discounts, and nearby flash sales need one place to compare live offers instead of jumping across multiple websites and apps.',
+    comparisonTitles: ['Checking deals the hard way', 'Finding offers with DealFinder'],
+    comparisonItems: [
+      [
+        'Search Daraz, bank apps, restaurant Facebook pages, and promo groups one by one',
+        'Waste time checking whether a Sri Lanka deal, buffet offer, or card promotion is still valid',
+        'Miss nearby restaurant deals, hotel offers, and flash sales because they are scattered across channels',
+      ],
+      [
+        'See Sri Lanka bank offers, food promos, hotel deals, supermarket discounts, and flash sales in one place',
+        'Get a faster shortlist when you search for restaurant deals in Colombo or nearby shopping discounts',
+        'Save, compare, and revisit the deals worth acting on before they expire',
+      ],
+    ],
+    previewEyebrow: 'Real app experience',
+    previewTitle: 'Search, compare, and save the best deals in Sri Lanka',
+    previewCards: [
+      { label: 'Search', title: 'Search by store or category', body: 'Look for restaurant deals, bank offers, hotel promotions, electronics discounts, or city-based offers.' },
+      { label: 'Compare', title: 'Compare live offers quickly', body: 'Understand which Sri Lanka deal gives the better discount without opening multiple sources.' },
+      { label: 'Save', title: 'Save deals before they expire', body: 'Keep nearby promotions, buffet offers, and flash sales handy when you want to revisit them.' },
+    ],
+    previewDetailLabel: 'Deal details',
+    previewWhyLabel: 'Why shoppers use it',
+    previewWhyItems: [
+      'See clear savings, expiry timing, and merchant details at a glance',
+      'Find Sri Lanka restaurant deals, bank offers, and retail discounts faster',
+      'Use one app for discovery, comparison, and saved offers',
+    ],
+    liveSectionEyebrow: 'Live now',
+    liveSectionTitle: 'Best deals today',
+    endingSoonEyebrow: 'Urgency',
+    endingSoonTitle: 'Ending soon',
+    nearbyEyebrow: 'Nearby picks',
+    nearbyTitle: 'Nearby deals',
+    categoryTitle: 'Browse deals by category',
+    categoryMeta: 'Popular ways shoppers explore offers',
+    categoryFooter: 'Explore common deal interests like restaurant offers in Colombo, Sri Lanka bank promotions, hotel deals, buffet discounts, and electronics savings.',
+    businessEyebrow: 'For businesses',
+    businessTitle: 'Help merchants reach shoppers who are already looking for deals',
+    businessDescription: 'DealFinder can help restaurants, hotels, supermarkets, banks, and retail brands promote live offers to people who are actively searching for discounts, nearby deals, and limited-time promotions in Sri Lanka.',
+    businessBenefits: [
+      'Promote current offers in one trusted deals app',
+      'Reach nearby shoppers with strong purchase intent',
+      'Push seasonal, weekend, and expiring campaigns',
+      'Support restaurant, hotel, retail, and bank promotions',
+    ],
+    businessPrimary: 'Explore merchant pages',
+    businessSecondary: 'Contact the team',
+    businessPanelTitle: 'Why merchants can benefit',
+    businessPanelItems: [
+      { label: 'Offer types', value: 'Restaurant deals, hotel offers, bank promos, retail discounts' },
+      { label: 'Audience intent', value: 'Shoppers already searching for nearby savings and active offers' },
+      { label: 'Best use cases', value: 'Weekend campaigns, buffet promotions, flash sales, and expiring deals' },
+    ],
+    finalEyebrow: 'App-first CTA',
+    finalTitle: 'Ready to stop hunting across ten different promo channels?',
+    finalDescription: "Get the app, discover today's best deals, and keep the full browse path as a secondary option.",
+    finalPrimary: 'Start saving now',
+    finalSecondary: 'See nearby offers',
+  },
+  si: {
+    heroBadge: 'සැබෑ සහ වර්තමාන වට්ටම් සොයන ශ්‍රී ලාංකිකයන් සඳහා',
+    heroTitle: 'තවමත් වලංගු ශ්‍රී ලංකා වට්ටම් හොයාගන්න වේගවත්ම මාර්ගය',
+    heroDescription: 'Bank apps, restaurant pages, Instagram promos, සහ WhatsApp groups එකින් එක බලන්න වෙලාව වැය කරන්න එපා. DealFinder එකේ food promos, bank offers, hotel deals, electronics discounts, සහ ඔබ අසල offers එක තැනකින් බලන්න පුළුවන්.',
+    primaryCta: 'අදම හොඳම වට්ටම් බලන්න',
+    secondaryCta: 'සජීවී වට්ටම් බලන්න',
+    pills: ['සත්‍යාපිත offer විස්තර', 'ඔබ අසල වට්ටම් සොයන්න', 'Bank offers සහ local promos'],
+    searchLabel: 'ඔබට බේරාගන්න අවශ්‍ය දේ සෙවීම ආරම්භ කරන්න',
+    searchPlaceholder: 'Colombo pizza deals, hotel buffet, bank offers...',
+    searchButton: 'ගැළපෙන offers බලන්න',
+    trendingLabel: 'ලෝකප්‍රිය සෙවුම්',
+    statsEyebrow: 'සජීවී platform snapshot',
+    statsTitle: 'අතිශයෝක්ති නැති සැබෑ සංඛ්‍යා',
+    statsDescription: 'මෙහි දැක්වෙන්නේ සජීවී deals, merchants, සහ coverage වන නිසා platform එක ගැන විශ්වාසයක් ලැබේ.',
+    positioningEyebrow: 'ශ්‍රී ලංකා deals hub',
+    positioningTitle: 'Restaurant deals, bank offers, hotel promotions, සහ shopping discounts එක තැනකින්',
+    positioningDescription: 'DealFinder මගින් Colombo restaurant offers, supermarket discounts, bank card promotions, hotel deals, electronics sales, සහ nearby flash offers එක තැනකින් හොයාගන්න පුළුවන්.',
+    highlightTitles: ['ශ්‍රී ලංකාවේ ජනප්‍රිය deal සෙවුම්', 'ව්‍යාපාර ප්‍රවර්ධනය කළ හැකි offers'],
+    highlightPoints: [
+      [
+        'Sri Lanka bank offers, card promotions, සහ supermarket discounts එක තැනකින් බලන්න',
+        'Colombo restaurant deals, buffet offers, සහ hotel promotions apps කිහිපයක් අතර නොයමින් බලන්න',
+        'Electronics deals, fashion discounts, සහ nearby offers expire වෙන්න කලින් බලන්න',
+      ],
+      [
+        'Restaurant promotions, cafe deals, buffet discounts, සහ food delivery offers',
+        'Hotel deals, weekend stay offers, spa packages, සහ travel promotions',
+        'Retail discounts, mobile deals, bank card offers, සහ seasonal flash sales',
+      ],
+    ],
+    trustEyebrow: 'විශ්වාසදායක deal විස්තර',
+    trustTitle: 'මෙම Sri Lanka offers ගැන shoppersලා විශ්වාස කරන හේතුව',
+    verificationSteps: [
+      'සජීවී deals වල expiry timing පැහැදිලිව පෙන්වන නිසා limited-time offers ඉක්මනින් අඳුනාගන්න පුළුවන්.',
+      'Nearby deals සඳහා location භාවිතා කරන්නේ ඔබ අවසර දුන්නොත් පමණි.',
+      'සෑම deal එකක්ම මුල් store, restaurant, hotel, bank offer, හෝ merchant source එකට සම්බන්ධයි.',
+    ],
+    trustBoxTitle: 'හිස් coupon pages නොව සැබෑ deals',
+    trustBoxText: 'Homepage එක live deal counts, merchant coverage, සහ Sri Lanka food deals, hotel offers, bank promotions, retail discounts වැනි categories මත පදනම් වේ.',
+    compareEyebrow: 'විවිධ තැන් වල සෙවීමට වඩා හොඳයි',
+    compareTitle: 'Daraz, bank apps, සහ promo pages වෙන වෙනම බලනවට වඩා Sri Lanka deals සොයන්න පහසු මාර්ගයක්',
+    compareDescription: 'Sri Lanka bank offers, restaurant deals, hotel promotions, supermarket discounts, සහ nearby flash sales සොයන අයට websites සහ apps ගණනාවක් අතර යාම වෙනුවට එක තැනකින් compare කරන්න පුළුවන්.',
+    comparisonTitles: ['Deals හොයන අමාරු ක්‍රමය', 'DealFinder සමඟ වට්ටම් සොයන්න'],
+    comparisonItems: [
+      [
+        'Daraz, bank apps, restaurant Facebook pages, සහ promo groups එකින් එක සොයන්න වෙයි',
+        'Sri Lanka deal එකක් හෝ buffet/card promotion එකක් තවමත් වලංගුද කියලා manually බලන්න වෙයි',
+        'Nearby restaurant deals, hotel offers, සහ flash sales විවිධ තැන්වල පැතිරී තිබෙන නිසා මඟ හැරෙයි',
+      ],
+      [
+        'Sri Lanka bank offers, food promos, hotel deals, supermarket discounts, සහ flash sales එක තැනකින් බලන්න',
+        'Colombo restaurant deals හෝ nearby shopping discounts සොයන විට කෙටි shortlist එකක් ලැබේ',
+        'Expire වෙන්න කලින් deals save කර compare කර නැවත බලන්න',
+      ],
+    ],
+    previewEyebrow: 'ඇත්ත app අත්දැකීම',
+    previewTitle: 'ශ්‍රී ලංකාවේ හොඳම deals සොයන්න, compare කරන්න, save කරන්න',
+    previewCards: [
+      { label: 'Search', title: 'Store එකෙන් හෝ category එකෙන් සොයන්න', body: 'Restaurant deals, bank offers, hotel promotions, electronics discounts, හෝ city-based offers සොයන්න.' },
+      { label: 'Compare', title: 'සජීවී offers ඉක්මනින් compare කරන්න', body: 'Multiple sources open නොකර වඩා හොඳ discount එක කුමක්ද කියා තේරුම් ගන්න.' },
+      { label: 'Save', title: 'Expire වෙන්න කලින් deals save කරන්න', body: 'Nearby promotions, buffet offers, සහ flash sales නැවත බලන්න හොඳට තබාගන්න.' },
+    ],
+    previewDetailLabel: 'Deal විස්තර',
+    previewWhyLabel: 'Shoppersලා මෙය භාවිතා කරන හේතු',
+    previewWhyItems: [
+      'Savings, expiry timing, merchant details එක තැනකින් බලන්න',
+      'Sri Lanka restaurant deals, bank offers, සහ retail discounts ඉක්මනින් සොයන්න',
+      'Discovery, comparison, සහ saved offers සඳහා එක app එකක් භාවිතා කරන්න',
+    ],
+    liveSectionEyebrow: 'දැන්ම සජීවීව',
+    liveSectionTitle: 'අද හොඳම deals',
+    endingSoonEyebrow: 'ඉක්මන් වීමට',
+    endingSoonTitle: 'අවසන් වීමට ආසන්නයි',
+    nearbyEyebrow: 'ඔබ අසල picks',
+    nearbyTitle: 'ඔබ අසල deals',
+    categoryTitle: 'Category අනුව deals බලන්න',
+    categoryMeta: 'Shoppersලා ජනප්‍රියව බලන මාර්ග',
+    categoryFooter: 'Colombo restaurant offers, Sri Lanka bank promotions, hotel deals, buffet discounts, සහ electronics savings වැනි ප්‍රසිද්ධ deal interests බලන්න.',
+    businessEyebrow: 'ව්‍යාපාර සඳහා',
+    businessTitle: 'Deals සොයන shoppersලා වෙත merchantsලා ගෙනයාමට උදව් කරන්න',
+    businessDescription: 'DealFinder මගින් restaurants, hotels, supermarkets, banks, සහ retail brands වල live offers, nearby deals, සහ limited-time promotions සොයන ශ්‍රී ලාංකිකයන්ට පෙන්විය හැක.',
+    businessBenefits: [
+      'Current offers විශ්වාසදායක deals app එකකින් promote කරන්න',
+      'නොබැඳිවම මිලදී ගැනීමට සූදානම් shoppersලා වෙත ළඟා වන්න',
+      'Seasonal, weekend, සහ expiring campaigns promote කරන්න',
+      'Restaurant, hotel, retail, සහ bank promotions support කරන්න',
+    ],
+    businessPrimary: 'Merchant pages බලන්න',
+    businessSecondary: 'Team එක අමතන්න',
+    businessPanelTitle: 'Merchantsලාට ලැබෙන ප්‍රයෝජන',
+    businessPanelItems: [
+      { label: 'Offer types', value: 'Restaurant deals, hotel offers, bank promos, retail discounts' },
+      { label: 'Audience intent', value: 'Nearby savings සහ active offers සොයන shoppersලා' },
+      { label: 'Best use cases', value: 'Weekend campaigns, buffet promotions, flash sales, expiring deals' },
+    ],
+    finalEyebrow: 'App-first CTA',
+    finalTitle: 'විවිධ promo channels දහයකින් වට්ටම් හොයන එක නවත්වන්න සූදානම්ද?',
+    finalDescription: 'App එක download කර අද හොඳම deals බලන්න. Browse කිරීම secondary option එකක් ලෙස තබාගන්න.',
+    finalPrimary: 'දැන්ම save කරන්න',
+    finalSecondary: 'ඔබ අසල offers බලන්න',
+  },
+  ta: {
+    heroBadge: 'உண்மையான மற்றும் தற்போதைய சலுகைகளை தேடும் இலங்கை பயனர்களுக்காக',
+    heroTitle: 'இன்னும் செல்லுபடியாக உள்ள இலங்கை சலுகைகளை கண்டுபிடிக்க மிக வேகமான வழி',
+    heroDescription: 'Bank apps, restaurant pages, Instagram promos, மற்றும் WhatsApp groups அனைத்தையும் தனித்தனியாக பார்க்க வேண்டாம். DealFinder மூலம் food promos, bank offers, hotel deals, electronics discounts, மற்றும் அருகிலுள்ள offers அனைத்தையும் ஒரே இடத்தில் காணலாம்.',
+    primaryCta: 'இன்றைய சிறந்த சலுகைகளை பாருங்கள்',
+    secondaryCta: 'நேரடி சலுகைகளை உலாவுங்கள்',
+    pills: ['சரிபார்க்கப்பட்ட offer விவரங்கள்', 'அருகிலுள்ள சலுகைகள்', 'Bank offers மற்றும் local promos'],
+    searchLabel: 'நீங்கள் சேமிக்க விரும்பும் சலுகையைத் தேடுங்கள்',
+    searchPlaceholder: 'Pizza deals Colombo, hotel buffet, bank offers...',
+    searchButton: 'பொருந்தும் offers பார்க்க',
+    trendingLabel: 'பிரபலமான தேடல்கள்',
+    statsEyebrow: 'நேரடி platform snapshot',
+    statsTitle: 'அதிகப்படுத்தாத உண்மையான சான்றுகள்',
+    statsDescription: 'இங்கு live deals, merchants, மற்றும் coverage காட்டப்படுவதால் platform மீது நம்பிக்கை அதிகரிக்கும்.',
+    positioningEyebrow: 'இலங்கை deals hub',
+    positioningTitle: 'Restaurant deals, bank offers, hotel promotions, மற்றும் shopping discounts அனைத்தும் ஒரே இடத்தில்',
+    positioningDescription: 'DealFinder மூலம் Colombo restaurant offers, supermarket discounts, bank card promotions, hotel deals, electronics sales, மற்றும் அருகிலுள்ள flash offers அனைத்தையும் விரைவாக கண்டுபிடிக்கலாம்.',
+    highlightTitles: ['இலங்கையில் பிரபலமான deal தேடல்கள்', 'வணிகங்கள் வெளியிடக்கூடிய offers'],
+    highlightPoints: [
+      [
+        'Sri Lanka bank offers, card promotions, மற்றும் supermarket discounts அனைத்தையும் ஒரே இடத்தில் பாருங்கள்',
+        'Colombo restaurant deals, buffet offers, மற்றும் hotel promotions பல apps இல்லாமல் பாருங்கள்',
+        'Electronics deals, fashion discounts, மற்றும் nearby offers காலாவதியாகும் முன் பாருங்கள்',
+      ],
+      [
+        'Restaurant promotions, cafe deals, buffet discounts, மற்றும் food delivery offers',
+        'Hotel deals, weekend stay offers, spa packages, மற்றும் travel promotions',
+        'Retail discounts, mobile deals, bank card offers, மற்றும் seasonal flash sales',
+      ],
+    ],
+    trustEyebrow: 'நம்பகமான deal விவரங்கள்',
+    trustTitle: 'இந்த Sri Lanka offers மீது shoppers நம்பிக்கை வைக்கும் காரணம்',
+    verificationSteps: [
+      'Live deals தெளிவான expiry timing காட்டுவதால் limited-time offers ஐ உடனே அறியலாம்.',
+      'Nearby deals க்கு location உங்கள் அனுமதியுடன் மட்டுமே பயன்படுத்தப்படும்.',
+      'ஒவ்வொரு deal ம் அதன் store, restaurant, hotel, bank offer, அல்லது merchant source உடன் இணைக்கப்பட்டிருக்கும்.',
+    ],
+    trustBoxTitle: 'காலியான coupon pages அல்ல, உண்மையான deals',
+    trustBoxText: 'Homepage இல் live deal counts, merchant coverage, மற்றும் Sri Lanka food deals, hotel offers, bank promotions, retail discounts போன்ற categories க்கு முக்கியத்துவம் கொடுக்கப்படுகிறது.',
+    compareEyebrow: 'சிதறிய தேடலை விட சிறந்தது',
+    compareTitle: 'Daraz, bank apps, மற்றும் promo pages ஐ தனித்தனியாகப் பார்ப்பதற்கு பதிலாக Sri Lanka deals கண்டுபிடிக்கும் புத்திசாலி வழி',
+    compareDescription: 'Sri Lanka bank offers, restaurant deals, hotel promotions, supermarket discounts, மற்றும் nearby flash sales தேடும் பயனர்களுக்கு பல websites மற்றும் apps களுக்கு இடையே செல்லாமல் live offers ஐ ஒப்பிடலாம்.',
+    comparisonTitles: ['Deals தேடும் கடினமான முறை', 'DealFinder மூலம் offers கண்டுபிடித்தல்'],
+    comparisonItems: [
+      [
+        'Daraz, bank apps, restaurant Facebook pages, மற்றும் promo groups ஐ ஒன்று பிறகொன்று தேட வேண்டும்',
+        'ஒரு Sri Lanka deal அல்லது buffet/card promotion இன்னும் செல்லுபடியாக உள்ளதா என்பதை கைமுறையாகச் சரிபார்க்க வேண்டும்',
+        'Nearby restaurant deals, hotel offers, மற்றும் flash sales பல இடங்களில் சிதறி இருப்பதால் தவறவிடலாம்',
+      ],
+      [
+        'Sri Lanka bank offers, food promos, hotel deals, supermarket discounts, மற்றும் flash sales அனைத்தையும் ஒரே இடத்தில் பாருங்கள்',
+        'Colombo restaurant deals அல்லது nearby shopping discounts தேடும் போது வேகமான shortlist கிடைக்கும்',
+        'காலாவதியாகும் முன் deals ஐ save செய்து compare செய்து மீண்டும் பார்க்கலாம்',
+      ],
+    ],
+    previewEyebrow: 'உண்மையான app அனுபவம்',
+    previewTitle: 'இலங்கையின் சிறந்த deals ஐ தேடுங்கள், compare செய்யுங்கள், save செய்யுங்கள்',
+    previewCards: [
+      { label: 'Search', title: 'Store அல்லது category மூலம் தேடுங்கள்', body: 'Restaurant deals, bank offers, hotel promotions, electronics discounts, அல்லது city-based offers தேடுங்கள்.' },
+      { label: 'Compare', title: 'Live offers ஐ வேகமாக compare செய்யுங்கள்', body: 'பல sources திறக்காமல் எந்த Sri Lanka deal சிறந்த discount தருகிறது என்பதை அறியுங்கள்.' },
+      { label: 'Save', title: 'காலாவதியாகும் முன் deals ஐ save செய்யுங்கள்', body: 'Nearby promotions, buffet offers, மற்றும் flash sales ஐ பின்னர் பார்க்க சேமித்து வைத்துக்கொள்ளுங்கள்.' },
+    ],
+    previewDetailLabel: 'Deal விவரங்கள்',
+    previewWhyLabel: 'Shoppers ஏன் இதைப் பயன்படுத்துகிறார்கள்',
+    previewWhyItems: [
+      'Savings, expiry timing, மற்றும் merchant details ஐ உடனே காணலாம்',
+      'Sri Lanka restaurant deals, bank offers, மற்றும் retail discounts ஐ வேகமாக காணலாம்',
+      'Discovery, comparison, மற்றும் saved offers க்கு ஒரே app ஐ பயன்படுத்தலாம்',
+    ],
+    liveSectionEyebrow: 'இப்போது live',
+    liveSectionTitle: 'இன்றைய சிறந்த deals',
+    endingSoonEyebrow: 'அவசரம்',
+    endingSoonTitle: 'விரைவில் முடியும்',
+    nearbyEyebrow: 'அருகிலுள்ள picks',
+    nearbyTitle: 'அருகிலுள்ள deals',
+    categoryTitle: 'Category அடிப்படையில் deals பாருங்கள்',
+    categoryMeta: 'Shoppers அதிகம் பயன்படுத்தும் வழிகள்',
+    categoryFooter: 'Colombo restaurant offers, Sri Lanka bank promotions, hotel deals, buffet discounts, மற்றும் electronics savings போன்ற பொதுவான deal interests ஐ ஆராயுங்கள்.',
+    businessEyebrow: 'வணிகங்களுக்காக',
+    businessTitle: 'Deals தேடும் shoppers களை merchants அடைய உதவுங்கள்',
+    businessDescription: 'DealFinder மூலம் restaurants, hotels, supermarkets, banks, மற்றும் retail brands தங்களின் live offers, nearby deals, மற்றும் limited-time promotions ஐ இலங்கையில் தேடும் பயனர்களிடம் கொண்டு சேர்க்கலாம்.',
+    businessBenefits: [
+      'Current offers ஐ நம்பகமான deals app ஒன்றில் promote செய்யுங்கள்',
+      'வாங்க தயாராக இருக்கும் அருகிலுள்ள shoppers களை அடையுங்கள்',
+      'Seasonal, weekend, மற்றும் expiring campaigns ஐ push செய்யுங்கள்',
+      'Restaurant, hotel, retail, மற்றும் bank promotions ஐ support செய்யுங்கள்',
+    ],
+    businessPrimary: 'Merchant pages பாருங்கள்',
+    businessSecondary: 'Team ஐ தொடர்புகொள்ளுங்கள்',
+    businessPanelTitle: 'Merchants க்கு கிடைக்கும் நன்மைகள்',
+    businessPanelItems: [
+      { label: 'Offer types', value: 'Restaurant deals, hotel offers, bank promos, retail discounts' },
+      { label: 'Audience intent', value: 'Nearby savings மற்றும் active offers தேடும் shoppers' },
+      { label: 'Best use cases', value: 'Weekend campaigns, buffet promotions, flash sales, expiring deals' },
+    ],
+    finalEyebrow: 'App-first CTA',
+    finalTitle: 'பத்து promo channels முழுவதும் deals தேடுவதை நிறுத்த தயாரா?',
+    finalDescription: 'App ஐப் பெற்று இன்றைய சிறந்த deals ஐ காணுங்கள். Browse செய்வதை secondary option ஆக வைத்திருக்கலாம்.',
+    finalPrimary: 'இப்போது சேமிக்க தொடங்குங்கள்',
+    finalSecondary: 'அருகிலுள்ள offers பாருங்கள்',
+  },
+};
 
 function getPromotionId(promotion: Promotion) {
   return promotion._id || promotion.id || '';
@@ -243,6 +606,7 @@ function SkeletonGrid({ count }: { count: number }) {
 export default function HomePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { language: selectedLang } = useLanguage();
   const [allPromotions, setAllPromotions] = useState<Promotion[]>([]);
   const [favoriteDeals, setFavoriteDeals] = useState<FavoritePromotion[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
@@ -255,6 +619,8 @@ export default function HomePage() {
   const [loadingNearby, setLoadingNearby] = useState(false);
   const [locationError, setLocationError] = useState('');
   const [currentTimestamp] = useState(() => Date.now());
+
+  const currentCopy = HOME_COPY[selectedLang];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -473,35 +839,35 @@ export default function HomePage() {
   const dynamicStats = useMemo(
     () => [
       {
-        label: 'Live deals right now',
+        label: selectedLang === 'en' ? 'Live deals right now' : selectedLang === 'si' ? 'දැන් සජීවී deals' : 'இப்போது live deals',
         value: loadingDeals ? '...' : `${activePromotions.length}+`,
         icon: 'fa-bolt',
         accent: '#2563eb',
-        detail: 'Fresh offers shoppers can act on today',
+        detail: selectedLang === 'en' ? 'Fresh offers shoppers can act on today' : selectedLang === 'si' ? 'අදම භාවිතා කළ හැකි නව offers' : 'இன்று பயன்படுத்தக்கூடிய புதிய offers',
       },
       {
-        label: 'Merchants tracked',
+        label: selectedLang === 'en' ? 'Merchants tracked' : selectedLang === 'si' ? 'Track කරන merchants' : 'Track செய்யப்படும் merchants',
         value: loadingDeals ? '...' : `${merchantCount}+`,
         icon: 'fa-store',
         accent: '#0f766e',
-        detail: 'Restaurants, retailers, hotels, and more',
+        detail: selectedLang === 'en' ? 'Restaurants, retailers, hotels, and more' : selectedLang === 'si' ? 'Restaurants, retailers, hotels, සහ තවත්' : 'Restaurants, retailers, hotels, மற்றும் பல',
       },
       {
-        label: 'Live categories',
+        label: selectedLang === 'en' ? 'Live categories' : selectedLang === 'si' ? 'සජීවී categories' : 'Live categories',
         value: loadingDeals ? '...' : `${liveCategoryCount || 0}+`,
         icon: 'fa-layer-group',
         accent: '#7c3aed',
-        detail: 'Bank offers, food, travel, electronics, and beyond',
+        detail: selectedLang === 'en' ? 'Bank offers, food, travel, electronics, and beyond' : selectedLang === 'si' ? 'Bank offers, food, travel, electronics සහ තවත්' : 'Bank offers, food, travel, electronics மற்றும் பல',
       },
       {
-        label: 'Coverage focus',
-        value: 'Colombo to Galle',
+        label: selectedLang === 'en' ? 'Coverage focus' : selectedLang === 'si' ? 'Coverage focus' : 'Coverage focus',
+        value: selectedLang === 'en' ? 'Colombo to Galle' : selectedLang === 'si' ? 'Colombo සිට Galle දක්වා' : 'Colombo முதல் Galle வரை',
         icon: 'fa-location-dot',
         accent: '#ea580c',
-        detail: 'Built for Sri Lankan city-by-city discovery',
+        detail: selectedLang === 'en' ? 'Built for Sri Lankan city-by-city discovery' : selectedLang === 'si' ? 'ශ්‍රී ලංකාවේ නගර අනුව deals සොයන්න' : 'இலங்கையின் நகரங்களுக்கு ஏற்ற deal discovery',
       },
     ],
-    [activePromotions.length, liveCategoryCount, loadingDeals, merchantCount]
+    [activePromotions.length, liveCategoryCount, loadingDeals, merchantCount, selectedLang]
   );
 
   const handleFavoriteToggle = (id: string, isFav: boolean) => {
@@ -520,22 +886,14 @@ export default function HomePage() {
 
   const highlightCards = [
     {
-      title: 'Popular deal searches in Sri Lanka',
-      points: [
-        'Find Sri Lanka bank offers, card promotions, and supermarket discounts in one place',
-        'Browse restaurant deals in Colombo, buffet offers, and hotel promotions without jumping across apps',
-        'Check electronics deals, fashion discounts, and nearby offers before they expire',
-      ],
+      title: currentCopy.highlightTitles[0],
+      points: currentCopy.highlightPoints[0],
       accent: '#22c55e',
       background: 'rgba(34,197,94,0.1)',
     },
     {
-      title: 'What businesses can promote',
-      points: [
-        'Restaurant promotions, cafe deals, buffet discounts, and food delivery offers',
-        'Hotel deals, weekend stay offers, spa packages, and travel promotions in Sri Lanka',
-        'Retail discounts, mobile deals, bank card offers, and seasonal flash sales',
-      ],
+      title: currentCopy.highlightTitles[1],
+      points: currentCopy.highlightPoints[1],
       accent: '#f59e0b',
       background: 'rgba(245,158,11,0.12)',
     },
@@ -543,36 +901,24 @@ export default function HomePage() {
 
   const comparisonGroups = [
     {
-      title: 'Checking deals the hard way',
+      title: currentCopy.comparisonTitles[0],
       icon: 'fa-layer-group',
       color: '#dc2626',
       background: 'rgba(220,38,38,0.06)',
       border: 'rgba(220,38,38,0.16)',
-      items: [
-        'Search Daraz, bank apps, restaurant Facebook pages, and promo groups one by one',
-        'Waste time checking whether a Sri Lanka deal, buffet offer, or card promotion is still valid',
-        'Miss nearby restaurant deals, hotel offers, and flash sales because they are scattered across channels',
-      ],
+      items: currentCopy.comparisonItems[0],
     },
     {
-      title: 'Finding offers with DealFinder',
+      title: currentCopy.comparisonTitles[1],
       icon: 'fa-bolt',
       color: '#16a34a',
       background: 'rgba(22,163,74,0.08)',
       border: 'rgba(22,163,74,0.16)',
-      items: [
-        'See Sri Lanka bank offers, food promos, hotel deals, supermarket discounts, and flash sales in one place',
-        'Get a faster shortlist when you search for restaurant deals in Colombo or nearby shopping discounts',
-        'Save, compare, and revisit the deals worth acting on before they expire',
-      ],
+      items: currentCopy.comparisonItems[1],
     },
   ];
 
-  const verificationSteps = [
-    'Live Sri Lanka deals show clear expiry timing so shoppers can spot limited-time offers quickly.',
-    'Nearby deals only use your location when you allow it, helping you find promotions close to you.',
-    'Each deal stays connected to the original store, restaurant, hotel, bank offer, or merchant source.',
-  ];
+  const verificationSteps = currentCopy.verificationSteps;
 
   return (
     <div>
@@ -629,7 +975,7 @@ export default function HomePage() {
                     boxShadow: '0 0 0 6px rgba(34,197,94,0.2)',
                   }}
                 />
-                Sri Lanka deal discovery for shoppers who want real, current offers
+                {currentCopy.heroBadge}
               </div>
 
               <h1
@@ -641,7 +987,7 @@ export default function HomePage() {
                   maxWidth: '12ch',
                 }}
               >
-                The fastest way to find Sri Lankan deals that are still valid
+                {currentCopy.heroTitle}
               </h1>
 
               <p
@@ -654,7 +1000,7 @@ export default function HomePage() {
                   maxWidth: '40rem',
                 }}
               >
-                Stop checking bank apps, restaurant pages, Instagram promos, and WhatsApp groups one by one. DealFinder puts food promos, bank offers, hotel deals, electronics discounts, and nearby finds in one place.
+                {currentCopy.heroDescription}
               </p>
 
               <div className="flex flex-wrap gap-3" style={{ marginBottom: '1.4rem' }}>
@@ -672,7 +1018,7 @@ export default function HomePage() {
                   }}
                 >
                   <i className="fas fa-mobile-screen-button"></i>
-                  Get Today&apos;s Best Deals
+                  {currentCopy.primaryCta}
                 </a>
                 <button
                   onClick={() => router.push('/categories/all')}
@@ -688,7 +1034,7 @@ export default function HomePage() {
                   }}
                 >
                   <i className="fas fa-compass"></i>
-                  Browse Live Deals
+                  {currentCopy.secondaryCta}
                 </button>
               </div>
 
@@ -700,11 +1046,7 @@ export default function HomePage() {
                   marginBottom: '1.5rem',
                 }}
               >
-                {[
-                  'Verified offer details',
-                  'Nearby deal discovery',
-                  'Bank offers and local promos',
-                ].map((item) => (
+                {currentCopy.pills.map((item) => (
                   <div
                     key={item}
                     style={{
@@ -732,7 +1074,7 @@ export default function HomePage() {
                 }}
               >
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'rgba(255,255,255,0.76)', marginBottom: '0.6rem' }}>
-                  Search what you actually want to save on
+                  {currentCopy.searchLabel}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="input-with-icon" style={{ flex: 1 }}>
@@ -740,7 +1082,7 @@ export default function HomePage() {
                     <input
                       value={searchTerm}
                       onChange={(event) => setSearchTerm(event.target.value)}
-                      placeholder="Pizza deals Colombo, hotel buffet, bank offers..."
+                      placeholder={currentCopy.searchPlaceholder}
                       className="modern-input"
                       style={{
                         background: 'rgba(255,255,255,0.1)',
@@ -759,10 +1101,13 @@ export default function HomePage() {
                       fontWeight: 800,
                     }}
                   >
-                    See Matches
+                    {currentCopy.searchButton}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2" style={{ marginTop: '0.85rem' }}>
+                  <div style={{ width: '100%', fontSize: '0.78rem', color: 'rgba(255,255,255,0.72)', fontWeight: 700 }}>
+                    {currentCopy.trendingLabel}
+                  </div>
                   {TRENDING_SEARCHES.map((term) => (
                     <button
                       key={term}
@@ -1112,14 +1457,14 @@ export default function HomePage() {
             <div>
               <div className="page-eyebrow" style={{ background: 'rgba(37,99,235,0.08)', borderColor: 'rgba(37,99,235,0.12)' }}>
                 <i className="fas fa-chart-column"></i>
-                Live platform snapshot
+                {currentCopy.statsEyebrow}
               </div>
               <div style={{ marginTop: '0.8rem', fontSize: '1.2rem', fontWeight: 900, color: '#0f172a' }}>
-                Real signals instead of padded vanity metrics
+                {currentCopy.statsTitle}
               </div>
             </div>
             <div style={{ color: '#64748b', maxWidth: '28rem', lineHeight: 1.65, fontSize: '0.94rem' }}>
-              This section now reflects live inventory, merchant breadth, and current coverage so the proof feels more credible at a glance.
+              {currentCopy.statsDescription}
             </div>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1218,13 +1563,13 @@ export default function HomePage() {
             >
               <div className="page-eyebrow" style={{ background: 'rgba(245,158,11,0.1)', borderColor: 'rgba(245,158,11,0.16)', color: '#b45309' }}>
                 <i className="fas fa-bullseye"></i>
-                Sri Lanka deals hub
+                {currentCopy.positioningEyebrow}
               </div>
               <h2 style={{ marginTop: '1rem', marginBottom: '0.8rem', fontSize: 'clamp(1.9rem, 4vw, 2.8rem)', lineHeight: 1.08 }}>
-                Find restaurant deals, bank offers, hotel promotions, and shopping discounts in Sri Lanka
+                {currentCopy.positioningTitle}
               </h2>
               <p style={{ margin: 0, color: '#64748b', lineHeight: 1.8, maxWidth: '42rem' }}>
-                DealFinder helps shoppers discover Sri Lanka deals faster by bringing together Colombo restaurant offers, supermarket discounts, bank card promotions, hotel deals, electronics sales, and nearby flash offers in one place.
+                {currentCopy.positioningDescription}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ marginTop: '1.5rem' }}>
@@ -1279,10 +1624,10 @@ export default function HomePage() {
             >
               <div className="page-eyebrow">
                 <i className="fas fa-shield-halved"></i>
-                Trusted deal details
+                {currentCopy.trustEyebrow}
               </div>
               <h3 style={{ fontSize: '1.55rem', fontWeight: 900, marginTop: '1rem', marginBottom: '0.8rem', color: '#0f172a' }}>
-                Why shoppers trust these Sri Lanka offers
+                {currentCopy.trustTitle}
               </h3>
               <div style={{ display: 'grid', gap: '0.95rem' }}>
                 {verificationSteps.map((step) => (
@@ -1327,9 +1672,9 @@ export default function HomePage() {
                   border: '1px solid rgba(37,99,235,0.12)',
                 }}
               >
-                <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>Real deals, not empty coupon pages</div>
+                <div style={{ fontWeight: 800, color: '#0f172a', marginBottom: '0.45rem' }}>{currentCopy.trustBoxTitle}</div>
                 <div style={{ color: '#475569', lineHeight: 1.65 }}>
-                  The homepage focuses on live deal counts, real merchant coverage, and useful categories such as food deals, hotel offers, bank promotions, and retail discounts in Sri Lanka.
+                  {currentCopy.trustBoxText}
                 </div>
               </div>
             </div>
@@ -1349,13 +1694,13 @@ export default function HomePage() {
             >
               <div className="page-eyebrow">
                 <i className="fas fa-scale-balanced"></i>
-                Better than scattered searching
+                {currentCopy.compareEyebrow}
               </div>
               <h2 style={{ marginTop: '1rem', marginBottom: '0.85rem', fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', lineHeight: 1.08 }}>
-                A smarter way to find Sri Lanka deals than checking Daraz, bank apps, and promo pages separately
+                {currentCopy.compareTitle}
               </h2>
               <p style={{ color: '#64748b', lineHeight: 1.75, marginTop: 0, marginBottom: '1.3rem' }}>
-                Shoppers looking for Sri Lanka bank offers, restaurant deals, hotel promotions, supermarket discounts, and nearby flash sales need one place to compare live offers instead of jumping across multiple websites and apps.
+                {currentCopy.compareDescription}
               </p>
               <div style={{ display: 'grid', gap: '1rem' }}>
                 {comparisonGroups.map((group) => (
@@ -1408,33 +1753,14 @@ export default function HomePage() {
             >
               <div className="page-eyebrow" style={{ background: 'rgba(37,99,235,0.1)', borderColor: 'rgba(37,99,235,0.14)' }}>
                 <i className="fas fa-mobile-screen"></i>
-                Real app experience
+                {currentCopy.previewEyebrow}
               </div>
               <h3 style={{ fontSize: '1.55rem', fontWeight: 900, marginTop: '1rem', marginBottom: '1rem', color: '#0f172a' }}>
-                Search, compare, and save the best deals in Sri Lanka
+                {currentCopy.previewTitle}
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  {
-                    label: 'Search',
-                    title: 'Search by store or category',
-                    body: 'Look for restaurant deals, bank offers, hotel promotions, electronics discounts, or city-based offers.',
-                    icon: 'fa-magnifying-glass',
-                  },
-                  {
-                    label: 'Compare',
-                    title: 'Compare live offers quickly',
-                    body: 'Understand which Sri Lanka deal gives the better discount without opening multiple sources.',
-                    icon: 'fa-code-compare',
-                  },
-                  {
-                    label: 'Save',
-                    title: 'Save deals before they expire',
-                    body: 'Keep nearby promotions, buffet offers, and flash sales handy when you want to revisit them.',
-                    icon: 'fa-bookmark',
-                  },
-                ].map((card) => (
+                {currentCopy.previewCards.map((card, index) => (
                   <div
                     key={card.title}
                     style={{
@@ -1457,7 +1783,7 @@ export default function HomePage() {
                         marginBottom: '0.8rem',
                       }}
                     >
-                      <i className={`fas ${card.icon}`}></i>
+                      <i className={`fas ${index === 0 ? 'fa-magnifying-glass' : index === 1 ? 'fa-code-compare' : 'fa-bookmark'}`}></i>
                     </div>
                     <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', fontWeight: 800 }}>
                       {card.label}
@@ -1485,7 +1811,7 @@ export default function HomePage() {
                   }}
                 >
                   <div style={{ padding: '1rem', borderRight: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', marginBottom: '0.6rem' }}>Deal details</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', marginBottom: '0.6rem' }}>{currentCopy.previewDetailLabel}</div>
                     <div style={{ fontWeight: 900, color: '#0f172a', marginBottom: '0.35rem' }}>
                       {heroBannerDeal?.title || 'Weekend buffet offer'}
                     </div>
@@ -1509,13 +1835,9 @@ export default function HomePage() {
                     </div>
                   </div>
                   <div style={{ padding: '1rem', background: '#f8fbff' }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', marginBottom: '0.6rem' }}>Why shoppers use it</div>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#64748b', marginBottom: '0.6rem' }}>{currentCopy.previewWhyLabel}</div>
                     <div style={{ display: 'grid', gap: '0.55rem' }}>
-                      {[
-                        'See clear savings, expiry timing, and merchant details at a glance',
-                        'Find Sri Lanka restaurant deals, bank offers, and retail discounts faster',
-                        'Use one app for discovery, comparison, and saved offers',
-                      ].map((item) => (
+                      {currentCopy.previewWhyItems.map((item) => (
                         <div key={item} style={{ display: 'flex', gap: '0.55rem', color: '#334155', lineHeight: 1.55 }}>
                           <i className="fas fa-check" style={{ color: '#2563eb', marginTop: '0.28rem', fontSize: '0.78rem' }}></i>
                           <span>{item}</span>
@@ -1532,8 +1854,8 @@ export default function HomePage() {
         <div className="grid grid-cols-1 gap-12">
           <section>
             <SectionHeader
-              eyebrow="Live now"
-              title="Best deals today"
+              eyebrow={currentCopy.liveSectionEyebrow}
+              title={currentCopy.liveSectionTitle}
               icon="fa-fire"
               meta="A tighter shortlist of featured offers"
               actionLabel="View more"
@@ -1551,8 +1873,8 @@ export default function HomePage() {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               <div>
                 <SectionHeader
-                  eyebrow="Urgency"
-                  title="Ending soon"
+                  eyebrow={currentCopy.endingSoonEyebrow}
+                  title={currentCopy.endingSoonTitle}
                   icon="fa-hourglass-half"
                   meta="Good offers with a short runway"
                   actionLabel="See all deals"
@@ -1568,8 +1890,8 @@ export default function HomePage() {
 
               <div>
                 <SectionHeader
-                  eyebrow={nearbyDeals.length > 0 ? 'Nearby picks' : 'Smart picks'}
-                  title={nearbyDeals.length > 0 ? 'Nearby deals' : 'Recommended for you'}
+                  eyebrow={nearbyDeals.length > 0 ? currentCopy.nearbyEyebrow : 'Smart picks'}
+                  title={nearbyDeals.length > 0 ? currentCopy.nearbyTitle : 'Recommended for you'}
                   icon={nearbyDeals.length > 0 ? 'fa-location-dot' : 'fa-star'}
                   meta={
                     nearbyDeals.length > 0
@@ -1606,9 +1928,9 @@ export default function HomePage() {
           >
             <SectionHeader
               eyebrow="Popular entry points"
-              title="Browse deals by category"
+              title={currentCopy.categoryTitle}
               icon="fa-compass"
-              meta="Popular ways shoppers explore offers"
+              meta={currentCopy.categoryMeta}
             />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {CATEGORIES.map((category) => (
@@ -1645,7 +1967,7 @@ export default function HomePage() {
               ))}
             </div>
             <div style={{ marginTop: '1rem', color: '#64748b', lineHeight: 1.7 }}>
-              Explore common deal interests like restaurant offers in Colombo, Sri Lanka bank promotions, hotel deals, buffet discounts, and electronics savings.
+              {currentCopy.categoryFooter}
             </div>
           </section>
 
@@ -1661,21 +1983,16 @@ export default function HomePage() {
               <div style={{ padding: '2.1rem' }}>
                 <div className="page-eyebrow" style={{ background: 'rgba(255,255,255,0.12)', borderColor: 'rgba(255,255,255,0.16)', color: '#fff' }}>
                   <i className="fas fa-store"></i>
-                  For businesses
+                  {currentCopy.businessEyebrow}
                 </div>
                 <h2 style={{ marginTop: '1rem', marginBottom: '0.8rem', fontSize: 'clamp(1.9rem, 4vw, 2.7rem)', lineHeight: 1.08 }}>
-                  Help merchants reach shoppers who are already looking for deals
+                  {currentCopy.businessTitle}
                 </h2>
                 <p style={{ margin: 0, color: 'rgba(255,255,255,0.84)', lineHeight: 1.75, maxWidth: '34rem' }}>
-                  DealFinder can help restaurants, hotels, supermarkets, banks, and retail brands promote live offers to people who are actively searching for discounts, nearby deals, and limited-time promotions in Sri Lanka.
+                  {currentCopy.businessDescription}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" style={{ marginTop: '1.3rem' }}>
-                  {[
-                    'Promote current offers in one trusted deals app',
-                    'Reach nearby shoppers with strong purchase intent',
-                    'Push seasonal, weekend, and expiring campaigns',
-                    'Support restaurant, hotel, retail, and bank promotions',
-                  ].map((item) => (
+                  {currentCopy.businessBenefits.map((item) => (
                     <div
                       key={item}
                       style={{
@@ -1700,7 +2017,7 @@ export default function HomePage() {
                       fontWeight: 800,
                     }}
                   >
-                    Explore merchant pages
+                    {currentCopy.businessPrimary}
                   </button>
                   <button
                     onClick={() => router.push('/contact')}
@@ -1712,7 +2029,7 @@ export default function HomePage() {
                       fontWeight: 700,
                     }}
                   >
-                    Contact the team
+                    {currentCopy.businessSecondary}
                   </button>
                 </div>
               </div>
@@ -1736,14 +2053,10 @@ export default function HomePage() {
                   }}
                 >
                   <div style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fde68a', fontWeight: 800, marginBottom: '0.7rem' }}>
-                    Why merchants can benefit
+                    {currentCopy.businessPanelTitle}
                   </div>
                   <div style={{ display: 'grid', gap: '0.8rem' }}>
-                    {[
-                      { label: 'Offer types', value: 'Restaurant deals, hotel offers, bank promos, retail discounts' },
-                      { label: 'Audience intent', value: 'Shoppers already searching for nearby savings and active offers' },
-                      { label: 'Best use cases', value: 'Weekend campaigns, buffet promotions, flash sales, and expiring deals' },
-                    ].map((item) => (
+                    {currentCopy.businessPanelItems.map((item) => (
                       <div
                         key={item.label}
                         style={{
@@ -1866,7 +2179,7 @@ export default function HomePage() {
                 }}
               >
                 <i className="fas fa-mobile-screen-button"></i>
-                App-first CTA
+                {currentCopy.finalEyebrow}
               </div>
 
               <h2
@@ -1878,7 +2191,7 @@ export default function HomePage() {
                   lineHeight: 1.15,
                 }}
               >
-                Ready to stop hunting across ten different promo channels?
+                {currentCopy.finalTitle}
               </h2>
 
               <p
@@ -1891,7 +2204,7 @@ export default function HomePage() {
                   marginInline: 'auto',
                 }}
               >
-                Make the primary action clear: get the app, discover today&apos;s best deals, and keep the full web browse path as a secondary option.
+                {currentCopy.finalDescription}
               </p>
 
               <div className="flex justify-center gap-4 flex-wrap">
@@ -1909,7 +2222,7 @@ export default function HomePage() {
                   }}
                 >
                   <i className="fas fa-bolt"></i>
-                  Start saving now
+                  {currentCopy.finalPrimary}
                 </a>
                 <button
                   onClick={() => router.push('/categories/all')}
@@ -1922,7 +2235,7 @@ export default function HomePage() {
                     fontWeight: 700,
                   }}
                 >
-                  See nearby offers
+                  {currentCopy.finalSecondary}
                 </button>
               </div>
             </div>
