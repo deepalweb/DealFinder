@@ -53,9 +53,29 @@ function stripBase64Media(value) {
   return typeof value === 'string' && value.startsWith('data:image') ? null : value;
 }
 
+function attachPromotionRatingSummary(promotion) {
+  if (!promotion || typeof promotion !== 'object') return promotion;
+
+  const ratings = Array.isArray(promotion.ratings) ? promotion.ratings : [];
+  const ratingValues = ratings
+    .map((rating) => Number(rating?.value) || 0)
+    .filter((value) => value > 0);
+
+  return {
+    ...promotion,
+    averageRating: ratingValues.length
+      ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(1))
+      : 0,
+    ratingsCount: ratingValues.length,
+    ratings: undefined,
+  };
+}
+
 function sanitizePromotionPayload(promotionDoc) {
   if (!promotionDoc) return null;
-  const promotion = promotionDoc.toObject ? promotionDoc.toObject() : { ...promotionDoc };
+  const promotion = attachPromotionRatingSummary(
+    promotionDoc.toObject ? promotionDoc.toObject() : { ...promotionDoc }
+  );
 
   if (promotion.merchant && typeof promotion.merchant === 'object') {
     promotion.merchant = {
@@ -215,7 +235,7 @@ async function getTrendingDeals(limit) {
   const baseQuery = getNowActivePromotionQuery(now);
 
   const promotions = await Promotion.find(baseQuery)
-    .select('-comments -ratings')
+    .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
     .lean();
 
@@ -291,7 +311,7 @@ async function resolveHotDealsSection() {
     endDate: { $gte: now, $lt: endExclusive },
     _id: { $nin: Array.from(hiddenIds) },
   })
-    .select('-comments -ratings')
+    .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
     .sort({ endDate: 1, createdAt: -1 })
     .limit(config.maxItems * 2)
@@ -347,7 +367,7 @@ async function resolveNewThisWeekSection() {
     createdAt: { $gte: sevenDaysAgo },
     _id: { $nin: Array.from(hiddenIds) },
   })
-    .select('-comments -ratings')
+    .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
     .sort({ createdAt: -1, _id: -1 })
     .limit(config.maxItems * 2)
@@ -406,7 +426,7 @@ async function resolveFlashSalesSection() {
     endDate: { $gte: now, $lte: nextDay },
     _id: { $nin: Array.from(hiddenIds) },
   })
-    .select('-comments -ratings')
+    .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
     .sort({ endDate: 1, createdAt: -1 })
     .limit(config.maxItems * 2)

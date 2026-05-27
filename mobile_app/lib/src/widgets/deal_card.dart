@@ -206,8 +206,9 @@ class _DealCardState extends State<DealCard> {
     final bankName = BankCardPromotionSupport.bankName(p);
     final cardTypes = BankCardPromotionSupport.cardTypes(p);
     final offerTypes = BankCardPromotionSupport.offerTypes(p);
-    final isBankCardPromotion =
-        BankCardPromotionSupport.isBankCardPromotion(p);
+    final isBankCardPromotion = BankCardPromotionSupport.isBankCardPromotion(p);
+    final hasRatings = p.ratingsCount > 0;
+    final averageRating = p.averageRating ?? 0.0;
     return Card(
       margin: const EdgeInsets.all(3),
       elevation: 1,
@@ -281,6 +282,39 @@ class _DealCardState extends State<DealCard> {
                             color: Colors.white,
                             fontSize: 9,
                             fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              if (hasRatings)
+                Positioned(
+                  top: 6,
+                  right: 36,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, size: 12, color: Colors.amber[700]),
+                        const SizedBox(width: 3),
+                        Text(
+                          averageRating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -428,8 +462,9 @@ class _DealCardState extends State<DealCard> {
     final bankName = BankCardPromotionSupport.bankName(p);
     final cardTypes = BankCardPromotionSupport.cardTypes(p);
     final offerTypes = BankCardPromotionSupport.offerTypes(p);
-    final isBankCardPromotion =
-        BankCardPromotionSupport.isBankCardPromotion(p);
+    final isBankCardPromotion = BankCardPromotionSupport.isBankCardPromotion(p);
+    final hasRatings = p.ratingsCount > 0;
+    final averageRating = p.averageRating ?? 0.0;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       elevation: 2,
@@ -476,6 +511,33 @@ class _DealCardState extends State<DealCard> {
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 11)),
+                  ),
+                ),
+              if (hasRatings)
+                Positioned(
+                  top: 10,
+                  right: p.featured == true ? 96 : 10,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.star, size: 14, color: Colors.amber[700]),
+                        const SizedBox(width: 4),
+                        Text(
+                          averageRating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               // Action buttons bottom-right

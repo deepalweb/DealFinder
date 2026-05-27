@@ -46,7 +46,9 @@ class MerchantCard extends StatelessWidget {
           errorBuilder: (_, __, ___) => placeholder,
         );
       } catch (e) {
-        if (kDebugMode) print('Error decoding base64 image: $e');
+        if (kDebugMode) {
+          debugPrint('Error decoding base64 image: $e');
+        }
         return placeholder;
       }
     }

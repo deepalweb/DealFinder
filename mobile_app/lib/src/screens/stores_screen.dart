@@ -171,12 +171,21 @@ class _StoresScreenState extends State<StoresScreen> {
     return ranked.take(5).toList();
   }
 
-  int get _activeCategoryCount => _selectedCategory == 'all'
-      ? _allMerchants.length
-      : _allMerchants
-          .where((merchant) =>
-              _normalizedMerchantCategory(merchant) == _selectedCategory)
-          .length;
+  List<Map<String, dynamic>> get _newestMerchants {
+    final ranked = [..._allMerchants];
+    ranked.sort((a, b) => (b['createdAt'] ?? '')
+        .toString()
+        .compareTo((a['createdAt'] ?? '').toString()));
+    return ranked.take(6).toList();
+  }
+
+  List<Map<String, dynamic>> get _followingPreview {
+    return _allMerchants
+        .where(
+            (merchant) => _followingMerchants.contains(_merchantIdOf(merchant)))
+        .take(6)
+        .toList();
+  }
 
   Future<void> _toggleFollow(String merchantId) async {
     if (_followLoadingMerchants.contains(merchantId)) return;
@@ -327,6 +336,7 @@ class _StoresScreenState extends State<StoresScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
       appBar: AppBar(
@@ -352,7 +362,8 @@ class _StoresScreenState extends State<StoresScreen> {
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          padding:
+                              EdgeInsets.fromLTRB(16, 16, 16, 16 + bottomInset),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -360,25 +371,46 @@ class _StoresScreenState extends State<StoresScreen> {
                               const SizedBox(height: 16),
                               _buildSearchBar(),
                               const SizedBox(height: 14),
-                              _buildQuickStatsRow(),
+                              _buildCompactSummaryBar(),
                               const SizedBox(height: 16),
                               _buildCategoryFilter(),
                               if (_hasActiveFilters) ...[
                                 const SizedBox(height: 14),
                                 _buildActiveFilterBar(),
                               ],
-                              const SizedBox(height: 18),
-                              if (_featuredMerchants.isNotEmpty &&
-                                  _searchTerm.isEmpty &&
+                              const SizedBox(height: 16),
+                              if (_searchTerm.isEmpty &&
                                   _selectedCategory == 'all') ...[
-                                _buildSectionHeader(
-                                  title: 'Top Picks',
-                                  subtitle:
-                                      'Popular stores worth checking first',
-                                ),
-                                const SizedBox(height: 12),
-                                _buildFeaturedScroller(),
-                                const SizedBox(height: 22),
+                                if (_followingPreview.isNotEmpty) ...[
+                                  _buildSectionHeader(
+                                    title: 'Following Stores',
+                                    subtitle:
+                                        'Quick access to merchants you already care about',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildMerchantScroller(_followingPreview),
+                                  const SizedBox(height: 18),
+                                ],
+                                if (_featuredMerchants.isNotEmpty) ...[
+                                  _buildSectionHeader(
+                                    title: 'Popular Right Now',
+                                    subtitle:
+                                        'Stores with the strongest mix of followers and active deals',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildMerchantScroller(_featuredMerchants),
+                                  const SizedBox(height: 18),
+                                ],
+                                if (_newestMerchants.isNotEmpty) ...[
+                                  _buildSectionHeader(
+                                    title: 'Fresh Merchants',
+                                    subtitle:
+                                        'Newer stores to explore before everyone else finds them',
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildMerchantScroller(_newestMerchants),
+                                  const SizedBox(height: 22),
+                                ],
                               ],
                               _buildSectionHeader(
                                 title: 'Browse All Stores',
@@ -398,7 +430,8 @@ class _StoresScreenState extends State<StoresScreen> {
                         )
                       else
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                          padding:
+                              EdgeInsets.fromLTRB(16, 0, 16, 112 + bottomInset),
                           sliver: SliverList.builder(
                             itemCount: _filteredMerchants.length,
                             itemBuilder: (context, index) {
@@ -515,20 +548,37 @@ class _StoresScreenState extends State<StoresScreen> {
             spacing: 10,
             runSpacing: 10,
             children: [
-              _buildHeroChip(
-                icon: Icons.local_offer_outlined,
-                value: '${_allMerchants.length}',
-                label: 'Stores live',
-              ),
-              _buildHeroChip(
-                icon: Icons.favorite_border,
-                value: '${_followingMerchants.length}',
+              _buildHeroShortcut(
+                icon: Icons.favorite_outline,
                 label: 'Following',
+                onTap: () {
+                  setState(() => _sortMode = 'following');
+                  _applyFilters();
+                },
               ),
-              _buildHeroChip(
-                icon: Icons.grid_view_rounded,
-                value: '${_categories.length - 1}',
-                label: 'Categories',
+              _buildHeroShortcut(
+                icon: Icons.local_offer_outlined,
+                label: 'Popular',
+                onTap: () {
+                  setState(() => _sortMode = 'popular');
+                  _applyFilters();
+                },
+              ),
+              _buildHeroShortcut(
+                icon: Icons.restaurant_rounded,
+                label: 'Food Stores',
+                onTap: () {
+                  setState(() => _selectedCategory = 'food_dining');
+                  _applyFilters();
+                },
+              ),
+              _buildHeroShortcut(
+                icon: Icons.auto_awesome_outlined,
+                label: 'Newest',
+                onTap: () {
+                  setState(() => _sortMode = 'new');
+                  _applyFilters();
+                },
               ),
             ],
           ),
@@ -537,40 +587,80 @@ class _StoresScreenState extends State<StoresScreen> {
     );
   }
 
-  Widget _buildHeroChip({
+  Widget _buildHeroShortcut({
     required IconData icon,
-    required String value,
     required String label,
+    required VoidCallback onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.94),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactSummaryBar() {
+    final allCount = _allMerchants.length;
+    final followingCount = _followingMerchants.length;
+    final visibleCount = _filteredMerchants.length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE6EBF2)),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.white, size: 16),
+          const Icon(Icons.insights_rounded,
+              color: Color(0xFF1E88E5), size: 18),
           const SizedBox(width: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+          Expanded(
+            child: Text(
+              '$visibleCount visible • $followingCount following • $allCount total stores',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF243447),
+              ),
             ),
           ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.92),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          if (_selectedCategory != 'all')
+            Text(
+              _categories.firstWhere(
+                  (item) => item['id'] == _selectedCategory)['name']!,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF00897B),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -613,97 +703,6 @@ class _StoresScreenState extends State<StoresScreen> {
           _applyFilters();
         },
         controller: _searchController,
-      ),
-    );
-  }
-
-  Widget _buildQuickStatsRow() {
-    final allCount = _allMerchants.length;
-    final followingCount = _followingMerchants.length;
-    final visibleCount = _filteredMerchants.length;
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildQuickStatCard(
-            label: 'Visible Now',
-            value: '$visibleCount',
-            icon: Icons.visibility_outlined,
-            tone: const Color(0xFF1E88E5),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildQuickStatCard(
-            label: 'Following',
-            value: '$followingCount',
-            icon: Icons.favorite_outline,
-            tone: const Color(0xFFE53935),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildQuickStatCard(
-            label: 'In Category',
-            value: '$_activeCategoryCount',
-            icon: Icons.category_outlined,
-            tone: const Color(0xFF00897B),
-            helper: allCount > 0 ? 'of $allCount' : null,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickStatCard({
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color tone,
-    String? helper,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: tone.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: tone.withValues(alpha: 0.1),
-            child: Icon(icon, size: 18, color: tone),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF14213D),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF6B7280),
-            ),
-          ),
-          if (helper != null)
-            Text(
-              helper,
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF9CA3AF),
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -970,15 +969,15 @@ class _StoresScreenState extends State<StoresScreen> {
     }
   }
 
-  Widget _buildFeaturedScroller() {
+  Widget _buildMerchantScroller(List<Map<String, dynamic>> merchants) {
     return SizedBox(
       height: 268,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _featuredMerchants.length,
+        itemCount: merchants.length,
         separatorBuilder: (_, __) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
-          final merchant = _featuredMerchants[index];
+          final merchant = merchants[index];
           final merchantId = _merchantIdOf(merchant);
           return SizedBox(
             width: 288,

@@ -28,6 +28,24 @@ function stripBase64Media(value) {
   return typeof value === 'string' && value.startsWith('data:image') ? null : value;
 }
 
+function attachPromotionRatingSummary(promotion) {
+  if (!promotion || typeof promotion !== 'object') return promotion;
+
+  const ratings = Array.isArray(promotion.ratings) ? promotion.ratings : [];
+  const ratingValues = ratings
+    .map((rating) => Number(rating?.value) || 0)
+    .filter((value) => value > 0);
+
+  return {
+    ...promotion,
+    averageRating: ratingValues.length
+      ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(1))
+      : 0,
+    ratingsCount: ratingValues.length,
+    ratings: undefined,
+  };
+}
+
 const COLOMBO_TIME_ZONE = 'Asia/Colombo';
 const COLOMBO_OFFSET = '+05:30';
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,7 +105,7 @@ function resolveLifecycleStatus(startDate, endDate, value = new Date()) {
 function sanitizePromotionPayload(promotion) {
   if (!promotion || typeof promotion !== 'object') return promotion;
 
-  const sanitized = { ...promotion };
+  const sanitized = attachPromotionRatingSummary({ ...promotion });
   if (sanitized.merchant && typeof sanitized.merchant === 'object') {
     sanitized.merchant = {
       ...sanitized.merchant,
@@ -199,7 +217,7 @@ router.get('/homepage', async (req, res) => {
     const [sections, latest] = await Promise.all([
       resolveHomepageSections(),
       Promotion.find(query)
-        .select('-comments -ratings')
+        .select('-comments')
         .populate('merchant', 'name logo currency website merchantType orderLink deliveryAvailable pickupAvailable')
         .sort({ createdAt: -1 })
         .limit(20)
@@ -333,7 +351,8 @@ router.get('/nearby', async (req, res) => {
                   minimumSpend: 1,
                   maximumBenefit: 1,
                   status: 1,
-                  createdAt: 1
+                  createdAt: 1,
+                  ratings: 1,
                 }
               }
             ],
@@ -426,7 +445,7 @@ router.get('/', async (req, res) => {
     const query = buildActivePromotionQuery();
     
     let promotionsQuery = Promotion.find(query)
-      .select('-comments -ratings')
+      .select('-comments')
       .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
       .sort({ createdAt: -1 })
       .lean();
@@ -536,7 +555,7 @@ router.get('/merchant/:merchantId', async (req, res) => {
       return res.status(400).json({ message: 'Valid merchant ID is required' });
     }
     const promotions = await Promotion.find({ merchant: req.params.merchantId })
-      .select('-comments -ratings')
+      .select('-comments')
       .sort({ createdAt: -1 })
       .lean();
     res.status(200).json(promotions);

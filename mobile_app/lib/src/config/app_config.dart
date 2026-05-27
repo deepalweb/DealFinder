@@ -5,13 +5,14 @@ class AppConfig {
   static const _env = _Env.production;
   // ─────────────────────────────────────────────────────────────────────────
 
-  static const _productionOrigin =
-      'https://dealfinderapp.lk';
+  static const _productionOrigin = 'https://dealfinderapp.lk';
+  static const _productionBackendOrigin =
+      'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
 
   static const _urls = {
     _Env.device:     'http://192.168.8.102:8080/api/',
     _Env.emulator:   'http://10.0.2.2:8080/api/',
-    _Env.production: '$_productionOrigin/api/',
+    _Env.production: '$_productionBackendOrigin/api/',
   };
 
   static String get baseUrl {

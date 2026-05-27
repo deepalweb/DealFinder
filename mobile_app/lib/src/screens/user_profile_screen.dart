@@ -50,7 +50,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _favoritesTabController = TabController(length: 2, vsync: this);
     _loadUserData();
   }
@@ -168,7 +168,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     setState(() => _isLoading = true);
     
     try {
-      // Save locally first
+      // Persist locally until a dedicated profile update endpoint is wired.
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('userName', _nameController.text.trim());
       if (!mounted) return;
@@ -285,6 +285,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
 
   Future<void> _changePassword() async {
+    if (_userId == null || _token == null || _userId!.isEmpty || _token!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please log in again before changing password')),
+      );
+      return;
+    }
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('New passwords do not match')),
@@ -342,56 +348,288 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     }
   }
 
-  Widget _buildProfileTab() {
-    return RefreshIndicator(
-      onRefresh: _loadUserData,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: _pickProfilePicture,
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    backgroundImage: _profilePicture != null 
-                        ? MemoryImage(base64Decode(_profilePicture!.split(',')[1]))
-                        : null,
-                    child: _profilePicture == null
-                        ? Icon(
-                            _role == 'merchant' ? Icons.store : Icons.person,
-                            size: 50,
-                            color: Theme.of(context).colorScheme.primary,
-                          )
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primary,
-                        shape: BoxShape.circle,
+  ImageProvider? _profileImageProvider() {
+    final raw = _profilePicture;
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      if (!raw.contains(',')) return null;
+      return MemoryImage(base64Decode(raw.split(',')[1]));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildProfileHero() {
+    final profileImage = _profileImageProvider();
+    final followingCount = _followingMerchants.length;
+    final favoriteCount = _favoriteDeals.length;
+    final roleLabel = _role.capitalize();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0F4C81),
+            Color(0xFF2563EB),
+            Color(0xFF5EA6FF),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: _pickProfilePicture,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 36,
+                      backgroundColor: Colors.white.withValues(alpha: 0.18),
+                      backgroundImage: profileImage,
+                      child: profileImage == null
+                          ? Icon(
+                              _role == 'merchant' ? Icons.storefront_rounded : Icons.person_rounded,
+                              size: 34,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_rounded,
+                          size: 15,
+                          color: Color(0xFF2563EB),
+                        ),
                       ),
-                      padding: const EdgeInsets.all(4),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        size: 16,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _name,
+                      style: const TextStyle(
                         color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
                       ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _email,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildProfileBadge(Icons.badge_outlined, roleLabel),
+                        if (_role == 'merchant' && (_businessName?.isNotEmpty ?? false))
+                          _buildProfileBadge(Icons.business_outlined, _businessName!),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildHeroStat('$favoriteCount', 'Saved deals'),
+              _buildHeroStat('$followingCount', 'Following'),
+              _buildHeroStat(_role == 'merchant' ? 'Merchant' : 'Account', 'Plan'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileBadge(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroStat(String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE6EBF2)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: Theme.of(context).colorScheme.primary),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF14213D),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                      fontSize: 12.5,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF94A3B8)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileTab() {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return RefreshIndicator(
+      onRefresh: _loadUserData,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 112 + bottomInset),
+        child: Column(
+          children: [
+            _buildProfileHero(),
+            const SizedBox(height: 16),
+            _buildQuickActionCard(
+              icon: Icons.favorite_outline_rounded,
+              title: 'Saved Deals & Stores',
+              subtitle: 'Review your favorites and followed stores in one place.',
+              onTap: () => _tabController.animateTo(3),
+            ),
+            const SizedBox(height: 12),
+            _buildQuickActionCard(
+              icon: Icons.notifications_active_outlined,
+              title: 'Notification Settings',
+              subtitle: 'Control push alerts, categories, and quiet hours.',
+              onTap: () => _tabController.animateTo(2),
+            ),
+            const SizedBox(height: 16),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const Text(
+                      'Account Details',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF14213D),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     TextField(
                       controller: _nameController,
                       decoration: InputDecoration(
@@ -415,7 +653,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                       decoration: InputDecoration(
                         labelText: 'Email',
                         prefixIcon: const Icon(Icons.email),
-                        helperText: 'Email cannot be changed',
+                        helperText: 'Email cannot be changed from the app yet',
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(
@@ -474,7 +712,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Save Changes'),
+                        child: const Text('Save Local Changes'),
                       ),
                     ),
                   ],
@@ -482,7 +720,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
               ),
             ),
             const SizedBox(height: 16),
-            // Merchant Dashboard Button
             if (_role == 'merchant')
               SizedBox(
                 width: double.infinity,
@@ -516,6 +753,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                 child: const Text('Logout'),
               ),
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
@@ -819,77 +1057,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
   
 
-  Widget _buildFollowingTab() {
-    if (_loadingFollowing) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    if (_followingMerchants.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _loadFollowingMerchants,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.store_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No merchants followed yet'),
-                  Text('Start following merchants to see them here!'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-    
-    return RefreshIndicator(
-      onRefresh: _loadFollowingMerchants,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: _followingMerchants.length,
-        itemBuilder: (context, index) {
-          final merchant = _followingMerchants[index];
-          final merchantId = merchant['_id'] ?? merchant['id'] ?? '';
-          final merchantName = merchant['name'] ?? 'Unknown Merchant';
-          final merchantLogo = merchant['logo'];
-          
-          return Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundImage: merchantLogo != null && merchantLogo.toString().isNotEmpty
-                    ? NetworkImage(merchantLogo)
-                    : null,
-                child: merchantLogo == null || merchantLogo.toString().isEmpty
-                    ? const Icon(Icons.store)
-                    : null,
-              ),
-              title: Text(merchantName),
-              subtitle: Text(merchant['contactInfo'] ?? 'No contact info'),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
-                    onPressed: () => _unfollowMerchant(merchantId),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.arrow_forward_ios),
-                    onPressed: () => _openMerchantProfile(merchantId),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -908,7 +1075,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             Tab(text: 'Security'),
             Tab(text: 'Notifications'),
             Tab(text: 'Favorites'),
-            Tab(text: 'Following'),
           ],
         ),
       ),
@@ -921,7 +1087,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                 _buildSecurityTab(),
                 _buildNotificationsTab(),
                 _buildFavoritesTab(),
-                _buildFollowingTab(),
               ],
             ),
     );

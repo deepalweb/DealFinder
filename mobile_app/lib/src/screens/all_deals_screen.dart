@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../models/promotion.dart';
@@ -9,6 +10,7 @@ import '../utils/deal_filter_support.dart';
 import '../widgets/modern_deal_card.dart';
 import 'deals_list_screen.dart';
 import 'deal_detail_screen.dart';
+import 'search_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AllDealsScreen extends StatefulWidget {
@@ -124,12 +126,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   bool get _hasMaxPriceFilter => _maxPrice.isFinite;
 
-  Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
-    final Map<String, List<Promotion>> grouped = {};
-
-    // Apply filters
-    var filtered = promotions.where((promo) {
-      // Category filter
+  List<Promotion> _filteredPromotions(List<Promotion> promotions) {
+    final filtered = promotions.where((promo) {
       final normalizedCategory = _effectiveCategory(promo);
       if (_selectedCategory != null &&
           normalizedCategory != _selectedCategory) {
@@ -141,14 +139,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return false;
       }
 
-      // Price filter
       final price =
           promo.discountedPrice ?? promo.price ?? promo.originalPrice ?? 0;
       if (price < _minPrice || price > _maxPrice) {
         return false;
       }
 
-      // Discount filter
       if (promo.discount != null) {
         final discountMatch = RegExp(r'(\d+)').firstMatch(promo.discount!);
         if (discountMatch != null) {
@@ -172,7 +168,6 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       return true;
     }).toList();
 
-    // Apply sorting
     filtered.sort((a, b) {
       final primaryCompare = _comparePrimaryFilterOrder(a, b);
       if (primaryCompare != 0) return primaryCompare;
@@ -183,12 +178,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           if (a.createdAt == null) return 1;
           if (b.createdAt == null) return -1;
           return b.createdAt!.compareTo(a.createdAt!);
-
         case 'discount':
-          final aDiscount = _extractDiscount(a.discount);
-          final bDiscount = _extractDiscount(b.discount);
-          return bDiscount.compareTo(aDiscount);
-
+          return _extractDiscount(b.discount).compareTo(
+            _extractDiscount(a.discount),
+          );
         case 'price_low':
           final aPrice = a.discountedPrice ??
               a.price ??
@@ -199,27 +192,30 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               b.originalPrice ??
               double.infinity;
           return aPrice.compareTo(bPrice);
-
         case 'price_high':
           final aPrice = a.discountedPrice ?? a.price ?? a.originalPrice ?? 0;
           final bPrice = b.discountedPrice ?? b.price ?? b.originalPrice ?? 0;
           return bPrice.compareTo(aPrice);
-
         case 'ending_soon':
           if (a.endDate == null && b.endDate == null) return 0;
           if (a.endDate == null) return 1;
           if (b.endDate == null) return -1;
           return a.endDate!.compareTo(b.endDate!);
-
         case 'distance':
-          final aDist = a.distance ?? double.infinity;
-          final bDist = b.distance ?? double.infinity;
-          return aDist.compareTo(bDist);
-
+          return (a.distance ?? double.infinity).compareTo(
+            b.distance ?? double.infinity,
+          );
         default:
           return 0;
       }
     });
+
+    return filtered;
+  }
+
+  Map<String, List<Promotion>> _groupByCategory(List<Promotion> promotions) {
+    final Map<String, List<Promotion>> grouped = {};
+    final filtered = _filteredPromotions(promotions);
 
     // Group by category - only add categories that have deals
     for (var promo in filtered) {
@@ -293,7 +289,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       case primaryHalfOff:
         return _discountSignal(b).compareTo(_discountSignal(a));
       case primaryBankCards:
-        final bankCompare = (BankCardPromotionSupport.bankName(a) ?? '').compareTo(
+        final bankCompare =
+            (BankCardPromotionSupport.bankName(a) ?? '').compareTo(
           BankCardPromotionSupport.bankName(b) ?? '',
         );
         if (bankCompare != 0) return bankCompare;
@@ -325,6 +322,39 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     final structured = promo.discountPercentage;
     if (structured != null) return structured.toDouble();
     return _extractDiscount(promo.discount);
+  }
+
+  bool _hasDirections(Promotion promotion) {
+    return (promotion.latitude != null && promotion.longitude != null) ||
+        (promotion.location?.trim().isNotEmpty ?? false);
+  }
+
+  Future<void> _openDirectionsFor(Promotion promotion) async {
+    String? url;
+    if (promotion.latitude != null && promotion.longitude != null) {
+      url =
+          'https://www.google.com/maps/dir/?api=1&destination=${promotion.latitude},${promotion.longitude}';
+    } else if (promotion.location != null &&
+        promotion.location!.trim().isNotEmpty) {
+      final query = Uri.encodeComponent(promotion.location!.trim());
+      url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
+    }
+
+    if (url == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No location available for this deal.')),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Google Maps.')),
+      );
+    }
   }
 
   String _getCategoryName(String categoryId) {
@@ -569,8 +599,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                               keyboardType: TextInputType.number,
                               onChanged: (value) {
                                 setState(() {
-                                  _maxPrice =
-                                      double.tryParse(value) ?? _defaultMaxPrice;
+                                  _maxPrice = double.tryParse(value) ??
+                                      _defaultMaxPrice;
                                 });
                                 setSheetState(() {});
                               },
@@ -1097,50 +1127,32 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     final sortedCategories = groupedDeals.keys.toList()
       ..sort(
           (a, b) => groupedDeals[b]!.length.compareTo(groupedDeals[a]!.length));
+    final curatedSections = _buildCuratedSections(groupedDeals);
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return CustomScrollView(
       slivers: [
-        // Stats header
         SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Theme.of(context).colorScheme.primary,
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.7),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(Icons.local_offer, '$totalDeals', 'Total Deals'),
-                Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.3)),
-                _buildStatItem(
-                    Icons.category, '${sortedCategories.length}', 'Categories'),
-              ],
-            ),
+          child: Column(
+            children: [
+              _buildExploreHero(totalDeals, sortedCategories.length),
+              if (curatedSections.isNotEmpty)
+                ...curatedSections
+                    .map(
+                      (section) => _buildCuratedSection(
+                        title: section.title,
+                        subtitle: section.subtitle,
+                        icon: section.icon,
+                        promotions: section.promotions,
+                      ),
+                    )
+                    .toList(),
+              _buildCompactSummary(totalDeals, sortedCategories.length),
+            ],
           ),
         ),
-        // Category sections
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 112 + bottomInset),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
@@ -1158,27 +1170,378 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     );
   }
 
-  Widget _buildStatItem(IconData icon, String value, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 28),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
+  Widget _buildExploreHero(int totalDeals, int totalCategories) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0F4C81),
+            Color(0xFF2563EB),
+            Color(0xFF5EA6FF),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.explore_rounded, color: Colors.white, size: 15),
+                    SizedBox(width: 6),
+                    Text(
+                      'Explore smarter',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$totalDeals deals',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Discover what is worth opening first',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Jump into urgent deals, nearby offers, and popular categories without digging through every section.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              );
+            },
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.search_rounded, color: Color(0xFF2563EB)),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Search products, stores, food, or card offers',
+                      style: TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_forward_rounded, color: Color(0xFF2563EB)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildHeroShortcut(
+                label: 'Ending Soon',
+                icon: Icons.hourglass_bottom_rounded,
+                onTap: () => setState(() => _activePrimaryFilter =
+                    _activePrimaryFilter == primaryEndingSoon
+                        ? null
+                        : primaryEndingSoon),
+              ),
+              _buildHeroShortcut(
+                label: 'Under 1km',
+                icon: Icons.near_me_rounded,
+                onTap: () => setState(() => _activePrimaryFilter =
+                    _activePrimaryFilter == primaryUnder1km
+                        ? null
+                        : primaryUnder1km),
+              ),
+              _buildHeroShortcut(
+                label: '50%+ Off',
+                icon: Icons.local_offer_outlined,
+                onTap: () => setState(() => _activePrimaryFilter =
+                    _activePrimaryFilter == primaryHalfOff
+                        ? null
+                        : primaryHalfOff),
+              ),
+              _buildHeroShortcut(
+                label: '$totalCategories categories',
+                icon: Icons.grid_view_rounded,
+                onTap: () {},
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroShortcut({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 12,
+      ),
+    );
+  }
+
+  Widget _buildCompactSummary(int totalDeals, int totalCategories) {
+    final topLabel = _selectedCategory != null
+        ? _getCategoryName(_selectedCategory!)
+        : 'All categories';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.insights_rounded,
+            color: Color(0xFF2563EB),
+            size: 18,
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$totalDeals deals across $totalCategories categories • $topLabel',
+              style: const TextStyle(
+                color: Color(0xFF334155),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (!_hasActiveUserFilters)
+            const Text(
+              'Live',
+              style: TextStyle(
+                color: Color(0xFF0F766E),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<_CuratedSectionData> _buildCuratedSections(
+      Map<String, List<Promotion>> groupedDeals) {
+    final allDeals = groupedDeals.values.expand((deals) => deals).toList();
+    final sections = <_CuratedSectionData>[];
+
+    final now = DateTime.now();
+    final endingSoon = List<Promotion>.from(allDeals)
+      ..retainWhere((p) {
+        final cutoff = now.add(const Duration(hours: 48));
+        return p.endDate != null &&
+            p.endDate!.isAfter(now) &&
+            p.endDate!.isBefore(cutoff);
+      })
+      ..sort((a, b) => (a.endDate ?? DateTime(9999))
+          .compareTo(b.endDate ?? DateTime(9999)));
+
+    final nearby = List<Promotion>.from(allDeals)
+      ..retainWhere((p) => p.distance != null)
+      ..sort((a, b) => (a.distance ?? double.infinity)
+          .compareTo(b.distance ?? double.infinity));
+
+    final bigDiscounts = List<Promotion>.from(allDeals)
+      ..retainWhere((p) => _discountSignal(p) >= 40)
+      ..sort((a, b) => _discountSignal(b).compareTo(_discountSignal(a)));
+
+    void addSection(
+      String title,
+      String subtitle,
+      IconData icon,
+      List<Promotion> promotions,
+    ) {
+      final top = promotions.take(6).toList();
+      if (top.length >= 2) {
+        sections.add(
+          _CuratedSectionData(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            promotions: top,
+          ),
+        );
+      }
+    }
+
+    addSection(
+      'Ending Soon',
+      'Catch expiring deals before they disappear.',
+      Icons.schedule_rounded,
+      endingSoon,
+    );
+    addSection(
+      'Near You',
+      'Closest deals first when distance is available.',
+      Icons.near_me_rounded,
+      nearby,
+    );
+    addSection(
+      'Big Savings',
+      'The strongest discounts right now.',
+      Icons.local_fire_department_outlined,
+      bigDiscounts,
+    );
+
+    return sections.take(2).toList();
+  }
+
+  Widget _buildCuratedSection({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required List<Promotion> promotions,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F1FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF14213D),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 308,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: promotions.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final promotion = promotions[index];
+                return SizedBox(
+                  width: 184,
+                  child: ModernDealCard(
+                    promotion: promotion,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DealDetailScreen(promotion: promotion),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1201,17 +1564,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           ),
         );
       },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 15,
-              offset: const Offset(0, 4),
-            ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.045),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
           ],
         ),
         child: Column(
@@ -1219,7 +1582,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           children: [
             // Category Header
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
@@ -1250,7 +1613,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         Text(
                           categoryName,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1A1A1A),
                           ),
@@ -1259,7 +1622,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         Text(
                           '${deals.length} deals available',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             color: Colors.grey[600],
                           ),
                         ),
@@ -1292,7 +1655,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         borderRadius: BorderRadius.circular(20),
                         child: const Padding(
                           padding:
-                              EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -1317,7 +1680,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             ),
             // Deals List
             SizedBox(
-              height: 340,
+              height: 308,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.all(16),
@@ -1330,6 +1693,21 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                     ),
                     child: ModernDealCard(
                       promotion: displayDeals[index],
+                      onPrimaryAction: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => DealDetailScreen(
+                                promotion: displayDeals[index]),
+                          ),
+                        );
+                      },
+                      onSecondaryAction: _hasDirections(displayDeals[index])
+                          ? () => _openDirectionsFor(displayDeals[index])
+                          : null,
+                      secondaryActionLabel: _hasDirections(displayDeals[index])
+                          ? 'Directions'
+                          : null,
                       onTap: () {
                         Navigator.push(
                           context,
@@ -1374,7 +1752,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               ),
             ),
             SizedBox(
-              height: 340,
+              height: 308,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1507,4 +1885,18 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       ),
     );
   }
+}
+
+class _CuratedSectionData {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final List<Promotion> promotions;
+
+  const _CuratedSectionData({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.promotions,
+  });
 }

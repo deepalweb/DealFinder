@@ -43,9 +43,13 @@ class MyApp extends StatelessWidget {
   const MyApp({
     super.key,
     this.authLoader,
+    this.authenticatedHomeBuilder,
+    this.unauthenticatedHomeBuilder,
   });
 
   final Future<Map<String, String?>> Function()? authLoader;
+  final Widget Function(String userId, String token)? authenticatedHomeBuilder;
+  final WidgetBuilder? unauthenticatedHomeBuilder;
 
   Future<Map<String, String?>> _getAuth() async {
     if (authLoader != null) {
@@ -61,11 +65,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, String?>> (
+    return FutureBuilder<Map<String, String?>>(
       future: _getAuth(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const MaterialApp(home: Scaffold(body: Center(child: CircularProgressIndicator())));
+          return const MaterialApp(
+              home: Scaffold(body: Center(child: CircularProgressIndicator())));
         }
         final userToken = snapshot.data!['userToken'];
         final userId = snapshot.data!['userId'];
@@ -87,7 +92,8 @@ class MyApp extends StatelessWidget {
           onGenerateRoute: (settings) {
             if (settings.name == '/deal' && settings.arguments is Promotion) {
               return MaterialPageRoute(
-                builder: (_) => DealDetailScreen(promotion: settings.arguments as Promotion),
+                builder: (_) => DealDetailScreen(
+                    promotion: settings.arguments as Promotion),
               );
             }
             return null;
@@ -128,10 +134,17 @@ class MyApp extends StatelessWidget {
             chipTheme: const ChipThemeData(
               backgroundColor: Color(0xFFE3F2FD),
               selectedColor: Color(0xFF1E88E5),
-              labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1E88E5)),
-              secondaryLabelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.white),
+              labelStyle: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF1E88E5)),
+              secondaryLabelStyle: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white),
               padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              shape: StadiumBorder(side: BorderSide(color: Color(0xFF1E88E5), width: 1)),
+              shape: StadiumBorder(
+                  side: BorderSide(color: Color(0xFF1E88E5), width: 1)),
             ),
             inputDecorationTheme: const InputDecorationTheme(
               filled: true,
@@ -149,7 +162,8 @@ class MyApp extends StatelessWidget {
                 borderSide: BorderSide(color: Color(0xFF1E88E5), width: 2),
               ),
               hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
@@ -157,11 +171,13 @@ class MyApp extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 2,
                 shadowColor: const Color(0x551E88E5),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                textStyle:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
             outlinedButtonTheme: OutlinedButtonThemeData(
@@ -184,7 +200,8 @@ class MyApp extends StatelessWidget {
               unselectedItemColor: Color(0xFF9E9E9E),
               backgroundColor: Colors.white,
               elevation: 8,
-              selectedLabelStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              selectedLabelStyle:
+                  TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               unselectedLabelStyle: TextStyle(fontSize: 11),
             ),
             floatingActionButtonTheme: const FloatingActionButtonThemeData(
@@ -209,18 +226,26 @@ class MyApp extends StatelessWidget {
               thickness: 1,
             ),
             textTheme: const TextTheme(
-              displayLarge: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-              displayMedium: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-              titleLarge: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Color(0xFF1A1A2E)),
-              titleMedium: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
+              displayLarge: TextStyle(
+                  fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+              displayMedium: TextStyle(
+                  fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+              titleLarge: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Color(0xFF1A1A2E)),
+              titleMedium: TextStyle(
+                  fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)),
               bodyLarge: TextStyle(color: Color(0xFF333333)),
               bodyMedium: TextStyle(color: Color(0xFF555555)),
               bodySmall: TextStyle(color: Color(0xFF777777)),
             ),
           ),
           home: (userToken != null && userId != null)
-            ? MainNavigationScreen(userId: userId, token: userToken)
-            : const LoginScreen(),
+              ? (authenticatedHomeBuilder?.call(userId, userToken) ??
+                  MainNavigationScreen(userId: userId, token: userToken))
+              : (unauthenticatedHomeBuilder?.call(context) ??
+                  const LoginScreen()),
         );
       },
     );

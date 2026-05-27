@@ -751,15 +751,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
-            childAspectRatio: 0.56,
+            childAspectRatio: 0.61,
           ),
           itemCount: visibleResults.length,
           itemBuilder: (context, index) {
             final promotion = visibleResults[index];
             return ModernDealCard(
               promotion: promotion,
-              showCountdown: promotion.endDate != null,
-              prioritizeDistance: promotion.distance != null,
               onTap: () {
                 Navigator.push(
                   context,

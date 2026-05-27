@@ -50,8 +50,9 @@ class AuthService {
         await saveSession(response);
         return response;
       } on FirebaseAuthException catch (e) {
-        debugPrint('Firebase auth failed: ${e.code} - ${e.message}');
-        debugPrint('Falling back to direct API login.');
+        if (kDebugMode) {
+          debugPrint('Firebase auth failed: ${e.code} - ${e.message}');
+        }
       }
 
       final response = await _apiService.directLogin(
@@ -90,8 +91,6 @@ class AuthService {
       throw Exception('Invalid response from server');
     }
 
-    debugPrint('Login response received for user: $userId');
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userToken', token);
     await prefs.setString('userId', userId);
@@ -108,12 +107,8 @@ class AuthService {
         );
       }
       final merchantId = response['merchantId'] as String?;
-      debugPrint('MerchantId from response: $merchantId');
       if (merchantId != null) {
         await prefs.setString('merchantId', merchantId);
-        debugPrint('Saved merchantId: $merchantId');
-      } else {
-        debugPrint('No merchantId in response');
       }
     } else {
       await prefs.remove('userBusinessName');

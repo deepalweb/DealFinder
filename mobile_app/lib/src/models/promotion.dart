@@ -29,6 +29,7 @@ class Promotion {
   final double? latitude;
   final double? longitude;
   final String? merchantLogoUrl;
+  final double? averageRating;
   final int ratingsCount;
   final String? merchantCurrency;
   final DateTime? createdAt;
@@ -72,6 +73,7 @@ class Promotion {
     this.latitude,
     this.longitude,
     this.merchantLogoUrl,
+    this.averageRating,
     this.ratingsCount = 0,
     this.merchantCurrency,
     this.createdAt,
@@ -182,7 +184,6 @@ class Promotion {
       }
     }
 
-    // Debug: Check merchant logo
     String? logoUrl = (json['merchant'] is Map
             ? json['merchant']['logo'] as String?
             : null) ??
@@ -211,13 +212,6 @@ class Promotion {
       longitude = (merchantLocation?['longitude'] as num?)?.toDouble() ??
           (json['longitude'] as num?)?.toDouble();
     }
-
-    if (kDebugMode && logoUrl != null) {
-      debugPrint('Logo found for ${json['title']}: $logoUrl');
-    } else if (kDebugMode) {
-      debugPrint('No logo for ${json['title']}');
-    }
-
     return Promotion(
       id: json['_id'] as String? ??
           json['id'] as String? ??
@@ -259,6 +253,7 @@ class Promotion {
           : null,
       latitude: latitude,
       longitude: longitude,
+      averageRating: (json['averageRating'] as num?)?.toDouble(),
       ratingsCount: json['ratings'] is List
           ? (json['ratings'] as List).length
           : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
@@ -324,6 +319,7 @@ class Promotion {
       'distance': distance,
       'latitude': latitude,
       'longitude': longitude,
+      'averageRating': averageRating,
       'ratings': List.generate(ratingsCount, (_) => {}),
       'createdAt': createdAt?.toIso8601String(),
       'status': status,
@@ -368,6 +364,7 @@ class Promotion {
     double? latitude,
     double? longitude,
     String? merchantLogoUrl,
+    double? averageRating,
     int? ratingsCount,
     String? merchantCurrency,
     DateTime? createdAt,
@@ -411,6 +408,7 @@ class Promotion {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       merchantLogoUrl: merchantLogoUrl ?? this.merchantLogoUrl,
+      averageRating: averageRating ?? this.averageRating,
       ratingsCount: ratingsCount ?? this.ratingsCount,
       merchantCurrency: merchantCurrency ?? this.merchantCurrency,
       createdAt: createdAt ?? this.createdAt,
