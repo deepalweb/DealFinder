@@ -685,7 +685,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                   children: [
                     Text(
                       l10n.accountDetails,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF14213D),

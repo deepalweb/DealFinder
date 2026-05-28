@@ -344,7 +344,7 @@ class _StoresScreenState extends State<StoresScreen> {
       appBar: AppBar(
         title: Text(
           l10n.storesPageTitle,
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
         backgroundColor: Colors.white,
@@ -522,7 +522,7 @@ class _StoresScreenState extends State<StoresScreen> {
                   children: [
                     Text(
                       l10n.discoverStoresTitle,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
@@ -1027,7 +1027,7 @@ class _StoresScreenState extends State<StoresScreen> {
             const SizedBox(height: 18),
             Text(
               l10n.noStoresMatchView,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF14213D),

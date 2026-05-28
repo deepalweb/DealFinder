@@ -19,6 +19,7 @@ class _NotificationSettingsScreenState
   bool _syncingPushToken = false;
   String? _fcmToken;
   String? _pushDebugStatus;
+  bool _pushPermissionGranted = false;
 
   // Channel settings
   bool _pushEnabled = false;
@@ -62,18 +63,30 @@ class _NotificationSettingsScreenState
 
   Future<void> _loadPushDebugState() async {
     final token = await PushNotificationService.getToken();
+    final permissionGranted =
+        await PushNotificationService.hasNotificationPermission();
     if (!mounted) return;
     setState(() {
       _fcmToken = token;
-      _pushDebugStatus = token == null || token.isEmpty
-          ? 'No FCM token found on this device yet.'
-          : 'FCM token is available on this device.';
+      _pushPermissionGranted = permissionGranted;
+      _pushDebugStatus = !permissionGranted
+          ? 'Notifications are not allowed on this device yet.'
+          : token == null || token.isEmpty
+              ? 'Notification permission is allowed, but no FCM token is available yet.'
+              : 'FCM token is available on this device.';
     });
   }
 
   Future<void> _loadPreferences() async {
     try {
       final prefs = await ApiService().getNotificationPreferences();
+      final localPermissionGranted =
+          await PushNotificationService.hasNotificationPermission();
+      final localToken = await PushNotificationService.getToken();
+      final localPushReady =
+          localPermissionGranted && localToken != null && localToken.isNotEmpty;
+      if (!mounted) return;
+
       setState(() {
         // Load channel settings
         _pushEnabled = prefs['channels']?['push']?['enabled'] ?? false;
@@ -112,6 +125,10 @@ class _NotificationSettingsScreenState
         // Load categories
         _selectedCategories =
             List<String>.from(prefs['preferences']?['categories'] ?? []);
+
+        _pushPermissionGranted = localPermissionGranted;
+        _fcmToken = localToken;
+        _pushEnabled = _pushEnabled && localPushReady;
 
         _loading = false;
       });
@@ -174,16 +191,59 @@ class _NotificationSettingsScreenState
 
   Future<void> _togglePushNotifications(bool value) async {
     if (value) {
-      // Request permission and subscribe
-      final token = await PushNotificationService.getToken();
-      if (token != null) {
+      try {
+        final token = await PushNotificationService.requestPermissionAndGetToken();
+        final permissionGranted =
+            await PushNotificationService.hasNotificationPermission();
+        if (!mounted) return;
+
+        if (!permissionGranted) {
+          setState(() {
+            _pushEnabled = false;
+            _pushPermissionGranted = false;
+            _pushDebugStatus =
+                'Notification permission is still disabled on this device.';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Allow notifications in device settings to enable push.'),
+            ),
+          );
+          return;
+        }
+
+        if (token == null || token.isEmpty) {
+          setState(() {
+            _pushEnabled = false;
+            _pushPermissionGranted = true;
+            _pushDebugStatus =
+                'Notification permission is granted, but no FCM token is available yet.';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Push token is not ready yet. Please try again.'),
+            ),
+          );
+          return;
+        }
+
         await ApiService().subscribeToNotifications(token, 'push');
         if (!mounted) return;
         setState(() {
           _pushEnabled = true;
+          _pushPermissionGranted = true;
           _fcmToken = token;
           _pushDebugStatus = 'Push enabled and token synced to backend.';
         });
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _pushEnabled = false;
+          _pushDebugStatus = 'Failed to enable push: $e';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to enable push notifications: $e')),
+        );
       }
     } else {
       // Unsubscribe
@@ -191,7 +251,9 @@ class _NotificationSettingsScreenState
       if (!mounted) return;
       setState(() {
         _pushEnabled = false;
-        _pushDebugStatus = 'Push disabled for this account.';
+        _pushDebugStatus = _pushPermissionGranted
+            ? 'Push disabled for this account.'
+            : 'Push disabled and notification permission is not granted.';
       });
     }
   }

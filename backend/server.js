@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const sendExpiryNotifications = require('./jobs/expiryNotifications');
 const { initializeNotificationJobs } = require('./jobs/notificationScheduler');
+const { ensureFirebaseAdminInitialized } = require('./services/firebaseAdmin');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -247,6 +248,7 @@ if (!process.env.JWT_REFRESH_SECRET) {
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  ensureFirebaseAdminInitialized();
 
   // Initialize notification jobs
   initializeNotificationJobs();

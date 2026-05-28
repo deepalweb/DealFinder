@@ -2,6 +2,7 @@ const Promotion = require('../models/Promotion');
 const User = require('../models/User');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
+const { hasRecentNotification } = require('./jobNotificationUtils');
 
 /**
  * Check for deals expiring soon and notify users who favorited them
@@ -49,6 +50,7 @@ async function checkExpiringDealsForUsers() {
     const expiringDealsMap = new Map(allExpiringDeals.map(d => [d._id.toString(), d]));
 
     let notificationsSent = 0;
+    const recentWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     for (const pref of preferences) {
       const user = pref.userId;
@@ -84,6 +86,18 @@ async function checkExpiringDealsForUsers() {
           ? deal.merchant.name 
           : 'a store';
 
+        const alreadySent = await hasRecentNotification({
+          userId: user._id,
+          type: 'expiring_deal',
+          dealId: deal._id,
+          merchantId: typeof deal.merchant === 'object' ? deal.merchant._id : deal.merchant,
+          since: recentWindowStart,
+        });
+
+        if (alreadySent) {
+          continue;
+        }
+
         await NotificationService.sendNotification(
           user._id,
           'expiring_deal',
@@ -107,11 +121,23 @@ async function checkExpiringDealsForUsers() {
       if (expiringToday.length > 0) {
         const dealsList = expiringToday.slice(0, 3).map(({ deal }) => deal.title).join(', ');
         const moreText = expiringToday.length > 3 ? ` and ${expiringToday.length - 3} more` : '';
+        const summaryKey = `summary:${expiringToday.map(({ deal }) => deal._id.toString()).sort().join(',')}`;
+        const alreadySent = await hasRecentNotification({
+          userId: user._id,
+          type: 'expiring_deal',
+          summaryKey,
+          since: recentWindowStart,
+        });
+
+        if (alreadySent) {
+          continue;
+        }
 
         await NotificationService.sendNotification(
           user._id,
           'expiring_deal',
           { 
+            summaryKey,
             dealIds: expiringToday.map(({ deal }) => deal._id.toString()),
             count: expiringToday.length
           },

@@ -1,6 +1,7 @@
 const Promotion = require('../models/Promotion');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
+const { hasRecentNotification } = require('./jobNotificationUtils');
 
 /**
  * Notify users about new deals in their preferred categories
@@ -56,6 +57,7 @@ async function checkCategoryDeals() {
     }
 
     let notificationsSent = 0;
+    const recentWindowStart = new Date(Date.now() - 60 * 60 * 1000);
 
     // Process each category
     for (const [category, deals] of Object.entries(dealsByCategory)) {
@@ -66,6 +68,17 @@ async function checkCategoryDeals() {
 
       // Send notification to each user
       for (const pref of preferences) {
+        const alreadySent = await hasRecentNotification({
+          userId: pref.userId,
+          type: 'category_deal',
+          category,
+          since: recentWindowStart,
+        });
+
+        if (alreadySent) {
+          continue;
+        }
+
         // If multiple deals in category, send summary
         if (deals.length > 1) {
           const dealTitles = deals.slice(0, 3).map(d => d.title).join(', ');

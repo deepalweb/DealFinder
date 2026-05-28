@@ -750,7 +750,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     final l10n = AppLocalizations.of(context)!;
     final activeFilterChips = _buildActiveFilterChips();
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(_screenTitle,
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -906,7 +906,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                       const SizedBox(width: 8),
                       Text(
                         l10n.activeFiltersLabel(activeFilterChips.length),
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF1E293B),
                         ),
@@ -1017,17 +1017,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       avatar: Icon(
         icon,
         size: 18,
-        color: selected ? const Color(0xFF007AFF) : const Color(0xFF54606E),
+        color: selected ? Colors.white : const Color(0xFF2563EB),
       ),
       label: Text(label),
       labelStyle: TextStyle(
         color: selected ? Colors.white : const Color(0xFF0F172A),
         fontWeight: FontWeight.w700,
       ),
-      backgroundColor: Colors.white,
-      selectedColor: const Color(0xFFEAF3FF),
+      backgroundColor: const Color(0xFFF3F7FF),
+      selectedColor: const Color(0xFF2563EB),
       side: BorderSide(
-        color: selected ? const Color(0xFFBFD8FF) : const Color(0xFFE2E8F0),
+        color: selected ? const Color(0xFF2563EB) : const Color(0xFFD8E4FB),
       ),
       selected: selected,
       onSelected: (_) {
@@ -1083,9 +1083,9 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFEFF5FF),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFD6E4FF)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1093,7 +1093,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           const Padding(
             padding: EdgeInsets.only(top: 2),
             child: Icon(Icons.auto_awesome_rounded,
-                color: Color(0xFF007AFF), size: 18),
+                color: Color(0xFF1E5AA8), size: 18),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1106,7 +1106,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                       : _t('Category filter applied', 'ප්‍රවර්ග පෙරහන යොදා ඇත', 'வகை வடிகட்டி பயன்படுத்தப்பட்டுள்ளது'),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
+                    color: Color(0xFF163A70),
                   ),
                 ),
                 if (subtitle != null) ...[
@@ -1114,7 +1114,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF35537A),
                       height: 1.4,
                     ),
                   ),
@@ -1185,14 +1185,21 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF0F4C81),
+            Color(0xFF2563EB),
+            Color(0xFF5EA6FF),
+          ],
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: const Color(0xFF2563EB).withValues(alpha: 0.20),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
           ),
         ],
       ),
@@ -1205,18 +1212,18 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2F7FF),
+                  color: Colors.white.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.explore_rounded, color: Color(0xFF007AFF), size: 15),
-                    SizedBox(width: 6),
+                    const Icon(Icons.explore_rounded, color: Colors.white, size: 15),
+                    const SizedBox(width: 6),
                     Text(
                       _t('Explore smarter', 'බුද්ධිමත් ලෙස සොයන්න', 'சாமர்த்தியமாக ஆராய்'),
-                      style: TextStyle(
-                        color: Color(0xFF007AFF),
+                      style: const TextStyle(
+                        color: Colors.white,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
                       ),
@@ -1228,7 +1235,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               Text(
                 '$totalDeals ${_t('deals', 'ඩීල්', 'சலுகைகள்')}',
                 style: TextStyle(
-                  color: const Color(0xFF6B7280),
+                  color: Colors.white.withValues(alpha: 0.92),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1237,8 +1244,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           const SizedBox(height: 14),
           Text(
             _t('Discover what is worth opening first', 'මුලින්ම විවෘත කළ යුතු දේ සොයා ගන්න', 'முதலில் திறக்க வேண்டியவற்றை கண்டறியவும்'),
-            style: TextStyle(
-              color: const Color(0xFF111827),
+            style: const TextStyle(
+              color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.w900,
               height: 1.1,
@@ -1252,7 +1259,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               'ஒவ்வொரு பகுதியையும் தேடாமல் அவசர சலுகைகள், அருகிலுள்ள சலுகைகள் மற்றும் பிரபல வகைகளுக்குச் செல்லுங்கள்.',
             ),
             style: TextStyle(
-              color: const Color(0xFF6B7280),
+              color: Colors.white.withValues(alpha: 0.88),
               height: 1.45,
             ),
           ),
@@ -1270,22 +1277,21 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.search_rounded, color: Color(0xFF007AFF)),
-                  SizedBox(width: 10),
+                  const Icon(Icons.search_rounded, color: Color(0xFF2563EB)),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       _t('Search products, stores, food, or card offers', 'නිෂ්පාදන, වෙළඳසැල්, ආහාර හෝ කාඩ් දීමනා සොයන්න', 'பொருட்கள், கடைகள், உணவு அல்லது அட்டை சலுகைகளைத் தேடுங்கள்'),
-                      style: TextStyle(
-                        color: Color(0xFF6B7280),
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF)),
+                  const Icon(Icons.arrow_forward_rounded, color: Color(0xFF2563EB)),
                 ],
               ),
             ),
@@ -1344,19 +1350,19 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF7F8FA),
+            color: Colors.white.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: const Color(0xFF007AFF)),
+              Icon(icon, size: 16, color: Colors.white),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: const TextStyle(
-                  color: Color(0xFF111827),
+                  color: Colors.white,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1377,13 +1383,13 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.insights_rounded,
-            color: Color(0xFF007AFF),
+            color: Color(0xFF2563EB),
             size: 18,
           ),
           const SizedBox(width: 8),
@@ -1391,7 +1397,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             child: Text(
               '$totalDeals ${_t('deals across', 'ඩීල්', 'சலுகைகள்')} $totalCategories ${_t('categories', 'ප්‍රවර්ග', 'வகைகள்')} • $topLabel',
               style: const TextStyle(
-                color: Color(0xFF111827),
+                color: Color(0xFF334155),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1399,7 +1405,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           if (!_hasActiveUserFilters)
             Text(
               _t('Live', 'සජීවී', 'நேரலை'),
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF0F766E),
                 fontWeight: FontWeight.w800,
               ),
@@ -1491,10 +1497,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2F7FF),
+                  color: const Color(0xFFE8F1FF),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 18, color: const Color(0xFF007AFF)),
+                child: Icon(icon, size: 18, color: const Color(0xFF2563EB)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1663,20 +1669,20 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         borderRadius: BorderRadius.circular(20),
                         child: Padding(
                           padding:
-                              EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 _t('View More', 'තවත් බලන්න', 'மேலும் காண்க'),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 13,
                                 ),
                               ),
-                              SizedBox(width: 4),
-                              Icon(Icons.arrow_forward,
+                              const SizedBox(width: 4),
+                              const Icon(Icons.arrow_forward,
                                   color: Colors.white, size: 16),
                             ],
                           ),
@@ -1803,7 +1809,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             Text(
               l10n.failedToLoadDeals,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -1857,7 +1863,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             const SizedBox(height: 16),
             Text(
               l10n.noDealsMatchView,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF14213D),
@@ -1867,7 +1873,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             const SizedBox(height: 8),
             Text(
               l10n.noDealsMatchSubtitle,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Color(0xFF64748B),
                 height: 1.45,
               ),

@@ -2,6 +2,7 @@ const Promotion = require('../models/Promotion');
 const User = require('../models/User');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
+const { hasRecentNotification } = require('./jobNotificationUtils');
 
 /**
  * Notify users when their favorite stores post new deals
@@ -50,8 +51,21 @@ async function notifyFavoriteStoreFollowers(promotionId) {
       : 'your favorite store';
 
     let notificationsSent = 0;
+    const recentWindowStart = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
     for (const pref of preferences) {
+      const alreadySent = await hasRecentNotification({
+        userId: pref.userId,
+        type: 'favorite_store',
+        dealId: promotion._id,
+        merchantId,
+        since: recentWindowStart,
+      });
+
+      if (alreadySent) {
+        continue;
+      }
+
       await NotificationService.sendNotification(
         pref.userId,
         'favorite_store',

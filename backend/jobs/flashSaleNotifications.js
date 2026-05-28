@@ -1,6 +1,7 @@
 const Promotion = require('../models/Promotion');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
+const { hasRecentNotification } = require('./jobNotificationUtils');
 
 /**
  * Detect flash sales (deals with very short duration) and notify users
@@ -50,6 +51,7 @@ async function notifyFlashSale(promotionId) {
       : 'a store';
 
     let notificationsSent = 0;
+    const recentWindowStart = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
     for (const pref of preferences) {
       // Check if user is interested in this category
@@ -58,6 +60,18 @@ async function notifyFlashSale(promotionId) {
         if (!userCategories.includes(promotion.category)) {
           continue;
         }
+      }
+
+      const alreadySent = await hasRecentNotification({
+        userId: pref.userId,
+        type: 'flash_sale',
+        dealId: promotion._id,
+        merchantId: typeof promotion.merchant === 'object' ? promotion.merchant._id : promotion.merchant,
+        since: recentWindowStart,
+      });
+
+      if (alreadySent) {
+        continue;
       }
 
       await NotificationService.sendNotification(
@@ -121,6 +135,7 @@ async function checkExpiringFlashSales() {
     });
 
     let notificationsSent = 0;
+    const recentWindowStart = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
     for (const deal of expiringDeals) {
       const timeLeft = deal.endDate.getTime() - now.getTime();
@@ -138,6 +153,18 @@ async function checkExpiringFlashSales() {
           if (!userCategories.includes(deal.category)) {
             continue;
           }
+        }
+
+        const alreadySent = await hasRecentNotification({
+          userId: pref.userId,
+          type: 'flash_sale',
+          dealId: deal._id,
+          merchantId: typeof deal.merchant === 'object' ? deal.merchant._id : deal.merchant,
+          since: recentWindowStart,
+        });
+
+        if (alreadySent) {
+          continue;
         }
 
         await NotificationService.sendNotification(

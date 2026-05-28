@@ -103,29 +103,15 @@ function protectRoute(req, res, next) {
 router.use(protectRoute);
 
 // Firebase Auth sync — verify Firebase ID token, create/find user, return JWT
-const admin = require('firebase-admin');
-
-if (!admin.apps.length) {
-  try {
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        }),
-      });
-    } else {
-      console.warn('Firebase Admin: Missing credentials. Firebase auth routes will be disabled.');
-    }
-  } catch (err) {
-    console.warn('Firebase Admin init failed:', err.message);
-  }
-}
+const { admin, ensureFirebaseAdminInitialized } = require('../services/firebaseAdmin');
+ensureFirebaseAdminInitialized();
 
 router.post('/firebase-auth', async (req, res) => {
   const { idToken, name, role, businessName } = req.body;
   if (!idToken) return res.status(400).json({ message: 'idToken is required' });
+  if (!ensureFirebaseAdminInitialized()) {
+    return res.status(503).json({ message: 'Firebase authentication is not configured on the server.' });
+  }
 
   try {
     const decoded = await admin.auth().verifyIdToken(idToken);

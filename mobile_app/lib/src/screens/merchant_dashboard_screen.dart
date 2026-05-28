@@ -428,7 +428,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                 const SizedBox(height: 20),
                 Text(
                   _t('Merchant Profile Not Ready', 'වෙළෙන්දාගේ පැතිකඩ තවම සූදානම් නැහැ', 'வணிகர் சுயவிவரம் இன்னும் தயாராக இல்லை'),
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
@@ -681,17 +681,17 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     children: [
                       Text(
                         _t("Welcome! Let's set up your store", 'සාදරයෙන් පිළිගනිමු! ඔබගේ වෙළඳසැල සකස් කරමු', 'வரவேற்கிறோம்! உங்கள் கடையை அமைப்போம்'),
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 16),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         _t(
                           'Follow the same merchant checklist used on the web dashboard.',
                           'වෙබ් පුවරුවේ භාවිතා කරන එම වෙළෙන්දාගේ පිරික්සුම් ලැයිස්තුව අනුගමනය කරන්න.',
                           'இணைய டாஷ்போர்டில் பயன்படுத்தும் அதே வணிகர் பட்டியலைப் பின்பற்றவும்.',
                         ),
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                        style: const TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ],
                   ),

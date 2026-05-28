@@ -1015,7 +1015,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                         ),
                                                         child: Text(
                                                           _merchantLocalizedText(context, 'Ending today', 'අද අවසන්', 'இன்று முடியும்'),
-                                                          style: TextStyle(
+                                                          style: const TextStyle(
                                                             fontSize: 12,
                                                             fontWeight:
                                                                 FontWeight.w800,

@@ -21,20 +21,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Future<List<Map<String, dynamic>>> _loadNotifications() async {
     final notifications = await _api.fetchNotifications();
-    final unreadIds = notifications
-        .where((notification) => notification['read'] != true)
-        .map((notification) => notification['_id'] as String?)
-        .whereType<String>()
-        .toList();
-
-    if (unreadIds.isNotEmpty) {
-      await Future.wait(
-        unreadIds.map((id) => _api.markNotificationAsRead(id).catchError((_) {})),
-      );
-    }
-
     await PushNotificationService.syncAppIconBadgeWithServer();
-    return await _api.fetchNotifications();
+    return notifications;
   }
 
   Future<void> _refreshNotifications() async {
@@ -57,6 +45,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         SnackBar(content: Text('Failed to delete notification: $e')),
       );
     }
+  }
+
+  Future<void> _openNotification(Map<String, dynamic> notification) async {
+    final id = notification['_id'] as String?;
+    final alreadyRead = notification['read'] == true;
+
+    if (id != null && id.isNotEmpty && !alreadyRead) {
+      await _api.markNotificationAsRead(id).catchError((_) {});
+      await PushNotificationService.syncAppIconBadgeWithServer();
+    }
+
+    await PushNotificationService.handleNotificationData(notification);
+    await _refreshNotifications();
   }
 
   @override
@@ -85,6 +86,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
                 title: Text(notification['title'] ?? 'No title'),
                 subtitle: Text(notification['body'] ?? notification['type'] ?? ''),
+                onTap: () => _openNotification(notification),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, size: 20),
                   onPressed: () {

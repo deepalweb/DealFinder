@@ -2,7 +2,7 @@ const NotificationLog = require('../models/NotificationLog');
 const NotificationPreference = require('../models/NotificationPreference');
 const User = require('../models/User');
 const webpush = require('web-push');
-const admin = require('firebase-admin');
+const { admin, ensureFirebaseAdminInitialized } = require('./firebaseAdmin');
 const mailer = require('../mailer');
 
 class NotificationService {
@@ -108,6 +108,10 @@ class NotificationService {
     try {
       if (!prefs.channels.push.token) {
         throw new Error('No FCM token');
+      }
+
+      if (!ensureFirebaseAdminInitialized()) {
+        throw new Error('Firebase not initialized');
       }
 
       const normalizedData = Object.entries(data || {}).reduce((acc, [key, value]) => {

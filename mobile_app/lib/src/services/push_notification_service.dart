@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../firebase_options.dart';
+import '../screens/notifications_screen.dart';
 import 'api_service.dart';
 import 'location_service.dart';
 
@@ -56,15 +57,8 @@ class PushNotificationService {
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    await _messaging.requestPermission(alert: true, badge: true, sound: true);
     await ensureLocalNotificationsInitialized();
-    await _requestLocalNotificationPermissions();
-
-    final token = await _messaging.getToken();
-    if (token != null) {
-      await _saveTokenToPrefs(token);
-      await syncTokenWithServer(token);
-    }
+    await _refreshRegistrationIfAuthorized();
     _messaging.onTokenRefresh.listen((token) async {
       await _saveTokenToPrefs(token);
       await syncTokenWithServer(token);
@@ -85,6 +79,38 @@ class PushNotificationService {
     }
 
     await syncAppIconBadgeWithServer();
+  }
+
+  static Future<AuthorizationStatus> getAuthorizationStatus() async {
+    final settings = await _messaging.getNotificationSettings();
+    return settings.authorizationStatus;
+  }
+
+  static Future<bool> hasNotificationPermission() async {
+    final status = await getAuthorizationStatus();
+    return status == AuthorizationStatus.authorized ||
+        status == AuthorizationStatus.provisional;
+  }
+
+  static Future<String?> requestPermissionAndGetToken() async {
+    await _messaging.requestPermission(alert: true, badge: true, sound: true);
+    await _requestLocalNotificationPermissions();
+    return _refreshRegistrationIfAuthorized();
+  }
+
+  static Future<String?> _refreshRegistrationIfAuthorized() async {
+    if (!await hasNotificationPermission()) {
+      return null;
+    }
+
+    final token = await _messaging.getToken();
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    await _saveTokenToPrefs(token);
+    await syncTokenWithServer(token);
+    return token;
   }
 
   static Future<void> ensureLocalNotificationsInitialized({
@@ -209,14 +235,25 @@ class PushNotificationService {
   static Future<void> _handlePayload(String payload) async {
     try {
       final data = jsonDecode(payload) as Map<String, dynamic>;
-      final dealId = data['dealId'] as String?;
-      if (dealId == null || dealId.isEmpty) return;
+      await handleNotificationData(data);
+    } catch (_) {}
+  }
 
+  static Future<void> handleNotificationData(Map<String, dynamic> data) async {
+    try {
+      final dealId = data['dealId'] as String?;
       final navigator = navigatorKey?.currentState;
       if (navigator == null) return;
 
-      final promotion = await _api.fetchPromotionById(dealId);
-      navigator.pushNamed('/deal', arguments: promotion);
+      if (dealId != null && dealId.isNotEmpty) {
+        final promotion = await _api.fetchPromotionById(dealId);
+        navigator.pushNamed('/deal', arguments: promotion);
+        return;
+      }
+
+      navigator.push(
+        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+      );
     } catch (_) {}
   }
 

@@ -9,6 +9,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'src/screens/login_screen.dart';
 import 'src/screens/main_navigation_screen.dart';
 import 'src/screens/deal_detail_screen.dart';
+import 'src/screens/notifications_screen.dart';
 import 'src/models/promotion.dart';
 import 'src/services/app_language_controller.dart';
 import 'src/services/push_notification_service.dart';
@@ -116,6 +117,11 @@ class MyApp extends StatelessWidget {
                     builder: (_) => DealDetailScreen(
                       promotion: settings.arguments as Promotion,
                     ),
+                  );
+                }
+                if (settings.name == '/notifications') {
+                  return MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
                   );
                 }
                 return null;

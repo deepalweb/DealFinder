@@ -59,7 +59,6 @@ const promotionSchema = new mongoose.Schema({
     ],
     default: 'draft'
   },
-  createdAt: { type: Date, default: Date.now },
   comments: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true },
@@ -70,6 +69,8 @@ const promotionSchema = new mongoose.Schema({
     value: { type: Number, min: 1, max: 5, required: true },
     createdAt: { type: Date, default: Date.now }
   }]
+}, {
+  timestamps: true,
 });
 
 // Indexes for the main query: status + date range filter

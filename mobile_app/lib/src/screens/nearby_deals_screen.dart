@@ -1103,8 +1103,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 14),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 14),
             Text(l10n.nearbyDealsTitle),
           ],
         ),
@@ -1135,7 +1135,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
               children: [
                 Text(
                   l10n.nearbyDealsTitle,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text(
@@ -1175,7 +1175,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             const SizedBox(height: 16),
             Text(
               l10n.locationRequired,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1214,7 +1214,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             const SizedBox(height: 16),
             Text(
               l10n.noNearbyDealsFound,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1316,7 +1316,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           children: [
                             Text(
                               l10n.nearbyPageTitle,
-                              style: TextStyle(
+                              style: const TextStyle(
                                   fontSize: 22, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 6),
