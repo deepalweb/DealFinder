@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
@@ -56,6 +57,13 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   String? _selectedCapabilityPresetId;
   String? _activeSectionPreset;
   String? _activePrimaryFilter;
+
+  String _t(String en, String si, String ta) {
+    final code = Localizations.localeOf(context).languageCode;
+    if (code == 'si') return si;
+    if (code == 'ta') return ta;
+    return en;
+  }
 
   @override
   void initState() {
@@ -408,21 +416,21 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     if (_selectedCategory != null) {
       return _getCategoryName(_selectedCategory!);
     }
-    return 'All Deals';
+    return _t('All Deals', 'සියලු ඩීල්', 'அனைத்து சலுகைகள்');
   }
 
   String? get _contextSubtitle {
     switch (_activeSectionPreset) {
       case 'flash_sales':
-        return 'Showing quick-turn deals closing within the next day.';
+        return _t('Showing quick-turn deals closing within the next day.', 'ඊළඟ දවස ඇතුළත අවසන් වන ඉක්මන් ඩීල් පෙන්වයි.', 'அடுத்த நாளுக்குள் முடியும் விரைவு சலுகைகள் காட்டப்படுகின்றன.');
       case 'ending_soon':
-        return 'Showing the deals that are most likely to expire today.';
+        return _t('Showing the deals that are most likely to expire today.', 'අද කල් ඉකුත් වීමට වැඩි ඉඩක් ඇති ඩීල් පෙන්වයි.', 'இன்று காலாவதியாக அதிக வாய்ப்புள்ள சலுகைகள் காட்டப்படுகின்றன.');
       case 'new_this_week':
-        return 'Showing recently added deals so fresh offers stay easy to find.';
+        return _t('Showing recently added deals so fresh offers stay easy to find.', 'අලුතින් එක් කළ ඩීල් පෙන්වමින් නව දීමනා පහසුවෙන් සොයාගත හැක.', 'புதிய சலுகைகளை எளிதாக காண சமீபத்தில் சேர்க்கப்பட்ட சலுகைகள் காட்டப்படுகின்றன.');
       default:
         if (_selectedCategory == BankCardPromotionSupport.categoryId ||
             _activePrimaryFilter == primaryBankCards) {
-          return 'Showing bank card promotions, cashback offers, and installment deals.';
+          return _t('Showing bank card promotions, cashback offers, and installment deals.', 'බැංකු කාඩ් ප්‍රවර්ධන, මුදල් ආපසු දීමනා සහ වාරික ඩීල් පෙන්වයි.', 'வங்கி அட்டை சலுகைகள், கேஷ்பேக் சலுகைகள், மற்றும் தவணை ஒப்பந்தங்கள் காட்டப்படுகின்றன.');
         }
         return null;
     }
@@ -739,8 +747,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final activeFilterChips = _buildActiveFilterChips();
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
         title: Text(_screenTitle,
             style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -755,11 +765,11 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   : Icons.filter_alt_outlined,
             ),
             onPressed: _openFilterSheet,
-            tooltip: 'Filters',
+            tooltip: l10n.filtersTitle,
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.sort),
-            tooltip: 'Sort by',
+            tooltip: l10n.sortByTitle,
             onSelected: (value) {
               setState(() => _sortBy = value);
             },
@@ -774,7 +784,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                             ? Theme.of(context).colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
-                    Text('Most Recent',
+                    Text(l10n.mostRecent,
                         style: TextStyle(
                             fontWeight:
                                 _sortBy == 'recent' ? FontWeight.bold : null)),
@@ -791,7 +801,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                             ? Theme.of(context).colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
-                    Text('Highest Discount',
+                    Text(l10n.highestDiscount,
                         style: TextStyle(
                             fontWeight: _sortBy == 'discount'
                                 ? FontWeight.bold
@@ -809,7 +819,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                             ? Theme.of(context).colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
-                    Text('Price: Low to High',
+                    Text(l10n.priceLowToHigh,
                         style: TextStyle(
                             fontWeight: _sortBy == 'price_low'
                                 ? FontWeight.bold
@@ -827,7 +837,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                             ? Theme.of(context).colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
-                    Text('Price: High to Low',
+                    Text(l10n.priceHighToLow,
                         style: TextStyle(
                             fontWeight: _sortBy == 'price_high'
                                 ? FontWeight.bold
@@ -845,7 +855,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                             ? Theme.of(context).colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
-                    Text('Ending Soon',
+                    Text(l10n.endingSoonLabel,
                         style: TextStyle(
                             fontWeight: _sortBy == 'ending_soon'
                                 ? FontWeight.bold
@@ -863,7 +873,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                             ? Theme.of(context).colorScheme.primary
                             : null),
                     const SizedBox(width: 8),
-                    Text('Nearest',
+                    Text(l10n.nearest,
                         style: TextStyle(
                             fontWeight: _sortBy == 'distance'
                                 ? FontWeight.bold
@@ -894,8 +904,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         color: Color(0xFF475569),
                       ),
                       const SizedBox(width: 8),
-                      const Text(
-                        'Active filters',
+                      Text(
+                        l10n.activeFiltersLabel(activeFilterChips.length),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: Color(0xFF1E293B),
@@ -904,14 +914,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                       const Spacer(),
                       TextButton(
                         onPressed: _resetFilters,
-                        child: const Text('Clear all'),
+                        child: Text(l10n.clearAll),
                       ),
                     ],
                   ),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _buildActiveFilterChips(),
+                    children: activeFilterChips,
                   ),
                 ],
               ),
@@ -964,31 +974,31 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           children: [
             _buildPrimaryFilterChip(
               id: primaryEndingSoon,
-              label: 'Ending Soon',
+              label: _t('Ending Soon', 'ඉක්මනින් අවසන්', 'விரைவில் முடியும்'),
               icon: Icons.hourglass_bottom_rounded,
             ),
             const SizedBox(width: 8),
             _buildPrimaryFilterChip(
               id: primaryUnder1km,
-              label: 'Under 1km',
+              label: _t('Under 1km', 'කි.මී. 1ට අඩු', '1 கி.மீ.க்குள்'),
               icon: Icons.location_on_outlined,
             ),
             const SizedBox(width: 8),
             _buildPrimaryFilterChip(
               id: primaryHalfOff,
-              label: '50%+ OFF',
+              label: _t('50%+ OFF', '50%+ වට්ටම්', '50%+ தள்ளுபடி'),
               icon: Icons.local_offer_outlined,
             ),
             const SizedBox(width: 8),
             _buildPrimaryFilterChip(
               id: primaryBankCards,
-              label: 'Bank Cards',
+              label: _t('Bank Cards', 'බැංකු කාඩ්', 'வங்கி அட்டைகள்'),
               icon: Icons.credit_card_rounded,
             ),
             const SizedBox(width: 8),
             _buildPrimaryFilterChip(
               id: primaryNewDeals,
-              label: 'New Deals',
+              label: _t('New Deals', 'නව ඩීල්', 'புதிய சலுகைகள்'),
               icon: Icons.auto_awesome_outlined,
             ),
           ],
@@ -1007,17 +1017,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       avatar: Icon(
         icon,
         size: 18,
-        color: selected ? Colors.white : const Color(0xFF2563EB),
+        color: selected ? const Color(0xFF007AFF) : const Color(0xFF54606E),
       ),
       label: Text(label),
       labelStyle: TextStyle(
         color: selected ? Colors.white : const Color(0xFF0F172A),
         fontWeight: FontWeight.w700,
       ),
-      backgroundColor: const Color(0xFFF3F7FF),
-      selectedColor: const Color(0xFF2563EB),
+      backgroundColor: Colors.white,
+      selectedColor: const Color(0xFFEAF3FF),
       side: BorderSide(
-        color: selected ? const Color(0xFF2563EB) : const Color(0xFFD8E4FB),
+        color: selected ? const Color(0xFFBFD8FF) : const Color(0xFFE2E8F0),
       ),
       selected: selected,
       onSelected: (_) {
@@ -1035,15 +1045,15 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   String _primaryFilterLabel(String id) {
     switch (id) {
       case primaryUnder1km:
-        return 'Under 1km';
+        return _t('Under 1km', 'කි.මී. 1ට අඩු', '1 கி.மீ.க்குள்');
       case primaryHalfOff:
-        return '50%+ OFF';
+        return _t('50%+ OFF', '50%+ වට්ටම්', '50%+ தள்ளுபடி');
       case primaryBankCards:
-        return 'Bank Cards';
+        return _t('Bank Cards', 'බැංකු කාඩ්', 'வங்கி அட்டைகள்');
       case primaryEndingSoon:
-        return 'Ending Soon';
+        return _t('Ending Soon', 'ඉක්මනින් අවසන්', 'விரைவில் முடியும்');
       case primaryNewDeals:
-        return 'New Deals';
+        return _t('New Deals', 'නව ඩීල්', 'புதிய சலுகைகள்');
       default:
         return id;
     }
@@ -1073,9 +1083,9 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF5FF),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD6E4FF)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1083,7 +1093,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           const Padding(
             padding: EdgeInsets.only(top: 2),
             child: Icon(Icons.auto_awesome_rounded,
-                color: Color(0xFF1E5AA8), size: 18),
+                color: Color(0xFF007AFF), size: 18),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1092,11 +1102,11 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               children: [
                 Text(
                   hasPreset
-                      ? '${widget.initialContextTitle ?? _screenTitle} view'
-                      : 'Category filter applied',
+                      ? '${widget.initialContextTitle ?? _screenTitle} ${_t('view', 'දසුන', 'காட்சி')}'
+                      : _t('Category filter applied', 'ප්‍රවර්ග පෙරහන යොදා ඇත', 'வகை வடிகட்டி பயன்படுத்தப்பட்டுள்ளது'),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF163A70),
+                    color: Color(0xFF111827),
                   ),
                 ),
                 if (subtitle != null) ...[
@@ -1104,7 +1114,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Color(0xFF35537A),
+                      color: Color(0xFF6B7280),
                       height: 1.4,
                     ),
                   ),
@@ -1175,21 +1185,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0F4C81),
-            Color(0xFF2563EB),
-            Color(0xFF5EA6FF),
-          ],
-        ),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.20),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -1202,18 +1205,18 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
+                  color: const Color(0xFFF2F7FF),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.explore_rounded, color: Colors.white, size: 15),
+                    Icon(Icons.explore_rounded, color: Color(0xFF007AFF), size: 15),
                     SizedBox(width: 6),
                     Text(
-                      'Explore smarter',
+                      _t('Explore smarter', 'බුද්ධිමත් ලෙස සොයන්න', 'சாமர்த்தியமாக ஆராய்'),
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF007AFF),
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
                       ),
@@ -1223,19 +1226,19 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               ),
               const Spacer(),
               Text(
-                '$totalDeals deals',
+                '$totalDeals ${_t('deals', 'ඩීල්', 'சலுகைகள்')}',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.92),
+                  color: const Color(0xFF6B7280),
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Discover what is worth opening first',
+          Text(
+            _t('Discover what is worth opening first', 'මුලින්ම විවෘත කළ යුතු දේ සොයා ගන්න', 'முதலில் திறக்க வேண்டியவற்றை கண்டறியவும்'),
             style: TextStyle(
-              color: Colors.white,
+              color: const Color(0xFF111827),
               fontSize: 24,
               fontWeight: FontWeight.w900,
               height: 1.1,
@@ -1243,9 +1246,13 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Jump into urgent deals, nearby offers, and popular categories without digging through every section.',
+            _t(
+              'Jump into urgent deals, nearby offers, and popular categories without digging through every section.',
+              'සෑම කොටසක්ම සෙවීමකින් තොරව හදිසි ඩීල්, අසල දීමනා සහ ජනප්‍රිය ප්‍රවර්ග වෙත යන්න.',
+              'ஒவ்வொரு பகுதியையும் தேடாமல் அவசர சலுகைகள், அருகிலுள்ள சலுகைகள் மற்றும் பிரபல வகைகளுக்குச் செல்லுங்கள்.',
+            ),
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.88),
+              color: const Color(0xFF6B7280),
               height: 1.45,
             ),
           ),
@@ -1263,21 +1270,22 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.search_rounded, color: Color(0xFF2563EB)),
+                  Icon(Icons.search_rounded, color: Color(0xFF007AFF)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Search products, stores, food, or card offers',
+                      _t('Search products, stores, food, or card offers', 'නිෂ්පාදන, වෙළඳසැල්, ආහාර හෝ කාඩ් දීමනා සොයන්න', 'பொருட்கள், கடைகள், உணவு அல்லது அட்டை சலுகைகளைத் தேடுங்கள்'),
                       style: TextStyle(
-                        color: Color(0xFF475569),
+                        color: Color(0xFF6B7280),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  Icon(Icons.arrow_forward_rounded, color: Color(0xFF2563EB)),
+                  Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF)),
                 ],
               ),
             ),
@@ -1288,7 +1296,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             runSpacing: 8,
             children: [
               _buildHeroShortcut(
-                label: 'Ending Soon',
+                label: _t('Ending Soon', 'ඉක්මනින් අවසන්', 'விரைவில் முடியும்'),
                 icon: Icons.hourglass_bottom_rounded,
                 onTap: () => setState(() => _activePrimaryFilter =
                     _activePrimaryFilter == primaryEndingSoon
@@ -1296,7 +1304,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         : primaryEndingSoon),
               ),
               _buildHeroShortcut(
-                label: 'Under 1km',
+                label: _t('Under 1km', 'කි.මී. 1ට අඩු', '1 கி.மீ.க்குள்'),
                 icon: Icons.near_me_rounded,
                 onTap: () => setState(() => _activePrimaryFilter =
                     _activePrimaryFilter == primaryUnder1km
@@ -1304,7 +1312,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         : primaryUnder1km),
               ),
               _buildHeroShortcut(
-                label: '50%+ Off',
+                label: _t('50%+ Off', '50%+ වට්ටම්', '50%+ தள்ளுபடி'),
                 icon: Icons.local_offer_outlined,
                 onTap: () => setState(() => _activePrimaryFilter =
                     _activePrimaryFilter == primaryHalfOff
@@ -1312,7 +1320,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         : primaryHalfOff),
               ),
               _buildHeroShortcut(
-                label: '$totalCategories categories',
+                label: '$totalCategories ${_t('categories', 'ප්‍රවර්ග', 'வகைகள்')}',
                 icon: Icons.grid_view_rounded,
                 onTap: () {},
               ),
@@ -1336,19 +1344,19 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
+            color: const Color(0xFFF7F8FA),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 16, color: Colors.white),
+              Icon(icon, size: 16, color: const Color(0xFF007AFF)),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF111827),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1362,35 +1370,35 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   Widget _buildCompactSummary(int totalDeals, int totalCategories) {
     final topLabel = _selectedCategory != null
         ? _getCategoryName(_selectedCategory!)
-        : 'All categories';
+        : _t('All categories', 'සියලු ප්‍රවර්ග', 'அனைத்து வகைகள்');
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.insights_rounded,
-            color: Color(0xFF2563EB),
+            color: Color(0xFF007AFF),
             size: 18,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$totalDeals deals across $totalCategories categories • $topLabel',
+              '$totalDeals ${_t('deals across', 'ඩීල්', 'சலுகைகள்')} $totalCategories ${_t('categories', 'ප්‍රවර්ග', 'வகைகள்')} • $topLabel',
               style: const TextStyle(
-                color: Color(0xFF334155),
+                color: Color(0xFF111827),
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
           if (!_hasActiveUserFilters)
-            const Text(
-              'Live',
+            Text(
+              _t('Live', 'සජීවී', 'நேரலை'),
               style: TextStyle(
                 color: Color(0xFF0F766E),
                 fontWeight: FontWeight.w800,
@@ -1446,20 +1454,20 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     }
 
     addSection(
-      'Ending Soon',
-      'Catch expiring deals before they disappear.',
+      _t('Ending Soon', 'ඉක්මනින් අවසන්', 'விரைவில் முடியும்'),
+      _t('Catch expiring deals before they disappear.', 'අතුරුදහන් වීමට පෙර කල් ඉකුත් වන ඩීල් ලබාගන්න.', 'மறையும் முன் காலாவதியாகும் சலுகைகளைப் பிடிக்கவும்.'),
       Icons.schedule_rounded,
       endingSoon,
     );
     addSection(
-      'Near You',
-      'Closest deals first when distance is available.',
+      _t('Near You', 'ඔබ අසල', 'உங்கள் அருகில்'),
+      _t('Closest deals first when distance is available.', 'දුර ලබා ගත හැකි විට සමීපතම ඩීල් පළමුව පෙන්වයි.', 'தூரத் தகவல் இருக்கும் போது மிக அருகிலுள்ள சலுகைகள் முதலில் காட்டப்படும்.'),
       Icons.near_me_rounded,
       nearby,
     );
     addSection(
-      'Big Savings',
-      'The strongest discounts right now.',
+      _t('Big Savings', 'විශාල ඉතිරිකිරීම්', 'பெரிய சேமிப்பு'),
+      _t('The strongest discounts right now.', 'දැනට ඇති හොඳම වට්ටම්.', 'இப்போது கிடைக்கும் சிறந்த தள்ளுபடிகள்.'),
       Icons.local_fire_department_outlined,
       bigDiscounts,
     );
@@ -1483,10 +1491,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FF),
+                  color: const Color(0xFFF2F7FF),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+                child: Icon(icon, size: 18, color: const Color(0xFF007AFF)),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1620,7 +1628,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${deals.length} deals available',
+                          '${deals.length} ${_t('deals available', 'ඩීල් ඇත', 'சலுகைகள் உள்ளன')}',
                           style: TextStyle(
                             fontSize: 12.5,
                             color: Colors.grey[600],
@@ -1653,14 +1661,14 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                           );
                         },
                         borderRadius: BorderRadius.circular(20),
-                        child: const Padding(
+                        child: Padding(
                           padding:
                               EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'View More',
+                                _t('View More', 'තවත් බලන්න', 'மேலும் காண்க'),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
@@ -1783,6 +1791,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   }
 
   Widget _buildError() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -1791,15 +1800,15 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           children: [
             Icon(Icons.error_outline, color: Colors.red[400], size: 50),
             const SizedBox(height: 10),
-            const Text(
-              'Failed to load deals',
+            Text(
+              l10n.failedToLoadDeals,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(l10n.retry),
               onPressed: _refreshPromotions,
             ),
           ],
@@ -1809,6 +1818,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   }
 
   Widget _buildEmpty() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1816,7 +1826,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           Icon(Icons.sentiment_dissatisfied, color: Colors.grey[600], size: 50),
           const SizedBox(height: 10),
           Text(
-            'No deals available',
+            l10n.noDealsAvailable,
             style: TextStyle(fontSize: 16, color: Colors.grey[700]),
           ),
         ],
@@ -1825,6 +1835,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   }
 
   Widget _buildNoMatchesState() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -1844,8 +1855,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'No deals match this view',
+            Text(
+              l10n.noDealsMatchView,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -1854,8 +1865,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Try a broader category, adjust your price or discount filters, or clear filters to explore more deals.',
+            Text(
+              l10n.noDealsMatchSubtitle,
               style: TextStyle(
                 color: Color(0xFF64748B),
                 height: 1.45,
@@ -1871,12 +1882,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 FilledButton.tonalIcon(
                   onPressed: _resetFilters,
                   icon: const Icon(Icons.filter_alt_off_outlined),
-                  label: const Text('Clear filters'),
+                  label: Text(l10n.clearFilters),
                 ),
                 OutlinedButton.icon(
                   onPressed: _refreshPromotions,
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Retry'),
+                  label: Text(l10n.retry),
                 ),
               ],
             ),

@@ -54,25 +54,46 @@ class SearchService {
     
     try {
       final allDeals = await ApiService().fetchPromotions();
-      final suggestions = <String>{};
+      final suggestionScores = <String, int>{};
       
-      // Add matching titles, merchants, and categories
       for (final deal in allDeals) {
-        if (SearchMatcher.matchesPromotion(deal, query)) {
-          suggestions.add(deal.title);
-          if ((deal.merchantName ?? '').trim().isNotEmpty) {
-            suggestions.add(deal.merchantName!);
-          }
-          final aliases = SearchMatcher.categoryTerms(
-            BankCardPromotionSupport.effectiveCategoryId(deal),
-          );
-          if (aliases.isNotEmpty) {
-            suggestions.add(aliases.first);
-          }
+        final score = SearchMatcher.scorePromotion(deal, query);
+        if (score <= 0 || !SearchMatcher.matchesPromotion(deal, query)) continue;
+
+        void addSuggestion(String? value, int bonus) {
+          final cleaned = value?.trim();
+          if (cleaned == null || cleaned.isEmpty) return;
+          final current = suggestionScores[cleaned] ?? 0;
+          suggestionScores[cleaned] = current > score + bonus
+              ? current
+              : score + bonus;
+        }
+
+        addSuggestion(deal.title, 30);
+        addSuggestion(deal.merchantName, 22);
+
+        final aliases = SearchMatcher.categoryTerms(
+          BankCardPromotionSupport.effectiveCategoryId(deal),
+        );
+        if (aliases.isNotEmpty) {
+          addSuggestion(aliases.first, 12);
         }
       }
-      
-      return suggestions.take(8).toList();
+
+      final normalizedQuery = SearchMatcher.normalize(query);
+      final sorted = suggestionScores.entries.toList()
+        ..sort((a, b) {
+          final byScore = b.value.compareTo(a.value);
+          if (byScore != 0) return byScore;
+
+          final aNormalized = SearchMatcher.normalize(a.key);
+          final bNormalized = SearchMatcher.normalize(b.key);
+          final aStarts = aNormalized.startsWith(normalizedQuery) ? 1 : 0;
+          final bStarts = bNormalized.startsWith(normalizedQuery) ? 1 : 0;
+          return bStarts.compareTo(aStarts);
+        });
+
+      return sorted.take(8).map((entry) => entry.key).toList();
     } catch (e) {
       return [];
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/category.dart';
@@ -336,12 +337,13 @@ class _StoresScreenState extends State<StoresScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
       appBar: AppBar(
-        title: const Text(
-          'Stores',
+        title: Text(
+          l10n.storesPageTitle,
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
@@ -383,9 +385,8 @@ class _StoresScreenState extends State<StoresScreen> {
                                   _selectedCategory == 'all') ...[
                                 if (_followingPreview.isNotEmpty) ...[
                                   _buildSectionHeader(
-                                    title: 'Following Stores',
-                                    subtitle:
-                                        'Quick access to merchants you already care about',
+                                    title: l10n.followingStores,
+                                    subtitle: l10n.followingStoresSubtitle,
                                   ),
                                   const SizedBox(height: 12),
                                   _buildMerchantScroller(_followingPreview),
@@ -393,9 +394,8 @@ class _StoresScreenState extends State<StoresScreen> {
                                 ],
                                 if (_featuredMerchants.isNotEmpty) ...[
                                   _buildSectionHeader(
-                                    title: 'Popular Right Now',
-                                    subtitle:
-                                        'Stores with the strongest mix of followers and active deals',
+                                    title: l10n.popularRightNow,
+                                    subtitle: l10n.popularRightNowSubtitle,
                                   ),
                                   const SizedBox(height: 12),
                                   _buildMerchantScroller(_featuredMerchants),
@@ -403,9 +403,8 @@ class _StoresScreenState extends State<StoresScreen> {
                                 ],
                                 if (_newestMerchants.isNotEmpty) ...[
                                   _buildSectionHeader(
-                                    title: 'Fresh Merchants',
-                                    subtitle:
-                                        'Newer stores to explore before everyone else finds them',
+                                    title: l10n.freshMerchants,
+                                    subtitle: l10n.freshMerchantsSubtitle,
                                   ),
                                   const SizedBox(height: 12),
                                   _buildMerchantScroller(_newestMerchants),
@@ -413,7 +412,7 @@ class _StoresScreenState extends State<StoresScreen> {
                                 ],
                               ],
                               _buildSectionHeader(
-                                title: 'Browse All Stores',
+                                title: l10n.browseAllStores,
                                 subtitle:
                                     '${_filteredMerchants.length} results${_searchTerm.isNotEmpty ? ' for "${_searchTerm.trim()}"' : ''}',
                                 trailing: _buildSortMenu(),
@@ -475,6 +474,7 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildHeroPanel() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -520,8 +520,8 @@ class _StoresScreenState extends State<StoresScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Discover stores near your style',
+                    Text(
+                      l10n.discoverStoresTitle,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -531,7 +531,7 @@ class _StoresScreenState extends State<StoresScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Follow standout merchants, compare categories, and jump straight into the best local deals.',
+                      l10n.discoverStoresSubtitle,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.86),
                         fontSize: 13,
@@ -550,7 +550,7 @@ class _StoresScreenState extends State<StoresScreen> {
             children: [
               _buildHeroShortcut(
                 icon: Icons.favorite_outline,
-                label: 'Following',
+                label: l10n.following,
                 onTap: () {
                   setState(() => _sortMode = 'following');
                   _applyFilters();
@@ -558,7 +558,7 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
               _buildHeroShortcut(
                 icon: Icons.local_offer_outlined,
-                label: 'Popular',
+                label: l10n.popular,
                 onTap: () {
                   setState(() => _sortMode = 'popular');
                   _applyFilters();
@@ -566,7 +566,7 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
               _buildHeroShortcut(
                 icon: Icons.restaurant_rounded,
-                label: 'Food Stores',
+                label: l10n.foodStores,
                 onTap: () {
                   setState(() => _selectedCategory = 'food_dining');
                   _applyFilters();
@@ -574,7 +574,7 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
               _buildHeroShortcut(
                 icon: Icons.auto_awesome_outlined,
-                label: 'Newest',
+                label: l10n.newest,
                 onTap: () {
                   setState(() => _sortMode = 'new');
                   _applyFilters();
@@ -625,6 +625,7 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildCompactSummaryBar() {
+    final l10n = AppLocalizations.of(context)!;
     final allCount = _allMerchants.length;
     final followingCount = _followingMerchants.length;
     final visibleCount = _filteredMerchants.length;
@@ -643,7 +644,7 @@ class _StoresScreenState extends State<StoresScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '$visibleCount visible • $followingCount following • $allCount total stores',
+              l10n.storesSummary(visibleCount, followingCount, allCount),
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -667,6 +668,7 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildSearchBar() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -681,7 +683,7 @@ class _StoresScreenState extends State<StoresScreen> {
       ),
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Search stores or try Sinhala like කෑම, ඉලෙක්ට්‍රොනික්',
+          hintText: l10n.searchStoresHint,
           hintStyle: TextStyle(color: Colors.grey[400]),
           prefixIcon: const Icon(Icons.search, color: Color(0xFF8B97A8)),
           suffixIcon: _searchTerm.isNotEmpty
@@ -799,6 +801,7 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildActiveFilterBar() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -818,7 +821,7 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                'Active filters ($_activeFilterCount)',
+                l10n.activeFiltersLabel(_activeFilterCount),
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -828,7 +831,7 @@ class _StoresScreenState extends State<StoresScreen> {
               const Spacer(),
               TextButton(
                 onPressed: _clearFilters,
-                child: const Text('Clear all'),
+                child: Text(l10n.clearAll),
               ),
             ],
           ),
@@ -840,7 +843,7 @@ class _StoresScreenState extends State<StoresScreen> {
               if (_searchTerm.trim().isNotEmpty)
                 _buildActiveFilterChip(
                   icon: Icons.search_rounded,
-                  label: 'Search: ${_searchTerm.trim()}',
+                  label: l10n.searchFilterLabel(_searchTerm.trim()),
                   onRemoved: () {
                     _searchController.clear();
                     setState(() => _searchTerm = '');
@@ -850,8 +853,9 @@ class _StoresScreenState extends State<StoresScreen> {
               if (_selectedCategory != 'all')
                 _buildActiveFilterChip(
                   icon: Icons.category_outlined,
-                  label:
-                      'Category: ${_categories.firstWhere((item) => item['id'] == _selectedCategory)['name']}',
+                  label: l10n.categoryFilterLabel(
+                    _categories.firstWhere((item) => item['id'] == _selectedCategory)['name']!,
+                  ),
                   onRemoved: () {
                     setState(() => _selectedCategory = 'all');
                     _applyFilters();
@@ -860,7 +864,7 @@ class _StoresScreenState extends State<StoresScreen> {
               if (_sortMode != 'popular')
                 _buildActiveFilterChip(
                   icon: Icons.sort_rounded,
-                  label: 'Sort: ${_sortLabel(_sortMode)}',
+                  label: l10n.sortFilterLabel(_sortLabel(_sortMode)),
                   onRemoved: () {
                     setState(() => _sortMode = 'popular');
                     _applyFilters();
@@ -916,17 +920,18 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildSortMenu() {
+    final l10n = AppLocalizations.of(context)!;
     return PopupMenuButton<String>(
       initialValue: _sortMode,
       onSelected: (value) {
         setState(() => _sortMode = value);
         _applyFilters();
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: 'popular', child: Text('Most Popular')),
-        PopupMenuItem(value: 'following', child: Text('Following First')),
-        PopupMenuItem(value: 'a_z', child: Text('A to Z')),
-        PopupMenuItem(value: 'new', child: Text('Newest')),
+      itemBuilder: (context) => [
+        PopupMenuItem(value: 'popular', child: Text(l10n.mostPopular)),
+        PopupMenuItem(value: 'following', child: Text(l10n.followingFirst)),
+        PopupMenuItem(value: 'a_z', child: Text(l10n.aToZ)),
+        PopupMenuItem(value: 'new', child: Text(l10n.newest)),
       ],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Container(
@@ -956,16 +961,17 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   String _sortLabel(String mode) {
+    final l10n = AppLocalizations.of(context)!;
     switch (mode) {
       case 'following':
-        return 'Following';
+        return l10n.following;
       case 'a_z':
-        return 'A-Z';
+        return l10n.aToZ;
       case 'new':
-        return 'Newest';
+        return l10n.newest;
       case 'popular':
       default:
-        return 'Popular';
+        return l10n.popular;
     }
   }
 
@@ -996,6 +1002,7 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildEmptyState() {
+    final l10n = AppLocalizations.of(context)!;
     final isSearching =
         _searchTerm.trim().isNotEmpty || _selectedCategory != 'all';
     return Center(
@@ -1018,8 +1025,8 @@ class _StoresScreenState extends State<StoresScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'No stores match this view',
+            Text(
+              l10n.noStoresMatchView,
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -1030,8 +1037,8 @@ class _StoresScreenState extends State<StoresScreen> {
             const SizedBox(height: 10),
             Text(
               isSearching
-                  ? 'Try a broader search, switch category, or clear your filters to explore more merchants.'
-                  : 'Stores will show up here as soon as merchants start publishing their profiles.',
+                  ? l10n.noStoresMatchSubtitle
+                  : l10n.storesWillAppearSubtitle,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 14,
@@ -1049,12 +1056,12 @@ class _StoresScreenState extends State<StoresScreen> {
                   OutlinedButton.icon(
                     onPressed: _clearFilters,
                     icon: const Icon(Icons.filter_alt_off_rounded),
-                    label: const Text('Clear filters'),
+                    label: Text(l10n.clearFilters),
                   ),
                 FilledButton.tonalIcon(
                   onPressed: () => _fetchMerchants(forceRefresh: true),
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Retry'),
+                  label: Text(l10n.retry),
                 ),
                 if (_followingMerchants.isNotEmpty)
                   FilledButton.tonalIcon(
@@ -1063,7 +1070,7 @@ class _StoresScreenState extends State<StoresScreen> {
                       _applyFilters();
                     },
                     icon: const Icon(Icons.favorite_outline),
-                    label: const Text('Show followed'),
+                    label: Text(l10n.showFollowed),
                   ),
               ],
             ),
@@ -1074,6 +1081,7 @@ class _StoresScreenState extends State<StoresScreen> {
   }
 
   Widget _buildError() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -1083,7 +1091,7 @@ class _StoresScreenState extends State<StoresScreen> {
             Icon(Icons.wifi_off_rounded, color: Colors.red[400], size: 64),
             const SizedBox(height: 16),
             Text(
-              'Failed to load stores',
+              l10n.failedToLoadStores,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
@@ -1092,7 +1100,7 @@ class _StoresScreenState extends State<StoresScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _error ?? 'Unknown error',
+              _error ?? l10n.unknownError,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600], height: 1.4),
             ),
@@ -1105,7 +1113,7 @@ class _StoresScreenState extends State<StoresScreen> {
                 ElevatedButton.icon(
                   onPressed: () => _fetchMerchants(forceRefresh: true),
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Try Again'),
+                  label: Text(l10n.tryAgain),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 28, vertical: 14),
@@ -1117,7 +1125,7 @@ class _StoresScreenState extends State<StoresScreen> {
                 OutlinedButton.icon(
                   onPressed: _clearFilters,
                   icon: const Icon(Icons.filter_alt_off_outlined),
-                  label: const Text('Reset view'),
+                  label: Text(l10n.resetView),
                 ),
               ],
             ),

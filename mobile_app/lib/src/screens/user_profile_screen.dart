@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../services/api_service.dart';
+import '../services/app_language_controller.dart';
 import '../services/favorites_manager.dart';
 import '../services/merchant_following_manager.dart';
 import '../models/promotion.dart';
@@ -99,24 +101,25 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
 
   Future<void> _pickProfilePicture() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       // Show dialog to choose between camera and gallery
       final ImageSource? source = await showDialog<ImageSource>(
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Choose Image Source'),
+            title: Text(l10n.chooseImageSource),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
                   leading: const Icon(Icons.camera_alt),
-                  title: const Text('Camera'),
+                  title: Text(l10n.camera),
                   onTap: () => Navigator.pop(context, ImageSource.camera),
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_library),
-                  title: const Text('Gallery'),
+                  title: Text(l10n.gallery),
                   onTap: () => Navigator.pop(context, ImageSource.gallery),
                 ),
               ],
@@ -146,21 +149,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
         await prefs.setString('userProfilePicture', base64Image);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated!')),
+          SnackBar(content: Text(l10n.profilePictureUpdated)),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update picture: $e')),
+        SnackBar(content: Text('${l10n.failedToUpdatePicture}: $e')),
       );
     }
   }
 
   Future<void> _updateProfile() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name cannot be empty')),
+        SnackBar(content: Text(l10n.nameCannotBeEmpty)),
       );
       return;
     }
@@ -178,12 +182,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       });
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
+        SnackBar(content: Text(l10n.profileUpdatedSuccessfully)),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update profile: $e')),
+        SnackBar(content: Text('${l10n.failedToUpdateProfile}: $e')),
       );
     } finally {
       if (mounted) {
@@ -227,7 +231,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       _favoriteDeals.removeWhere((deal) => deal.id == dealId);
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Removed from favorites')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.removedFromFavorites)),
     );
   }
   
@@ -592,6 +596,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
 
   Widget _buildProfileTab() {
+    final l10n = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return RefreshIndicator(
       onRefresh: _loadUserData,
@@ -603,15 +608,15 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             const SizedBox(height: 16),
             _buildQuickActionCard(
               icon: Icons.favorite_outline_rounded,
-              title: 'Saved Deals & Stores',
-              subtitle: 'Review your favorites and followed stores in one place.',
+              title: l10n.savedDealsAndStores,
+              subtitle: l10n.savedDealsStoresSubtitle,
               onTap: () => _tabController.animateTo(3),
             ),
             const SizedBox(height: 12),
             _buildQuickActionCard(
               icon: Icons.notifications_active_outlined,
-              title: 'Notification Settings',
-              subtitle: 'Control push alerts, categories, and quiet hours.',
+              title: l10n.notificationSettingsTitle,
+              subtitle: l10n.notificationSettingsSubtitle,
               onTap: () => _tabController.animateTo(2),
             ),
             const SizedBox(height: 16),
@@ -621,8 +626,65 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Account Details',
+                    Text(
+                      l10n.appLanguage,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF14213D),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.selectLanguage,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue: appLanguageController.languageCode,
+                      decoration: InputDecoration(
+                        labelText: l10n.language,
+                        prefixIcon: const Icon(Icons.language),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      items: [
+                        DropdownMenuItem(
+                          value: 'en',
+                          child: Text(l10n.languageEnglish),
+                        ),
+                        DropdownMenuItem(
+                          value: 'si',
+                          child: Text(l10n.languageSinhala),
+                        ),
+                        DropdownMenuItem(
+                          value: 'ta',
+                          child: Text(l10n.languageTamil),
+                        ),
+                      ],
+                      onChanged: (value) async {
+                        if (value == null) return;
+                        await appLanguageController.setLanguageCode(value);
+                        if (!mounted) return;
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.accountDetails,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -633,7 +695,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                     TextField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Full Name',
+                        labelText: l10n.fullName,
                         prefixIcon: const Icon(Icons.person),
                         filled: true,
                         fillColor: Colors.white,
@@ -651,9 +713,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                       controller: _emailController,
                       enabled: false,
                       decoration: InputDecoration(
-                        labelText: 'Email',
+                        labelText: l10n.email,
                         prefixIcon: const Icon(Icons.email),
-                        helperText: 'Email cannot be changed from the app yet',
+                        helperText: l10n.emailCannotBeChangedYet,
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(
@@ -670,7 +732,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                       controller: _roleController,
                       enabled: false,
                       decoration: InputDecoration(
-                        labelText: 'Role',
+                        labelText: l10n.role,
                         prefixIcon: const Icon(Icons.badge),
                         filled: true,
                         fillColor: Colors.grey[100],
@@ -690,7 +752,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                           controller: _businessController,
                           enabled: false,
                           decoration: InputDecoration(
-                            labelText: 'Business Name',
+                            labelText: l10n.businessName,
                             prefixIcon: const Icon(Icons.business),
                             filled: true,
                             fillColor: Colors.grey[100],
@@ -712,7 +774,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Save Local Changes'),
+                        child: Text(l10n.saveLocalChanges),
                       ),
                     ),
                   ],
@@ -733,7 +795,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                     );
                   },
                   icon: const Icon(Icons.dashboard),
-                  label: const Text('Merchant Dashboard'),
+                  label: Text(l10n.merchantDashboard),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
@@ -750,7 +812,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                   backgroundColor: Colors.red,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text('Logout'),
+                child: Text(l10n.logout),
               ),
             ),
             const SizedBox(height: 8),
@@ -761,6 +823,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
   
   Widget _buildSecurityTab() {
+    final l10n = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
@@ -770,7 +833,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Change Password',
+                l10n.changePassword,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 20),
@@ -846,6 +909,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
   
   Widget _buildNotificationsTab() {
+    final l10n = AppLocalizations.of(context)!;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
@@ -855,12 +919,12 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Notifications',
+                l10n.notifications,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 20),
               Text(
-                'Manage push notifications, email alerts, categories, quiet hours, and device testing from the full notification settings screen.',
+                l10n.notificationsDescription,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               const SizedBox(height: 16),
@@ -876,7 +940,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                     );
                   },
                   icon: const Icon(Icons.tune),
-                  label: const Text('Open Notification Settings'),
+                  label: Text(l10n.openNotificationSettings),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -884,7 +948,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
               ),
               const SizedBox(height: 8),
               Text(
-                'Use that screen to enable push on this device and send test notifications.',
+                l10n.notificationsHelp,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -895,6 +959,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
   
   Widget _buildFavoritesTab() {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         Container(
@@ -904,9 +969,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: Colors.grey,
             indicatorColor: Theme.of(context).colorScheme.primary,
-            tabs: const [
-              Tab(text: 'Deals'),
-              Tab(text: 'Stores'),
+            tabs: [
+              Tab(text: l10n.deals),
+              Tab(text: l10n.stores),
             ],
           ),
         ),
@@ -924,6 +989,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
   
   Widget _buildFavoriteDealsView() {
+    final l10n = AppLocalizations.of(context)!;
     if (_loadingFavorites) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -935,14 +1001,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
           physics: const AlwaysScrollableScrollPhysics(),
           child: SizedBox(
             height: MediaQuery.of(context).size.height * 0.6,
-            child: const Center(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.favorite_border, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No favorite deals yet'),
-                  Text('Start favoriting deals to see them here!'),
+                  const Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(l10n.noFavoriteDealsYet),
+                  Text(l10n.startFavoritingDeals),
                 ],
               ),
             ),
@@ -986,6 +1052,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
   
   Widget _buildFavoriteStoresView() {
+    final l10n = AppLocalizations.of(context)!;
     if (_loadingFollowing) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -997,14 +1064,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
           physics: const AlwaysScrollableScrollPhysics(),
           child: SizedBox(
             height: MediaQuery.of(context).size.height * 0.6,
-            child: const Center(
+            child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.store_outlined, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('No favorite stores yet'),
-                  Text('Start following stores to see them here!'),
+                  const Icon(Icons.store_outlined, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(l10n.noFavoriteStoresYet),
+                  Text(l10n.startFollowingStores),
                 ],
               ),
             ),
@@ -1045,7 +1112,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                       : null,
                 ),
                 title: Text(merchantName),
-                subtitle: Text(merchant['contactInfo'] ?? 'No contact info'),
+                subtitle: Text(merchant['contactInfo'] ?? l10n.noContactInfo),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _openMerchantProfile(merchantId),
               ),
@@ -1059,10 +1126,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        title: const Text('My Profile'),
+        title: Text(l10n.myProfile),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -1070,11 +1138,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
           unselectedLabelColor: Colors.white70,
           indicatorColor: Colors.white,
           indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'Profile'),
-            Tab(text: 'Security'),
-            Tab(text: 'Notifications'),
-            Tab(text: 'Favorites'),
+          tabs: [
+            Tab(text: l10n.profileTab),
+            Tab(text: l10n.securityTab),
+            Tab(text: l10n.notifications),
+            Tab(text: l10n.favorites),
           ],
         ),
       ),

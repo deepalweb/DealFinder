@@ -30,6 +30,13 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   Map<String, dynamic>? _merchantData;
   List<Promotion> _promotions = [];
 
+  String _t(String en, String si, String ta) {
+    final code = Localizations.localeOf(context).languageCode;
+    if (code == 'si') return si;
+    if (code == 'ta') return ta;
+    return en;
+  }
+
   bool get _hasValidMerchantId =>
       _merchantId != null &&
       RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(_merchantId!);
@@ -127,7 +134,11 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load merchant dashboard: $e')),
+            SnackBar(
+              content: Text(
+                '${_t('Failed to load merchant dashboard', 'වෙළඳසැල් පුවරුව පූරණය කිරීමට නොහැකි විය', 'வணிகர் டாஷ்போர்டை ஏற்ற முடியவில்லை')}: $e',
+              ),
+            ),
           );
         }
       }
@@ -143,7 +154,15 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         _merchantName!.trim().isEmpty ||
         _token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business name and login are required.')),
+        SnackBar(
+          content: Text(
+            _t(
+              'Business name and login are required.',
+              'ව්‍යාපාර නාමය සහ පිවිසුම් තොරතුරු අවශ්‍යයි.',
+              'வணிகப் பெயரும் உள்நுழைவு தகவலும் அவசியம்.',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -176,8 +195,14 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Store profile initialized successfully!'),
+          SnackBar(
+            content: Text(
+              _t(
+                'Store profile initialized successfully!',
+                'වෙළඳසැල් පැතිකඩ සාර්ථකව සකස් කරන ලදී!',
+                'கடை சுயவிவரம் வெற்றிகரமாக அமைக்கப்பட்டது!',
+              ),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -186,7 +211,11 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to initialize store profile: $e')),
+          SnackBar(
+            content: Text(
+              '${_t('Failed to initialize store profile', 'වෙළඳසැල් පැතිකඩ ආරම්භ කිරීමට නොහැකි විය', 'கடை சுயவிவரத்தைத் தொடங்க முடியவில்லை')}: $e',
+            ),
+          ),
         );
       }
       if (mounted) {
@@ -245,18 +274,18 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Delete Promotion'),
+            title: Text(_t('Delete Promotion', 'ප්‍රවර්ධනය මකන්න', 'சலுகையை நீக்கு')),
             content: Text(
-                'Delete "${promotion.title}"? This action cannot be undone.'),
+                '${_t('Delete', 'මකන්න', 'நீக்கு')} "${promotion.title}"? ${_t('This action cannot be undone.', 'මෙම ක්‍රියාව ආපසු හැරවිය නොහැක.', 'இந்த செயலை மீண்டும் மாற்ற முடியாது.')}'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(_t('Cancel', 'අවලංගු කරන්න', 'ரத்து செய்')),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Delete'),
+                child: Text(_t('Delete', 'මකන්න', 'நீக்கு')),
               ),
             ],
           ),
@@ -270,8 +299,14 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       await CacheService.clearAll();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Promotion deleted.'),
+          SnackBar(
+            content: Text(
+              _t(
+                'Promotion deleted.',
+                'ප්‍රවර්ධනය මකා දමන ලදී.',
+                'சலுகை நீக்கப்பட்டது.',
+              ),
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -280,7 +315,11 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete promotion: $e')),
+          SnackBar(
+            content: Text(
+              '${_t('Failed to delete promotion', 'ප්‍රවර්ධනය මකා දැමීමට නොහැකි විය', 'சலுகையை நீக்க முடியவில்லை')}: $e',
+            ),
+          ),
         );
       }
     }
@@ -289,25 +328,42 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   bool _ensureValidMerchantSession() {
     if (_token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please sign in again to manage promotions.')),
+        SnackBar(
+          content: Text(
+            _t(
+              'Please sign in again to manage promotions.',
+              'ප්‍රවර්ධන කළමනාකරණයට නැවත පිවිසෙන්න.',
+              'சலுகைகளை நிர்வகிக்க மீண்டும் உள்நுழையவும்.',
+            ),
+          ),
+        ),
       );
       return false;
     }
     if (_isDemoMerchantSession) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-              'Demo merchant accounts are read-only. Use a real merchant login to manage promotions.'),
+            _t(
+              'Demo merchant accounts are read-only. Use a real merchant login to manage promotions.',
+              'ඩෙමෝ වෙළෙන්දාගේ ගිණුම් කියවීමට පමණි. ප්‍රවර්ධන කළමනාකරණයට සැබෑ වෙළෙන්දාගේ පිවිසුමක් භාවිතා කරන්න.',
+              'டெமோ வணிகர் கணக்குகள் படிக்க மட்டும். சலுகைகளை நிர்வகிக்க உண்மையான வணிகர் உள்நுழைவை பயன்படுத்தவும்.',
+            ),
+          ),
         ),
       );
       return false;
     }
     if (!_hasValidMerchantId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-              'Merchant profile is not linked correctly. Sign out and sign back in, then try again.'),
+            _t(
+              'Merchant profile is not linked correctly. Sign out and sign back in, then try again.',
+              'වෙළෙන්දාගේ පැතිකඩ නිවැරදිව සම්බන්ධ වී නොමැත. පිටවී නැවත පිවිස උත්සාහ කරන්න.',
+              'வணிகர் சுயவிவரம் சரியாக இணைக்கப்படவில்லை. வெளியேறி மீண்டும் உள்நுழைந்து முயற்சிக்கவும்.',
+            ),
+          ),
         ),
       );
       return false;
@@ -322,10 +378,14 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       ['expired', 'rejected', 'admin_paused'].contains(status);
 
   String _statusLabel(String? status) {
-    if (status == null || status.isEmpty) return 'Unknown';
-    if (status == 'approved' || status == 'pending_approval') {
-      return 'Active';
+    if (status == null || status.isEmpty) {
+      return _t('Unknown', 'නොදනී', 'தெரியாது');
     }
+    if (status == 'approved' || status == 'pending_approval') {
+      return _t('Active', 'සක්‍රීය', 'செயலில்');
+    }
+    if (status == 'expired') return _t('Expired', 'කල් ඉකුත් වූ', 'காலாவதியான');
+    if (status == 'all') return _t('All', 'සියල්ල', 'அனைத்தும்');
     return status
         .split('_')
         .map((part) => part.isEmpty
@@ -357,7 +417,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             !_hasValidMerchantId &&
             !_isDemoMerchantSession)) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Merchant Dashboard')),
+        appBar: AppBar(title: Text(_t('Merchant Dashboard', 'වෙළෙන්දාගේ පුවරුව', 'வணிகர் டாஷ்போர்ட்'))),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -366,14 +426,18 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
               children: [
                 Icon(Icons.store_outlined, size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 20),
-                const Text(
-                  'Merchant Profile Not Ready',
+                Text(
+                  _t('Merchant Profile Not Ready', 'වෙළෙන්දාගේ පැතිකඩ තවම සූදානම් නැහැ', 'வணிகர் சுயவிவரம் இன்னும் தயாராக இல்லை'),
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Initialize your store profile first so the mobile dashboard can match the web merchant flow.',
+                  _t(
+                    'Initialize your store profile first so the mobile dashboard can match the web merchant flow.',
+                    'ජංගම පුවරුව වෙබ් වෙළෙන්දාගේ ගමනට ගැලපෙන ලෙස ඔබගේ වෙළඳසැල් පැතිකඩ පළමුව සකසන්න.',
+                    'மொபைல் டாஷ்போர்டு இணைய வணிகர் அனுபவத்துடன் பொருந்த உங்கள் கடை சுயவிவரத்தை முதலில் அமைக்கவும்.',
+                  ),
                   style: TextStyle(color: Colors.grey[600]),
                   textAlign: TextAlign.center,
                 ),
@@ -381,7 +445,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                 ElevatedButton.icon(
                   onPressed: _initializeMerchantProfile,
                   icon: const Icon(Icons.store),
-                  label: const Text('Initialize Store Profile'),
+                  label: Text(_t('Initialize Store Profile', 'වෙළඳසැල් පැතිකඩ සකසන්න', 'கடை சுயவிவரத்தை அமைக்கவும்')),
                 ),
               ],
             ),
@@ -392,12 +456,12 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Merchant Dashboard'),
+        title: Text(_t('Merchant Dashboard', 'වෙළෙන්දාගේ පුවරුව', 'வணிகர் டாஷ்போர்ட்')),
         actions: [
           IconButton(
             onPressed: _loadDashboard,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: _t('Refresh', 'නැවුම් කරන්න', 'புதுப்பிக்கவும்'),
           ),
         ],
       ),
@@ -413,8 +477,11 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                 context,
                 icon: Icons.info_outline,
                 color: Colors.orange,
-                message:
-                    'Demo merchant mode is read-only. Sign in with a real merchant account to create, edit, or delete promotions.',
+                message: _t(
+                  'Demo merchant mode is read-only. Sign in with a real merchant account to create, edit, or delete promotions.',
+                  'ඩෙමෝ වෙළෙන්දාගේ මෝඩය කියවීමට පමණි. ප්‍රවර්ධන සෑදීමට, සංස්කරණයට, හෝ මකා දැමීමට සැබෑ වෙළෙන්දාගේ ගිණුමකින් පිවිසෙන්න.',
+                  'டெமோ வணிகர் நிலை படிக்க மட்டும். சலுகைகளை உருவாக்க, திருத்த, அல்லது நீக்க உண்மையான வணிகர் கணக்கில் உள்நுழையவும்.',
+                ),
               ),
             if (_isDemoMerchantSession) const SizedBox(height: 16),
             _buildStatsGrid(context),
@@ -440,7 +507,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreatePromotion,
         icon: const Icon(Icons.add),
-        label: const Text('Add Promotion'),
+        label: Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න', 'சலுகையைச் சேர்')),
       ),
     );
   }
@@ -478,7 +545,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (_merchantData?['name'] ?? _merchantName ?? 'My Store')
+                      (_merchantData?['name'] ?? _merchantName ?? _t('My Store', 'මගේ වෙළඳසැල', 'என் கடை'))
                           .toString(),
                       style: const TextStyle(
                         color: Colors.white,
@@ -488,7 +555,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$_activeCount active deals',
+                      '$_activeCount ${_t('active deals', 'සක්‍රීය ඩීල්', 'செயலில் உள்ள சலுகைகள்')}',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.84),
                         fontSize: 14,
@@ -512,7 +579,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     backgroundColor: Colors.white.withValues(alpha: 0.12),
                   ),
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit Profile'),
+                  label: Text(_t('Edit Profile', 'පැතිකඩ සංස්කරණය', 'சுயவிவரத்தைத் திருத்து')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -524,7 +591,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     foregroundColor: const Color(0xFF4F46E5),
                   ),
                   icon: const Icon(Icons.add),
-                  label: const Text('Add Promotion'),
+                  label: Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න', 'சலுகையைச் சேர்')),
                 ),
               ),
             ],
@@ -541,12 +608,12 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
           children: [
             Expanded(
               child:
-                  _buildStatCard('Total', '${_promotions.length}', Icons.sell),
+                  _buildStatCard(_t('Total', 'එකතුව', 'மொத்தம்'), '${_promotions.length}', Icons.sell),
             ),
             const SizedBox(width: 12),
             Expanded(
               child:
-                  _buildStatCard('Active', '$_activeCount', Icons.check_circle),
+                  _buildStatCard(_t('Active', 'සක්‍රීය', 'செயலில்'), '$_activeCount', Icons.check_circle),
             ),
           ],
         ),
@@ -554,7 +621,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         Row(
           children: [
             Expanded(
-              child: _buildStatCard('Expired', '$_expiredCount', Icons.history),
+              child: _buildStatCard(_t('Expired', 'කල් ඉකුත් වූ', 'காலாவதியான'), '$_expiredCount', Icons.history),
             ),
             const SizedBox(width: 12),
             const Expanded(child: SizedBox.shrink()),
@@ -608,18 +675,22 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                   child: const Icon(Icons.rocket_launch, color: Colors.white),
                 ),
                 const SizedBox(width: 12),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Welcome! Let's set up your store",
+                        _t("Welcome! Let's set up your store", 'සාදරයෙන් පිළිගනිමු! ඔබගේ වෙළඳසැල සකස් කරමු', 'வரவேற்கிறோம்! உங்கள் கடையை அமைப்போம்'),
                         style: TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 16),
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'Follow the same merchant checklist used on the web dashboard.',
+                        _t(
+                          'Follow the same merchant checklist used on the web dashboard.',
+                          'වෙබ් පුවරුවේ භාවිතා කරන එම වෙළෙන්දාගේ පිරික්සුම් ලැයිස්තුව අනුගමනය කරන්න.',
+                          'இணைய டாஷ்போர்டில் பயன்படுத்தும் அதே வணிகர் பட்டியலைப் பின்பற்றவும்.',
+                        ),
                         style: TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ],
@@ -629,26 +700,26 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             ),
             const SizedBox(height: 16),
             _buildChecklistItem(
-              label: 'Complete your store profile',
+              label: _t('Complete your store profile', 'ඔබගේ වෙළඳසැල් පැතිකඩ සම්පූර්ණ කරන්න', 'உங்கள் கடை சுயவிவரத்தை முடிக்கவும்'),
               done: _hasProfileContent,
               icon: Icons.person_outline,
-              actionLabel: 'Set Up Profile',
+              actionLabel: _t('Set Up Profile', 'පැතිකඩ සකසන්න', 'சுயவிவரத்தை அமைக்கவும்'),
               onTap: _openEditProfile,
             ),
             const SizedBox(height: 10),
             _buildChecklistItem(
-              label: 'Add your location so customers can find nearby deals',
+              label: _t('Add your location so customers can find nearby deals', 'පාරිභෝගිකයින්ට අසල ඩීල් සොයාගැනීමට ඔබගේ ස්ථානය එක් කරන්න', 'அருகிலுள்ள சலுகைகளை வாடிக்கையாளர்கள் காண உங்கள் இருப்பிடத்தைச் சேர்க்கவும்'),
               done: _hasLocation,
               icon: Icons.location_on_outlined,
-              actionLabel: 'Add Location',
+              actionLabel: _t('Add Location', 'ස්ථානය එක් කරන්න', 'இருப்பிடத்தைச் சேர்'),
               onTap: _openEditProfile,
             ),
             const SizedBox(height: 10),
             _buildChecklistItem(
-              label: 'Create your first promotion',
+              label: _t('Create your first promotion', 'ඔබගේ පළමු ප්‍රවර්ධනය සෑදිය', 'உங்கள் முதல் சலுகையை உருவாக்கவும்'),
               done: _promotions.isNotEmpty,
               icon: Icons.local_offer_outlined,
-              actionLabel: 'Create Deal',
+              actionLabel: _t('Create Deal', 'ඩීල් එකක් සෑදිය', 'சலுகையை உருவாக்கு'),
               onTap: _openCreatePromotion,
             ),
           ],
@@ -710,7 +781,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       children: [
         Expanded(
           child: Text(
-            'Promotions',
+            _t('Promotions', 'ප්‍රවර්ධන', 'சலுகைகள்'),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
                 ),
@@ -718,7 +789,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         ),
         TextButton(
           onPressed: _loadDashboard,
-          child: const Text('Refresh'),
+          child: Text(_t('Refresh', 'නැවුම් කරන්න', 'புதுப்பிக்கவும்')),
         ),
       ],
     );
@@ -726,9 +797,9 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
 
   Widget _buildTabSelector() {
     const tabs = [
-      ('active', 'Active'),
-      ('expired', 'Expired'),
-      ('all', 'All'),
+      ('active', 'active'),
+      ('expired', 'expired'),
+      ('all', 'all'),
     ];
 
     return SingleChildScrollView(
@@ -739,7 +810,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
-              label: Text(tab.$2),
+              label: Text(_statusLabel(tab.$2)),
               selected: selected,
               onSelected: (_) => setState(() => _activeTab = tab.$1),
             ),
@@ -759,8 +830,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             const SizedBox(height: 16),
             Text(
               _promotions.isEmpty
-                  ? 'No promotions yet'
-                  : 'No promotions in this view',
+                  ? _t('No promotions yet', 'තවම ප්‍රවර්ධන නැහැ', 'இன்னும் சலுகைகள் இல்லை')
+                  : _t('No promotions in this view', 'මෙම දසුනේ ප්‍රවර්ධන නොමැත', 'இந்த காட்சியில் சலுகைகள் இல்லை'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -768,8 +839,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               _promotions.isEmpty
-                  ? 'Create your first promotion to start attracting customers.'
-                  : 'Try a different filter or refresh the dashboard.',
+                  ? _t('Create your first promotion to start attracting customers.', 'පාරිභෝගිකයින් ආකර්ෂණය කිරීමට ඔබගේ පළමු ප්‍රවර්ධනය සෑදිය.', 'வாடிக்கையாளர்களை ஈர்க்க உங்கள் முதல் சலுகையை உருவாக்கவும்.')
+                  : _t('Try a different filter or refresh the dashboard.', 'වෙනත් පෙරහනක් උත්සාහ කරන්න හෝ පුවරුව නැවත පූරණය කරන්න.', 'வேறு வடிகட்டியை முயற்சிக்கவும் அல்லது டாஷ்போர்டை புதுப்பிக்கவும்.'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600]),
             ),
@@ -777,7 +848,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             ElevatedButton.icon(
               onPressed: _openCreatePromotion,
               icon: const Icon(Icons.add),
-              label: const Text('Create Promotion'),
+              label: Text(_t('Create Promotion', 'ප්‍රවර්ධනය සෑදිය', 'சலுகையை உருவாக்கு')),
             ),
           ],
         ),
@@ -912,7 +983,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () => _openEditPromotion(promotion),
                       icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit'),
+                      label: Text(_t('Edit', 'සංස්කරණය', 'திருத்து')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -924,7 +995,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                         side: const BorderSide(color: Colors.redAccent),
                       ),
                       icon: const Icon(Icons.delete_outline),
-                      label: const Text('Delete'),
+                      label: Text(_t('Delete', 'මකන්න', 'நீக்கு')),
                     ),
                   ),
                 ],

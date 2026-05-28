@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlng;
@@ -9,6 +10,17 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/merchant_following_manager.dart';
 import '../utils/deal_expiry_helper.dart';
+
+String _merchantLocalizedText(BuildContext context, String en, String si, String ta) {
+  switch (Localizations.localeOf(context).languageCode) {
+    case 'si':
+      return si;
+    case 'ta':
+      return ta;
+    default:
+      return en;
+  }
+}
 
 class MerchantProfileScreen extends StatefulWidget {
   final String merchantId;
@@ -107,8 +119,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         SnackBar(
           content: Text(
             _isFollowing
-                ? 'Store added to your follows'
-                : 'Store removed from your follows',
+                ? _merchantLocalizedText(context, 'Store added to your follows', 'Store එක follow list එකට එකතු විය', 'Store உங்கள் follows இல் சேர்க்கப்பட்டது')
+                : _merchantLocalizedText(context, 'Store removed from your follows', 'Store එක follow list එකෙන් ඉවත් කරන ලදී', 'Store உங்கள் follows இலிருந்து அகற்றப்பட்டது'),
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor:
@@ -118,9 +130,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Could not update store follow right now',
+            _merchantLocalizedText(context, 'Could not update store follow right now', 'Store follow එක දැන් update කළ නොහැක', 'Store follow ஐ இப்போது update செய்ய முடியவில்லை'),
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -213,11 +225,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   String _merchantTypeLabel(String merchantType) {
     switch (merchantType) {
       case 'online':
-        return 'Online';
+        return _merchantLocalizedText(context, 'Online', 'Online', 'Online');
       case 'hybrid':
-        return 'Visit or Order';
+        return _merchantLocalizedText(context, 'Visit or Order', 'පැමිණෙන්න හෝ Order කරන්න', 'வருகை அல்லது Order');
       default:
-        return 'In-store';
+        return _merchantLocalizedText(context, 'In-store', 'ගබඩාවේ', 'கடையில்');
     }
   }
 
@@ -340,7 +352,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   String _dateRange(Map<String, dynamic> deal) {
     final start = (deal['startDate'] ?? '').toString();
     final end = (deal['endDate'] ?? '').toString();
-    if (start.isEmpty && end.isEmpty) return 'Dates unavailable';
+    if (start.isEmpty && end.isEmpty) {
+      return _merchantLocalizedText(context, 'Dates unavailable', 'දින ලබා නොමැත', 'தேதிகள் கிடைக்கவில்லை');
+    }
     return '$start - $end';
   }
 
@@ -473,6 +487,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final merchantDescription = _merchantText(
       'description',
       fallbackKey: 'profile',
@@ -492,7 +507,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Store Profile'),
+        title: Text(_merchantLocalizedText(context, 'Store Profile', 'Store පැතිකඩ', 'Store சுயவிவரம்')),
         actions: [
           if (_merchant != null)
             IconButton(
@@ -500,7 +515,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
               onPressed: () {
                 final url = _merchant!['website'] ?? '';
                 Share.share(
-                  'Check out ${_merchant!['name']} on Deal Finder!'
+                  '${_merchantLocalizedText(context, 'Check out', 'බලන්න', 'பாருங்கள்')} ${_merchant!['name']} ${_merchantLocalizedText(context, 'on Deal Finder!', 'Deal Finder හි!', 'Deal Finder இல்!')}'
                   '${url.toString().isNotEmpty ? '\n$url' : ''}',
                 );
               },
@@ -521,7 +536,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   ),
                 )
               : _merchant == null
-                  ? const Center(child: Text('Merchant not found'))
+                  ? Center(child: Text(_merchantLocalizedText(context, 'Merchant not found', 'Merchant හමු නොවීය', 'Merchant கிடைக்கவில்லை')))
                   : RefreshIndicator(
                       onRefresh: _fetchMerchant,
                       child: ListView(
@@ -632,13 +647,13 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                     _buildModeChip(
                                                       icon:
                                                           Icons.delivery_dining,
-                                                      label: 'delivery',
+                                                      label: _merchantLocalizedText(context, 'delivery', 'delivery', 'delivery'),
                                                     ),
                                                   if (_merchantPickupAvailable)
                                                     _buildModeChip(
                                                       icon: Icons
                                                           .shopping_bag_outlined,
-                                                      label: 'pickup',
+                                                      label: _merchantLocalizedText(context, 'pickup', 'pickup', 'pickup'),
                                                     ),
                                                 ],
                                               ),
@@ -658,14 +673,14 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                       icon: Icons
                                                           .people_alt_outlined,
                                                       label: _isFollowing
-                                                          ? 'followers • you follow'
-                                                          : 'followers',
+                                                          ? _merchantLocalizedText(context, 'followers • you follow', 'followers • ඔබ follow කරයි', 'followers • நீங்கள் follow செய்கிறீர்கள்')
+                                                          : _merchantLocalizedText(context, 'followers', 'followers', 'followers'),
                                                       value: '$followerCount',
                                                     ),
                                                     _buildStatChip(
                                                       icon: Icons
                                                           .local_offer_outlined,
-                                                      label: 'active deals',
+                                                      label: _merchantLocalizedText(context, 'active deals', 'සක්‍රිය deals', 'active deals'),
                                                       value: '$activeDeals',
                                                     ),
                                                   ],
@@ -724,11 +739,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                             label: Text(
                                               _followBusy
                                                   ? (_isFollowing
-                                                      ? 'Updating...'
-                                                      : 'Saving...')
+                                                      ? _merchantLocalizedText(context, 'Updating...', 'යාවත්කාලීන වෙමින්...', 'புதுப்பிக்கப்படுகிறது...')
+                                                      : _merchantLocalizedText(context, 'Saving...', 'සුරකිමින්...', 'சேமிக்கப்படுகிறது...'))
                                                   : (_isFollowing
-                                                      ? 'Following store'
-                                                      : 'Follow store'),
+                                                      ? _merchantLocalizedText(context, 'Following store', 'Follow කරන store', 'Following store')
+                                                      : _merchantLocalizedText(context, 'Follow store', 'Store follow කරන්න', 'Store follow செய்யவும்')),
                                             ),
                                           ),
                                         ),
@@ -737,7 +752,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                             onPressed: () => _openExternalUrl(
                                                 merchantWebsite),
                                             icon: const Icon(Icons.language),
-                                            label: const Text('Website'),
+                                            label: Text(l10n.websiteLabel),
                                           ),
                                         if ((_merchantDeliveryAvailable ||
                                                 _merchantPickupAvailable ||
@@ -751,8 +766,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 Icons.delivery_dining),
                                             label: Text(
                                               _merchantDeliveryAvailable
-                                                  ? 'Order Now'
-                                                  : 'Order',
+                                                  ? _merchantLocalizedText(context, 'Order Now', 'දැන් Order කරන්න', 'இப்போது Order செய்யவும்')
+                                                  : _merchantLocalizedText(context, 'Order', 'Order', 'Order'),
                                             ),
                                           ),
                                         if (merchantPhone.isNotEmpty)
@@ -761,7 +776,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 'tel:$merchantPhone'),
                                             icon:
                                                 const Icon(Icons.call_outlined),
-                                            label: const Text('Contact'),
+                                            label: Text(_merchantLocalizedText(context, 'Contact', 'සම්බන්ධ වන්න', 'தொடர்பு')),
                                           ),
                                       ],
                                     ),
@@ -814,8 +829,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                 ),
                                                 icon: const Icon(
                                                     Icons.directions),
-                                                label: const Text(
-                                                    'Get Directions'),
+                                                label: Text(
+                                                    l10n.getDirections),
                                               ),
                                             ],
                                           ],
@@ -885,13 +900,13 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                               children: [
                                 _buildTabButton(
                                   'active',
-                                  'Active Deals',
+                                  _merchantLocalizedText(context, 'Active Deals', 'සක්‍රිය Deals', 'Active Deals'),
                                   _activeDealsCount,
                                 ),
                                 const SizedBox(width: 8),
                                 _buildTabButton(
                                   'expired',
-                                  'Expired Deals',
+                                  _merchantLocalizedText(context, 'Expired Deals', 'කල් ඉකුත් Deals', 'Expired Deals'),
                                   _expiredDealsCount,
                                 ),
                               ],
@@ -906,7 +921,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                         vertical: 32),
                                     child: Center(
                                       child: Text(
-                                        'No ${_activeTab == 'active' ? 'active' : 'expired'} deals available.',
+                                        _activeTab == 'active'
+                                            ? _merchantLocalizedText(context, 'No active deals available.', 'සක්‍රිය deals නොමැත.', 'Active deals எதுவும் இல்லை.')
+                                            : _merchantLocalizedText(context, 'No expired deals available.', 'කල් ඉකුත් deals නොමැත.', 'Expired deals எதுவும் இல்லை.'),
                                       ),
                                     ),
                                   )
@@ -996,8 +1013,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                             ),
                                                           ),
                                                         ),
-                                                        child: const Text(
-                                                          'Ending today',
+                                                        child: Text(
+                                                          _merchantLocalizedText(context, 'Ending today', 'අද අවසන්', 'இன்று முடியும்'),
                                                           style: TextStyle(
                                                             fontSize: 12,
                                                             fontWeight:
@@ -1063,7 +1080,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                               countdown ==
                                                                       'Expired'
                                                                   ? countdown
-                                                                  : 'Ends in $countdown',
+                                                                  : '${_merchantLocalizedText(context, 'Ends in', 'අවසන් වීමට', 'முடிவதற்கு')} $countdown',
                                                               style: TextStyle(
                                                                 fontSize: 12,
                                                                 fontWeight:

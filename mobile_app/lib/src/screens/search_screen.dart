@@ -98,11 +98,12 @@ class _SearchScreenState extends State<SearchScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.035),
             blurRadius: 18,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -118,7 +119,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Search by product, store, category, card offer, or Sinhala keywords.',
+            'Search in English, Sinhala, Tamil, or Singlish for products, stores, categories, and card offers.',
             style: TextStyle(
               color: Color(0xFF64748B),
               height: 1.4,
@@ -132,7 +133,7 @@ class _SearchScreenState extends State<SearchScreen> {
             onChanged: _handleQueryChanged,
             onSubmitted: _submitSearch,
             decoration: InputDecoration(
-              hintText: 'Try burgers, phones, fashion, කෑම...',
+              hintText: 'Try kotthu, kema, edum, කෑම, கொத்து...',
               prefixIcon: const Icon(Icons.search_rounded),
               suffixIcon: _searchController.text.trim().isEmpty
                   ? null
@@ -167,7 +168,7 @@ class _SearchScreenState extends State<SearchScreen> {
     return _SectionCard(
       title: 'Browse by delivery and budget',
       subtitle: 'Jump straight into the deal types people act on fastest.',
-      trailing: const Icon(Icons.trending_up, color: Color(0xFF1E88E5)),
+      trailing: const Icon(Icons.trending_up, color: Color(0xFF007AFF)),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -211,7 +212,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Icon(
                     Icons.search,
                     size: 18,
-                    color: Color(0xFF1E88E5),
+                    color: Color(0xFF007AFF),
                   ),
                 ),
                 title: Text(suggestion),
@@ -274,34 +275,22 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FF),
+      backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(title: const Text('Search Deals')),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDFF1FF),
-              Color(0xFFF4F8FF),
-            ],
-          ),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildSearchField(),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSearchField(),
+          const SizedBox(height: 16),
+          if (_suggestions.isNotEmpty) ...[
+            _buildSuggestionSection(),
             const SizedBox(height: 16),
-            if (_suggestions.isNotEmpty) ...[
-              _buildSuggestionSection(),
-              const SizedBox(height: 16),
-            ] else ...[
-              _buildQuickTopicSection(),
-              const SizedBox(height: 16),
-              _buildHistorySection(),
-            ],
+          ] else ...[
+            _buildQuickTopicSection(),
+            const SizedBox(height: 16),
+            _buildHistorySection(),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -778,7 +767,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FF),
+      backgroundColor: const Color(0xFFF2F2F7),
       appBar: AppBar(
         title: Text(
           widget.query.trim().isNotEmpty
@@ -786,20 +775,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               : 'Browse Deals',
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDFF1FF),
-              Color(0xFFF4F8FF),
-            ],
-          ),
-        ),
-        child: FutureBuilder<List<Promotion>>(
-          future: _futureResults,
-          builder: (context, snapshot) {
+      body: FutureBuilder<List<Promotion>>(
+        future: _futureResults,
+        builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting &&
                 _results.isEmpty) {
               return const Center(child: CircularProgressIndicator());
@@ -855,8 +833,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                 ],
               ),
             );
-          },
-        ),
+        },
       ),
     );
   }
@@ -882,11 +859,12 @@ class _SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.035),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
           ),
         ],
       ),

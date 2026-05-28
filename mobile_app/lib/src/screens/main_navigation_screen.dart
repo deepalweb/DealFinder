@@ -104,38 +104,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final localizations = AppLocalizations.of(context)!;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FF),
+      backgroundColor: const Color(0xFFF2F2F7),
       extendBody: true,
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens!,
       ),
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
         child: Container(
           margin: const EdgeInsets.only(top: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFFDFEFE),
-                Color(0xFFF6FAFF),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2EBF5)),
+            color: const Color(0xF7FFFFFF),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: const Color(0xFFD9DDE6)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x140F172A),
-                blurRadius: 14,
-                offset: Offset(0, 6),
-              ),
-              BoxShadow(
-                color: Color(0x0D0F4C81),
-                blurRadius: 6,
-                offset: Offset(0, 2),
+                color: Color(0x12000000),
+                blurRadius: 20,
+                offset: Offset(0, 10),
               ),
             ],
           ),
@@ -167,8 +155,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   static String _homeLabel(AppLocalizations l10n) => l10n.home;
-  static String _exploreLabel(AppLocalizations _) => 'Deals';
-  static String _storesLabel(AppLocalizations _) => 'Stores';
+  static String _exploreLabel(AppLocalizations l10n) => l10n.deals;
+  static String _storesLabel(AppLocalizations l10n) => l10n.stores;
   static String _favoritesLabel(AppLocalizations l10n) => l10n.favorites;
   static String _profileLabel(AppLocalizations l10n) => l10n.profile;
 }
@@ -198,36 +186,18 @@ class _NavigationBarItem extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           padding: EdgeInsets.symmetric(
             horizontal: selected ? 8 : 6,
-            vertical: 5,
+            vertical: 7,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: selected
-                ? LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      accent,
-                      Color.lerp(accent, Colors.white, 0.12)!,
-                    ],
-                  )
-                : null,
-            color: selected ? null : accentSoft.withValues(alpha: 0.28),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.22),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                : null,
+            borderRadius: BorderRadius.circular(18),
+            color:
+                selected ? accentSoft.withValues(alpha: 0.92) : Colors.transparent,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -235,25 +205,24 @@ class _NavigationBarItem extends StatelessWidget {
               AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
-                width: selected ? 14 : 8,
-                height: 2.5,
-                margin: const EdgeInsets.only(bottom: 4),
+                width: selected ? 18 : 0,
+                height: selected ? 3 : 0,
+                margin: EdgeInsets.only(bottom: selected ? 5 : 3),
                 decoration: BoxDecoration(
                   color: selected
-                      ? Colors.white.withValues(alpha: 0.92)
-                      : accent.withValues(alpha: 0.18),
+                      ? accent.withValues(alpha: 0.92)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
               AnimatedScale(
-                scale: selected ? 1.04 : 1,
+                scale: selected ? 1.02 : 1,
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
                 child: Icon(
                   selected ? activeIcon : icon,
                   size: 19,
-                  color:
-                      selected ? Colors.white : accent.withValues(alpha: 0.82),
+                  color: selected ? accent : const Color(0xFF8E8E93),
                 ),
               ),
               const SizedBox(height: 2),
@@ -261,11 +230,10 @@ class _NavigationBarItem extends StatelessWidget {
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
                 style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  color:
-                      selected ? Colors.white : accent.withValues(alpha: 0.86),
-                  letterSpacing: 0,
+                  fontSize: 10,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected ? accent : const Color(0xFF8E8E93),
+                  letterSpacing: -0.1,
                 ),
                 child: Text(
                   label,

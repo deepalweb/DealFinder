@@ -195,4 +195,671 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get profile => 'පැතිකඩ';
+
+  @override
+  String get myProfile => 'මගේ පැතිකඩ';
+
+  @override
+  String get profileTab => 'පැතිකඩ';
+
+  @override
+  String get securityTab => 'ආරක්ෂාව';
+
+  @override
+  String get appLanguage => 'යෙදුම් භාෂාව';
+
+  @override
+  String get selectLanguage => 'යෙදුම පුරා භාවිතා වන භාෂාව තෝරන්න.';
+
+  @override
+  String get language => 'භාෂාව';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageSinhala => 'සිංහල';
+
+  @override
+  String get languageTamil => 'தமிழ்';
+
+  @override
+  String get savedDealsAndStores => 'සුරකින ලද Deals සහ Stores';
+
+  @override
+  String get savedDealsStoresSubtitle =>
+      'ඔබගේ ප්‍රියතම deals සහ අනුගමනය කරන stores එකම තැනක බලන්න.';
+
+  @override
+  String get notificationSettingsTitle => 'දැනුම්දීම් සැකසුම්';
+
+  @override
+  String get notificationSettingsSubtitle =>
+      'Push alerts, categories සහ quiet hours පාලනය කරන්න.';
+
+  @override
+  String get accountDetails => 'ගිණුම් විස්තර';
+
+  @override
+  String get emailCannotBeChangedYet => 'Email එක තවම app එකෙන් වෙනස් කළ නොහැක';
+
+  @override
+  String get role => 'භූමිකාව';
+
+  @override
+  String get businessName => 'ව්‍යාපාර නම';
+
+  @override
+  String get saveLocalChanges => 'Local වෙනස්කම් සුරකින්න';
+
+  @override
+  String get merchantDashboard => 'Merchant Dashboard';
+
+  @override
+  String get logout => 'Logout';
+
+  @override
+  String get changePassword => 'මුරපදය වෙනස් කරන්න';
+
+  @override
+  String get notificationsDescription =>
+      'සම්පූර්ණ දැනුම්දීම් සැකසුම් තිරයෙන් push notifications, email alerts, categories සහ quiet hours කළමනාකරණය කරන්න.';
+
+  @override
+  String get openNotificationSettings => 'දැනුම්දීම් සැකසුම් අරින්න';
+
+  @override
+  String get notificationsHelp =>
+      'එම තිරයෙන් මෙම උපාංගයට push enable කර test notifications යවන්න.';
+
+  @override
+  String get noFavoriteDealsYet => 'ප්‍රියතම deals තවම නොමැත';
+
+  @override
+  String get startFavoritingDeals => 'ඒවා මෙහි දකින්න deals ප්‍රියතම කරන්න.';
+
+  @override
+  String get noFavoriteStoresYet => 'ප්‍රියතම stores තවම නොමැත';
+
+  @override
+  String get startFollowingStores => 'ඒවා මෙහි දකින්න stores follow කරන්න.';
+
+  @override
+  String get noContactInfo => 'සම්බන්ධතා තොරතුරු නොමැත';
+
+  @override
+  String get chooseImageSource => 'පින්තූර මූලාශ්‍රය තෝරන්න';
+
+  @override
+  String get camera => 'කැමරාව';
+
+  @override
+  String get gallery => 'ගැලරිය';
+
+  @override
+  String get profilePictureUpdated => 'පැතිකඩ පින්තූරය යාවත්කාලීන විය!';
+
+  @override
+  String get failedToUpdatePicture => 'පින්තූරය යාවත්කාලීන කිරීමට අසමත් විය';
+
+  @override
+  String get nameCannotBeEmpty => 'නම හිස්ව තිබිය නොහැක';
+
+  @override
+  String get profileUpdatedSuccessfully => 'පැතිකඩ සාර්ථකව යාවත්කාලීන විය!';
+
+  @override
+  String get failedToUpdateProfile => 'පැතිකඩ යාවත්කාලීන කිරීමට අසමත් විය';
+
+  @override
+  String get removedFromFavorites => 'ප්‍රියතමයෙන් ඉවත් කරන ලදී';
+
+  @override
+  String get storesPageTitle => 'වෙළඳසැල්';
+
+  @override
+  String get followingStores => 'අනුගමනය කරන වෙළඳසැල්';
+
+  @override
+  String get followingStoresSubtitle => 'ඔබට වැදගත් වෙළෙන්දන්ට ඉක්මන් ප්‍රවේශය';
+
+  @override
+  String get popularRightNow => 'දැන් ජනප්‍රිය';
+
+  @override
+  String get popularRightNowSubtitle =>
+      'Followers සහ active deals වැඩියෙන් ඇති වෙළඳසැල්';
+
+  @override
+  String get freshMerchants => 'අලුත් වෙළෙන්දන්';
+
+  @override
+  String get freshMerchantsSubtitle =>
+      'අන් අය සොයාගැනීමට පෙර අලුත් stores බලන්න';
+
+  @override
+  String get browseAllStores => 'සියලු වෙළඳසැල් බලන්න';
+
+  @override
+  String get discoverStoresTitle => 'ඔබගේ රුචියට ගැලපෙන වෙළඳසැල් සොයන්න';
+
+  @override
+  String get discoverStoresSubtitle =>
+      'හොඳම local deals වෙත ඉක්මනින් යන්න, categories compare කරන්න, merchants follow කරන්න.';
+
+  @override
+  String get following => 'අනුගමනය කරන';
+
+  @override
+  String get popular => 'ජනප්‍රිය';
+
+  @override
+  String get foodStores => 'කෑම වෙළඳසැල්';
+
+  @override
+  String get newest => 'අලුත්ම';
+
+  @override
+  String storesSummary(int visible, int following, int total) {
+    return '$visible පෙන්වයි • $following follow කරන • මුළු stores $total';
+  }
+
+  @override
+  String get searchStoresHint =>
+      'Search stores or try Sinhala like කෑම, ඉලෙක්ට්‍රොනික්';
+
+  @override
+  String activeFiltersLabel(int count) {
+    return 'සක්‍රිය filters ($count)';
+  }
+
+  @override
+  String get clearAll => 'සියල්ල ඉවත් කරන්න';
+
+  @override
+  String searchFilterLabel(String query) {
+    return 'සෙවුම: $query';
+  }
+
+  @override
+  String categoryFilterLabel(String category) {
+    return 'වර්ගය: $category';
+  }
+
+  @override
+  String sortFilterLabel(String sort) {
+    return 'සැකසුම: $sort';
+  }
+
+  @override
+  String get mostPopular => 'වැඩිම ජනප්‍රිය';
+
+  @override
+  String get followingFirst => 'Follow කරන ඒවා මුලින්';
+
+  @override
+  String get aToZ => 'A සිට Z';
+
+  @override
+  String get noStoresMatchView => 'මෙම view එකට ගැලපෙන stores නැත';
+
+  @override
+  String get noStoresMatchSubtitle =>
+      'තවත් merchants බලන්න පුළුල් search එකක්, වෙන category එකක්, හෝ filters clear කරන්න.';
+
+  @override
+  String get storesWillAppearSubtitle =>
+      'Merchants ඔවුන්ගේ profiles publish කළ විගස stores මෙහි පෙන්වෙනු ඇත.';
+
+  @override
+  String get clearFilters => 'Filters ඉවත් කරන්න';
+
+  @override
+  String get showFollowed => 'Follow කළ ඒවා පෙන්වන්න';
+
+  @override
+  String get failedToLoadStores => 'වෙළඳසැල් load කළ නොහැකි විය';
+
+  @override
+  String get unknownError => 'නොදන්නා දෝෂයකි';
+
+  @override
+  String get tryAgain => 'නැවත උත්සාහ කරන්න';
+
+  @override
+  String get resetView => 'View නැවත සකසන්න';
+
+  @override
+  String get filtersTitle => 'Filters';
+
+  @override
+  String get sortByTitle => 'Sort by';
+
+  @override
+  String get mostRecent => 'නවතම';
+
+  @override
+  String get highestDiscount => 'වැඩිම වට්ටම';
+
+  @override
+  String get priceLowToHigh => 'මිල: අඩු සිට වැඩි';
+
+  @override
+  String get priceHighToLow => 'මිල: වැඩි සිට අඩු';
+
+  @override
+  String get nearest => 'අසන්නම';
+
+  @override
+  String get failedToLoadDeals => 'Deals load කළ නොහැකි විය';
+
+  @override
+  String get noDealsAvailable => 'Deals නොමැත';
+
+  @override
+  String get noDealsMatchView => 'මෙම view එකට deals ගැලපෙන්නේ නැත';
+
+  @override
+  String get noDealsMatchSubtitle =>
+      'තවත් deals බලන්න category පුළුල් කරන්න, මිල හෝ discount filters වෙනස් කරන්න, හෝ filters clear කරන්න.';
+
+  @override
+  String get nearbyPageTitle => 'අසල';
+
+  @override
+  String get changeLocation => 'ස්ථානය වෙනස් කරන්න';
+
+  @override
+  String get searchNearbyHint =>
+      'අසල deals සොයන්න හෝ කෑම වැනි සිංහලෙන් සොයන්න...';
+
+  @override
+  String get allLabel => 'සියල්ල';
+
+  @override
+  String get foodLabel => 'කෑම';
+
+  @override
+  String get beautyLabel => 'රූපලාවන්‍ය';
+
+  @override
+  String get shoppingLabel => 'සාප්පු';
+
+  @override
+  String get listView => 'ලැයිස්තු View';
+
+  @override
+  String get mapView => 'Map View';
+
+  @override
+  String get noActiveNearbyDeals => 'සක්‍රිය අසල deals නැත';
+
+  @override
+  String activeNearbyDealsCount(int count, String pluralSuffix) {
+    return 'සක්‍රිය අසල deal$pluralSuffix $count';
+  }
+
+  @override
+  String get closestFirst => 'අසන්නම දේ මුලින්';
+
+  @override
+  String get bestDealNearby => 'හොඳම අසල deal';
+
+  @override
+  String get bestNearby => 'හොඳම අසල';
+
+  @override
+  String get closest => 'අසන්නම';
+
+  @override
+  String get popularNearYou => 'ඔබ අසල ජනප්‍රිය';
+
+  @override
+  String get endingTodayNearby => 'අද අවසන් වන අසල deals';
+
+  @override
+  String get nearbyDealsTitle => 'අසල deals';
+
+  @override
+  String resultsLabel(int count) {
+    return 'ප්‍රතිඵල $count';
+  }
+
+  @override
+  String get locationRequired => 'ස්ථානය අවශ්‍යයි';
+
+  @override
+  String get enableLocation => 'ස්ථානය සක්‍රිය කරන්න';
+
+  @override
+  String get openSettings => 'සැකසුම් අරින්න';
+
+  @override
+  String get noNearbyDealsFound => 'අසල deals හමු නොවීය';
+
+  @override
+  String get noNearbyDealsSubtitle =>
+      'සෙවුම පුළුල් කිරීමට radius එක වැඩි කරන්න හෝ filters වෙනස් කරන්න.';
+
+  @override
+  String get endingSoonLabel => 'ඉක්මනින් අවසන්';
+
+  @override
+  String get liveNearbyOffersReady => 'අසල live offers ඔබට බලන්න සූදානම්.';
+
+  @override
+  String liveDealsAround(String locationName) {
+    return '$locationName අවට live deals සූදානම්.';
+  }
+
+  @override
+  String nearbyNowCount(Object count) {
+    return 'දැන් අසල $count';
+  }
+
+  @override
+  String endingSoonCount(Object count) {
+    return 'ඉක්මනින් අවසන් $count';
+  }
+
+  @override
+  String get freshLocalDeals => 'අලුත් local deals';
+
+  @override
+  String get openSearchDealsStores => 'deals සහ stores සඳහා search අරින්න';
+
+  @override
+  String get searchDealsNearYou => 'ඔබ අසල deals සොයන්න';
+
+  @override
+  String get searchDealsExamples => 'උදා: burgers, salons, repair';
+
+  @override
+  String get browseNearbyDeals => 'අසල deals බලන්න';
+
+  @override
+  String get under1km => '1km ඇතුළත';
+
+  @override
+  String get bankCards => 'Bank Cards';
+
+  @override
+  String get offlineShowingCachedDeals => 'Offline — cached deals පෙන්වයි';
+
+  @override
+  String get noDealsFoundInView => 'මෙම view එකේ deals හමු නොවීය';
+
+  @override
+  String get tryRefreshOrBrowse =>
+      'Refresh කරන්න, nearby deals බලන්න, හෝ full deals list එක විවෘත කරන්න.';
+
+  @override
+  String get noDealsMatchSelectedCategory =>
+      'තෝරාගත් category එකට දැන් deals නොගැළපේ. Filter clear කරන්න හෝ වෙන category එකකට යන්න.';
+
+  @override
+  String get clearCategory => 'Category clear කරන්න';
+
+  @override
+  String get refreshDeals => 'Deals refresh කරන්න';
+
+  @override
+  String get topDealsNearYou => 'ඔබ අසල Top Deals';
+
+  @override
+  String get nearbyPicksReady => 'අසල picks දැන් සූදානම්';
+
+  @override
+  String nearbyPicksAround(String locationName) {
+    return '$locationName අවට picks';
+  }
+
+  @override
+  String nearbyPicksCount(int count) {
+    return 'අසල picks $count';
+  }
+
+  @override
+  String get openMap => 'Map අරින්න';
+
+  @override
+  String get enableLocationUnlockNearby =>
+      'Nearby deals ලබාගැනීමට location enable කරන්න';
+
+  @override
+  String get turnOnLocation => 'Location සක්‍රිය කරන්න';
+
+  @override
+  String get showNearbyDealsMapAccess =>
+      'Nearby deals, map access සහ local results වේගයෙන් බලන්න.';
+
+  @override
+  String get locationEnabledLoading =>
+      'Location enabled! Nearby deals load වෙමින් පවතී...';
+
+  @override
+  String get recommendedForYouTitle => 'ඔබ සඳහා යෝජිත';
+
+  @override
+  String get popularPicksNearYou => 'ඔබ අසල හොඳින් ක්‍රියා කරන popular picks';
+
+  @override
+  String get popularPicksLearning =>
+      'ඔබගේ රුචි අධ්‍යයනය කරන අතරතුර popular picks';
+
+  @override
+  String get bankCardOffersTitle => 'Bank Card Offers';
+
+  @override
+  String get bankCardOffersSubtitle =>
+      'ඔබගේ බැංකු වල credit සහ debit card promotions';
+
+  @override
+  String get browseCategoriesTitle => 'Categories බලන්න';
+
+  @override
+  String get browseCategoriesSubtitle =>
+      'ඔබට වැදගත් deal type එකට ඉක්මනින් යන්න';
+
+  @override
+  String get allCategories => 'සියලු Categories';
+
+  @override
+  String get flashSalesTitle => 'Flash Sales';
+
+  @override
+  String get flashSalesSubtitle =>
+      'දැන්ම බලන්න වටිනා time-sensitive promotions';
+
+  @override
+  String get newDealsTitle => 'අලුත් Deals';
+
+  @override
+  String get newDealsSubtitle => 'අලුතින් එකතු කළ deals';
+
+  @override
+  String browseAllDealsCount(int count) {
+    return 'Deals සියල්ල $count බලන්න';
+  }
+
+  @override
+  String get browseAllDeals => 'සියලු deals බලන්න';
+
+  @override
+  String get viewsLabel => 'බැලීම්';
+
+  @override
+  String get likesLabel => 'කැමැත්ත';
+
+  @override
+  String get commentsLabel => 'Comments';
+
+  @override
+  String get clicksLabel => 'Clicks';
+
+  @override
+  String get directionsLabel => 'මාර්ග';
+
+  @override
+  String get featuredLabel => 'Featured';
+
+  @override
+  String get endingTodayLabel => 'අද අවසන්';
+
+  @override
+  String get getDirectionsToMerchant => 'Merchant වෙත මාර්ග ලබා ගන්න';
+
+  @override
+  String get visitNowLabel => 'දැන් යන්න';
+
+  @override
+  String get openOrderLink => 'Order link අරින්න';
+
+  @override
+  String get orderNowLabel => 'දැන් Order කරන්න';
+
+  @override
+  String get pickupOrderLabel => 'Pickup Order';
+
+  @override
+  String get callMerchant => 'Merchant අමතන්න';
+
+  @override
+  String get callLabel => 'Call';
+
+  @override
+  String get messageOnWhatsApp => 'WhatsApp හි merchant ට message කරන්න';
+
+  @override
+  String get whatsAppLabel => 'WhatsApp';
+
+  @override
+  String get openDealLink => 'Deal link අරින්න';
+
+  @override
+  String get goToDealLabel => 'Deal වෙත යන්න';
+
+  @override
+  String get openMerchantWebsite => 'Merchant website අරින්න';
+
+  @override
+  String get websiteLabel => 'Website';
+
+  @override
+  String get openDealLabel => 'Deal අරින්න';
+
+  @override
+  String get toggleFavoriteTooltip => 'Favorite toggle කරන්න';
+
+  @override
+  String get dealLinkCopied => 'Deal link copy කළා!';
+
+  @override
+  String get youMightAlsoLike => 'ඔබට මෙයත් කැමති විය හැක';
+
+  @override
+  String get errorLoadingRecommendations =>
+      'Recommendations load කිරීමේ දෝෂයකි';
+
+  @override
+  String get noRecommendationsAvailable => 'Recommendations නොමැත';
+
+  @override
+  String get ratingsReviewsTitle => 'Ratings සහ Reviews';
+
+  @override
+  String get ratingSingular => 'rating';
+
+  @override
+  String get ratingsPlural => 'ratings';
+
+  @override
+  String get rateThisDeal => 'මෙම deal එක rate කරන්න';
+
+  @override
+  String get yourRatingLabel => 'ඔබගේ rating:';
+
+  @override
+  String get loginToRateDeal => 'මෙම deal එක rate කිරීමට log in වන්න.';
+
+  @override
+  String get noCommentsYet => 'Comments තවම නැත. මුලින්ම comment කරන්න!';
+
+  @override
+  String get loginToWriteComment => 'Comment ලිවීමට log in වන්න';
+
+  @override
+  String get writeCommentHint => 'Comment එකක් ලියන්න...';
+
+  @override
+  String get postLabel => 'Post';
+
+  @override
+  String get locationTitle => 'ස්ථානය';
+
+  @override
+  String distanceFromHere(String distance) {
+    return 'මෙතැනින් $distance';
+  }
+
+  @override
+  String get couldNotLaunchPrefix => 'Launch කළ නොහැකි විය';
+
+  @override
+  String get noMerchantPhoneNumber => 'Merchant phone number එක නොමැත.';
+
+  @override
+  String get couldNotOpenWhatsApp => 'WhatsApp විවෘත කළ නොහැකි විය.';
+
+  @override
+  String pleaseLoginTo(String action) {
+    return '$action සඳහා log in වන්න.';
+  }
+
+  @override
+  String get ratingSaved => 'Rating save කළා!';
+
+  @override
+  String get commentPosted => 'Comment post කළා!';
+
+  @override
+  String get couldNotStartPhoneCall => 'Phone call එක ආරම්භ කළ නොහැකි විය.';
+
+  @override
+  String get failedToSaveRating => 'Rating save කිරීමට අසමත් විය';
+
+  @override
+  String get failedToPostComment => 'Comment post කිරීමට අසමත් විය';
+
+  @override
+  String get soldByLabel => 'විකුණන්නේ';
+
+  @override
+  String get copyShareableLink => 'Shareable link copy කරන්න';
+
+  @override
+  String get detailsTitle => 'විස්තර:';
+
+  @override
+  String get validityTitle => 'වලංගු කාලය:';
+
+  @override
+  String get startsLabel => 'ආරම්භය:';
+
+  @override
+  String get expiresLabel => 'කල් ඉකුත් වීම:';
+
+  @override
+  String get termsAndConditionsTitle => 'නියමයන් සහ කොන්දේසි';
+
+  @override
+  String get cardOfferDetailsTitle => 'Card Offer විස්තර';
+
+  @override
+  String get cardOfferDetailsSubtitle =>
+      'සුදුසු cards, offer type සහ spend conditions පරීක්ෂා කරන්න.';
+
+  @override
+  String get cardOfferDetailsNote =>
+      'ගෙවීමට පෙර සුදුසු bank, card type, discount cap සහ offer එක in-store, online හෝ නිශ්චිත දිනවල පමණක් අදාළද යන්න තහවුරු කරන්න.';
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -630,19 +631,7 @@ class _HomeScreenState extends State<HomeScreen>
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFB9E6FF),
-              Color(0xFFD8F1FF),
-              Color(0xFFE8F2FF),
-              Color(0xFFF6F1FF),
-            ],
-            stops: [0.0, 0.24, 0.68, 1.0],
-          ),
-        ),
+        color: const Color(0xFFF2F2F7),
         child: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -691,21 +680,14 @@ class _HomeScreenState extends State<HomeScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFE0F4FF),
-                      Color(0xFFBFE8FF),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF9FD2EE)),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2A7DA8).withValues(alpha: 0.18),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withValues(alpha: 0.035),
+                      blurRadius: 14,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
@@ -727,8 +709,8 @@ class _HomeScreenState extends State<HomeScreen>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0B3B53),
-                        letterSpacing: 0.5,
+                        color: Color(0xFF111827),
+                        letterSpacing: -0.1,
                       ),
                     ),
                   ],
@@ -747,14 +729,14 @@ class _HomeScreenState extends State<HomeScreen>
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F7FF),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFB9DDF1)),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4B93B8).withValues(alpha: 0.16),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),
@@ -856,6 +838,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Discovery Hero ────────────────────────────────────────────────────────
   Widget _buildDiscoveryHero() {
+    final l10n = AppLocalizations.of(context)!;
     final visibleNearbyCount = _nearbyDeals.isNotEmpty
         ? (_nearbyDeals.length > 4 ? 4 : _nearbyDeals.length)
         : 0;
@@ -878,12 +861,12 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             ),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFDCE7F5)),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF8CA2C8).withValues(alpha: 0.16),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 18,
-                offset: const Offset(0, 8),
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -894,7 +877,7 @@ class _HomeScreenState extends State<HomeScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDDEBFF),
+                  color: const Color(0xFFF2F7FF),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -907,10 +890,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Hello, $_userName',
+                      l10n.welcomeBack(_userName),
                       style: const TextStyle(
                         fontSize: 12,
-                        color: Color(0xFF365314),
+                        color: Color(0xFF007AFF),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -918,8 +901,8 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Find the Best Deals Near You',
+              Text(
+                l10n.findBestDeals,
                 style: TextStyle(
                   fontSize: 20,
                   height: 1.1,
@@ -930,8 +913,8 @@ class _HomeScreenState extends State<HomeScreen>
               const SizedBox(height: 6),
               Text(
                 _locationName == 'Current Location'
-                    ? 'Live nearby offers are ready to explore.'
-                    : 'Live deals around $_locationName are ready to explore.',
+                    ? l10n.liveNearbyOffersReady
+                    : l10n.liveDealsAround(_locationName),
                 style: const TextStyle(
                   fontSize: 12.5,
                   height: 1.3,
@@ -947,18 +930,18 @@ class _HomeScreenState extends State<HomeScreen>
                   if (visibleNearbyCount > 0)
                     _buildHeroInsightChip(
                       icon: Icons.place_rounded,
-                      label: '$visibleNearbyCount nearby now',
+                      label: l10n.nearbyNowCount(visibleNearbyCount),
                       color: const Color(0xFF0EA5A4),
                     ),
                   if (endingSoonCount != null)
                     _buildHeroInsightChip(
                       icon: Icons.schedule_rounded,
-                      label: '$endingSoonCount ending soon',
+                      label: l10n.endingSoonCount(endingSoonCount),
                       color: const Color(0xFFEF4444),
                     ),
                   _buildHeroInsightChip(
                     icon: Icons.local_offer_rounded,
-                    label: 'Fresh local deals',
+                    label: l10n.freshLocalDeals,
                     color: const Color(0xFF4F46E5),
                   ),
                 ],
@@ -970,7 +953,7 @@ class _HomeScreenState extends State<HomeScreen>
                   color: Colors.transparent,
                   child: Semantics(
                     button: true,
-                    label: 'Open search for deals and stores',
+                    label: l10n.openSearchDealsStores,
                     child: GestureDetector(
                       onTap: () => Navigator.push(
                         context,
@@ -982,24 +965,16 @@ class _HomeScreenState extends State<HomeScreen>
                           vertical: 14,
                         ),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFFCFDFF),
-                              Color(0xFFF0F6FF),
-                            ],
-                          ),
+                          color: const Color(0xFFF9FAFB),
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: const Color(0xFFBCD2F4),
-                            width: 1.4,
+                            color: const Color(0xFFE5E7EB),
+                            width: 1.2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF87A4D8)
-                                  .withValues(alpha: 0.18),
-                              blurRadius: 18,
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 16,
                               offset: const Offset(0, 8),
                             ),
                           ],
@@ -1011,23 +986,23 @@ class _HomeScreenState extends State<HomeScreen>
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFDDEAFF),
+                                color: const Color(0xFFF2F7FF),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(
                                 Icons.search_rounded,
-                                color: Color(0xFF1D4ED8),
+                                color: Color(0xFF007AFF),
                                 size: 20,
                               ),
                             ),
                             const SizedBox(width: 10),
-                            const Expanded(
+                            Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    'Search deals near you',
+                                    l10n.searchDealsNearYou,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
@@ -1036,7 +1011,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   ),
                                   SizedBox(height: 3),
                                   Text(
-                                    'Try: burgers, salons, repair',
+                                    l10n.searchDealsExamples,
                                     style: TextStyle(
                                       fontSize: 11.5,
                                       fontWeight: FontWeight.w600,
@@ -1050,12 +1025,12 @@ class _HomeScreenState extends State<HomeScreen>
                               width: 30,
                               height: 30,
                               decoration: BoxDecoration(
-                                color: const Color(0xFFE2ECFF),
+                                color: const Color(0xFFF2F7FF),
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: const Icon(
                                 Icons.arrow_forward_rounded,
-                                color: Color(0xFF1D4ED8),
+                                color: Color(0xFF007AFF),
                                 size: 18,
                               ),
                             ),
@@ -1076,16 +1051,16 @@ class _HomeScreenState extends State<HomeScreen>
                         builder: (_) => const NearbyDealsScreen()),
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D4ED8),
-                    foregroundColor: Colors.white,
+                    backgroundColor: const Color(0xFFEAF3FF),
+                    foregroundColor: const Color(0xFF007AFF),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
                   icon: const Icon(Icons.explore_rounded, size: 18),
-                  label: const Text(
-                    'Browse nearby deals',
+                  label: Text(
+                    l10n.browseNearbyDeals,
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -1101,6 +1076,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildQuickPicksSection() {
+    final l10n = AppLocalizations.of(context)!;
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
@@ -1109,23 +1085,23 @@ class _HomeScreenState extends State<HomeScreen>
           child: Row(
             children: [
               _buildHomeQuickFilterChip(
-                label: 'Ending Soon',
+                label: l10n.endingSoonLabel,
                 icon: Icons.hourglass_bottom_rounded,
                 onTap: () => _openAllDeals(
                   sectionPreset: 'ending_soon',
                   sortBy: 'ending_soon',
                   primaryFilter: 'ending_soon',
-                  contextTitle: 'Ending Soon',
+                  contextTitle: l10n.endingSoonLabel,
                 ),
               ),
               const SizedBox(width: 8),
               _buildHomeQuickFilterChip(
-                label: 'Under 1km',
+                label: l10n.under1km,
                 icon: Icons.location_on_outlined,
                 onTap: () => _openAllDeals(
                   sortBy: 'distance',
                   primaryFilter: 'under_1km',
-                  contextTitle: 'Under 1km',
+                  contextTitle: l10n.under1km,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1141,22 +1117,22 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               const SizedBox(width: 8),
               _buildHomeQuickFilterChip(
-                label: 'Bank Cards',
+                label: l10n.bankCards,
                 icon: Icons.credit_card_rounded,
                 onTap: () => _openAllDeals(
                   categoryId: BankCardPromotionSupport.categoryId,
-                  contextTitle: 'Bank Card Offers',
+                  contextTitle: l10n.bankCardOffersTitle,
                 ),
               ),
               const SizedBox(width: 8),
               _buildHomeQuickFilterChip(
-                label: 'New Deals',
+                label: l10n.newDealsTitle,
                 icon: Icons.auto_awesome_outlined,
                 onTap: () => _openAllDeals(
                   sectionPreset: 'new_this_week',
                   sortBy: 'recent',
                   primaryFilter: 'new_deals',
-                  contextTitle: 'New Deals',
+                  contextTitle: l10n.newDealsTitle,
                 ),
               ),
             ],
@@ -1175,15 +1151,15 @@ class _HomeScreenState extends State<HomeScreen>
       avatar: Icon(
         icon,
         size: 18,
-        color: const Color(0xFF2563EB),
+        color: const Color(0xFF007AFF),
       ),
       label: Text(label),
       labelStyle: const TextStyle(
         color: Color(0xFF0F172A),
         fontWeight: FontWeight.w700,
       ),
-      backgroundColor: const Color(0xFFF3F7FF),
-      side: const BorderSide(color: Color(0xFFD8E4FB)),
+      backgroundColor: Colors.white,
+      side: const BorderSide(color: Color(0xFFE5E7EB)),
       selected: false,
       onSelected: (_) => onTap(),
       showCheckmark: false,
@@ -1623,6 +1599,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Offline Banner ────────────────────────────────────────────────────────
   Widget _buildOfflineBanner() {
+    final l10n = AppLocalizations.of(context)!;
     return SliverToBoxAdapter(
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -1638,13 +1615,13 @@ class _HomeScreenState extends State<HomeScreen>
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Offline — showing cached deals',
+                l10n.offlineShowingCachedDeals,
                 style: TextStyle(color: Colors.orange[800], fontSize: 13),
               ),
             ),
             TextButton(
               onPressed: _refresh,
-              child: const Text('Retry',
+              child: Text(l10n.retry,
                   style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
@@ -1654,6 +1631,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _buildNoDealsState() {
+    final l10n = AppLocalizations.of(context)!;
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -1685,8 +1663,8 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'No deals found in this view',
+              Text(
+                l10n.noDealsFoundInView,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -1697,8 +1675,8 @@ class _HomeScreenState extends State<HomeScreen>
               const SizedBox(height: 8),
               Text(
                 _selectedCategory == null
-                    ? 'Try refreshing, explore nearby deals, or open the full deals list to keep browsing.'
-                    : 'No deals match the selected category right now. Clear the filter or switch to another category.',
+                    ? l10n.tryRefreshOrBrowse
+                    : l10n.noDealsMatchSelectedCategory,
                 style: const TextStyle(
                   color: Color(0xFF64748B),
                   height: 1.45,
@@ -1715,12 +1693,12 @@ class _HomeScreenState extends State<HomeScreen>
                     FilledButton.tonalIcon(
                       onPressed: () => setState(() => _selectedCategory = null),
                       icon: const Icon(Icons.filter_alt_off_outlined),
-                      label: const Text('Clear category'),
+                      label: Text(l10n.clearCategory),
                     ),
                   FilledButton.tonalIcon(
                     onPressed: _refresh,
                     icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Refresh deals'),
+                    label: Text(l10n.refreshDeals),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _openAllDeals(
@@ -1737,7 +1715,7 @@ class _HomeScreenState extends State<HomeScreen>
                               .name,
                     ),
                     icon: const Icon(Icons.grid_view_rounded),
-                    label: const Text('Browse all deals'),
+                    label: Text(l10n.allDeals),
                   ),
                 ],
               ),
@@ -1750,6 +1728,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Content Sections ──────────────────────────────────────────────────────
   Widget _buildContent() {
+    final l10n = AppLocalizations.of(context)!;
     if (_filteredDeals.isEmpty) {
       return _buildNoDealsState();
     }
@@ -1760,10 +1739,10 @@ class _HomeScreenState extends State<HomeScreen>
         if (_nearbyDeals.isNotEmpty) ...[
           const SizedBox(height: 6),
           SectionHeader(
-            title: '🔥 Top Deals Near You',
+            title: l10n.topDealsNearYou,
             subtitle: _locationName == 'Near You'
-                ? 'Nearby picks ready right now'
-                : 'Nearby picks around $_locationName',
+                ? l10n.nearbyPicksReady
+                : l10n.nearbyPicksAround(_locationName),
             icon: Icons.location_on,
             onSeeAll: () => Navigator.push(
               context,
@@ -1781,7 +1760,7 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       _buildHeroInsightChip(
                         icon: Icons.near_me_rounded,
-                        label: '${_nearbyDeals.length} nearby picks',
+                        label: l10n.nearbyPicksCount(_nearbyDeals.length),
                         color: const Color(0xFF2E7D32),
                       ),
                       if (_nearbyDeals.first.distance != null)
@@ -1802,7 +1781,7 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   icon: const Icon(Icons.map_outlined, size: 18),
-                  label: const Text('Open map'),
+                  label: Text(l10n.openMap),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF2E7D32),
                     side: const BorderSide(color: Color(0xFFB7DFC2)),
@@ -1830,16 +1809,16 @@ class _HomeScreenState extends State<HomeScreen>
                     ? () => _openDirectionsFor(_nearbyDeals[i])
                     : null,
                 secondaryActionLabel:
-                    _hasDirections(_nearbyDeals[i]) ? 'Directions' : null,
+                    _hasDirections(_nearbyDeals[i]) ? l10n.getDirections : null,
                 onTap: () => _openDeal(_nearbyDeals[i]),
               ),
             ),
           ),
         ] else if (_position == null) ...[
           const SizedBox(height: 6),
-          const SectionHeader(
-            title: '🔥 Top Deals Near You',
-            subtitle: 'Enable location to unlock nearby deals',
+          SectionHeader(
+            title: l10n.topDealsNearYou,
+            subtitle: l10n.enableLocationUnlockNearby,
             icon: Icons.location_on,
           ),
           Padding(
@@ -1873,7 +1852,7 @@ class _HomeScreenState extends State<HomeScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Turn on location',
+                              l10n.turnOnLocation,
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -1883,7 +1862,7 @@ class _HomeScreenState extends State<HomeScreen>
                             const SizedBox(height: 4),
                             Text(
                               _locationIssue ??
-                                  'Show nearby deals, map access, and faster local results.',
+                                  l10n.showNearbyDealsMapAccess,
                               style: TextStyle(
                                 fontSize: 12.5,
                                 color: Colors.blue[800],
@@ -1903,16 +1882,16 @@ class _HomeScreenState extends State<HomeScreen>
                         if (!mounted) return;
                         if (_position != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                  'Location enabled! Loading nearby deals...'),
+                                  l10n.locationEnabledLoading),
                               backgroundColor: Color(0xFF4CAF50),
                             ),
                           );
                         }
                       },
                       icon: const Icon(Icons.location_on),
-                      label: const Text('Enable Location'),
+                      label: Text(l10n.enableLocation),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue[700],
                         foregroundColor: Colors.white,
@@ -1933,13 +1912,13 @@ class _HomeScreenState extends State<HomeScreen>
         if (_featuredDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           SectionHeader(
-            title: '⏰ Ending Soon',
+            title: l10n.endingSoonLabel,
             subtitle: _endingSoonSectionSubtitle,
             icon: Icons.access_time,
             onSeeAll: () => _openAllDeals(
               sectionPreset: 'ending_soon',
               sortBy: 'ending_soon',
-              contextTitle: 'Ending Soon',
+              contextTitle: l10n.endingSoonLabel,
             ),
           ),
           Stack(
@@ -1959,7 +1938,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? () => _openDirectionsFor(_featuredDeals[i])
                         : null,
                     secondaryActionLabel:
-                        _hasDirections(_featuredDeals[i]) ? 'Directions' : null,
+                        _hasDirections(_featuredDeals[i]) ? l10n.getDirections : null,
                     onTap: () => _openDeal(_featuredDeals[i]),
                   ),
                 ),
@@ -2001,14 +1980,14 @@ class _HomeScreenState extends State<HomeScreen>
         if (_recommendedDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           SectionHeader(
-            title: '🎯 Recommended For You',
+            title: l10n.recommendedForYouTitle,
             subtitle: _nearbyDeals.isNotEmpty
-                ? 'Popular picks based on what is working near you'
-                : 'Popular picks while we learn your preferences',
+                ? l10n.popularPicksNearYou
+                : l10n.popularPicksLearning,
             icon: Icons.auto_awesome,
             onSeeAll: () => _openAllDeals(
               sortBy: 'discount',
-              contextTitle: 'Recommended For You',
+              contextTitle: l10n.recommendedForYouTitle,
             ),
           ),
           Stack(
@@ -2028,7 +2007,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? () => _openDirectionsFor(_recommendedDeals[i])
                         : null,
                     secondaryActionLabel: _hasDirections(_recommendedDeals[i])
-                        ? 'Directions'
+                        ? l10n.getDirections
                         : null,
                     onTap: () => _openDeal(_recommendedDeals[i]),
                   ),
@@ -2070,12 +2049,12 @@ class _HomeScreenState extends State<HomeScreen>
         if (_bankCardDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           SectionHeader(
-            title: '💳 Bank Card Offers',
-            subtitle: 'Credit and debit card promotions from your banks',
+            title: l10n.bankCardOffersTitle,
+            subtitle: l10n.bankCardOffersSubtitle,
             icon: Icons.credit_card_rounded,
             onSeeAll: () => _openAllDeals(
               categoryId: BankCardPromotionSupport.categoryId,
-              contextTitle: 'Bank Card Offers',
+              contextTitle: l10n.bankCardOffersTitle,
             ),
           ),
           Stack(
@@ -2131,10 +2110,10 @@ class _HomeScreenState extends State<HomeScreen>
         // Categories Section
         const SizedBox(height: 8),
         SectionHeader(
-          title: '📂 Browse Categories',
-          subtitle: 'Jump into the deal type you care about fastest',
+          title: l10n.browseCategoriesTitle,
+          subtitle: l10n.browseCategoriesSubtitle,
           icon: Icons.grid_view_rounded,
-          onSeeAll: () => _openAllDeals(contextTitle: 'All Categories'),
+          onSeeAll: () => _openAllDeals(contextTitle: l10n.allCategories),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2201,13 +2180,13 @@ class _HomeScreenState extends State<HomeScreen>
         // Flash Sales Section
         if (_flashSales.isNotEmpty) ...[
           SectionHeader(
-            title: '⚡ Flash Sales',
-            subtitle: 'Time-sensitive promotions worth checking now',
+            title: l10n.flashSalesTitle,
+            subtitle: l10n.flashSalesSubtitle,
             icon: Icons.flash_on,
             onSeeAll: () => _openAllDeals(
               sectionPreset: 'flash_sales',
               sortBy: 'ending_soon',
-              contextTitle: 'Flash Sales',
+              contextTitle: l10n.flashSalesTitle,
             ),
           ),
           Stack(
@@ -2227,7 +2206,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? () => _openDirectionsFor(_flashSales[i])
                         : null,
                     secondaryActionLabel:
-                        _hasDirections(_flashSales[i]) ? 'Directions' : null,
+                        _hasDirections(_flashSales[i]) ? l10n.getDirections : null,
                     onTap: () => _openDeal(_flashSales[i]),
                   ),
                 ),
@@ -2269,13 +2248,13 @@ class _HomeScreenState extends State<HomeScreen>
         if (_newDeals.isNotEmpty) ...[
           const SizedBox(height: 8),
           SectionHeader(
-            title: '🆕 New Deals',
-            subtitle: 'Fresh deals just added',
+            title: l10n.newDealsTitle,
+            subtitle: l10n.newDealsSubtitle,
             icon: Icons.fiber_new,
             onSeeAll: () => _openAllDeals(
               sectionPreset: 'new_this_week',
               sortBy: 'recent',
-              contextTitle: 'New Deals',
+              contextTitle: l10n.newDealsTitle,
             ),
           ),
           Stack(
@@ -2295,7 +2274,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? () => _openDirectionsFor(_newDeals[i])
                         : null,
                     secondaryActionLabel:
-                        _hasDirections(_newDeals[i]) ? 'Directions' : null,
+                        _hasDirections(_newDeals[i]) ? l10n.getDirections : null,
                     onTap: () => _openDeal(_newDeals[i]),
                   ),
                 ),
@@ -2339,7 +2318,7 @@ class _HomeScreenState extends State<HomeScreen>
           child: OutlinedButton(
             onPressed: () => _openAllDeals(
               sortBy: 'discount',
-              contextTitle: 'All Deals',
+              contextTitle: l10n.allDeals,
             ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -2355,7 +2334,7 @@ class _HomeScreenState extends State<HomeScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'Browse All ${_filteredDeals.length} Deals',
+                  l10n.browseAllDealsCount(_filteredDeals.length),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

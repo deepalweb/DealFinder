@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -1094,16 +1095,17 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   Widget _buildListView() {
+    final l10n = AppLocalizations.of(context)!;
     final deals = _filteredDeals;
 
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 14),
-            Text('Finding deals near you...'),
+            Text(l10n.nearbyDealsTitle),
           ],
         ),
       );
@@ -1125,19 +1127,19 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          _buildContextStrip('Popular near you', _popularNearby),
-          _buildContextStrip('Ending today nearby', _endingTodayNearby),
+          _buildContextStrip(l10n.popularNearYou, _popularNearby),
+          _buildContextStrip(l10n.endingTodayNearby, _endingTodayNearby),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
             child: Row(
               children: [
-                const Text(
-                  'Nearby deals',
+                Text(
+                  l10n.nearbyDealsTitle,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text(
-                  '${deals.length} results',
+                  l10n.resultsLabel(deals.length),
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
               ],
@@ -1151,6 +1153,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   Widget _buildEmptyLocationState() {
+    final l10n = AppLocalizations.of(context)!;
     final helperText = switch (_locationStatus) {
       LocationFetchStatus.serviceDisabled =>
         'Turn on device location to see nearby deals, distance, and directions.',
@@ -1170,8 +1173,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             Icon(Icons.location_disabled,
                 size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            const Text(
-              'Location Required',
+            Text(
+              l10n.locationRequired,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
@@ -1184,13 +1187,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             FilledButton.icon(
               onPressed: _getCurrentLocationAndFetchDeals,
               icon: const Icon(Icons.my_location),
-              label: const Text('Enable Location'),
+              label: Text(l10n.enableLocation),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: _openLocationSettings,
               icon: const Icon(Icons.settings),
-              label: const Text('Open Settings'),
+              label: Text(l10n.openSettings),
             ),
           ],
         ),
@@ -1199,6 +1202,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   }
 
   Widget _buildEmptyDealsState() {
+    final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
@@ -1208,13 +1212,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
             Icon(Icons.location_searching,
                 size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            const Text(
-              'No nearby deals found',
+            Text(
+              l10n.noNearbyDealsFound,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              'Try increasing the radius or changing filters to widen the search.',
+              l10n.noNearbyDealsSubtitle,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600),
             ),
@@ -1281,6 +1285,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final activeDeals = _filteredDeals;
 
     return Scaffold(
@@ -1309,8 +1314,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Nearby',
+                            Text(
+                              l10n.nearbyPageTitle,
                               style: TextStyle(
                                   fontSize: 22, fontWeight: FontWeight.bold),
                             ),
@@ -1337,7 +1342,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       TextButton.icon(
                         onPressed: _showLocationDialog,
                         icon: const Icon(Icons.edit_location_alt_outlined),
-                        label: const Text('Change Location'),
+                        label: Text(l10n.changeLocation),
                       ),
                     ],
                   ),
@@ -1347,7 +1352,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                     controller: _searchController,
                     onChanged: (_) => setState(_focusFirstMapDeal),
                     decoration: InputDecoration(
-                      hintText: 'Search nearby deals or Sinhala like කෑම...',
+                      hintText: l10n.searchNearbyHint,
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchController.text.isEmpty
                           ? null
@@ -1368,22 +1373,22 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       children: [
                         _buildFilterChip(
                             id: 'all',
-                            label: 'All',
+                            label: l10n.allLabel,
                             icon: Icons.grid_view_rounded),
                         const SizedBox(width: 8),
                         _buildFilterChip(
                             id: 'food',
-                            label: 'Food',
+                            label: l10n.foodLabel,
                             icon: Icons.fastfood_outlined),
                         const SizedBox(width: 8),
                         _buildFilterChip(
                             id: 'beauty',
-                            label: 'Beauty',
+                            label: l10n.beautyLabel,
                             icon: Icons.content_cut_outlined),
                         const SizedBox(width: 8),
                         _buildFilterChip(
                             id: 'shopping',
-                            label: 'Shopping',
+                            label: l10n.shoppingLabel,
                             icon: Icons.shopping_bag_outlined),
                         const SizedBox(width: 8),
                         _buildFilterChip(
@@ -1393,7 +1398,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         const SizedBox(width: 8),
                         _buildFilterChip(
                             id: 'ending',
-                            label: 'Ending Soon',
+                            label: l10n.endingSoonLabel,
                             icon: Icons.timelapse_outlined),
                       ],
                     ),
@@ -1410,11 +1415,11 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         _buildViewToggleButton(
                             mode: 'list',
                             icon: Icons.view_agenda_outlined,
-                            label: 'List View'),
+                            label: l10n.listView),
                         _buildViewToggleButton(
                             mode: 'map',
                             icon: Icons.map_outlined,
-                            label: 'Map View'),
+                            label: l10n.mapView),
                       ],
                     ),
                   ),
@@ -1424,8 +1429,8 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       Expanded(
                         child: Text(
                           activeDeals.isEmpty
-                              ? 'No active nearby deals'
-                              : '${activeDeals.length} active nearby deal${activeDeals.length == 1 ? '' : 's'}',
+                              ? l10n.noActiveNearbyDeals
+                              : l10n.activeNearbyDealsCount(activeDeals.length, activeDeals.length == 1 ? '' : 's'),
                           style: TextStyle(
                               color: Colors.grey.shade700,
                               fontWeight: FontWeight.w600),
@@ -1433,13 +1438,13 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       ),
                       PopupMenuButton<String>(
                         onSelected: _setSortMode,
-                        itemBuilder: (context) => const [
+                        itemBuilder: (context) => [
                           PopupMenuItem(
-                              value: 'distance', child: Text('Closest first')),
+                              value: 'distance', child: Text(l10n.closestFirst)),
                           PopupMenuItem(
-                              value: 'best', child: Text('Best deal nearby')),
+                              value: 'best', child: Text(l10n.bestDealNearby)),
                           PopupMenuItem(
-                              value: 'ending', child: Text('Ending soon')),
+                              value: 'ending', child: Text(l10n.endingSoonLabel)),
                         ],
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -1456,9 +1461,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                               const SizedBox(width: 6),
                               Text(
                                 switch (_sortBy) {
-                                  'best' => 'Best Nearby',
-                                  'ending' => 'Ending Soon',
-                                  _ => 'Closest',
+                                  'best' => l10n.bestNearby,
+                                  'ending' => l10n.endingSoonLabel,
+                                  _ => l10n.closest,
                                 },
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w700),
