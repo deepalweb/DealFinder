@@ -272,7 +272,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   // Helper to launch URL - requires url_launcher package
   Future<void> _openDirections() async {
-    print('DEBUG: _openDirections called');
     String? url;
     final merchant = _merchantData;
 
@@ -282,12 +281,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         final lng = coords[0];
         final lat = coords[1];
         url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
-        print('DEBUG: Using merchant coords: $lat, $lng');
       } else if (merchant['address'] != null &&
           merchant['address'].toString().isNotEmpty) {
         final query = Uri.encodeComponent(merchant['address'].toString());
         url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
-        print('DEBUG: Using merchant address: ${merchant['address']}');
       }
     }
 
@@ -296,18 +293,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         widget.promotion.location!.isNotEmpty) {
       final query = Uri.encodeComponent(widget.promotion.location!);
       url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
-      print('DEBUG: Using promotion location: ${widget.promotion.location}');
     }
 
     if (url == null) {
-      print('DEBUG: No URL found, showing error snackbar');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppLocalizations.of(context)!.noLocationAvailable)),
       );
       return;
     }
 
-    print('DEBUG: Attempting to open URL: $url');
     try {
       await _apiService.recordPromotionClick(
         widget.promotion.id,
@@ -321,25 +315,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           _clickCount += 1;
         });
       }
-    } catch (e) {
-      print('DEBUG: Failed to record click: $e');
-    }
+    } catch (_) {}
 
-    try {
-      final launched = await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
-      print('DEBUG: Launch result: $launched');
-      if (!launched) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenMaps)),
-        );
-      }
-    } catch (e) {
-      print('DEBUG: Launch error: $e');
+    if (!await launchUrl(Uri.parse(url),
+        mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error opening maps: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenMaps)),
       );
     }
   }
@@ -618,26 +600,19 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _submitRating(double rating) async {
-    print('DEBUG: _submitRating called with rating: $rating');
-    if (_isPlatformBankOffer) {
-      print('DEBUG: Skipping - is platform bank offer');
-      return;
-    }
+    if (_isPlatformBankOffer) return;
     if (_userToken == null) {
-      print('DEBUG: No user token, showing auth required');
       _showAuthRequiredMessage('rate this deal');
       return;
     }
 
     setState(() => _submittingRating = true);
     try {
-      print('DEBUG: Posting rating to API...');
       final ratings = await _apiService.postPromotionRating(
         widget.promotion.id,
         rating,
         _userToken!,
       );
-      print('DEBUG: Rating posted successfully, received ${ratings.length} ratings');
       final ratingValues = ratings
           .map((entry) => (entry['value'] as num?)?.toDouble())
           .whereType<double>()
@@ -659,7 +634,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         );
       }
     } catch (e) {
-      print('DEBUG: Error posting rating: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${_t('Failed to save rating', 'Rating save කිරීමට අසමත් විය', 'Rating save செய்ய முடியவில்லை')}: $e')),
@@ -673,24 +647,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _submitComment() async {
-    print('DEBUG: _submitComment called');
-    if (_isPlatformBankOffer) {
-      print('DEBUG: Skipping - is platform bank offer');
-      return;
-    }
+    if (_isPlatformBankOffer) return;
     if (_userToken == null) {
-      print('DEBUG: No user token, showing auth required');
       _showAuthRequiredMessage('comment on this deal');
       return;
     }
 
     final text = _commentController.text.trim();
-    if (text.isEmpty) {
-      print('DEBUG: Comment text is empty');
-      return;
-    }
+    if (text.isEmpty) return;
 
-    print('DEBUG: Posting comment: $text');
     setState(() => _submittingComment = true);
     try {
       final comment = await _apiService.postPromotionComment(
@@ -699,7 +664,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         _userToken!,
       );
 
-      print('DEBUG: Comment posted successfully');
       setState(() {
         _comments = [..._comments, comment];
         _commentCount = _comments.length;
@@ -713,7 +677,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         );
       }
     } catch (e) {
-      print('DEBUG: Error posting comment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${_t('Failed to post comment', 'Comment post කිරීමට අසමත් විය', 'Comment post செய்ய முடியவில்லை')}: $e')),
@@ -1032,13 +995,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             // Promotion Image with Hero animation
             Hero(
               tag: 'dealImage_${promotion.id}',
-              child: SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22.0),
-                  child: _buildImageWidget(context, promotion.imageDataString),
-                ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(22.0),
+                child: _buildImageWidget(context, promotion.imageDataString),
               ),
             ),
             const SizedBox(height: 20.0),
@@ -1384,31 +1343,29 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12.0),
-                if (_reviewCount > 0) ...[
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      RatingWidget(
-                        rating: _averageRating,
-                        size: 24,
-                        allowHalfRating: true,
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    RatingWidget(
+                      rating: _averageRating,
+                      size: 24,
+                      allowHalfRating: true,
+                    ),
+                    Text(
+                      _averageRating.toStringAsFixed(1),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
                       ),
-                      Text(
-                        _averageRating.toStringAsFixed(1),
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        '($_reviewCount ${_reviewCount == 1 ? l10n.ratingSingular : l10n.ratingsPlural})',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16.0),
-                ],
+                    ),
+                    Text(
+                      '($_reviewCount ${_reviewCount == 1 ? l10n.ratingSingular : l10n.ratingsPlural})',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16.0),
                 Text(
                   l10n.rateThisDeal,
                   style: theme.textTheme.titleSmall?.copyWith(
@@ -2034,47 +1991,35 @@ class _DealSummarySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (hasMerchant && merchantName != null) ...[
-            GestureDetector(
-              onTap: onTapMerchant,
+          Text(
+            title,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+            ),
+          ),
+          if (activityItems.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    backgroundImage: merchantLogoProvider,
-                    child: merchantLogoProvider != null
-                        ? null
-                        : Text(
-                            merchantInitial,
-                            style: TextStyle(
-                              color: theme.colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      merchantName!,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        height: 1.2,
-                      ),
+                  for (var i = 0; i < activityItems.length; i++) ...[
+                    statBuilder(
+                      activityItems[i].icon,
+                      activityItems[i].label,
+                      activityItems[i].value,
                     ),
-                  ),
-                  if (canOpenMerchant)
-                    Icon(
-                      Icons.chevron_right,
-                      size: 24,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    if (i != activityItems.length - 1) const SizedBox(width: 6),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(height: 14),
           ],
+          if (countdownText != null ||
+              distanceLabel.isNotEmpty ||
+              statusChips.isNotEmpty)
+            const SizedBox(height: 14),
           if (countdownText != null || distanceLabel.isNotEmpty)
             Wrap(
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -2109,21 +2054,76 @@ class _DealSummarySection extends StatelessWidget {
             ),
           if (countdownText != null || distanceLabel.isNotEmpty)
             const SizedBox(height: 12),
-          if (countdownText != null || distanceLabel.isNotEmpty)
-            const SizedBox(height: 14),
-          Text(
-            title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
           if (statusChips.isNotEmpty) ...[
-            const SizedBox(height: 14),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: statusChips,
+            ),
+            const SizedBox(height: 18),
+          ],
+          if (hasMerchant && merchantName != null) ...[
+            const SizedBox(height: 10),
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onTapMerchant,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: theme.colorScheme.primaryContainer,
+                      backgroundImage: merchantLogoProvider,
+                      child: merchantLogoProvider != null
+                          ? null
+                          : Text(
+                              merchantInitial,
+                              style: TextStyle(
+                                color: theme.colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _localizedText(context, 'Sold by', 'විකුණන්නේ', 'விற்பவர்'),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            merchantName!,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onSurface,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (canOpenMerchant)
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                  ],
+                ),
+              ),
             ),
           ],
           if (hasPriceInfo && headlinePrice != null) ...[
@@ -2167,16 +2167,6 @@ class _DealSummarySection extends StatelessWidget {
                   ),
                 ],
               ],
-            ),
-          ],
-          if (activityItems.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: activityItems
-                  .map((item) => statBuilder(item.icon, item.label, item.value))
-                  .toList(),
             ),
           ],
           const SizedBox(height: 14),

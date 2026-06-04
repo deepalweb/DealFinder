@@ -139,9 +139,10 @@ class ApiService {
     String method,
     String url, {
     Map<String, dynamic>? body,
+    String? accessToken,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('userToken');
+    String? token = accessToken ?? prefs.getString('userToken');
 
     Future<http.Response> send(String? bearerToken) {
       final headers = <String, String>{
@@ -184,22 +185,24 @@ class ApiService {
   }
 
   // Makes an authenticated request, auto-refreshes token on 401
-  Future<http.Response> _authGet(String url) {
-    return _sendAuthenticatedRequest('GET', url);
+  Future<http.Response> _authGet(String url, {String? token}) {
+    return _sendAuthenticatedRequest('GET', url, accessToken: token);
   }
 
   Future<http.Response> _authPost(String url,
-      {Map<String, dynamic>? body}) async {
-    return _sendAuthenticatedRequest('POST', url, body: body);
+      {Map<String, dynamic>? body, String? token}) async {
+    return _sendAuthenticatedRequest('POST', url,
+        body: body, accessToken: token);
   }
 
-  Future<http.Response> _authDelete(String url) async {
-    return _sendAuthenticatedRequest('DELETE', url);
+  Future<http.Response> _authDelete(String url, {String? token}) async {
+    return _sendAuthenticatedRequest('DELETE', url, accessToken: token);
   }
 
   Future<http.Response> _authPut(String url,
-      {Map<String, dynamic>? body}) async {
-    return _sendAuthenticatedRequest('PUT', url, body: body);
+      {Map<String, dynamic>? body, String? token}) async {
+    return _sendAuthenticatedRequest('PUT', url,
+        body: body, accessToken: token);
   }
 
   Future<String?> _refreshToken() async {
@@ -1192,6 +1195,7 @@ class ApiService {
     final response = await _authPost(
       '${_baseUrl}promotions',
       body: promotionData,
+      token: token,
     );
 
     if (response.statusCode == 201) {
@@ -1221,6 +1225,7 @@ class ApiService {
     final response = await _authPut(
       '${_baseUrl}promotions/$promotionId',
       body: promotionData,
+      token: token,
     );
 
     if (response.statusCode == 200) {
@@ -1246,7 +1251,8 @@ class ApiService {
   }
 
   Future<void> deletePromotion(String promotionId, String token) async {
-    final response = await _authDelete('${_baseUrl}promotions/$promotionId');
+    final response = await _authDelete('${_baseUrl}promotions/$promotionId',
+        token: token);
 
     if (response.statusCode == 200) {
       return;

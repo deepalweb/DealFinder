@@ -19,7 +19,6 @@ import '../widgets/modern_deal_card.dart';
 import '../widgets/category_icon.dart';
 import 'deal_detail_screen.dart';
 import 'notifications_screen.dart';
-import 'search_screen.dart';
 import 'nearby_deals_screen.dart';
 import 'all_deals_screen.dart';
 
@@ -451,21 +450,6 @@ class _HomeScreenState extends State<HomeScreen>
     return _allEndingSoonDeals.take(5).toList();
   }
 
-  Duration? get _nextEndingSoonDuration {
-    if (_featuredDeals.isEmpty) return null;
-    final nextEnding = _featuredDeals.first.endDate;
-    if (nextEnding == null) return null;
-    final diff = nextEnding.difference(DateTime.now());
-    return diff.isNegative ? Duration.zero : diff;
-  }
-
-  String get _endingSoonSectionSubtitle {
-    final duration = _nextEndingSoonDuration;
-    if (duration == null) return 'Deals ending within 48 hours';
-    if (duration == Duration.zero) return 'Last chance deals';
-    return 'Closest expiry in the next 48 hours';
-  }
-
   List<Promotion> get _newDeals {
     if (_newThisWeekDeals.isNotEmpty || _newThisWeekManaged) {
       return _newThisWeekDeals.take(10).toList();
@@ -535,6 +519,23 @@ class _HomeScreenState extends State<HomeScreen>
   Promotion? get _heroDeal {
     if (_bannerSectionDeals.isEmpty) return null;
     return _bannerSectionDeals.first;
+  }
+
+  String _categoryShortLabel(String value) {
+    switch (value) {
+      case 'Bank Cards':
+        return 'Cards';
+      case 'Food & Dining':
+        return 'Food';
+      case 'Beauty & Salon':
+        return 'Beauty';
+      case 'Shopping & Retail':
+        return 'Shopping';
+      case 'Health & Wellness':
+        return 'Health';
+      default:
+        return value;
+    }
   }
 
   void _openDeal(Promotion p) => Navigator.push(context,
@@ -655,7 +656,6 @@ class _HomeScreenState extends State<HomeScreen>
                   _buildHeader(),
                   if (!_loading && _heroDeal != null) _buildFeaturedSpotlight(),
                   _buildDiscoveryHero(),
-                  _buildQuickPicksSection(),
                   if (_isOffline) _buildOfflineBanner(),
                   if (_loading)
                     const SliverToBoxAdapter(child: HomeShimmer())
@@ -675,7 +675,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _buildHeader() {
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
         child: Row(
           children: [
             // App Logo/Branding
@@ -690,7 +690,7 @@ class _HomeScreenState extends State<HomeScreen>
               },
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     begin: Alignment.topLeft,
@@ -717,19 +717,9 @@ class _HomeScreenState extends State<HomeScreen>
                       borderRadius: BorderRadius.circular(8),
                       child: Image.asset(
                         'assets/app_icon.png',
-                        width: 26,
-                        height: 26,
+                        width: 28,
+                        height: 28,
                         fit: BoxFit.cover,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Deal Finder',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0B3B53),
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ],
@@ -746,7 +736,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE8F7FF),
                     borderRadius: BorderRadius.circular(20),
@@ -769,8 +759,8 @@ class _HomeScreenState extends State<HomeScreen>
                         child: Text(
                           _locationName,
                           style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
                             color: Color(0xFF0B3B53),
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -857,342 +847,54 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Discovery Hero ────────────────────────────────────────────────────────
   Widget _buildDiscoveryHero() {
-    final l10n = AppLocalizations.of(context)!;
-    final visibleNearbyCount = _nearbyDeals.isNotEmpty
-        ? (_nearbyDeals.length > 4 ? 4 : _nearbyDeals.length)
-        : 0;
-    final endingSoonCount = _featuredDeals.isNotEmpty
-        ? (_featuredDeals.length > 9 ? '9+' : '${_featuredDeals.length}')
-        : null;
-
     return SliverToBoxAdapter(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFF3F7FF),
-                Color(0xFFE9F1FB),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFDCE7F5)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8CA2C8).withValues(alpha: 0.16),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFDDEBFF),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.waving_hand_rounded,
-                      size: 14,
-                      color: Color(0xFF1D4ED8),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      l10n.welcomeBack(_userName),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF365314),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                l10n.findBestDeals,
-                style: const TextStyle(
-                  fontSize: 20,
-                  height: 1.1,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _locationName == 'Current Location'
-                    ? l10n.liveNearbyOffersReady
-                    : l10n.liveDealsAround(_locationName),
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  height: 1.3,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF475569),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (visibleNearbyCount > 0)
-                    _buildHeroInsightChip(
-                      icon: Icons.place_rounded,
-                      label: l10n.nearbyNowCount(visibleNearbyCount),
-                      color: const Color(0xFF0EA5A4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.waving_hand_rounded,
+                        size: 14,
+                        color: Color(0xFF3B82F6),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Hi, $_userName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF64748B),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Find the best deals for you',
+                    style: TextStyle(
+                      fontSize: 20,
+                      height: 1.15,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
                     ),
-                  if (endingSoonCount != null)
-                    _buildHeroInsightChip(
-                      icon: Icons.schedule_rounded,
-                      label: l10n.endingSoonCount(endingSoonCount),
-                      color: const Color(0xFFEF4444),
-                    ),
-                  _buildHeroInsightChip(
-                    icon: Icons.local_offer_rounded,
-                    label: l10n.freshLocalDeals,
-                    color: const Color(0xFF4F46E5),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Hero(
-                tag: 'search_bar',
-                child: Material(
-                  color: Colors.transparent,
-                  child: Semantics(
-                    button: true,
-                    label: l10n.openSearchDealsStores,
-                    child: GestureDetector(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SearchScreen()),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Color(0xFFFCFDFF),
-                              Color(0xFFF0F6FF),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: const Color(0xFFBCD2F4),
-                            width: 1.4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF87A4D8)
-                                  .withValues(alpha: 0.18),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFDDEAFF),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.search_rounded,
-                                color: Color(0xFF1D4ED8),
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    l10n.searchDealsNearYou,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F172A),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 3),
-                                  Text(
-                                    l10n.searchDealsExamples,
-                                    style: const TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 30,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE2ECFF),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: const Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Color(0xFF1D4ED8),
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const NearbyDealsScreen()),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D4ED8),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  icon: const Icon(Icons.explore_rounded, size: 18),
-                  label: Text(
-                    l10n.browseNearbyDeals,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  Widget _buildQuickPicksSection() {
-    final l10n = AppLocalizations.of(context)!;
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 2),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildHomeQuickFilterChip(
-                label: l10n.endingSoonLabel,
-                icon: Icons.hourglass_bottom_rounded,
-                onTap: () => _openAllDeals(
-                  sectionPreset: 'ending_soon',
-                  sortBy: 'ending_soon',
-                  primaryFilter: 'ending_soon',
-                  contextTitle: l10n.endingSoonLabel,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildHomeQuickFilterChip(
-                label: l10n.under1km,
-                icon: Icons.location_on_outlined,
-                onTap: () => _openAllDeals(
-                  sortBy: 'distance',
-                  primaryFilter: 'under_1km',
-                  contextTitle: l10n.under1km,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildHomeQuickFilterChip(
-                label: '50%+ OFF',
-                icon: Icons.local_offer_outlined,
-                onTap: () => _openAllDeals(
-                  sortBy: 'discount',
-                  primaryFilter: 'half_off',
-                  minDiscount: 50,
-                  contextTitle: '50%+ OFF',
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildHomeQuickFilterChip(
-                label: l10n.bankCards,
-                icon: Icons.credit_card_rounded,
-                onTap: () => _openAllDeals(
-                  categoryId: BankCardPromotionSupport.categoryId,
-                  contextTitle: l10n.bankCardOffersTitle,
-                ),
-              ),
-              const SizedBox(width: 8),
-              _buildHomeQuickFilterChip(
-                label: l10n.newDealsTitle,
-                icon: Icons.auto_awesome_outlined,
-                onTap: () => _openAllDeals(
-                  sectionPreset: 'new_this_week',
-                  sortBy: 'recent',
-                  primaryFilter: 'new_deals',
-                  contextTitle: l10n.newDealsTitle,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHomeQuickFilterChip({
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return FilterChip(
-      avatar: Icon(
-        icon,
-        size: 18,
-        color: const Color(0xFF2563EB),
-      ),
-      label: Text(label),
-      labelStyle: const TextStyle(
-        color: Color(0xFF0F172A),
-        fontWeight: FontWeight.w700,
-      ),
-      backgroundColor: const Color(0xFFF3F7FF),
-      side: const BorderSide(color: Color(0xFFD8E4FB)),
-      selected: false,
-      onSelected: (_) => onTap(),
-      showCheckmark: false,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
     );
   }
 
@@ -1594,31 +1296,39 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildHeroInsightChip({
-    required IconData icon,
-    required String label,
-    required Color color,
+  Widget _buildCompactDealPreview({
+    required Promotion deal,
+    required VoidCallback onOpenDeal,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+    return Expanded(
+      child: SizedBox(
+        height: 280,
+        child: ModernDealCard(
+          promotion: deal,
+          onTap: onOpenDeal,
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    );
+  }
+
+  Widget _buildSectionSeparator() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+      child: Column(
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w800,
-              color: color,
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  const Color(0xFFD7E3F7).withValues(alpha: 0.95),
+                  Colors.transparent,
+                ],
+              ),
             ),
           ),
+          const SizedBox(height: 6),
         ],
       ),
     );
@@ -1762,83 +1472,64 @@ class _HomeScreenState extends State<HomeScreen>
 
     return SliverList(
       delegate: SliverChildListDelegate([
-        // Top Deals Near You Section
         if (_nearbyDeals.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          SectionHeader(
-            title: l10n.topDealsNearYou,
-            subtitle: _locationName == 'Near You'
-                ? l10n.nearbyPicksReady
-                : l10n.nearbyPicksAround(_locationName),
-            icon: Icons.location_on,
-            onSeeAll: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
-            ),
-          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
             child: Row(
               children: [
                 Expanded(
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _buildHeroInsightChip(
-                        icon: Icons.near_me_rounded,
-                        label: l10n.nearbyPicksCount(_nearbyDeals.length),
-                        color: const Color(0xFF2E7D32),
-                      ),
-                      if (_nearbyDeals.first.distance != null)
-                        _buildHeroInsightChip(
-                          icon: Icons.place_outlined,
-                          label: _formatDistance(_nearbyDeals.first.distance),
-                          color: const Color(0xFF0F766E),
-                        ),
-                    ],
+                  child: Text(
+                    l10n.nearbyDeals,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
+                TextButton.icon(
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const NearbyDealsScreen(),
                     ),
                   ),
-                  icon: const Icon(Icons.map_outlined, size: 18),
-                  label: Text(l10n.openMap),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2E7D32),
-                    side: const BorderSide(color: Color(0xFFB7DFC2)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                  label: const Text(
+                    'See all',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.64,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: _nearbyDeals.length > 4 ? 4 : _nearbyDeals.length,
-              itemBuilder: (_, i) => ModernDealCard(
-                promotion: _nearbyDeals[i],
-                onPrimaryAction: () => _openDeal(_nearbyDeals[i]),
-                onSecondaryAction: _hasDirections(_nearbyDeals[i])
-                    ? () => _openDirectionsFor(_nearbyDeals[i])
-                    : null,
-                secondaryActionLabel:
-                    _hasDirections(_nearbyDeals[i]) ? l10n.getDirections : null,
-                onTap: () => _openDeal(_nearbyDeals[i]),
-              ),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCompactDealPreview(
+                  deal: _nearbyDeals.first,
+                  onOpenDeal: () => _openDeal(_nearbyDeals.first),
+                ),
+                if (_nearbyDeals.length > 1)
+                  const SizedBox(width: 12),
+                if (_nearbyDeals.length > 1)
+                  _buildCompactDealPreview(
+                    deal: _nearbyDeals[1],
+                    onOpenDeal: () => _openDeal(_nearbyDeals[1]),
+                  ),
+              ],
             ),
           ),
         ] else if (_position == null) ...[
@@ -1935,77 +1626,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
 
-        // Ending Soon Section
-        if (_featuredDeals.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          SectionHeader(
-            title: l10n.endingSoonLabel,
-            subtitle: _endingSoonSectionSubtitle,
-            icon: Icons.access_time,
-            onSeeAll: () => _openAllDeals(
-              sectionPreset: 'ending_soon',
-              sortBy: 'ending_soon',
-              contextTitle: l10n.endingSoonLabel,
-            ),
-          ),
-          Stack(
-            children: [
-              SizedBox(
-                height: 308,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _featuredDeals.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
-                  itemBuilder: (_, i) => ModernDealCard(
-                    promotion: _featuredDeals[i],
-                    width: 184,
-                    onPrimaryAction: () => _openDeal(_featuredDeals[i]),
-                    onSecondaryAction: _hasDirections(_featuredDeals[i])
-                        ? () => _openDirectionsFor(_featuredDeals[i])
-                        : null,
-                    secondaryActionLabel:
-                        _hasDirections(_featuredDeals[i]) ? l10n.getDirections : null,
-                    onTap: () => _openDeal(_featuredDeals[i]),
-                  ),
-                ),
-              ),
-              if (_featuredDeals.length > 2)
-                Positioned(
-                  right: 16,
-                  top: 0,
-                  bottom: 0,
-                  child: IgnorePointer(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.chevron_right,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-
         // Recommended Section
         if (_recommendedDeals.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          _buildSectionSeparator(),
           SectionHeader(
             title: l10n.recommendedForYouTitle,
             subtitle: _nearbyDeals.isNotEmpty
@@ -2074,7 +1697,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
 
         if (_bankCardDeals.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          _buildSectionSeparator(),
           SectionHeader(
             title: l10n.bankCardOffersTitle,
             subtitle: l10n.bankCardOffersSubtitle,
@@ -2135,7 +1758,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
 
         // Categories Section
-        const SizedBox(height: 8),
+        _buildSectionSeparator(),
         SectionHeader(
           title: l10n.browseCategoriesTitle,
           subtitle: l10n.browseCategoriesSubtitle,
@@ -2149,7 +1772,7 @@ class _HomeScreenState extends State<HomeScreen>
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              childAspectRatio: 1.05,
+              childAspectRatio: 1.16,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
@@ -2164,7 +1787,7 @@ class _HomeScreenState extends State<HomeScreen>
                   categoryId: category.id,
                 ),
                 child: Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
@@ -2180,19 +1803,33 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CategoryIcon(
-                        category: category.id,
-                        color: Theme.of(context).colorScheme.primary,
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: CategoryIcon(
+                            category: category.id,
+                            size: 22,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 9),
                       Text(
-                        category.name,
-                        maxLines: 2,
+                        _categoryShortLabel(category.name),
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
                           color: Color(0xFF1E293B),
                         ),
                       ),
@@ -2206,6 +1843,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         // Flash Sales Section
         if (_flashSales.isNotEmpty) ...[
+          _buildSectionSeparator(),
           SectionHeader(
             title: l10n.flashSalesTitle,
             subtitle: l10n.flashSalesSubtitle,
@@ -2273,7 +1911,7 @@ class _HomeScreenState extends State<HomeScreen>
 
         // New Deals Section
         if (_newDeals.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          _buildSectionSeparator(),
           SectionHeader(
             title: l10n.newDealsTitle,
             subtitle: l10n.newDealsSubtitle,
@@ -2341,7 +1979,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
 
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
           child: OutlinedButton(
             onPressed: () => _openAllDeals(
               sortBy: 'discount',

@@ -536,18 +536,6 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-// Get a promotion by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const promotion = await Promotion.findById(req.params.id).populate('merchant');
-    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
-    res.status(200).json(promotion);
-  } catch (error) {
-    console.error(`Error fetching promotion ${req.params.id}:`, error);
-    res.status(500).json(safeError(error));
-  }
-});
-
 // Get promotions by merchant ID
 router.get('/merchant/:merchantId', async (req, res) => {
   try {
@@ -561,6 +549,18 @@ router.get('/merchant/:merchantId', async (req, res) => {
     res.status(200).json(promotions);
   } catch (error) {
     console.error(`Error fetching promotions for merchant ${req.params.merchantId}:`, error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Get a promotion by ID
+router.get('/:id', async (req, res) => {
+  try {
+    const promotion = await Promotion.findById(req.params.id).populate('merchant');
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    res.status(200).json(promotion);
+  } catch (error) {
+    console.error(`Error fetching promotion ${req.params.id}:`, error);
     res.status(500).json(safeError(error));
   }
 });
@@ -650,6 +650,13 @@ router.post('/', authenticateJWT, [
 
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
+      if (!req.user.merchantId) {
+        const dbUser = await User.findById(req.user.id).select('merchantId');
+        if (dbUser?.merchantId) {
+          req.user.merchantId = dbUser.merchantId;
+        }
+      }
+
       if (!req.user.merchantId) {
         return res.status(403).json({ message: 'Forbidden: You are a merchant but not linked to a merchant profile.' });
       }
