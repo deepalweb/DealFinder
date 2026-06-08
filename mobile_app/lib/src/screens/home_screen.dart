@@ -293,9 +293,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   int _compareByRecent(Promotion a, Promotion b) {
-    final aDate = a.createdAt ?? a.startDate ?? DateTime(1970);
-    final bDate = b.createdAt ?? b.startDate ?? DateTime(1970);
-    return bDate.compareTo(aDate);
+    return b.latestActivityAt.compareTo(a.latestActivityAt);
   }
 
   int _discountSignal(Promotion promotion) {

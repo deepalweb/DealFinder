@@ -116,6 +116,8 @@ function sanitizePromotionPayload(promotion) {
   return sanitized;
 }
 
+const newestFirstSort = { updatedAt: -1, createdAt: -1, _id: -1 };
+
 function normalizeCardTypes(cardTypes) {
   if (!Array.isArray(cardTypes)) return [];
   return cardTypes
@@ -219,7 +221,7 @@ router.get('/homepage', async (req, res) => {
       Promotion.find(query)
         .select('-comments')
         .populate('merchant', 'name logo currency website merchantType orderLink deliveryAvailable pickupAvailable')
-        .sort({ createdAt: -1 })
+        .sort(newestFirstSort)
         .limit(20)
         .lean()
     ]);
@@ -322,7 +324,7 @@ router.get('/nearby', async (req, res) => {
                   endDate: { $gte: start }
                 }
               },
-              { $sort: { createdAt: -1, _id: -1 } },
+              { $sort: newestFirstSort },
               { $limit: 10 }, // Keep only the newest promotions per merchant
               {
                 $project: {
@@ -352,6 +354,7 @@ router.get('/nearby', async (req, res) => {
                   maximumBenefit: 1,
                   status: 1,
                   createdAt: 1,
+                  updatedAt: 1,
                   ratings: 1,
                 }
               }
@@ -392,7 +395,7 @@ router.get('/nearby', async (req, res) => {
           }
         },
         {
-          $sort: { createdAt: -1, _id: -1 }
+          $sort: newestFirstSort
         },
         { $limit: promotionLimit }
       ]);
@@ -447,7 +450,7 @@ router.get('/', async (req, res) => {
     let promotionsQuery = Promotion.find(query)
       .select('-comments')
       .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
-      .sort({ createdAt: -1 })
+      .sort(newestFirstSort)
       .lean();
     
     if (limit > 0) {
@@ -544,7 +547,7 @@ router.get('/merchant/:merchantId', async (req, res) => {
     }
     const promotions = await Promotion.find({ merchant: req.params.merchantId })
       .select('-comments')
-      .sort({ createdAt: -1 })
+      .sort(newestFirstSort)
       .lean();
     res.status(200).json(promotions);
   } catch (error) {

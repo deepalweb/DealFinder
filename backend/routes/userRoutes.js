@@ -495,7 +495,7 @@ router.post('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
     }
     
     // Check if promotion is already in favorites
-    if (user.favorites.includes(promotionId)) {
+    if (user.favorites.some(fav => fav.toString() === promotionId.toString())) {
       return res.status(400).json({ message: 'Promotion already in favorites' });
     }
     
@@ -533,7 +533,8 @@ router.get('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate({
       path: 'favorites',
-      populate: { path: 'merchant' }
+      populate: { path: 'merchant' },
+      options: { sort: { updatedAt: -1, createdAt: -1, _id: -1 } }
     });
     
     if (!user) {

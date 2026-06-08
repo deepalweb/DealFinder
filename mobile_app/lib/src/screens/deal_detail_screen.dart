@@ -86,13 +86,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFavoriteStatus();
+    _loadUserAuth().then((_) => _loadFavoriteStatus());
     if (!_isPlatformBankOffer) {
       _loadReviewsAndStats();
     } else {
       _loadingComments = false;
     }
-    _loadUserAuth();
     _fetchMerchantData();
     _refreshDistanceFromCurrentLocation();
     _recommendedDealsFuture = _fetchRecommendedDeals();
@@ -177,20 +176,46 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _loadFavoriteStatus() async {
-    final isFav = await FavoritesManager.isFavorite(widget.promotion.id);
+    var isFav = await FavoritesManager.isFavorite(widget.promotion.id);
+    if (_userId != null && _userToken != null) {
+      try {
+        final favorites =
+            await _apiService.fetchFavorites(_userId!, _userToken!);
+        isFav = isFav ||
+            favorites.any((promotion) => promotion.id == widget.promotion.id);
+      } catch (_) {}
+    }
     setState(() {
       _isFavorite = isFav;
     });
   }
 
   Future<void> _toggleFavorite() async {
-    if (_isFavorite) {
-      await FavoritesManager.removeFavorite(widget.promotion.id);
-    } else {
+    final nextFavorite = !_isFavorite;
+    if (nextFavorite) {
       await FavoritesManager.addFavorite(widget.promotion.id);
+    } else {
+      await FavoritesManager.removeFavorite(widget.promotion.id);
+    }
+    if (_userId != null && _userToken != null) {
+      try {
+        if (nextFavorite) {
+          await _apiService.addFavorite(
+            _userId!,
+            widget.promotion.id,
+            _userToken!,
+          );
+        } else {
+          await _apiService.removeFavorite(
+            _userId!,
+            widget.promotion.id,
+            _userToken!,
+          );
+        }
+      } catch (_) {}
     }
     setState(() {
-      _isFavorite = !_isFavorite;
+      _isFavorite = nextFavorite;
       _favoriteCount = _isFavorite
           ? _favoriteCount + 1
           : (_favoriteCount > 0 ? _favoriteCount - 1 : 0);
@@ -302,7 +327,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (url == null) {
       print('DEBUG: No URL found, showing error snackbar');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.noLocationAvailable)),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!.noLocationAvailable)),
       );
       return;
     }
@@ -326,13 +352,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
 
     try {
-      final launched = await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
+      final launched =
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       print('DEBUG: Launch result: $launched');
       if (!launched) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenMaps)),
+          SnackBar(
+              content: Text(AppLocalizations.of(context)!.couldNotOpenMaps)),
         );
       }
     } catch (e) {
@@ -360,7 +387,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${AppLocalizations.of(context)!.couldNotLaunchPrefix} $urlString')),
+        SnackBar(
+            content: Text(
+                '${AppLocalizations.of(context)!.couldNotLaunchPrefix} $urlString')),
       );
     }
   }
@@ -465,7 +494,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (phone.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.noMerchantPhoneNumber)),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.noMerchantPhoneNumber)),
         );
       }
       return;
@@ -475,7 +506,11 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_t('Could not start the phone call.', 'Phone call එක ආරම්භ කළ නොහැකි විය.', 'Phone call ஐ தொடங்க முடியவில்லை.'))),
+          SnackBar(
+              content: Text(_t(
+                  'Could not start the phone call.',
+                  'Phone call එක ආරම්භ කළ නොහැකි විය.',
+                  'Phone call ஐ தொடங்க முடியவில்லை.'))),
         );
       }
     }
@@ -486,7 +521,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (phone.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.noMerchantPhoneNumber)),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.noMerchantPhoneNumber)),
         );
       }
       return;
@@ -501,7 +538,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenWhatsApp)),
+          SnackBar(
+              content:
+                  Text(AppLocalizations.of(context)!.couldNotOpenWhatsApp)),
         );
       }
     }
@@ -604,7 +643,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   void _showAuthRequiredMessage(String action) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.pleaseLoginTo(action))),
+      SnackBar(
+          content: Text(AppLocalizations.of(context)!.pleaseLoginTo(action))),
     );
   }
 
@@ -637,7 +677,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         rating,
         _userToken!,
       );
-      print('DEBUG: Rating posted successfully, received ${ratings.length} ratings');
+      print(
+          'DEBUG: Rating posted successfully, received ${ratings.length} ratings');
       final ratingValues = ratings
           .map((entry) => (entry['value'] as num?)?.toDouble())
           .whereType<double>()
@@ -662,7 +703,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       print('DEBUG: Error posting rating: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_t('Failed to save rating', 'Rating save කිරීමට අසමත් විය', 'Rating save செய்ய முடியவில்லை')}: $e')),
+          SnackBar(
+              content: Text(
+                  '${_t('Failed to save rating', 'Rating save කිරීමට අසමත් විය', 'Rating save செய்ய முடியவில்லை')}: $e')),
         );
       }
     } finally {
@@ -716,7 +759,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       print('DEBUG: Error posting comment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${_t('Failed to post comment', 'Comment post කිරීමට අසමත් විය', 'Comment post செய்ய முடியவில்லை')}: $e')),
+          SnackBar(
+              content: Text(
+                  '${_t('Failed to post comment', 'Comment post කිරීමට අසමත් විය', 'Comment post செய்ய முடியவில்லை')}: $e')),
         );
       }
     } finally {
@@ -827,7 +872,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           label: l10n.openOrderLink,
           child: ElevatedButton.icon(
             icon: const Icon(Icons.delivery_dining, size: 18),
-            label: Text(_supportsDelivery ? l10n.orderNowLabel : l10n.pickupOrderLabel),
+            label: Text(
+                _supportsDelivery ? l10n.orderNowLabel : l10n.pickupOrderLabel),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF2E7D32),
               foregroundColor: Colors.white,
@@ -932,42 +978,43 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ),
         ),
     ];
-    final _StickyActionConfig? stickyPrimaryAction =
-        (_supportsDelivery || _supportsPickup) &&
-                orderLink != null &&
-                orderLink.isNotEmpty
+    final _StickyActionConfig? stickyPrimaryAction = (_supportsDelivery ||
+                _supportsPickup) &&
+            orderLink != null &&
+            orderLink.isNotEmpty
+        ? _StickyActionConfig(
+            label:
+                _supportsDelivery ? l10n.orderNowLabel : l10n.pickupOrderLabel,
+            icon: Icons.delivery_dining,
+            onPressed: () => _launchURL(orderLink),
+            backgroundColor: const Color(0xFF2E7D32),
+            foregroundColor: Colors.white,
+          )
+        : _showsVisitNow
             ? _StickyActionConfig(
-                label: _supportsDelivery ? l10n.orderNowLabel : l10n.pickupOrderLabel,
-                icon: Icons.delivery_dining,
-                onPressed: () => _launchURL(orderLink),
-                backgroundColor: const Color(0xFF2E7D32),
+                label: l10n.visitNowLabel,
+                icon: Icons.storefront_outlined,
+                onPressed: _openDirections,
+                backgroundColor: const Color(0xFF1565C0),
                 foregroundColor: Colors.white,
               )
-            : _showsVisitNow
+            : (promotion.url ?? '').isNotEmpty
                 ? _StickyActionConfig(
-                    label: l10n.visitNowLabel,
-                    icon: Icons.storefront_outlined,
-                    onPressed: _openDirections,
-                    backgroundColor: const Color(0xFF1565C0),
-                    foregroundColor: Colors.white,
+                    label: l10n.openDealLabel,
+                    icon: Icons.launch,
+                    onPressed: () => _launchURL(promotion.url!),
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                   )
-                : (promotion.url ?? '').isNotEmpty
+                : (promotion.websiteUrl ?? '').isNotEmpty
                     ? _StickyActionConfig(
-                        label: l10n.openDealLabel,
-                        icon: Icons.launch,
-                        onPressed: () => _launchURL(promotion.url!),
+                        label: l10n.websiteLabel,
+                        icon: Icons.public,
+                        onPressed: () => _launchURL(promotion.websiteUrl!),
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
                       )
-                    : (promotion.websiteUrl ?? '').isNotEmpty
-                        ? _StickyActionConfig(
-                            label: l10n.websiteLabel,
-                            icon: Icons.public,
-                            onPressed: () => _launchURL(promotion.websiteUrl!),
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: theme.colorScheme.onPrimary,
-                          )
-                        : null;
+                    : null;
     final _StickyActionConfig? stickySecondaryAction =
         (!_showsVisitNow || stickyPrimaryAction?.label != 'Visit now')
             ? _StickyActionConfig(
@@ -994,9 +1041,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         actions: [
           Semantics(
             button: true,
-            label: _isFavorite
-                ? l10n.removeFavorite
-                : l10n.saveFavorites,
+            label: _isFavorite ? l10n.removeFavorite : l10n.saveFavorites,
             child: IconButton(
               icon: Icon(
                 _isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -1371,7 +1416,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         const Divider(height: 32, thickness: 1.2),
         Card(
           elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           color: theme.colorScheme.surfaceContainerLowest,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -1478,8 +1524,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                       backgroundColor: Colors.grey[200],
                                     )
                                   : CircleAvatar(
-                                      backgroundColor: theme
-                                          .colorScheme.primaryContainer,
+                                      backgroundColor:
+                                          theme.colorScheme.primaryContainer,
                                       child: Text(
                                         ((c['user']?['name'] ?? 'U')
                                                     .toString()
@@ -1491,8 +1537,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                                 : 'U')
                                             .toUpperCase(),
                                         style: TextStyle(
-                                          color: theme.colorScheme
-                                              .onPrimaryContainer,
+                                          color: theme
+                                              .colorScheme.onPrimaryContainer,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -2206,7 +2252,11 @@ class _DealSummarySection extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      _localizedText(context, 'Copy shareable link', 'Shareable link copy කරන්න', 'Shareable link ஐ copy செய்யவும்'),
+                      _localizedText(
+                          context,
+                          'Copy shareable link',
+                          'Shareable link copy කරන්න',
+                          'Shareable link ஐ copy செய்யவும்'),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
@@ -2278,7 +2328,8 @@ class _DealDetailsSection extends StatelessWidget {
                 children: [
                   const Divider(height: 24),
                   Text(
-                    _localizedText(context, 'Validity:', 'වලංගු කාලය:', 'செல்லுபடியாகும் காலம்:'),
+                    _localizedText(context, 'Validity:', 'වලංගු කාලය:',
+                        'செல்லுபடியாகும் காலம்:'),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -2306,7 +2357,11 @@ class _DealDetailsSection extends StatelessWidget {
                     child: Row(
                       children: [
                         Text(
-                          _localizedText(context, 'Terms & Conditions', 'නියමයන් සහ කොන්දේසි', 'விதிமுறைகள் மற்றும் நிபந்தனைகள்'),
+                          _localizedText(
+                              context,
+                              'Terms & Conditions',
+                              'නියමයන් සහ කොන්දේසි',
+                              'விதிமுறைகள் மற்றும் நிபந்தனைகள்'),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -2343,8 +2398,7 @@ class _BankCardOfferSection extends StatelessWidget {
     final bankName = BankCardPromotionSupport.bankName(promotion);
     final cardTypes = BankCardPromotionSupport.cardTypes(promotion);
     final offerTypes = BankCardPromotionSupport.offerTypes(promotion);
-    final minimumSpend =
-        BankCardPromotionSupport.minimumSpendLabel(promotion);
+    final minimumSpend = BankCardPromotionSupport.minimumSpendLabel(promotion);
     final maximumBenefit =
         BankCardPromotionSupport.maximumBenefitLabel(promotion);
 
@@ -2377,14 +2431,19 @@ class _BankCardOfferSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _localizedText(context, 'Card Offer Details', 'Card Offer විස්තර', 'Card Offer விவரங்கள்'),
+                        _localizedText(context, 'Card Offer Details',
+                            'Card Offer විස්තර', 'Card Offer விவரங்கள்'),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _localizedText(context, 'Check eligible cards, offer type, and spend conditions.', 'සුදුසු cards, offer type සහ spend conditions පරීක්ෂා කරන්න.', 'சரியான cards, offer type மற்றும் spend conditions ஐ சரிபார்க்கவும்.'),
+                        _localizedText(
+                            context,
+                            'Check eligible cards, offer type, and spend conditions.',
+                            'සුදුසු cards, offer type සහ spend conditions පරීක්ෂා කරන්න.',
+                            'சரியான cards, offer type மற்றும் spend conditions ஐ சரிபார்க்கவும்.'),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

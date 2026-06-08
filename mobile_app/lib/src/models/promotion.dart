@@ -33,6 +33,7 @@ class Promotion {
   final int ratingsCount;
   final String? merchantCurrency;
   final DateTime? createdAt;
+  final DateTime? updatedAt;
   final String? status;
   final String? fulfillmentType;
   final bool visitAvailable;
@@ -77,6 +78,7 @@ class Promotion {
     this.ratingsCount = 0,
     this.merchantCurrency,
     this.createdAt,
+    this.updatedAt,
     this.status,
     this.fulfillmentType,
     this.visitAvailable = true,
@@ -139,6 +141,9 @@ class Promotion {
   bool get isVerifiedActiveDeal {
     return hasVerifiedActiveStatus && hasStarted && !isExpired;
   }
+
+  DateTime get latestActivityAt =>
+      updatedAt ?? createdAt ?? startDate ?? DateTime(1970);
 
   bool get supportsVisit {
     if (fulfillmentType == 'order') return visitAvailable;
@@ -258,6 +263,7 @@ class Promotion {
           ? (json['ratings'] as List).length
           : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
       createdAt: parseDate(json['createdAt'] as String?),
+      updatedAt: parseDate(json['updatedAt'] as String?),
       status: json['status'] as String?,
       fulfillmentType: json['fulfillmentType'] as String?,
       visitAvailable: json['visitAvailable'] as bool? ?? true,
@@ -322,6 +328,7 @@ class Promotion {
       'averageRating': averageRating,
       'ratings': List.generate(ratingsCount, (_) => {}),
       'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'status': status,
       'fulfillmentType': fulfillmentType,
       'visitAvailable': visitAvailable,
@@ -368,6 +375,7 @@ class Promotion {
     int? ratingsCount,
     String? merchantCurrency,
     DateTime? createdAt,
+    DateTime? updatedAt,
     String? status,
     String? fulfillmentType,
     bool? visitAvailable,
@@ -412,6 +420,7 @@ class Promotion {
       ratingsCount: ratingsCount ?? this.ratingsCount,
       merchantCurrency: merchantCurrency ?? this.merchantCurrency,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       fulfillmentType: fulfillmentType ?? this.fulfillmentType,
       visitAvailable: visitAvailable ?? this.visitAvailable,

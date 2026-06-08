@@ -79,9 +79,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     }).toList();
 
     filtered.sort((a, b) {
-      final aDate = a.createdAt ?? a.startDate ?? DateTime(1970);
-      final bDate = b.createdAt ?? b.startDate ?? DateTime(1970);
-      return bDate.compareTo(aDate);
+      return b.latestActivityAt.compareTo(a.latestActivityAt);
     });
     return filtered;
   }

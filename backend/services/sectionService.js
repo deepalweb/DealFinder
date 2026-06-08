@@ -109,6 +109,8 @@ function setCached(key, data) {
   sectionCache.set(key, { data, ts: Date.now() });
 }
 
+const newestFirstSort = { updatedAt: -1, createdAt: -1, _id: -1 };
+
 function getNowActivePromotionQuery(now = new Date()) {
   return {
     status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
@@ -313,7 +315,7 @@ async function resolveHotDealsSection() {
   })
     .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
-    .sort({ endDate: 1, createdAt: -1 })
+    .sort({ endDate: 1, ...newestFirstSort })
     .limit(config.maxItems * 2)
     .lean();
 
@@ -364,12 +366,15 @@ async function resolveNewThisWeekSection() {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const autoDeals = await Promotion.find({
     ...getNowActivePromotionQuery(),
-    createdAt: { $gte: sevenDaysAgo },
+    $or: [
+      { createdAt: { $gte: sevenDaysAgo } },
+      { updatedAt: { $gte: sevenDaysAgo } },
+    ],
     _id: { $nin: Array.from(hiddenIds) },
   })
     .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
-    .sort({ createdAt: -1, _id: -1 })
+    .sort(newestFirstSort)
     .limit(config.maxItems * 2)
     .lean();
 
@@ -428,7 +433,7 @@ async function resolveFlashSalesSection() {
   })
     .select('-comments')
     .populate('merchant', 'name logo currency location address contactInfo')
-    .sort({ endDate: 1, createdAt: -1 })
+    .sort({ endDate: 1, ...newestFirstSort })
     .limit(config.maxItems * 2)
     .lean();
 
@@ -493,7 +498,7 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
               ...getNowActivePromotionQuery(),
             },
           },
-          { $sort: { createdAt: -1, _id: -1 } },
+          { $sort: newestFirstSort },
           { $limit: 10 },
         ],
         as: 'promotions',

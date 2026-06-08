@@ -97,13 +97,15 @@ class ApiService {
   };
 
   List<Promotion> _visibleConsumerPromotions(Iterable<Promotion> promotions) {
-    return promotions.where((promotion) {
+    final visible = promotions.where((promotion) {
       final status = promotion.status?.trim().toLowerCase();
       if (status != null && _inactivePromotionStatuses.contains(status)) {
         return false;
       }
       return promotion.hasStarted && !promotion.isExpired;
     }).toList();
+    visible.sort((a, b) => b.latestActivityAt.compareTo(a.latestActivityAt));
+    return visible;
   }
 
   List<Promotion> _withDistanceFrom(
@@ -400,11 +402,51 @@ class ApiService {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
+      final decoded = jsonDecode(response.body);
+      final List<dynamic> data = decoded is List
+          ? decoded
+          : (decoded is Map<String, dynamic> && decoded['favorites'] is List
+              ? decoded['favorites'] as List<dynamic>
+              : const <dynamic>[]);
       return data.map((json) => Promotion.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load favorites');
     }
+  }
+
+  Future<void> addFavorite(
+      String userId, String promotionId, String token) async {
+    final response = await _authPost(
+      '${_baseUrl}users/$userId/favorites',
+      body: {'promotionId': promotionId},
+      token: token,
+    );
+
+    if (response.statusCode == 200 ||
+        (response.statusCode == 400 &&
+            _extractErrorMessage(response).contains('already in favorites'))) {
+      return;
+    }
+
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to add favorite',
+    ));
+  }
+
+  Future<void> removeFavorite(
+      String userId, String promotionId, String token) async {
+    final response = await _authDelete(
+      '${_baseUrl}users/$userId/favorites/$promotionId',
+      token: token,
+    );
+
+    if (response.statusCode == 200) return;
+
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to remove favorite',
+    ));
   }
 
   // Fetch notifications for the authenticated user
@@ -1332,6 +1374,37 @@ class ApiService {
       final errorBody = jsonDecode(response.body);
       throw Exception(errorBody['message'] ?? 'Failed to fetch user profile');
     }
+  }
+
+  Future<Map<String, dynamic>> updateUserProfile(
+    String userId,
+    String token, {
+    String? name,
+    String? email,
+    String? businessName,
+    String? profilePicture,
+  }) async {
+    final body = <String, dynamic>{
+      if (name != null) 'name': name,
+      if (email != null) 'email': email,
+      if (businessName != null) 'businessName': businessName,
+      if (profilePicture != null) 'profilePicture': profilePicture,
+    };
+
+    final response = await _authPut(
+      '${_baseUrl}users/$userId',
+      body: body,
+      token: token,
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to update user profile',
+    ));
   }
 
   // Upload single image to Azure Blob Storage

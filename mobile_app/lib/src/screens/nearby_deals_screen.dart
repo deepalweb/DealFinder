@@ -435,13 +435,12 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   Future<void> _openDirections(Promotion deal) async {
     final hasCoordinates = deal.latitude != null && deal.longitude != null;
     final query = hasCoordinates
-        ? 'https://www.google.com/maps/search/?api=1&query=${deal.latitude},${deal.longitude}'
-        : 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent('${deal.merchantName ?? deal.title} ${deal.location ?? ''}')}';
+        ? 'https://www.google.com/maps/dir/?api=1&destination=${deal.latitude},${deal.longitude}'
+        : 'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent('${deal.merchantName ?? deal.title} ${deal.location ?? ''}'.trim())}';
 
     final uri = Uri.parse(query);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open Google Maps.')),
       );

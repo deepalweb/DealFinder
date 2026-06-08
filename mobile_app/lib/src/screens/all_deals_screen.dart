@@ -182,10 +182,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
       switch (_sortBy) {
         case 'recent':
-          if (a.createdAt == null && b.createdAt == null) return 0;
-          if (a.createdAt == null) return 1;
-          if (b.createdAt == null) return -1;
-          return b.createdAt!.compareTo(a.createdAt!);
+          return b.latestActivityAt.compareTo(a.latestActivityAt);
         case 'discount':
           return _extractDiscount(b.discount).compareTo(
             _extractDiscount(a.discount),

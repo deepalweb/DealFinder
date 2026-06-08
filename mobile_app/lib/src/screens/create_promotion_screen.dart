@@ -301,17 +301,48 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
 
   Future<void> _selectDate(BuildContext context, bool isStartDate) async {
     final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final lastSelectableDate = todayDate.add(const Duration(days: 365));
+    final existingStartDate = _startDate == null
+        ? null
+        : DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+    final existingEndDate = _endDate == null
+        ? null
+        : DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
+    final startFirstDate = _isEditing && existingStartDate != null
+        ? (existingStartDate.isBefore(todayDate)
+            ? existingStartDate
+            : todayDate)
+        : todayDate;
+    final endFirstDate =
+        existingStartDate != null && existingStartDate.isAfter(todayDate)
+            ? existingStartDate
+            : todayDate;
+    final fallbackEndDate = _startDate != null && _startDate!.isAfter(todayDate)
+        ? DateTime(_startDate!.year, _startDate!.month, _startDate!.day)
+        : todayDate.add(const Duration(days: 30));
+    final boundedInitialStartDate = existingStartDate == null
+        ? todayDate
+        : (existingStartDate.isBefore(startFirstDate)
+            ? startFirstDate
+            : existingStartDate);
+    final initialStartDate = boundedInitialStartDate.isAfter(lastSelectableDate)
+        ? lastSelectableDate
+        : boundedInitialStartDate;
+    final rawInitialEndDate =
+        existingEndDate ?? existingStartDate ?? fallbackEndDate;
+    final boundedInitialEndDate = rawInitialEndDate.isBefore(endFirstDate)
+        ? endFirstDate
+        : rawInitialEndDate;
+    final initialEndDate = boundedInitialEndDate.isAfter(lastSelectableDate)
+        ? lastSelectableDate
+        : boundedInitialEndDate;
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStartDate
-          ? (_startDate ?? today)
-          : (_endDate ?? _startDate ?? today.add(const Duration(days: 30))),
-      firstDate: isStartDate
-          ? today
-          : (_startDate != null && _startDate!.isAfter(today)
-              ? _startDate!
-              : today),
-      lastDate: today.add(const Duration(days: 365)),
+      initialDate: isStartDate ? initialStartDate : initialEndDate,
+      firstDate: isStartDate ? startFirstDate : endFirstDate,
+      lastDate: lastSelectableDate,
     );
 
     if (picked != null) {
