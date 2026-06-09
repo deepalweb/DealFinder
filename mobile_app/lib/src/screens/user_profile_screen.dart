@@ -23,7 +23,8 @@ class UserProfileScreen extends StatefulWidget {
   State<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-class _UserProfileScreenState extends State<UserProfileScreen> with TickerProviderStateMixin {
+class _UserProfileScreenState extends State<UserProfileScreen>
+    with TickerProviderStateMixin {
   String _name = 'Loading...';
   String _email = 'Loading...';
   String _role = 'Loading...';
@@ -56,7 +57,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     _favoritesTabController = TabController(length: 2, vsync: this);
     _loadUserData();
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -86,18 +87,64 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
     _nameController.text = _name;
     _emailController.text = _email;
     _roleController.text = _role.capitalize();
-    
+
     if (_role == 'merchant') {
       _businessName = prefs.getString('userBusinessName');
       _businessController.text = _businessName ?? '';
     }
-    
+
     setState(() {
       _isLoading = false;
     });
-    
+
+    if (_userId != null && _token != null) {
+      _refreshUserProfileFromServer(_userId!, _token!);
+    }
+
     _loadFavorites();
     _loadFollowingMerchants();
+  }
+
+  Future<void> _refreshUserProfileFromServer(
+      String userId, String token) async {
+    try {
+      final profile = await ApiService().fetchUserProfile(userId, token);
+      await _persistUserProfile(profile);
+      if (!mounted) return;
+      setState(() {
+        _name = profile['name'] as String? ?? _name;
+        _email = profile['email'] as String? ?? _email;
+        _role = profile['role'] as String? ?? _role;
+        _businessName = profile['businessName'] as String? ?? _businessName;
+        _profilePicture =
+            profile['profilePicture'] as String? ?? _profilePicture;
+        _nameController.text = _name;
+        _emailController.text = _email;
+        _roleController.text = _role.capitalize();
+        if (_role == 'merchant') {
+          _businessController.text = _businessName ?? '';
+        }
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _persistUserProfile(Map<String, dynamic> profile) async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = profile['name'] as String?;
+    final email = profile['email'] as String?;
+    final role = profile['role'] as String?;
+    final businessName = profile['businessName'] as String?;
+    final profilePicture = profile['profilePicture'] as String?;
+
+    if (name != null) await prefs.setString('userName', name);
+    if (email != null) await prefs.setString('userEmail', email);
+    if (role != null) await prefs.setString('userRole', role);
+    if (businessName != null) {
+      await prefs.setString('userBusinessName', businessName);
+    }
+    if (profilePicture != null) {
+      await prefs.setString('userProfilePicture', profilePicture);
+    }
   }
 
   Future<void> _pickProfilePicture() async {
@@ -144,9 +191,18 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
         setState(() {
           _profilePicture = base64Image;
         });
-        
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userProfilePicture', base64Image);
+
+        if (_userId != null && _token != null) {
+          final profile = await ApiService().updateUserProfile(
+            _userId!,
+            _token!,
+            profilePicture: base64Image,
+          );
+          await _persistUserProfile(profile);
+        } else {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userProfilePicture', base64Image);
+        }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.profilePictureUpdated)),
@@ -168,19 +224,28 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       );
       return;
     }
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
-      // Persist locally until a dedicated profile update endpoint is wired.
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userName', _nameController.text.trim());
+      final name = _nameController.text.trim();
+      final profile = _userId != null && _token != null
+          ? await ApiService().updateUserProfile(
+              _userId!,
+              _token!,
+              name: name,
+              businessName:
+                  _role == 'merchant' ? _businessController.text.trim() : null,
+            )
+          : {'name': name};
+      await _persistUserProfile(profile);
       if (!mounted) return;
 
       setState(() {
-        _name = _nameController.text.trim();
+        _name = profile['name'] as String? ?? name;
+        _businessName = profile['businessName'] as String? ?? _businessName;
       });
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.profileUpdatedSuccessfully)),
       );
@@ -195,49 +260,66 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       }
     }
   }
-  
+
   Future<void> _loadFavorites() async {
     setState(() => _loadingFavorites = true);
-    
+
     try {
-      final favoriteIds = await FavoritesManager.getFavorites();
-      if (favoriteIds.isEmpty) {
-        setState(() {
-          _favoriteDeals = [];
-          _loadingFavorites = false;
-        });
-        return;
+      final api = ApiService();
+      final localIds = await FavoritesManager.getFavorites();
+      final remoteFavorites = <Promotion>[];
+
+      if (_userId != null && _token != null) {
+        try {
+          remoteFavorites.addAll(await api.fetchFavorites(_userId!, _token!));
+        } catch (_) {}
       }
-      
-      final allPromotions = await ApiService().fetchPromotions();
-      final favorites = allPromotions.where((promo) => favoriteIds.contains(promo.id)).toList();
-      
+
+      final knownIds = remoteFavorites.map((promotion) => promotion.id).toSet();
+      final missingLocalIds = localIds.where((id) => !knownIds.contains(id));
+      final localFavorites =
+          await api.resolveFavoritePromotionsByIds(missingLocalIds);
+      final favorites = [...remoteFavorites, ...localFavorites]
+        ..sort((a, b) => b.latestActivityAt.compareTo(a.latestActivityAt));
+
+      for (final promotion in favorites) {
+        await FavoritesManager.addFavorite(promotion.id);
+      }
+
+      if (!mounted) return;
       setState(() {
         _favoriteDeals = favorites;
         _loadingFavorites = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _favoriteDeals = [];
         _loadingFavorites = false;
       });
     }
   }
-  
+
   Future<void> _removeFavorite(String dealId) async {
+    if (_userId != null && _token != null) {
+      try {
+        await ApiService().removeFavorite(_userId!, dealId, _token!);
+      } catch (_) {}
+    }
     await FavoritesManager.removeFavorite(dealId);
     if (!mounted) return;
     setState(() {
       _favoriteDeals.removeWhere((deal) => deal.id == dealId);
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.removedFromFavorites)),
+      SnackBar(
+          content: Text(AppLocalizations.of(context)!.removedFromFavorites)),
     );
   }
-  
+
   Future<void> _loadFollowingMerchants() async {
     setState(() => _loadingFollowing = true);
-    
+
     try {
       if (_userId == null || _userId!.isEmpty) {
         setState(() {
@@ -248,7 +330,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       }
 
       final following = await ApiService().fetchFollowingMerchants(_userId!);
-      
+
       setState(() {
         _followingMerchants = following;
         _loadingFollowing = false;
@@ -260,12 +342,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       });
     }
   }
-  
+
   Future<void> _unfollowMerchant(String merchantId) async {
     await MerchantFollowingManager.unfollowMerchant(merchantId);
     if (!mounted) return;
     setState(() {
-      _followingMerchants.removeWhere((merchant) => (merchant['_id'] ?? merchant['id']) == merchantId);
+      _followingMerchants.removeWhere(
+          (merchant) => (merchant['_id'] ?? merchant['id']) == merchantId);
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Unfollowed merchant')),
@@ -275,7 +358,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   void _openMerchantProfile(String merchantId) {
     if (merchantId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Store details are unavailable right now.')),
+        const SnackBar(
+            content: Text('Store details are unavailable right now.')),
       );
       return;
     }
@@ -289,9 +373,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
   }
 
   Future<void> _changePassword() async {
-    if (_userId == null || _token == null || _userId!.isEmpty || _token!.isEmpty) {
+    if (_userId == null ||
+        _token == null ||
+        _userId!.isEmpty ||
+        _token!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in again before changing password')),
+        const SnackBar(
+            content: Text('Please log in again before changing password')),
       );
       return;
     }
@@ -326,7 +414,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       _confirmPasswordController.clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password changed successfully!'), backgroundColor: Colors.green),
+          const SnackBar(
+              content: Text('Password changed successfully!'),
+              backgroundColor: Colors.green),
         );
       }
     } catch (e) {
@@ -405,7 +495,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                       backgroundImage: profileImage,
                       child: profileImage == null
                           ? Icon(
-                              _role == 'merchant' ? Icons.storefront_rounded : Icons.person_rounded,
+                              _role == 'merchant'
+                                  ? Icons.storefront_rounded
+                                  : Icons.person_rounded,
                               size: 34,
                               color: Colors.white,
                             )
@@ -457,8 +549,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                       runSpacing: 8,
                       children: [
                         _buildProfileBadge(Icons.badge_outlined, roleLabel),
-                        if (_role == 'merchant' && (_businessName?.isNotEmpty ?? false))
-                          _buildProfileBadge(Icons.business_outlined, _businessName!),
+                        if (_role == 'merchant' &&
+                            (_businessName?.isNotEmpty ?? false))
+                          _buildProfileBadge(
+                              Icons.business_outlined, _businessName!),
                       ],
                     ),
                   ],
@@ -473,7 +567,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             children: [
               _buildHeroStat('$favoriteCount', 'Saved deals'),
               _buildHeroStat('$followingCount', 'Following'),
-              _buildHeroStat(_role == 'merchant' ? 'Merchant' : 'Account', 'Plan'),
+              _buildHeroStat(
+                  _role == 'merchant' ? 'Merchant' : 'Account', 'Plan'),
             ],
           ),
         ],
@@ -560,7 +655,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.10),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: Theme.of(context).colorScheme.primary),
@@ -588,7 +686,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Color(0xFF94A3B8)),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                size: 16, color: Color(0xFF94A3B8)),
           ],
         ),
       ),
@@ -802,8 +901,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
                   ),
                 ),
               ),
-            if (_role == 'merchant')
-              const SizedBox(height: 16),
+            if (_role == 'merchant') const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -821,7 +919,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       ),
     );
   }
-  
+
   Widget _buildSecurityTab() {
     final l10n = AppLocalizations.of(context)!;
     return SingleChildScrollView(
@@ -907,7 +1005,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       ),
     );
   }
-  
+
   Widget _buildNotificationsTab() {
     final l10n = AppLocalizations.of(context)!;
     return SingleChildScrollView(
@@ -957,7 +1055,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       ),
     );
   }
-  
+
   Widget _buildFavoritesTab() {
     final l10n = AppLocalizations.of(context)!;
     return Column(
@@ -987,13 +1085,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       ],
     );
   }
-  
+
   Widget _buildFavoriteDealsView() {
     final l10n = AppLocalizations.of(context)!;
     if (_loadingFavorites) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (_favoriteDeals.isEmpty) {
       return RefreshIndicator(
         onRefresh: _loadFavorites,
@@ -1005,7 +1103,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.favorite_border, size: 64, color: Colors.grey),
+                  const Icon(Icons.favorite_border,
+                      size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   Text(l10n.noFavoriteDealsYet),
                   Text(l10n.startFavoritingDeals),
@@ -1016,7 +1115,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
         ),
       );
     }
-    
+
     return RefreshIndicator(
       onRefresh: _loadFavorites,
       child: ListView.builder(
@@ -1050,13 +1149,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       ),
     );
   }
-  
+
   Widget _buildFavoriteStoresView() {
     final l10n = AppLocalizations.of(context)!;
     if (_loadingFollowing) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (_followingMerchants.isEmpty) {
       return RefreshIndicator(
         onRefresh: _loadFollowingMerchants,
@@ -1068,7 +1167,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.store_outlined, size: 64, color: Colors.grey),
+                  const Icon(Icons.store_outlined,
+                      size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   Text(l10n.noFavoriteStoresYet),
                   Text(l10n.startFollowingStores),
@@ -1079,7 +1179,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
         ),
       );
     }
-    
+
     return RefreshIndicator(
       onRefresh: _loadFollowingMerchants,
       child: ListView.builder(
@@ -1090,7 +1190,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
           final merchantId = merchant['_id'] ?? merchant['id'] ?? '';
           final merchantName = merchant['name'] ?? 'Unknown Merchant';
           final merchantLogo = merchant['logo'];
-          
+
           return Dismissible(
             key: ValueKey(merchantId),
             background: Container(
@@ -1104,9 +1204,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
             child: Card(
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundImage: merchantLogo != null && merchantLogo.toString().isNotEmpty
-                      ? NetworkImage(merchantLogo)
-                      : null,
+                  backgroundImage:
+                      merchantLogo != null && merchantLogo.toString().isNotEmpty
+                          ? NetworkImage(merchantLogo)
+                          : null,
                   child: merchantLogo == null || merchantLogo.toString().isEmpty
                       ? const Icon(Icons.store)
                       : null,
@@ -1122,7 +1223,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
       ),
     );
   }
-  
 
   @override
   Widget build(BuildContext context) {
@@ -1163,8 +1263,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> with TickerProvid
 
 // Helper extension to capitalize strings
 extension StringExtension on String {
-    String capitalize() {
-      if (isEmpty) return this;
-      return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
-    }
+  String capitalize() {
+    if (isEmpty) return this;
+    return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
+  }
 }

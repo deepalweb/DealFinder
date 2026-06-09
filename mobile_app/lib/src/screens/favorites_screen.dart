@@ -31,21 +31,77 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<List<Promotion>> _fetchFavoritesWithFallback() async {
+    final api = ApiService();
     try {
+      final favorites = await api.fetchFavorites(widget.userId, widget.token);
+      final remoteIds = favorites.map((promotion) => promotion.id).toSet();
+      final localIds = await FavoritesManager.getFavorites();
+
+      for (final id in localIds.where((id) => !remoteIds.contains(id))) {
+        try {
+          await api.addFavorite(widget.userId, id, widget.token);
+        } catch (_) {}
+      }
+
+      final mergedIds = {...remoteIds, ...localIds};
+      final merged = <Promotion>[
+        ...favorites,
+      ];
+
+      if (localIds.any((id) => !remoteIds.contains(id))) {
+        final knownIds = merged.map((promotion) => promotion.id).toSet();
+        merged.addAll(
+          await api.resolveFavoritePromotionsByIds(
+            mergedIds.where((id) => !knownIds.contains(id)),
+          ),
+        );
+      }
+
+      await _syncLocalFavorites(merged.map((promotion) => promotion.id));
+      return _sortFavorites(merged);
+    } catch (_) {
       final ids = await FavoritesManager.getFavorites();
       if (ids.isEmpty) return [];
 
-      final allPromos = await ApiService().fetchPromotions();
-      final favorites =
-          allPromos.where((promo) => ids.contains(promo.id)).toList();
-      return favorites;
-    } catch (e) {
-      return [];
+      return _sortFavorites(await api.resolveFavoritePromotionsByIds(ids));
     }
   }
 
-  Future<void> _removeFavorite(String id) async {
+  List<Promotion> _sortFavorites(List<Promotion> favorites) {
+    favorites.sort((a, b) => b.latestActivityAt.compareTo(a.latestActivityAt));
+    return favorites;
+  }
+
+  Future<void> _syncLocalFavorites(Iterable<String> ids) async {
+    for (final id in ids) {
+      await FavoritesManager.addFavorite(id);
+    }
+  }
+
+  Future<void> _removeFavorite(String id, String title) async {
+    try {
+      await ApiService().removeFavorite(widget.userId, id, widget.token);
+    } catch (_) {}
     await FavoritesManager.removeFavorite(id);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"$title" removed from favorites'),
+          action: SnackBarAction(
+            label: 'UNDO',
+            onPressed: () async {
+              try {
+                await ApiService().addFavorite(widget.userId, id, widget.token);
+              } catch (_) {}
+              await FavoritesManager.addFavorite(id);
+              _loadFavorites();
+            },
+          ),
+        ),
+      );
+    }
+
     _loadFavorites();
   }
 
@@ -111,7 +167,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   direction: DismissDirection.endToStart,
-                  onDismissed: (_) => _removeFavorite(promotion.id),
+                  onDismissed: (_) =>
+                      _removeFavorite(promotion.id, promotion.title),
                   child: DealCard(promotion: promotion),
                 );
               },

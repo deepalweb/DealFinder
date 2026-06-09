@@ -408,7 +408,10 @@ class ApiService {
           : (decoded is Map<String, dynamic> && decoded['favorites'] is List
               ? decoded['favorites'] as List<dynamic>
               : const <dynamic>[]);
-      return data.map((json) => Promotion.fromJson(json)).toList();
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(Promotion.fromJson)
+          .toList();
     } else {
       throw Exception('Failed to load favorites');
     }
@@ -733,6 +736,45 @@ class ApiService {
           jsonDecode(response.body) as Map<String, dynamic>);
     }
     throw Exception('Failed to load promotion $id');
+  }
+
+  Future<Promotion> fetchBankOfferById(String id) async {
+    final response = await http.get(Uri.parse('${_baseUrl}bank-offers/$id'));
+    if (response.statusCode == 200) {
+      return Promotion.fromJson(
+          jsonDecode(response.body) as Map<String, dynamic>);
+    }
+    throw Exception('Failed to load bank offer $id');
+  }
+
+  Future<List<Promotion>> resolveFavoritePromotionsByIds(
+    Iterable<String> ids,
+  ) async {
+    final idSet = ids.where((id) => id.trim().isNotEmpty).toSet();
+    if (idSet.isEmpty) return [];
+
+    final resolved = <Promotion>[];
+    try {
+      final allPromos = await fetchPromotions();
+      resolved.addAll(allPromos.where((promo) => idSet.contains(promo.id)));
+    } catch (_) {}
+
+    final resolvedIds = resolved.map((promo) => promo.id).toSet();
+    for (final id in idSet.where((id) => !resolvedIds.contains(id))) {
+      try {
+        resolved.add(await fetchPromotionById(id));
+        resolvedIds.add(id);
+        continue;
+      } catch (_) {}
+
+      try {
+        resolved.add(await fetchBankOfferById(id));
+        resolvedIds.add(id);
+      } catch (_) {}
+    }
+
+    resolved.sort((a, b) => b.latestActivityAt.compareTo(a.latestActivityAt));
+    return resolved;
   }
 
   // Fetch a single merchant by ID

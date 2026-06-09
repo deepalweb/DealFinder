@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Merchant = require('../models/Merchant');
+const Promotion = require('../models/Promotion');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -493,13 +494,18 @@ router.post('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    const promotion = await Promotion.findById(promotionId).select('_id');
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promotion not found' });
+    }
     
     // Check if promotion is already in favorites
     if (user.favorites.some(fav => fav.toString() === promotionId.toString())) {
       return res.status(400).json({ message: 'Promotion already in favorites' });
     }
     
-    user.favorites.push(promotionId);
+    user.favorites.push(promotion._id);
     await user.save();
     
     res.status(200).json({ message: 'Added to favorites', favorites: user.favorites });
@@ -541,7 +547,7 @@ router.get('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    res.status(200).json(user.favorites);
+    res.status(200).json(user.favorites.filter(Boolean));
   } catch (error) {
     res.status(500).json(safeError(error));
   }

@@ -33,6 +33,7 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
+  int _favoritesRefreshKey = 0;
   List<Widget>? _screens;
   static const _navItems = <({
     IconData activeIcon,
@@ -84,19 +85,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     _screens ??= [
       widget.homeScreenBuilder?.call(context) ??
           HomeScreen(
-            onNavigateToFavorites: () => setState(() => _selectedIndex = 3),
+            onNavigateToFavorites: () => _selectTab(3),
           ),
       widget.dealsScreenBuilder?.call(context) ?? const AllDealsScreen(),
       widget.storesScreenBuilder?.call(context) ?? const StoresScreen(),
-      widget.favoritesScreenBuilder?.call(context) ??
-          FavoritesScreen(userId: widget.userId, token: widget.token),
+      _buildFavoritesScreen(context),
       widget.profileScreenBuilder?.call(context) ?? const UserProfileScreen(),
     ];
   }
 
   void _onItemTapped(int index) {
-    if (_selectedIndex == index) return;
-    setState(() => _selectedIndex = index);
+    _selectTab(index);
+  }
+
+  Widget _buildFavoritesScreen(BuildContext context) {
+    return widget.favoritesScreenBuilder?.call(context) ??
+        FavoritesScreen(
+          key: ValueKey(_favoritesRefreshKey),
+          userId: widget.userId,
+          token: widget.token,
+        );
+  }
+
+  void _selectTab(int index) {
+    if (_selectedIndex == index && index != 3) return;
+    setState(() {
+      if (index == 3) {
+        _favoritesRefreshKey += 1;
+        _screens?[3] = _buildFavoritesScreen(context);
+      }
+      _selectedIndex = index;
+    });
   }
 
   @override
