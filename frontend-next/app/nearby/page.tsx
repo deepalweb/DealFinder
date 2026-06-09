@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { PromotionAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
@@ -10,7 +9,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
 
 export default function NearbyPage() {
-  const router = useRouter();
   const { language } = useLanguage();
   const mapRef = useRef<any>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);

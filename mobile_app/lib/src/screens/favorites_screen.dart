@@ -32,39 +32,58 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   Future<List<Promotion>> _fetchFavoritesWithFallback() async {
     final api = ApiService();
-    try {
-      final favorites = await api.fetchFavorites(widget.userId, widget.token);
-      final remoteIds = favorites.map((promotion) => promotion.id).toSet();
-      final localIds = await FavoritesManager.getFavorites();
+    final localRecords = await FavoritesManager.getFavoriteRecords();
+    final localIds = localRecords.map((record) => record.id).toList();
+    final snapshotFavorites = localRecords
+        .map((record) => record.promotion)
+        .whereType<Promotion>()
+        .toList();
+    final snapshotIds =
+        snapshotFavorites.map((promotion) => promotion.id).toSet();
+    final unresolvedLocalIds =
+        localIds.where((id) => !snapshotIds.contains(id)).toList();
+    final resolvedLocalFavorites =
+        await api.resolveFavoritePromotionsByIds(unresolvedLocalIds).timeout(
+              const Duration(seconds: 6),
+              onTimeout: () => <Promotion>[],
+            );
+    final localFavorites = [
+      ...snapshotFavorites,
+      ...resolvedLocalFavorites,
+    ];
+    final merged = <Promotion>[...localFavorites];
+    final knownIds = merged.map((promotion) => promotion.id).toSet();
 
+    try {
+      final remoteFavorites = await api
+          .fetchFavorites(
+            widget.userId,
+            widget.token,
+          )
+          .timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => <Promotion>[],
+          );
+
+      for (final promotion in remoteFavorites) {
+        if (knownIds.add(promotion.id)) {
+          merged.add(promotion);
+        }
+      }
+
+      final remoteIds =
+          remoteFavorites.map((promotion) => promotion.id).toSet();
       for (final id in localIds.where((id) => !remoteIds.contains(id))) {
         try {
           await api.addFavorite(widget.userId, id, widget.token);
         } catch (_) {}
       }
-
-      final mergedIds = {...remoteIds, ...localIds};
-      final merged = <Promotion>[
-        ...favorites,
-      ];
-
-      if (localIds.any((id) => !remoteIds.contains(id))) {
-        final knownIds = merged.map((promotion) => promotion.id).toSet();
-        merged.addAll(
-          await api.resolveFavoritePromotionsByIds(
-            mergedIds.where((id) => !knownIds.contains(id)),
-          ),
-        );
-      }
-
-      await _syncLocalFavorites(merged.map((promotion) => promotion.id));
-      return _sortFavorites(merged);
     } catch (_) {
-      final ids = await FavoritesManager.getFavorites();
-      if (ids.isEmpty) return [];
-
-      return _sortFavorites(await api.resolveFavoritePromotionsByIds(ids));
+      // Local favorites are still useful when the remote API is slow/offline.
     }
+
+    await _syncLocalFavorites(merged);
+    return _sortFavorites(merged);
   }
 
   List<Promotion> _sortFavorites(List<Promotion> favorites) {
@@ -72,29 +91,37 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return favorites;
   }
 
-  Future<void> _syncLocalFavorites(Iterable<String> ids) async {
-    for (final id in ids) {
-      await FavoritesManager.addFavorite(id);
+  Future<void> _syncLocalFavorites(Iterable<Promotion> promotions) async {
+    for (final promotion in promotions) {
+      await FavoritesManager.addFavoritePromotion(promotion);
     }
   }
 
-  Future<void> _removeFavorite(String id, String title) async {
+  Future<void> _removeFavorite(Promotion promotion) async {
     try {
-      await ApiService().removeFavorite(widget.userId, id, widget.token);
+      await ApiService().removeFavorite(
+        widget.userId,
+        promotion.id,
+        widget.token,
+      );
     } catch (_) {}
-    await FavoritesManager.removeFavorite(id);
+    await FavoritesManager.removeFavorite(promotion.id);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('"$title" removed from favorites'),
+          content: Text('"${promotion.title}" removed from favorites'),
           action: SnackBarAction(
             label: 'UNDO',
             onPressed: () async {
               try {
-                await ApiService().addFavorite(widget.userId, id, widget.token);
+                await ApiService().addFavorite(
+                  widget.userId,
+                  promotion.id,
+                  widget.token,
+                );
               } catch (_) {}
-              await FavoritesManager.addFavorite(id);
+              await FavoritesManager.addFavoritePromotion(promotion);
               _loadFavorites();
             },
           ),
@@ -167,9 +194,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     child: const Icon(Icons.delete, color: Colors.white),
                   ),
                   direction: DismissDirection.endToStart,
-                  onDismissed: (_) =>
-                      _removeFavorite(promotion.id, promotion.title),
-                  child: DealCard(promotion: promotion),
+                  onDismissed: (_) => _removeFavorite(promotion),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: SizedBox(
+                      height: 320,
+                      child: DealCard(promotion: promotion),
+                    ),
+                  ),
                 );
               },
             ),

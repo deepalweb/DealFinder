@@ -15,7 +15,6 @@ export default function Header() {
   const { language, setLanguage } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -36,13 +35,6 @@ export default function Header() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-  const toggleDark = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
-    localStorage.setItem('df-theme', next ? 'dark' : 'light');
-  };
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';

@@ -42,7 +42,7 @@ export default function NotificationAnalyticsPage() {
       } else {
         toast.error('Failed to load analytics');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error loading analytics');
     } finally {
       setLoading(false);

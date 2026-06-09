@@ -4,8 +4,6 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { Toaster } from 'react-hot-toast';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
 import ConditionalLayout from '@/components/layout/ConditionalLayout';
 import {
   DEFAULT_DESCRIPTION,

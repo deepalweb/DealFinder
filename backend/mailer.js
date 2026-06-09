@@ -6,7 +6,7 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.M365_EMAIL,
-    pass: process.env.M365_PASSWORD
+    pass: process.env.M365_PASSWORD || process.env.EMAIL_PASSWORD
   }
 });
 

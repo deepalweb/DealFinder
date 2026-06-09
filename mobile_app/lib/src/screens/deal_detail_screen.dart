@@ -2,6 +2,7 @@ import 'dart:convert'; // For base64Decode
 import 'dart:async';
 // For Uint8List
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // For Clipboard
 import 'package:intl/intl.dart'; // For date formatting
@@ -185,6 +186,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             favorites.any((promotion) => promotion.id == widget.promotion.id);
       } catch (_) {}
     }
+    if (isFav) {
+      await FavoritesManager.addFavoritePromotion(widget.promotion);
+    }
+    if (!mounted) return;
     setState(() {
       _isFavorite = isFav;
     });
@@ -193,7 +198,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Future<void> _toggleFavorite() async {
     final nextFavorite = !_isFavorite;
     if (nextFavorite) {
-      await FavoritesManager.addFavorite(widget.promotion.id);
+      await FavoritesManager.addFavoritePromotion(widget.promotion);
     } else {
       await FavoritesManager.removeFavorite(widget.promotion.id);
     }
@@ -297,7 +302,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   // Helper to launch URL - requires url_launcher package
   Future<void> _openDirections() async {
-    print('DEBUG: _openDirections called');
+    debugPrint('DEBUG: _openDirections called');
     String? url;
     final merchant = _merchantData;
 
@@ -307,12 +312,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         final lng = coords[0];
         final lat = coords[1];
         url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
-        print('DEBUG: Using merchant coords: $lat, $lng');
+        debugPrint('DEBUG: Using merchant coords: $lat, $lng');
       } else if (merchant['address'] != null &&
           merchant['address'].toString().isNotEmpty) {
         final query = Uri.encodeComponent(merchant['address'].toString());
         url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
-        print('DEBUG: Using merchant address: ${merchant['address']}');
+        debugPrint('DEBUG: Using merchant address: ${merchant['address']}');
       }
     }
 
@@ -321,11 +326,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         widget.promotion.location!.isNotEmpty) {
       final query = Uri.encodeComponent(widget.promotion.location!);
       url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
-      print('DEBUG: Using promotion location: ${widget.promotion.location}');
+      debugPrint(
+          'DEBUG: Using promotion location: ${widget.promotion.location}');
     }
 
     if (url == null) {
-      print('DEBUG: No URL found, showing error snackbar');
+      debugPrint('DEBUG: No URL found, showing error snackbar');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text(AppLocalizations.of(context)!.noLocationAvailable)),
@@ -333,7 +339,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       return;
     }
 
-    print('DEBUG: Attempting to open URL: $url');
+    debugPrint('DEBUG: Attempting to open URL: $url');
     try {
       await _apiService.recordPromotionClick(
         widget.promotion.id,
@@ -348,13 +354,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         });
       }
     } catch (e) {
-      print('DEBUG: Failed to record click: $e');
+      debugPrint('DEBUG: Failed to record click: $e');
     }
 
     try {
       final launched =
           await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      print('DEBUG: Launch result: $launched');
+      debugPrint('DEBUG: Launch result: $launched');
       if (!launched) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -363,7 +369,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         );
       }
     } catch (e) {
-      print('DEBUG: Launch error: $e');
+      debugPrint('DEBUG: Launch error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error opening maps: $e')),
@@ -658,26 +664,26 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _submitRating(double rating) async {
-    print('DEBUG: _submitRating called with rating: $rating');
+    debugPrint('DEBUG: _submitRating called with rating: $rating');
     if (_isPlatformBankOffer) {
-      print('DEBUG: Skipping - is platform bank offer');
+      debugPrint('DEBUG: Skipping - is platform bank offer');
       return;
     }
     if (_userToken == null) {
-      print('DEBUG: No user token, showing auth required');
+      debugPrint('DEBUG: No user token, showing auth required');
       _showAuthRequiredMessage('rate this deal');
       return;
     }
 
     setState(() => _submittingRating = true);
     try {
-      print('DEBUG: Posting rating to API...');
+      debugPrint('DEBUG: Posting rating to API...');
       final ratings = await _apiService.postPromotionRating(
         widget.promotion.id,
         rating,
         _userToken!,
       );
-      print(
+      debugPrint(
           'DEBUG: Rating posted successfully, received ${ratings.length} ratings');
       final ratingValues = ratings
           .map((entry) => (entry['value'] as num?)?.toDouble())
@@ -700,7 +706,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         );
       }
     } catch (e) {
-      print('DEBUG: Error posting rating: $e');
+      debugPrint('DEBUG: Error posting rating: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -716,24 +722,24 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _submitComment() async {
-    print('DEBUG: _submitComment called');
+    debugPrint('DEBUG: _submitComment called');
     if (_isPlatformBankOffer) {
-      print('DEBUG: Skipping - is platform bank offer');
+      debugPrint('DEBUG: Skipping - is platform bank offer');
       return;
     }
     if (_userToken == null) {
-      print('DEBUG: No user token, showing auth required');
+      debugPrint('DEBUG: No user token, showing auth required');
       _showAuthRequiredMessage('comment on this deal');
       return;
     }
 
     final text = _commentController.text.trim();
     if (text.isEmpty) {
-      print('DEBUG: Comment text is empty');
+      debugPrint('DEBUG: Comment text is empty');
       return;
     }
 
-    print('DEBUG: Posting comment: $text');
+    debugPrint('DEBUG: Posting comment: $text');
     setState(() => _submittingComment = true);
     try {
       final comment = await _apiService.postPromotionComment(
@@ -742,7 +748,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         _userToken!,
       );
 
-      print('DEBUG: Comment posted successfully');
+      debugPrint('DEBUG: Comment posted successfully');
       setState(() {
         _comments = [..._comments, comment];
         _commentCount = _comments.length;
@@ -756,7 +762,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         );
       }
     } catch (e) {
-      print('DEBUG: Error posting comment: $e');
+      debugPrint('DEBUG: Error posting comment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

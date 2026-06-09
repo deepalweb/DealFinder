@@ -1,5 +1,4 @@
-/* eslint-disable no-restricted-globals */
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   console.log('Service Worker installing.');
   self.skipWaiting();
 });

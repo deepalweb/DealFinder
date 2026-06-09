@@ -82,10 +82,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               return ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: Colors.blue,
-                  child: Icon(Icons.notifications, color: Colors.white, size: 20),
+                  child:
+                      Icon(Icons.notifications, color: Colors.white, size: 20),
                 ),
                 title: Text(notification['title'] ?? 'No title'),
-                subtitle: Text(notification['body'] ?? notification['type'] ?? ''),
+                subtitle:
+                    Text(notification['body'] ?? notification['type'] ?? ''),
                 onTap: () => _openNotification(notification),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, size: 20),

@@ -266,24 +266,51 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
     try {
       final api = ApiService();
-      final localIds = await FavoritesManager.getFavorites();
+      final localRecords = await FavoritesManager.getFavoriteRecords();
+      final localIds = localRecords.map((record) => record.id).toList();
+      final snapshotFavorites = localRecords
+          .map((record) => record.promotion)
+          .whereType<Promotion>()
+          .toList();
+      final snapshotIds =
+          snapshotFavorites.map((promotion) => promotion.id).toSet();
+      final resolvedLocalFavorites = await api
+          .resolveFavoritePromotionsByIds(
+            localIds.where((id) => !snapshotIds.contains(id)),
+          )
+          .timeout(
+            const Duration(seconds: 6),
+            onTimeout: () => <Promotion>[],
+          );
+      final localFavorites = [
+        ...snapshotFavorites,
+        ...resolvedLocalFavorites,
+      ];
       final remoteFavorites = <Promotion>[];
 
       if (_userId != null && _token != null) {
         try {
-          remoteFavorites.addAll(await api.fetchFavorites(_userId!, _token!));
+          remoteFavorites.addAll(
+            await api.fetchFavorites(_userId!, _token!).timeout(
+                  const Duration(seconds: 6),
+                  onTimeout: () => <Promotion>[],
+                ),
+          );
         } catch (_) {}
       }
 
-      final knownIds = remoteFavorites.map((promotion) => promotion.id).toSet();
-      final missingLocalIds = localIds.where((id) => !knownIds.contains(id));
-      final localFavorites =
-          await api.resolveFavoritePromotionsByIds(missingLocalIds);
-      final favorites = [...remoteFavorites, ...localFavorites]
-        ..sort((a, b) => b.latestActivityAt.compareTo(a.latestActivityAt));
+      final knownIds = localFavorites.map((promotion) => promotion.id).toSet();
+      final favorites = <Promotion>[...localFavorites];
+      for (final promotion in remoteFavorites) {
+        if (knownIds.add(promotion.id)) {
+          favorites.add(promotion);
+        }
+      }
+      favorites
+          .sort((a, b) => b.latestActivityAt.compareTo(a.latestActivityAt));
 
       for (final promotion in favorites) {
-        await FavoritesManager.addFavorite(promotion.id);
+        await FavoritesManager.addFavoritePromotion(promotion);
       }
 
       if (!mounted) return;
@@ -1142,7 +1169,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   ),
                 );
               },
-              child: DealCard(promotion: deal),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: SizedBox(
+                  height: 320,
+                  child: DealCard(promotion: deal),
+                ),
+              ),
             ),
           );
         },
@@ -1231,19 +1264,32 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       appBar: AppBar(
         elevation: 0,
         title: Text(l10n.myProfile),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: [
-            Tab(text: l10n.profileTab),
-            Tab(text: l10n.securityTab),
-            Tab(text: l10n.notifications),
-            Tab(text: l10n.favorites),
-          ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).appBarTheme.backgroundColor ??
+                  Theme.of(context).colorScheme.surface,
+              border: Border(
+                top: BorderSide(color: Colors.grey.shade200),
+                bottom: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: Theme.of(context).colorScheme.primary,
+              unselectedLabelColor: Colors.grey.shade600,
+              indicatorColor: Theme.of(context).colorScheme.primary,
+              indicatorWeight: 3,
+              tabs: [
+                Tab(text: l10n.profileTab),
+                Tab(text: l10n.securityTab),
+                Tab(text: l10n.notifications),
+                Tab(text: l10n.favorites),
+              ],
+            ),
+          ),
         ),
       ),
       body: _isLoading

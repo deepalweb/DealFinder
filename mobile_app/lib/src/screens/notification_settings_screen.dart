@@ -192,7 +192,8 @@ class _NotificationSettingsScreenState
   Future<void> _togglePushNotifications(bool value) async {
     if (value) {
       try {
-        final token = await PushNotificationService.requestPermissionAndGetToken();
+        final token =
+            await PushNotificationService.requestPermissionAndGetToken();
         final permissionGranted =
             await PushNotificationService.hasNotificationPermission();
         if (!mounted) return;
@@ -206,7 +207,8 @@ class _NotificationSettingsScreenState
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Allow notifications in device settings to enable push.'),
+              content: Text(
+                  'Allow notifications in device settings to enable push.'),
             ),
           );
           return;

@@ -177,7 +177,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
           Icon(
             icon,
             size: iconSize ?? (compact ? 11 : 12),
-            color: iconColor ?? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
+            color: iconColor ??
+                (isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
           ),
           SizedBox(width: compact ? AppSpacing.xxs : AppSpacing.xs),
           Text(
@@ -193,42 +194,11 @@ class _ModernDealCardState extends State<ModernDealCard> {
     );
   }
 
-  Widget _buildMetaPill({
-    required IconData icon,
-    required String label,
-    required BuildContext context,
-  }) {
-    final theme = Theme.of(context).extension<DealFinderThemeExtension>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 5),
-      decoration: BoxDecoration(
-        color: theme.chipBackground,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: theme.savingsColor),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
-              color: theme.savingsColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).extension<DealFinderThemeExtension>()!;
     final cardTheme = Theme.of(context).cardTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return GestureDetector(
       onTap: widget.onTap,
       child: LayoutBuilder(
@@ -243,13 +213,16 @@ class _ModernDealCardState extends State<ModernDealCard> {
           final contentPadding = compact ? AppSpacing.md : 10.0;
           final merchantName = p.merchantName?.trim();
           final distanceLabel = distance.isNotEmpty ? distance : null;
-          final expiryLabel = showCountdown && _timeLeft != null
+          final hoursLeft = _timeLeft?.inHours ?? 0;
+          final showCountdownNow =
+              showCountdown && _timeLeft != null && hoursLeft < 48;
+          final expiryLabel = showCountdownNow
               ? (_timeLeft == Duration.zero
                   ? 'Expired'
                   : _formatCountdown(_timeLeft!))
               : null;
           final averageRating = p.averageRating ?? 0.0;
-          final hasRatings = p.ratingsCount > 0;
+          final hasRatings = p.ratingsCount > 0 && p.averageRating != null;
           final currentPrice = p.discountedPrice ?? p.price ?? p.originalPrice;
           final savings = p.originalPrice != null &&
                   currentPrice != null &&
@@ -265,16 +238,18 @@ class _ModernDealCardState extends State<ModernDealCard> {
           final borderSide = cardTheme.shape is RoundedRectangleBorder
               ? (cardTheme.shape as RoundedRectangleBorder).side
               : BorderSide.none;
-          
+
           return Container(
             width: widget.width,
             decoration: BoxDecoration(
               color: cardTheme.color,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: borderSide != BorderSide.none ? Border.all(
-                color: borderSide.color,
-                width: borderSide.width,
-              ) : null,
+              border: borderSide != BorderSide.none
+                  ? Border.all(
+                      color: borderSide.color,
+                      width: borderSide.width,
+                    )
+                  : null,
               boxShadow: [
                 BoxShadow(
                   color: theme.cardShadow.withValues(alpha: AppOpacity.light),
@@ -282,7 +257,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                   offset: const Offset(0, 10),
                 ),
                 BoxShadow(
-                  color: AppColors.iosPrimary.withValues(alpha: AppOpacity.subtle),
+                  color:
+                      AppColors.iosPrimary.withValues(alpha: AppOpacity.subtle),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -335,9 +311,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                           right: AppSpacing.md,
                           child: _buildGlassChip(
                             icon: Icons.star_rounded,
-                            label: p.ratingsCount >= 5
-                                ? '${averageRating.toStringAsFixed(1)} (${p.ratingsCount})'
-                                : averageRating.toStringAsFixed(1),
+                            label:
+                                '${averageRating.toStringAsFixed(1)} (${p.ratingsCount})',
                             compact: compact,
                             context: context,
                             iconColor: theme.ratingColor,
@@ -349,7 +324,6 @@ class _ModernDealCardState extends State<ModernDealCard> {
                             ),
                           ),
                         ),
-
                     ],
                   ),
                 ),
@@ -360,24 +334,41 @@ class _ModernDealCardState extends State<ModernDealCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Merchant Name (Primary)
+                        // Deal Title (Primary - Most Important)
+                        Text(
+                          p.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: compact ? 13.5 : 15,
+                            fontWeight: FontWeight.w900,
+                            color:
+                                Theme.of(context).textTheme.titleMedium?.color,
+                            height: 1.1,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        SizedBox(height: compact ? 3 : 4),
+
+                        // Merchant Name (Secondary)
                         if (merchantName != null && merchantName.isNotEmpty)
                           Text(
                             merchantName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: compact ? 13.5 : 15,
-                              fontWeight: FontWeight.w900,
-                              color: Theme.of(context).textTheme.titleMedium?.color,
-                              height: 1.1,
-                              letterSpacing: -0.2,
+                              fontSize: compact ? 11 : 12,
+                              fontWeight: FontWeight.w600,
+                              color:
+                                  Theme.of(context).textTheme.bodyMedium?.color,
+                              letterSpacing: -0.1,
                             ),
                           ),
                         if (merchantName != null && merchantName.isNotEmpty)
-                          SizedBox(height: compact ? 3 : 4),
-                        
-                        // Distance & Expiry (Secondary - Prominent)
+                          SizedBox(
+                              height: compact ? AppSpacing.xs : AppSpacing.sm),
+
+                        // Distance & Expiry
                         Row(
                           children: [
                             if (distanceLabel != null) ...[
@@ -398,11 +389,15 @@ class _ModernDealCardState extends State<ModernDealCard> {
                             ],
                             if (distanceLabel != null && expiryLabel != null)
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 6),
                                 child: Text(
                                   '•',
                                   style: TextStyle(
-                                    color: Theme.of(context).textTheme.bodySmall?.color,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
                                     fontSize: compact ? 10 : 11,
                                   ),
                                 ),
@@ -432,7 +427,10 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                           fontWeight: FontWeight.w600,
                                           color: _timeLeft == Duration.zero
                                               ? theme.expiredColor
-                                              : Theme.of(context).textTheme.bodySmall?.color,
+                                              : Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.color,
                                         ),
                                       ),
                                     ),
@@ -441,22 +439,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                               ),
                           ],
                         ),
-                        SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
-                        
-                        // Deal Title (Tertiary - Descriptive)
-                        Text(
-                          p.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: compact ? 11 : 12,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).textTheme.bodyMedium?.color,
-                            height: 1.2,
-                            letterSpacing: -0.1,
-                          ),
-                        ),
-                        SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
+                        SizedBox(
+                            height: compact ? AppSpacing.sm : AppSpacing.md),
                         // Price (Quaternary - Clear Hierarchy)
                         if (currentPrice != null)
                           Row(
@@ -477,7 +461,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                   height: 1,
                                 ),
                               ),
-                              if (p.originalPrice != null && p.discountedPrice != null) ...[
+                              if (p.originalPrice != null &&
+                                  p.discountedPrice != null) ...[
                                 const SizedBox(width: AppSpacing.md),
                                 Text(
                                   _priceLabel(

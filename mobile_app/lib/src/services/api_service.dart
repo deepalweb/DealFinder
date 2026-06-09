@@ -400,7 +400,7 @@ class ApiService {
     final response = await http.get(
       Uri.parse('${_baseUrl}users/$userId/favorites'),
       headers: {'Authorization': 'Bearer $token'},
-    );
+    ).timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       final decoded = jsonDecode(response.body);
       final List<dynamic> data = decoded is List
@@ -730,7 +730,9 @@ class ApiService {
 
   // Fetch a single promotion by ID
   Future<Promotion> fetchPromotionById(String id) async {
-    final response = await http.get(Uri.parse('${_baseUrl}promotions/$id'));
+    final response = await http
+        .get(Uri.parse('${_baseUrl}promotions/$id'))
+        .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       return Promotion.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
@@ -739,7 +741,9 @@ class ApiService {
   }
 
   Future<Promotion> fetchBankOfferById(String id) async {
-    final response = await http.get(Uri.parse('${_baseUrl}bank-offers/$id'));
+    final response = await http
+        .get(Uri.parse('${_baseUrl}bank-offers/$id'))
+        .timeout(const Duration(seconds: 10));
     if (response.statusCode == 200) {
       return Promotion.fromJson(
           jsonDecode(response.body) as Map<String, dynamic>);
@@ -1194,82 +1198,63 @@ class ApiService {
 
   Future<void> updateNotificationPreferences(
       Map<String, dynamic> preferences) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('userToken');
-    final response = await http.put(
-      Uri.parse('${_baseUrl}notifications/preferences'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode(preferences),
+    final response = await _authPut(
+      '${_baseUrl}notifications/preferences',
+      body: preferences,
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to update preferences');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to update preferences',
+      ));
     }
   }
 
   Future<void> subscribeToNotifications(String token, String type) async {
-    final prefs = await SharedPreferences.getInstance();
-    final authToken = prefs.getString('userToken');
-    final bearerToken = authToken ?? token;
-    final response = await http.post(
-      Uri.parse('${_baseUrl}notifications/subscribe'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $bearerToken',
-      },
-      body: jsonEncode({'subscription': token, 'type': type}),
+    final response = await _authPost(
+      '${_baseUrl}notifications/subscribe',
+      body: {'subscription': token, 'type': type},
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to subscribe');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to subscribe',
+      ));
     }
   }
 
   Future<void> unsubscribeFromNotifications(String type) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('userToken');
-    final response = await http.post(
-      Uri.parse('${_baseUrl}notifications/unsubscribe'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({'type': type}),
+    final response = await _authPost(
+      '${_baseUrl}notifications/unsubscribe',
+      body: {'type': type},
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to unsubscribe');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to unsubscribe',
+      ));
     }
   }
 
   Future<Map<String, dynamic>> sendTestNotification() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('userToken');
-    final response = await http.post(
-      Uri.parse('${_baseUrl}notifications/test'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response = await _authPost('${_baseUrl}notifications/test');
     if (response.statusCode != 200) {
-      throw Exception('Failed to send test notification');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to send test notification',
+      ));
     }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   Future<void> deleteNotification(String notificationId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('userToken');
-    final response = await http.delete(
-      Uri.parse('${_baseUrl}notifications/$notificationId'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
+    final response =
+        await _authDelete('${_baseUrl}notifications/$notificationId');
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete notification');
+      throw Exception(_extractErrorMessage(
+        response,
+        fallback: 'Failed to delete notification',
+      ));
     }
   }
 
@@ -1335,8 +1320,8 @@ class ApiService {
   }
 
   Future<void> deletePromotion(String promotionId, String token) async {
-    final response = await _authDelete('${_baseUrl}promotions/$promotionId',
-        token: token);
+    final response =
+        await _authDelete('${_baseUrl}promotions/$promotionId', token: token);
 
     if (response.statusCode == 200) {
       return;

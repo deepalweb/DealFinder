@@ -8,6 +8,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../firebase_options.dart';
+import '../models/promotion.dart';
 import '../screens/notifications_screen.dart';
 import 'api_service.dart';
 import 'location_service.dart';
@@ -214,7 +215,8 @@ class PushNotificationService {
     const androidDetails = AndroidNotificationDetails(
       'dealfinder_general',
       'DealFinder Notifications',
-      channelDescription: 'General notifications for DealFinder updates and deals',
+      channelDescription:
+          'General notifications for DealFinder updates and deals',
       importance: Importance.high,
       priority: Priority.high,
       visibility: NotificationVisibility.public,
@@ -241,12 +243,20 @@ class PushNotificationService {
 
   static Future<void> handleNotificationData(Map<String, dynamic> data) async {
     try {
-      final dealId = data['dealId'] as String?;
+      final nestedData = data['data'];
+      final payloadData =
+          nestedData is Map ? Map<String, dynamic>.from(nestedData) : data;
+      final dealId = payloadData['dealId']?.toString();
       final navigator = navigatorKey?.currentState;
       if (navigator == null) return;
 
       if (dealId != null && dealId.isNotEmpty) {
-        final promotion = await _api.fetchPromotionById(dealId);
+        Promotion? promotion;
+        try {
+          promotion = await _api.fetchPromotionById(dealId);
+        } catch (_) {
+          promotion = await _api.fetchBankOfferById(dealId);
+        }
         navigator.pushNamed('/deal', arguments: promotion);
         return;
       }

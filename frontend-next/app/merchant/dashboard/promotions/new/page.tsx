@@ -31,7 +31,6 @@ function NewPromotionContent() {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -165,7 +164,6 @@ function NewPromotionContent() {
       // Upload images to Azure if there are new files
       let imageUrls = [...uploadedImageUrls];
       if (imageFiles.length > 0) {
-        setUploading(true);
         toast.loading('Uploading images...');
         try {
           imageUrls = await ImageAPI.uploadMultiple(imageFiles, 'promotions');
@@ -175,10 +173,8 @@ function NewPromotionContent() {
           toast.dismiss();
           toast.error(`Image upload failed: ${err.message}`);
           setSaving(false);
-          setUploading(false);
           return;
         }
-        setUploading(false);
       }
 
       const merchantId = await resolveMerchantId();

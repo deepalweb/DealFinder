@@ -115,6 +115,13 @@ class AuthService {
       await prefs.remove('merchantId');
     }
 
+    final profilePicture = response['profilePicture'] as String?;
+    if (profilePicture != null && profilePicture.isNotEmpty) {
+      await prefs.setString('userProfilePicture', profilePicture);
+    } else {
+      await prefs.remove('userProfilePicture');
+    }
+
     await PushNotificationService.syncTokenWithServer();
   }
 }

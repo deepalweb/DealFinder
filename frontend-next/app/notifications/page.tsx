@@ -39,7 +39,7 @@ export default function NotificationsPage() {
         unreadOnly: filter === 'unread' 
       });
       setNotifications(data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
@@ -52,7 +52,7 @@ export default function NotificationsPage() {
       setNotifications(prev =>
         prev.map(n => n._id === id ? { ...n, read: true } : n)
       );
-    } catch (error) {
+    } catch {
       toast.error('Failed to mark as read');
     }
   };
@@ -62,7 +62,7 @@ export default function NotificationsPage() {
       await NotificationAPI.delete(id);
       setNotifications(prev => prev.filter(n => n._id !== id));
       toast.success('Notification deleted');
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete notification');
     }
   };
