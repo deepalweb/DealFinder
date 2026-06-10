@@ -157,7 +157,11 @@ class _StoresScreenState extends State<StoresScreen> {
     final followers = (merchant['followers'] as num?)?.toInt() ?? 0;
     final deals =
         ((merchant['activeDeals'] ?? merchant['deals']) as num?)?.toInt() ?? 0;
-    return (followers * 3) + (deals * 5);
+    final averageRating = (merchant['averageRating'] as num?)?.toDouble() ?? 0;
+    final ratingsCount = (merchant['ratingsCount'] as num?)?.toInt() ?? 0;
+    final ratingScore =
+        averageRating > 0 ? (averageRating * 8).round() + ratingsCount : 0;
+    return (followers * 3) + (deals * 5) + ratingScore;
   }
 
   String _merchantIdOf(Map<String, dynamic> merchant) =>
@@ -854,7 +858,8 @@ class _StoresScreenState extends State<StoresScreen> {
                 _buildActiveFilterChip(
                   icon: Icons.category_outlined,
                   label: l10n.categoryFilterLabel(
-                    _categories.firstWhere((item) => item['id'] == _selectedCategory)['name']!,
+                    _categories.firstWhere(
+                        (item) => item['id'] == _selectedCategory)['name']!,
                   ),
                   onRemoved: () {
                     setState(() => _selectedCategory = 'all');

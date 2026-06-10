@@ -822,6 +822,9 @@ class ApiService {
 
     if (response.statusCode == 201 || response.statusCode == 200) {
       final dynamic data = jsonDecode(response.body);
+      try {
+        await CacheService.clearMerchants();
+      } catch (_) {}
       if (data is List) {
         return data.cast<Map<String, dynamic>>();
       }

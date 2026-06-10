@@ -839,7 +839,12 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           'Merchant හමු නොවීය',
                           'Merchant கிடைக்கவில்லை')))
                   : RefreshIndicator(
-                      onRefresh: _fetchMerchant,
+                      onRefresh: () async {
+                        await Future.wait([
+                          _fetchMerchant(),
+                          _fetchMerchantRatings(),
+                        ]);
+                      },
                       child: ListView(
                         padding: EdgeInsets.zero,
                         children: [

@@ -57,24 +57,30 @@ class CacheService {
 
   static Future<void> savePromotions(List<Promotion> promotions) async {
     final prefs = await SharedPreferences.getInstance();
-    final stripped = promotions.map((p) => _stripPromotionJson(p.toJson())).toList();
+    final stripped =
+        promotions.map((p) => _stripPromotionJson(p.toJson())).toList();
     await prefs.setString(_keyPromotions, jsonEncode(stripped));
     await prefs.setInt(_keyPromotionsTs, DateTime.now().millisecondsSinceEpoch);
   }
 
   /// Returns cached promotions.
   /// [forceStale] = true returns data even if TTL expired (used when offline).
-  static Future<List<Promotion>?> loadPromotions({bool forceStale = false}) async {
+  static Future<List<Promotion>?> loadPromotions(
+      {bool forceStale = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = prefs.getString(_keyPromotions);
     if (encoded == null) return null;
     if (!forceStale) {
       final ts = prefs.getInt(_keyPromotionsTs);
       if (ts == null) return null;
-      if (DateTime.now().millisecondsSinceEpoch - ts > _ttl.inMilliseconds) return null;
+      if (DateTime.now().millisecondsSinceEpoch - ts > _ttl.inMilliseconds) {
+        return null;
+      }
     }
     final List<dynamic> data = jsonDecode(encoded);
-    return data.map((e) => Promotion.fromJson(e as Map<String, dynamic>)).toList();
+    return data
+        .map((e) => Promotion.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   static Future<bool> hasPromotions() async {
@@ -84,7 +90,8 @@ class CacheService {
 
   // ── Merchants ─────────────────────────────────────────────────────────────
 
-  static Future<void> saveMerchants(List<Map<String, dynamic>> merchants) async {
+  static Future<void> saveMerchants(
+      List<Map<String, dynamic>> merchants) async {
     final prefs = await SharedPreferences.getInstance();
     // Strip base64 images (logo and banner) before caching
     final stripped = merchants.map((m) {
@@ -103,14 +110,17 @@ class CacheService {
     await prefs.setInt(_keyMerchantsTs, DateTime.now().millisecondsSinceEpoch);
   }
 
-  static Future<List<Map<String, dynamic>>?> loadMerchants({bool forceStale = false}) async {
+  static Future<List<Map<String, dynamic>>?> loadMerchants(
+      {bool forceStale = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = prefs.getString(_keyMerchants);
     if (encoded == null) return null;
     if (!forceStale) {
       final ts = prefs.getInt(_keyMerchantsTs);
       if (ts == null) return null;
-      if (DateTime.now().millisecondsSinceEpoch - ts > _ttl.inMilliseconds) return null;
+      if (DateTime.now().millisecondsSinceEpoch - ts > _ttl.inMilliseconds) {
+        return null;
+      }
     }
     final List<dynamic> data = jsonDecode(encoded);
     return data.cast<Map<String, dynamic>>();
@@ -119,6 +129,12 @@ class CacheService {
   static Future<bool> hasMerchants() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.containsKey(_keyMerchants);
+  }
+
+  static Future<void> clearMerchants() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyMerchants);
+    await prefs.remove(_keyMerchantsTs);
   }
 
   // ── Nearby Deals ───────────────────────────────────────────────────────────
@@ -132,8 +148,9 @@ class CacheService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final rawEntries = prefs.getString(_keyNearbySearches);
-    final List<dynamic> entries =
-        rawEntries == null ? <dynamic>[] : (jsonDecode(rawEntries) as List<dynamic>);
+    final List<dynamic> entries = rawEntries == null
+        ? <dynamic>[]
+        : (jsonDecode(rawEntries) as List<dynamic>);
 
     final bucketLat = double.parse(latitude.toStringAsFixed(2));
     final bucketLng = double.parse(longitude.toStringAsFixed(2));
@@ -156,7 +173,8 @@ class CacheService {
       'radiusKm': radiusKm,
       'locationName': locationName,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'promotions': promotions.map((p) => _stripPromotionJson(p.toJson())).toList(),
+      'promotions':
+          promotions.map((p) => _stripPromotionJson(p.toJson())).toList(),
     });
 
     if (entries.length > _maxNearbyEntries) {

@@ -16,6 +16,24 @@ function safeError(error) {
   return { message: error.message, stack: error.stack };
 }
 
+function attachMerchantRatingSummary(merchantDoc) {
+  if (!merchantDoc) return merchantDoc;
+  const merchant = merchantDoc.toObject ? merchantDoc.toObject() : { ...merchantDoc };
+  const ratings = Array.isArray(merchant.ratings) ? merchant.ratings : [];
+  const ratingValues = ratings
+    .map((rating) => Number(rating?.value) || 0)
+    .filter((value) => value > 0);
+
+  return {
+    ...merchant,
+    averageRating: ratingValues.length
+      ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(1))
+      : 0,
+    ratingsCount: ratingValues.length,
+    ratings: undefined,
+  };
+}
+
 // In-memory store for refresh tokens
 const refreshTokens = new Set();
 
@@ -565,7 +583,7 @@ router.get('/:id/following-merchants', authorizeSelfOrAdmin, async (req, res) =>
     }
 
     const merchants = Array.isArray(user.followingMerchants)
-      ? user.followingMerchants
+      ? user.followingMerchants.map(attachMerchantRatingSummary)
       : [];
 
     res.status(200).json(merchants);
