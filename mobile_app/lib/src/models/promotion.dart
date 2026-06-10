@@ -204,6 +204,21 @@ class Promotion {
     final coordinates = merchantLocation?['coordinates'] is List
         ? merchantLocation!['coordinates'] as List
         : null;
+    final ratings = json['ratings'] is List ? json['ratings'] as List : null;
+    final ratingValues = ratings
+            ?.whereType<Map>()
+            .map((rating) => (rating['value'] as num?)?.toDouble())
+            .whereType<double>()
+            .where((value) => value > 0)
+            .toList() ??
+        const <double>[];
+    final averageRating = (json['averageRating'] as num?)?.toDouble() ??
+        (ratingValues.isNotEmpty
+            ? ratingValues.reduce((sum, value) => sum + value) /
+                ratingValues.length
+            : null);
+    final ratingsCount = (json['ratingsCount'] as num?)?.toInt() ??
+        (ratings != null ? ratingValues.length : 0);
 
     double? latitude;
     double? longitude;
@@ -258,10 +273,8 @@ class Promotion {
           : null,
       latitude: latitude,
       longitude: longitude,
-      averageRating: (json['averageRating'] as num?)?.toDouble(),
-      ratingsCount: json['ratings'] is List
-          ? (json['ratings'] as List).length
-          : (json['ratingsCount'] is int ? json['ratingsCount'] as int : 0),
+      averageRating: averageRating,
+      ratingsCount: ratingsCount,
       createdAt: parseDate(json['createdAt'] as String?),
       updatedAt: parseDate(json['updatedAt'] as String?),
       status: json['status'] as String?,

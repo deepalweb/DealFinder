@@ -27,6 +27,24 @@ const MERCHANTS_CACHE_TTL = 5 * 60 * 1000;
 // Invalidate merchants cache
 function invalidateMerchantsCache() { merchantsCache = null; merchantsCacheTs = 0; }
 
+function attachMerchantRatingSummary(merchant) {
+  if (!merchant || typeof merchant !== 'object') return merchant;
+
+  const ratings = Array.isArray(merchant.ratings) ? merchant.ratings : [];
+  const ratingValues = ratings
+    .map((rating) => Number(rating?.value) || 0)
+    .filter((value) => value > 0);
+
+  return {
+    ...merchant,
+    averageRating: ratingValues.length
+      ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(1))
+      : 0,
+    ratingsCount: ratingValues.length,
+    ratings: undefined,
+  };
+}
+
 function isBlobImageUrl(url) {
   return typeof url === 'string' &&
     url.startsWith('http') &&
@@ -43,7 +61,7 @@ router.get('/', async (req, res) => {
 
     // Optimized: Get merchants without populating promotions
     const merchants = await Merchant.find()
-      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable')
+      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable ratings')
       .lean();
     
     // Get promotion counts in a single aggregation query
@@ -86,7 +104,7 @@ router.get('/', async (req, res) => {
     const followerMap = new Map(followerCounts.map(f => [f._id.toString(), f.followers]));
 
     // Merge data
-    const merchantsWithCounts = merchants.map(merchant => ({
+    const merchantsWithCounts = merchants.map(merchant => attachMerchantRatingSummary({
       ...merchant,
       activeDeals: promotionMap.get(merchant._id.toString()) || 0,
       followers: followerMap.get(merchant._id.toString()) || 0
@@ -111,11 +129,45 @@ router.get('/:id', async (req, res) => {
     const activeDeals = Array.isArray(merchant.promotions)
       ? merchant.promotions.filter(p => p.status === 'active' && new Date(p.endDate) >= new Date()).length
       : 0;
-    res.status(200).json({
+    res.status(200).json(attachMerchantRatingSummary({
       ...merchant.toObject(),
       followers,
       activeDeals
-    });
+    }));
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/:id/ratings', async (req, res) => {
+  try {
+    const merchant = await Merchant.findById(req.params.id)
+      .select('ratings')
+      .populate('ratings.user', 'name email profilePicture');
+    if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
+    res.status(200).json(merchant.ratings || []);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/:id/ratings', authenticateJWT, async (req, res) => {
+  try {
+    const value = Number(req.body.value);
+    if (!Number.isFinite(value) || value < 1 || value > 5) {
+      return res.status(400).json({ message: 'Valid rating value (1-5) is required.' });
+    }
+
+    const merchant = await Merchant.findById(req.params.id);
+    if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
+
+    merchant.ratings = merchant.ratings.filter((rating) => rating.user.toString() !== req.user.id);
+    merchant.ratings.push({ user: req.user.id, value });
+    await merchant.save();
+    await Merchant.populate(merchant, { path: 'ratings.user', select: 'name email profilePicture' });
+    invalidateMerchantsCache();
+
+    res.status(201).json(merchant.ratings);
   } catch (error) {
     res.status(500).json(safeError(error));
   }

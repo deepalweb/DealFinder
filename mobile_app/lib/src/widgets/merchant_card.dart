@@ -79,6 +79,8 @@ class MerchantCard extends StatelessWidget {
     final followers = (merchant['followers'] as num?)?.toInt() ?? 0;
     final deals =
         ((merchant['activeDeals'] ?? merchant['deals']) as num?)?.toInt() ?? 0;
+    final averageRating = (merchant['averageRating'] as num?)?.toDouble() ?? 0;
+    final ratingsCount = (merchant['ratingsCount'] as num?)?.toInt() ?? 0;
     final currency = (merchant['currency'] ?? 'LKR').toString();
     final logoUrl = merchant['logo']?.toString();
     final bannerUrl = merchant['banner']?.toString();
@@ -332,6 +334,14 @@ class MerchantCard extends StatelessWidget {
                           background: const Color(0xFFE8F3FF),
                           foreground: const Color(0xFF1E88E5),
                         ),
+                        if (ratingsCount > 0)
+                          _buildInfoPill(
+                            icon: Icons.star_rate_rounded,
+                            label:
+                                '${averageRating.toStringAsFixed(1)} ($ratingsCount)',
+                            background: const Color(0xFFFFF8E1),
+                            foreground: const Color(0xFFB7791F),
+                          ),
                         _buildInfoPill(
                           icon: Icons.currency_exchange_rounded,
                           label: currency,

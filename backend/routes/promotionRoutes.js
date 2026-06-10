@@ -400,10 +400,12 @@ router.get('/nearby', async (req, res) => {
         { $limit: promotionLimit }
       ]);
 
-      // Cache the result
-      setNearbyCache(lat, lon, searchRadiusKm, promotions);
+      const sanitizedPromotions = promotions.map(sanitizePromotionPayload);
 
-      res.status(200).json(promotions);
+      // Cache the result
+      setNearbyCache(lat, lon, searchRadiusKm, sanitizedPromotions);
+
+      res.status(200).json(sanitizedPromotions);
 
     } catch (geoErr) {
       console.error('[Nearby API] Aggregation error:', geoErr.message);
