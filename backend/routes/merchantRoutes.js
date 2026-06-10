@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Merchant = require('../models/Merchant');
 const User = require('../models/User');
+const Report = require('../models/Report');
 const azureBlobService = require('../services/azureBlobService');
 const { body, validationResult } = require('express-validator');
 const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin } = require('../middleware/auth');
@@ -51,6 +52,28 @@ function isBlobImageUrl(url) {
     url.includes('/merchants/');
 }
 
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+function normalizeOpeningHours(input) {
+  if (!input || typeof input !== 'object') return undefined;
+
+  return DAY_KEYS.reduce((hours, day) => {
+    const raw = input[day];
+    if (!raw || typeof raw !== 'object') return hours;
+    const closed = raw.closed === true;
+    const open = typeof raw.open === 'string' ? raw.open.trim() : '';
+    const close = typeof raw.close === 'string' ? raw.close.trim() : '';
+
+    hours[day] = {
+      closed,
+      open: !closed && TIME_PATTERN.test(open) ? open : undefined,
+      close: !closed && TIME_PATTERN.test(close) ? close : undefined,
+    };
+    return hours;
+  }, {});
+}
+
 // Get all merchants (optimized)
 router.get('/', async (req, res) => {
   try {
@@ -61,7 +84,7 @@ router.get('/', async (req, res) => {
 
     // Optimized: Get merchants without populating promotions
     const merchants = await Merchant.find()
-      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable ratings')
+      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable openingHours ratings')
       .lean();
     
     // Get promotion counts in a single aggregation query
@@ -208,6 +231,41 @@ router.post('/:id/reviews', authenticateJWT, async (req, res) => {
   }
 });
 
+router.post('/:id/reports', authenticateJWT, async (req, res) => {
+  try {
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : '';
+    const description =
+      typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const validReasons = [
+      'fake_or_misleading',
+      'expired_or_invalid',
+      'wrong_information',
+      'inappropriate',
+      'spam',
+      'other',
+    ];
+
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({ message: 'Valid report reason is required.' });
+    }
+
+    const merchant = await Merchant.findById(req.params.id).select('_id');
+    if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
+
+    const report = await Report.create({
+      targetType: 'merchant',
+      merchant: merchant._id,
+      reporter: req.user.id,
+      reason,
+      description,
+    });
+
+    res.status(201).json(report);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Create a new merchant (Admin Only)
 router.post('/', authenticateJWT, authorizeAdmin, [
   body('name').trim().notEmpty().withMessage('Name is required'),
@@ -220,6 +278,7 @@ router.post('/', authenticateJWT, authorizeAdmin, [
   body('orderLink').optional().isString(),
   body('deliveryAvailable').optional().isBoolean(),
   body('pickupAvailable').optional().isBoolean(),
+  body('openingHours').optional().isObject(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
@@ -247,6 +306,7 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       orderLink,
       deliveryAvailable,
       pickupAvailable,
+      openingHours,
       contactInfo,
       logo,
       banner,
@@ -267,6 +327,7 @@ router.post('/', authenticateJWT, authorizeAdmin, [
       orderLink,
       deliveryAvailable,
       pickupAvailable,
+      openingHours: normalizeOpeningHours(openingHours),
       contactInfo,
       logo,
       banner,
@@ -312,6 +373,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('orderLink').optional().isString(),
   body('deliveryAvailable').optional().isBoolean(),
   body('pickupAvailable').optional().isBoolean(),
+  body('openingHours').optional().isObject(),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
@@ -343,6 +405,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       orderLink,
       deliveryAvailable,
       pickupAvailable,
+      openingHours,
       contactInfo,
       logo,
       banner,
@@ -368,6 +431,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     if (orderLink !== undefined) updateData.orderLink = orderLink;
     if (deliveryAvailable !== undefined) updateData.deliveryAvailable = deliveryAvailable;
     if (pickupAvailable !== undefined) updateData.pickupAvailable = pickupAvailable;
+    if (openingHours !== undefined) updateData.openingHours = normalizeOpeningHours(openingHours);
     if (contactInfo !== undefined) updateData.contactInfo = contactInfo;
     if (logo !== undefined) updateData.logo = logo;
     if (banner !== undefined) updateData.banner = banner;

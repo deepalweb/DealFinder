@@ -822,6 +822,112 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
   }
 
+  Future<void> _showReportDealDialog() async {
+    if (_isPlatformBankOffer) return;
+    if (_userToken == null) {
+      _showAuthRequiredMessage(_t(
+        'report this deal',
+        'මෙම deal එක report කිරීමට',
+        'இந்த deal-ஐ report செய்ய',
+      ));
+      return;
+    }
+
+    var reason = 'expired_or_invalid';
+    final detailsController = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(_t(
+            'Report deal',
+            'Deal report කරන්න',
+            'Deal report செய்யவும்',
+          )),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: reason,
+                decoration: const InputDecoration(labelText: 'Reason'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'expired_or_invalid',
+                    child: Text('Expired or invalid'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'fake_or_misleading',
+                    child: Text('Fake or misleading'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'wrong_information',
+                    child: Text('Wrong information'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'inappropriate',
+                    child: Text('Inappropriate'),
+                  ),
+                  DropdownMenuItem(value: 'spam', child: Text('Spam')),
+                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => reason = value ?? reason),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: detailsController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Details',
+                  hintText: 'Tell us what looks wrong',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final description = detailsController.text.trim();
+    detailsController.dispose();
+    if (submitted != true) return;
+
+    try {
+      await _apiService.reportPromotion(
+          widget.promotion.id,
+          {
+            'reason': reason,
+            'description': description,
+          },
+          _userToken!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_t(
+            'Thanks, we sent this deal report to admin.',
+            'ස්තුතියි, මෙම deal report එක admin වෙත යැව්වා.',
+            'நன்றி, இந்த deal report admin-க்கு அனுப்பப்பட்டது.',
+          )),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to report deal: $e')),
+      );
+    }
+  }
+
   Future<void> _submitComment() async {
     debugPrint('DEBUG: _submitComment called');
     if (_isPlatformBankOffer) {
@@ -1167,6 +1273,16 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               onPressed: _shareDeal,
             ),
           ),
+          if (!_isPlatformBankOffer)
+            IconButton(
+              icon: const Icon(Icons.flag_outlined),
+              tooltip: _t(
+                'Report deal',
+                'Deal report කරන්න',
+                'Deal report செய்யவும்',
+              ),
+              onPressed: _showReportDealDialog,
+            ),
         ],
       ),
       bottomNavigationBar: stickyPrimaryAction == null

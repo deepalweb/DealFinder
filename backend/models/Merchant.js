@@ -27,6 +27,15 @@ const merchantSchema = new mongoose.Schema({
   orderLink: { type: String }, // External ordering link
   deliveryAvailable: { type: Boolean, default: false },
   pickupAvailable: { type: Boolean, default: false },
+  openingHours: {
+    monday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } },
+    tuesday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } },
+    wednesday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } },
+    thursday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } },
+    friday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } },
+    saturday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } },
+    sunday: { open: { type: String }, close: { type: String }, closed: { type: Boolean, default: false } }
+  },
   contactInfo: { type: String }, // General contact like email or phone
   promotions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Promotion' }],
   logo: { type: String }, // URL or path to merchant's logo

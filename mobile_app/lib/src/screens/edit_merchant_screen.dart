@@ -42,6 +42,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
   final _bannerUrlController = TextEditingController();
   final _latitudeController = TextEditingController();
   final _longitudeController = TextEditingController();
+  final _openTimeController = TextEditingController();
+  final _closeTimeController = TextEditingController();
 
   // Social media controllers
   final _facebookController = TextEditingController();
@@ -56,6 +58,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
   String _merchantType = 'offline';
   bool _deliveryAvailable = false;
   bool _pickupAvailable = false;
+  bool _weekendsClosed = false;
   File? _logoFile;
   File? _bannerFile;
   String? _uploadedLogoUrl;
@@ -110,6 +113,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
       _addressController.text = widget.merchantData!['address'] ?? '';
       _logoUrlController.text = widget.merchantData!['logo'] ?? '';
       _bannerUrlController.text = widget.merchantData!['banner'] ?? '';
+      final openingHours =
+          widget.merchantData!['openingHours'] as Map<String, dynamic>?;
+      final monday = openingHours?['monday'] as Map<String, dynamic>?;
+      final saturday = openingHours?['saturday'] as Map<String, dynamic>?;
+      _openTimeController.text = (monday?['open'] ?? '').toString();
+      _closeTimeController.text = (monday?['close'] ?? '').toString();
+      _weekendsClosed = saturday?['closed'] == true;
 
       // Load location
       final location =
@@ -158,6 +168,31 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
     _markDirty();
   }
 
+  Map<String, dynamic> _buildOpeningHoursPayload() {
+    final open = _openTimeController.text.trim();
+    final close = _closeTimeController.text.trim();
+    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    const weekends = ['saturday', 'sunday'];
+    final payload = <String, dynamic>{};
+
+    for (final day in weekdays) {
+      payload[day] = {
+        'open': open,
+        'close': close,
+        'closed': open.isEmpty || close.isEmpty,
+      };
+    }
+    for (final day in weekends) {
+      payload[day] = {
+        'open': _weekendsClosed ? '' : open,
+        'close': _weekendsClosed ? '' : close,
+        'closed': _weekendsClosed || open.isEmpty || close.isEmpty,
+      };
+    }
+
+    return payload;
+  }
+
   void _registerFormListeners() {
     final controllers = [
       _nameController,
@@ -172,6 +207,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
       _bannerUrlController,
       _latitudeController,
       _longitudeController,
+      _openTimeController,
+      _closeTimeController,
       _facebookController,
       _instagramController,
       _twitterController,
@@ -235,6 +272,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
     _bannerUrlController.dispose();
     _latitudeController.dispose();
     _longitudeController.dispose();
+    _openTimeController.dispose();
+    _closeTimeController.dispose();
     _facebookController.dispose();
     _instagramController.dispose();
     _twitterController.dispose();
@@ -311,6 +350,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
         'orderLink': _orderLinkController.text.trim(),
         'deliveryAvailable': _deliveryAvailable,
         'pickupAvailable': _pickupAvailable,
+        'openingHours': _buildOpeningHoursPayload(),
         'contactInfo': _contactInfoController.text.trim(),
         'contactNumber': _contactNumberController.text.trim(),
         'address': _addressController.text.trim(),
@@ -771,6 +811,67 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                 return 'Address is required';
               }
               return null;
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'Opening Hours',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Set the regular hours shown on your store profile.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _openTimeController,
+                  decoration: InputDecoration(
+                    labelText: 'Open',
+                    hintText: '09:00',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    prefixIcon: const Icon(Icons.schedule),
+                  ),
+                  keyboardType: TextInputType.datetime,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _closeTimeController,
+                  decoration: InputDecoration(
+                    labelText: 'Close',
+                    hintText: '18:00',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    prefixIcon: const Icon(Icons.schedule_outlined),
+                  ),
+                  keyboardType: TextInputType.datetime,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Closed on weekends'),
+            subtitle: const Text('Saturday and Sunday will show as closed.'),
+            value: _weekendsClosed,
+            onChanged: (value) {
+              setState(() => _weekendsClosed = value);
+              _markDirty();
             },
           ),
         ],

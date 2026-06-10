@@ -6,6 +6,7 @@ const Promotion = require('../models/Promotion');
 const Merchant = require('../models/Merchant');
 const PromotionClick = require('../models/PromotionClick');
 const User = require('../models/User');
+const Report = require('../models/Report');
 const { authenticateJWT, authorizeAdmin, authorizePromotionOwnerOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 const { notifyFavoriteStoreFollowers } = require('../jobs/favoriteStoreNotifications');
 const { notifyFlashSale } = require('../jobs/flashSaleNotifications');
@@ -1187,6 +1188,41 @@ router.post('/:id/redemption-feedback', authenticateJWT, async (req, res) => {
       feedback: promotion.redemptionFeedback,
       ...getRedemptionFeedbackSummary(promotion),
     });
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/:id/reports', authenticateJWT, async (req, res) => {
+  try {
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : '';
+    const description =
+      typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    const validReasons = [
+      'fake_or_misleading',
+      'expired_or_invalid',
+      'wrong_information',
+      'inappropriate',
+      'spam',
+      'other',
+    ];
+
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({ message: 'Valid report reason is required.' });
+    }
+
+    const promotion = await Promotion.findById(req.params.id).select('_id');
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+    const report = await Report.create({
+      targetType: 'promotion',
+      promotion: promotion._id,
+      reporter: req.user.id,
+      reason,
+      description,
+    });
+
+    res.status(201).json(report);
   } catch (error) {
     res.status(500).json(safeError(error));
   }

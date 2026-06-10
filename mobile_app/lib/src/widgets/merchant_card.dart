@@ -25,6 +25,61 @@ class MerchantCard extends StatelessWidget {
     this.compact = false,
   });
 
+  String _todayKey() {
+    switch (DateTime.now().weekday) {
+      case DateTime.monday:
+        return 'monday';
+      case DateTime.tuesday:
+        return 'tuesday';
+      case DateTime.wednesday:
+        return 'wednesday';
+      case DateTime.thursday:
+        return 'thursday';
+      case DateTime.friday:
+        return 'friday';
+      case DateTime.saturday:
+        return 'saturday';
+      default:
+        return 'sunday';
+    }
+  }
+
+  int? _parseClock(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    final parts = text.split(':');
+    if (parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return null;
+    }
+    return hour * 60 + minute;
+  }
+
+  ({bool? openNow, String label}) _openStatus(Map<String, dynamic> merchant) {
+    final hours = merchant['openingHours'];
+    if (hours is! Map) return (openNow: null, label: 'Hours unavailable');
+    final today = hours[_todayKey()];
+    if (today is! Map) return (openNow: null, label: 'Hours unavailable');
+    if (today['closed'] == true) return (openNow: false, label: 'Closed today');
+    final openText = (today['open'] ?? '').toString();
+    final closeText = (today['close'] ?? '').toString();
+    final open = _parseClock(openText);
+    final close = _parseClock(closeText);
+    if (open == null || close == null) {
+      return (openNow: null, label: 'Hours unavailable');
+    }
+    final now = DateTime.now();
+    final current = now.hour * 60 + now.minute;
+    final isOpen = close < open
+        ? current >= open || current <= close
+        : current >= open && current <= close;
+    return (
+      openNow: isOpen,
+      label: isOpen ? 'Open now' : 'Closed now',
+    );
+  }
+
   Widget _buildImageWidget(
     String? imageUrl,
     Widget placeholder, {
@@ -92,6 +147,7 @@ class MerchantCard extends StatelessWidget {
     final gradientColors = _getGradientColors(colorSeed);
     final bannerHeight = compact ? 118.0 : 146.0;
     final logoRadius = compact ? 26.0 : 32.0;
+    final openStatus = _openStatus(merchant);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -334,6 +390,19 @@ class MerchantCard extends StatelessWidget {
                           background: const Color(0xFFE8F3FF),
                           foreground: const Color(0xFF1E88E5),
                         ),
+                        if (openStatus.openNow != null)
+                          _buildInfoPill(
+                            icon: openStatus.openNow == true
+                                ? Icons.check_circle_outline
+                                : Icons.schedule_outlined,
+                            label: openStatus.label,
+                            background: openStatus.openNow == true
+                                ? const Color(0xFFE8F8EF)
+                                : const Color(0xFFF3F6FA),
+                            foreground: openStatus.openNow == true
+                                ? const Color(0xFF15803D)
+                                : const Color(0xFF64748B),
+                          ),
                         if (ratingsCount > 0)
                           _buildInfoPill(
                             icon: Icons.star_rate_rounded,

@@ -326,6 +326,114 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     }
   }
 
+  Future<void> _showReportStoreDialog() async {
+    if (_userToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_merchantLocalizedText(
+            context,
+            'Please log in to report this store.',
+            'මෙම store එක report කිරීමට කරුණාකර log in වෙන්න.',
+            'இந்த store-ஐ report செய்ய log in செய்யவும்.',
+          )),
+        ),
+      );
+      return;
+    }
+
+    var reason = 'wrong_information';
+    final detailsController = TextEditingController();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(_merchantLocalizedText(
+            context,
+            'Report store',
+            'Store report කරන්න',
+            'Store report செய்யவும்',
+          )),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: reason,
+                decoration: const InputDecoration(labelText: 'Reason'),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'wrong_information',
+                    child: Text('Wrong information'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'fake_or_misleading',
+                    child: Text('Fake or misleading'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'inappropriate',
+                    child: Text('Inappropriate'),
+                  ),
+                  DropdownMenuItem(value: 'spam', child: Text('Spam')),
+                  DropdownMenuItem(value: 'other', child: Text('Other')),
+                ],
+                onChanged: (value) =>
+                    setDialogState(() => reason = value ?? reason),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: detailsController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Details',
+                  hintText: 'Tell us what looks wrong',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final description = detailsController.text.trim();
+    detailsController.dispose();
+    if (submitted != true) return;
+
+    try {
+      await _apiService.reportMerchant(
+          widget.merchantId,
+          {
+            'reason': reason,
+            'description': description,
+          },
+          _userToken!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_merchantLocalizedText(
+            context,
+            'Thanks, we sent this store report to admin.',
+            'ස්තුතියි, මෙම store report එක admin වෙත යැව්වා.',
+            'நன்றி, இந்த store report admin-க்கு அனுப்பப்பட்டது.',
+          )),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to report store: $e')),
+      );
+    }
+  }
+
   Future<void> _loadFollowStatus() async {
     final isFollowing =
         await MerchantFollowingManager.isFollowing(widget.merchantId);
@@ -475,6 +583,85 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
   String get _merchantOrderLink =>
       _normalizeWebsite(_merchant?['orderLink'] ?? _merchant?['website']);
+
+  String get _todayKey {
+    switch (DateTime.now().weekday) {
+      case DateTime.monday:
+        return 'monday';
+      case DateTime.tuesday:
+        return 'tuesday';
+      case DateTime.wednesday:
+        return 'wednesday';
+      case DateTime.thursday:
+        return 'thursday';
+      case DateTime.friday:
+        return 'friday';
+      case DateTime.saturday:
+        return 'saturday';
+      default:
+        return 'sunday';
+    }
+  }
+
+  Map<String, dynamic>? get _todayOpeningHours {
+    final hours = _merchant?['openingHours'];
+    if (hours is! Map) return null;
+    final today = hours[_todayKey];
+    return today is Map<String, dynamic>
+        ? today
+        : (today is Map ? Map<String, dynamic>.from(today) : null);
+  }
+
+  bool? get _isOpenNow {
+    final today = _todayOpeningHours;
+    if (today == null || today['closed'] == true) return false;
+    final open = _parseClock(today['open']);
+    final close = _parseClock(today['close']);
+    if (open == null || close == null) return null;
+    final now = DateTime.now();
+    final current = now.hour * 60 + now.minute;
+    if (close < open) return current >= open || current <= close;
+    return current >= open && current <= close;
+  }
+
+  int? _parseClock(dynamic value) {
+    final text = value?.toString().trim() ?? '';
+    final parts = text.split(':');
+    if (parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return null;
+    }
+    return hour * 60 + minute;
+  }
+
+  String get _hoursLabel {
+    final today = _todayOpeningHours;
+    if (today == null) {
+      return _merchantLocalizedText(
+        context,
+        'Hours unavailable',
+        'Hours නොමැත',
+        'Hours இல்லை',
+      );
+    }
+    if (today['closed'] == true) {
+      return _merchantLocalizedText(
+          context, 'Closed today', 'අද වසා ඇත', 'இன்று மூடப்பட்டுள்ளது');
+    }
+    final open = (today['open'] ?? '').toString();
+    final close = (today['close'] ?? '').toString();
+    if (open.isEmpty || close.isEmpty) {
+      return _merchantLocalizedText(
+        context,
+        'Hours unavailable',
+        'Hours නොමැත',
+        'Hours இல்லை',
+      );
+    }
+    return '$open - $close';
+  }
 
   String _merchantTypeLabel(String merchantType) {
     switch (merchantType) {
@@ -1081,6 +1268,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 );
               },
             ),
+          IconButton(
+            icon: const Icon(Icons.flag_outlined),
+            tooltip: _merchantLocalizedText(
+              context,
+              'Report store',
+              'Store report කරන්න',
+              'Store report செய்யவும்',
+            ),
+            onPressed: _showReportStoreDialog,
+          ),
         ],
       ),
       body: _loading
@@ -1214,6 +1411,20 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                             .storefront_outlined,
                                                     label: _merchantTypeLabel(
                                                         merchantType),
+                                                  ),
+                                                  _buildModeChip(
+                                                    icon: _isOpenNow == true
+                                                        ? Icons
+                                                            .check_circle_outline
+                                                        : Icons
+                                                            .schedule_outlined,
+                                                    label: _isOpenNow == true
+                                                        ? _merchantLocalizedText(
+                                                            context,
+                                                            'Open now • $_hoursLabel',
+                                                            'දැන් විවෘතයි • $_hoursLabel',
+                                                            'இப்போது திறந்திருக்கும் • $_hoursLabel')
+                                                        : _hoursLabel,
                                                   ),
                                                   if (_merchantDeliveryAvailable)
                                                     _buildModeChip(

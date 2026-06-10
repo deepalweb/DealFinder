@@ -329,6 +329,18 @@ export const AdminAPI = {
   publishSections: () =>
     fetchAPI<any>('admin/sections/publish', { method: 'POST' })
       .then((res) => { invalidateCache('admin/sections'); invalidateCache('promotions'); return res; }),
+  getReports: (filters = {}) => {
+    const q = new URLSearchParams(
+      Object.entries(filters as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, value]) => {
+        if (value !== undefined && value !== null && value !== '') acc[key] = String(value);
+        return acc;
+      }, {})
+    ).toString();
+    return fetchAPI<any[]>(`admin/reports${q ? `?${q}` : ''}`, { cache: 'no-store' });
+  },
+  updateReport: (id: string, data: any) =>
+    fetchAPI<any>(`admin/reports/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+      .then((res) => { invalidateCache('admin/reports'); return res; }),
 };
 
 // Notifications

@@ -728,6 +728,22 @@ class ApiService {
     throw Exception('Failed to save deal feedback: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> reportPromotion(
+      String promotionId, Map<String, dynamic> data, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions/$promotionId/reports'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to report deal: ${response.body}');
+  }
+
   Future<void> recordPromotionClick(
     String promotionId, {
     String type = 'click',
@@ -868,6 +884,22 @@ class ApiService {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
     throw Exception('Failed to post store review: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> reportMerchant(
+      String merchantId, Map<String, dynamic> data, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}merchants/$merchantId/reports'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to report store: ${response.body}');
   }
 
   Future<List<Map<String, dynamic>>> postMerchantRating(

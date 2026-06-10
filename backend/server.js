@@ -110,6 +110,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const adminPromotionRoutes = require('./routes/adminRoutes/adminPromotionRoutes');
 const adminDashboardRoutes = require('./routes/adminRoutes/adminDashboardRoutes');
 const adminSectionRoutes = require('./routes/adminRoutes/adminSectionRoutes');
+const adminReportRoutes = require('./routes/adminRoutes/adminReportRoutes');
 const imageRoutes = require('./routes/imageRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 
@@ -130,6 +131,7 @@ const adminRouter = express.Router();
 adminRouter.use('/', adminPromotionRoutes); // Mounted at /api/admin/promotions (due to internal routing)
 adminRouter.use('/', adminDashboardRoutes); // Mounted at /api/admin/dashboard/stats (due to internal routing)
 adminRouter.use('/', adminSectionRoutes);
+adminRouter.use('/', adminReportRoutes);
 app.use('/api/admin', adminRouter);
 
 // Serve static files - IMPORTANT: These must come BEFORE the catch-all routes
