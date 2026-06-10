@@ -48,6 +48,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   bool _showTerms = false;
   List<Map<String, dynamic>> _comments = [];
   List<Map<String, dynamic>> _ratings = [];
+  List<Map<String, dynamic>> _redemptionFeedback = [];
   bool _loadingComments = true;
   bool _submittingComment = false;
   bool _submittingRating = false;
@@ -66,6 +67,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   int _commentCount = 0;
   int _clickCount = 0;
   int _directionCount = 0;
+  int _workedCount = 0;
+  int _didntWorkCount = 0;
+  bool? _userRedemptionWorked;
+  bool _submittingRedemptionFeedback = false;
   Timer? _countdownTimer;
 
   String _t(String en, String si, String ta) {
@@ -173,6 +178,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       _userToken = prefs.getString('userToken');
       _userId = prefs.getString('userId');
       _userRating = _findUserRating(_ratings);
+      _userRedemptionWorked = _findUserRedemptionFeedback(_redemptionFeedback);
     });
   }
 
@@ -563,6 +569,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     await Future.wait([
       _fetchCommentsAndRatings(),
       _fetchPromotionStats(),
+      _fetchRedemptionFeedback(),
     ]);
   }
 
@@ -613,6 +620,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             (stats['commentCount'] as num?)?.toInt() ?? _comments.length;
         _clickCount = (stats['clickCount'] as num?)?.toInt() ?? 0;
         _directionCount = (stats['directionCount'] as num?)?.toInt() ?? 0;
+        _workedCount = (stats['workedCount'] as num?)?.toInt() ?? _workedCount;
+        _didntWorkCount =
+            (stats['didntWorkCount'] as num?)?.toInt() ?? _didntWorkCount;
         _reviewCount = (stats['ratingsCount'] as num?)?.toInt() ?? _reviewCount;
         _averageRating =
             (stats['averageRating'] as num?)?.toDouble() ?? _averageRating;
@@ -645,6 +655,38 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
 
     return 0;
+  }
+
+  bool? _findUserRedemptionFeedback(List<Map<String, dynamic>> feedback) {
+    if (_userId == null || _userId!.isEmpty) return null;
+
+    for (final entry in feedback) {
+      final feedbackUserId = _normalizeId(entry['user']);
+      if (feedbackUserId == _userId) {
+        return entry['worked'] == true;
+      }
+    }
+
+    return null;
+  }
+
+  Future<void> _fetchRedemptionFeedback() async {
+    try {
+      final response = await _apiService
+          .fetchPromotionRedemptionFeedback(widget.promotion.id);
+      final feedback = response['feedback'] is List
+          ? (response['feedback'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList()
+          : const <Map<String, dynamic>>[];
+      if (!mounted) return;
+      setState(() {
+        _redemptionFeedback = feedback;
+        _workedCount = (response['workedCount'] as num?)?.toInt() ?? 0;
+        _didntWorkCount = (response['didntWorkCount'] as num?)?.toInt() ?? 0;
+        _userRedemptionWorked = _findUserRedemptionFeedback(feedback);
+      });
+    } catch (_) {}
   }
 
   void _showAuthRequiredMessage(String action) {
@@ -717,6 +759,65 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     } finally {
       if (mounted) {
         setState(() => _submittingRating = false);
+      }
+    }
+  }
+
+  Future<void> _submitRedemptionFeedback(bool worked) async {
+    if (_isPlatformBankOffer) return;
+    if (_userToken == null) {
+      _showAuthRequiredMessage(worked
+          ? _t(
+              'mark this deal as worked',
+              'මෙම deal එක worked ලෙස සලකුණු කිරීමට',
+              'இந்த deal worked என்று குறிக்க')
+          : _t(
+              'mark this deal as not working',
+              'මෙම deal එක not working ලෙස සලකුණු කිරීමට',
+              'இந்த deal not working என்று குறிக்க'));
+      return;
+    }
+
+    setState(() => _submittingRedemptionFeedback = true);
+    try {
+      final response = await _apiService.postPromotionRedemptionFeedback(
+        widget.promotion.id,
+        worked,
+        _userToken!,
+      );
+      if (!mounted) return;
+      final feedback = response['feedback'] is List
+          ? (response['feedback'] as List)
+              .whereType<Map<String, dynamic>>()
+              .toList()
+          : const <Map<String, dynamic>>[];
+      setState(() {
+        _redemptionFeedback = feedback;
+        _workedCount = (response['workedCount'] as num?)?.toInt() ?? 0;
+        _didntWorkCount = (response['didntWorkCount'] as num?)?.toInt() ?? 0;
+        _userRedemptionWorked = worked;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_t(
+            'Thanks for confirming this deal.',
+            'මෙම deal එක confirm කළාට ස්තුතියි.',
+            'இந்த deal-ஐ உறுதிசெய்ததற்கு நன்றி.',
+          )),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_t('Failed to save feedback', 'Feedback save කිරීමට අසමත් විය', 'Feedback save செய்ய முடியவில்லை')}: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submittingRedemptionFeedback = false);
       }
     }
   }
@@ -1410,6 +1511,100 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     );
   }
 
+  Widget _buildRedemptionFeedbackSection(ThemeData theme) {
+    Widget feedbackButton({
+      required bool worked,
+      required IconData icon,
+      required String label,
+      required int count,
+    }) {
+      final selected = _userRedemptionWorked == worked;
+      final color = worked ? Colors.green : Colors.deepOrange;
+      return Expanded(
+        child: OutlinedButton.icon(
+          onPressed: _submittingRedemptionFeedback
+              ? null
+              : () => _submitRedemptionFeedback(worked),
+          icon: Icon(icon, size: 18),
+          label: Text('$label ($count)'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: selected ? Colors.white : color,
+            backgroundColor: selected ? color : Colors.transparent,
+            side: BorderSide(color: color.withValues(alpha: 0.65)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t(
+              'Did this deal work?',
+              'මෙම deal එක වැඩ කළාද?',
+              'இந்த deal வேலை செய்ததா?',
+            ),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              feedbackButton(
+                worked: true,
+                icon: Icons.check_circle_outline,
+                label: _t('Worked', 'වැඩ කළා', 'Worked'),
+                count: _workedCount,
+              ),
+              const SizedBox(width: 10),
+              feedbackButton(
+                worked: false,
+                icon: Icons.error_outline,
+                label: _t("Didn't", 'වැඩ නැහැ', 'இல்லை'),
+                count: _didntWorkCount,
+              ),
+            ],
+          ),
+          if (_submittingRedemptionFeedback) ...[
+            const SizedBox(height: 8),
+            const LinearProgressIndicator(minHeight: 2),
+          ],
+          if (_userRedemptionWorked != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _userRedemptionWorked == true
+                  ? _t(
+                      'You marked this deal as worked.',
+                      'ඔබ මෙම deal එක worked ලෙස සලකුණු කර ඇත.',
+                      'இந்த deal worked என்று நீங்கள் குறித்துள்ளீர்கள்.',
+                    )
+                  : _t(
+                      'You marked this deal as not working.',
+                      'ඔබ මෙම deal එක not working ලෙස සලකුණු කර ඇත.',
+                      'இந்த deal not working என்று நீங்கள் குறித்துள்ளீர்கள்.',
+                    ),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.primary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildRatingsReviewsSection(ThemeData theme) {
     if (_isPlatformBankOffer) {
       return const SizedBox.shrink();
@@ -1493,6 +1688,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     ),
                   ),
                 ],
+                const SizedBox(height: 16.0),
+                _buildRedemptionFeedbackSection(theme),
                 const SizedBox(height: 16.0),
                 Text(
                   '${l10n.commentsLabel} ($_commentCount)',

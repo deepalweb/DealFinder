@@ -45,6 +45,11 @@ const merchantSchema = new mongoose.Schema({
     value: { type: Number, min: 1, max: 5, required: true },
     createdAt: { type: Date, default: Date.now }
   }],
+  reviews: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    text: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now }
+  }],
   status: {
     type: String,
     enum: ['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'],

@@ -68,6 +68,11 @@ const promotionSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     value: { type: Number, min: 1, max: 5, required: true },
     createdAt: { type: Date, default: Date.now }
+  }],
+  redemptionFeedback: [{
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    worked: { type: Boolean, required: true },
+    createdAt: { type: Date, default: Date.now }
   }]
 }, {
   timestamps: true,

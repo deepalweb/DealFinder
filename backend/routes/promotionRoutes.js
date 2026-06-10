@@ -46,6 +46,20 @@ function attachPromotionRatingSummary(promotion) {
   };
 }
 
+function getRedemptionFeedbackSummary(promotion) {
+  const feedback = Array.isArray(promotion?.redemptionFeedback)
+    ? promotion.redemptionFeedback
+    : [];
+  return feedback.reduce(
+    (summary, entry) => {
+      if (entry?.worked === true) summary.workedCount += 1;
+      if (entry?.worked === false) summary.didntWorkCount += 1;
+      return summary;
+    },
+    { workedCount: 0, didntWorkCount: 0 }
+  );
+}
+
 const COLOMBO_TIME_ZONE = 'Asia/Colombo';
 const COLOMBO_OFFSET = '+05:30';
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -504,7 +518,7 @@ router.get('/:id/stats', async (req, res) => {
     }
 
     const promotion = await Promotion.findById(req.params.id)
-      .select('ratings comments')
+      .select('ratings comments redemptionFeedback')
       .lean();
 
     if (!promotion) {
@@ -530,6 +544,7 @@ router.get('/:id/stats', async (req, res) => {
       commentCount: comments.length,
       ratingsCount: ratings.length,
       averageRating,
+      ...getRedemptionFeedbackSummary(promotion),
       favoriteCount,
       clickCount: totalClickCount,
       viewCount,
@@ -1126,6 +1141,52 @@ router.get('/:id/ratings', async (req, res) => {
     );
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json(promotion.ratings);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/:id/redemption-feedback', async (req, res) => {
+  try {
+    const promotion = await Promotion.findById(req.params.id)
+      .select('redemptionFeedback')
+      .populate('redemptionFeedback.user', 'name email profilePicture');
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    res.status(200).json({
+      feedback: promotion.redemptionFeedback || [],
+      ...getRedemptionFeedbackSummary(promotion),
+    });
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/:id/redemption-feedback', authenticateJWT, async (req, res) => {
+  try {
+    if (typeof req.body.worked !== 'boolean') {
+      return res.status(400).json({ message: 'worked must be true or false.' });
+    }
+
+    const promotion = await Promotion.findById(req.params.id);
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+    promotion.redemptionFeedback = promotion.redemptionFeedback.filter(
+      (entry) => entry.user.toString() !== req.user.id
+    );
+    promotion.redemptionFeedback.push({
+      user: req.user.id,
+      worked: req.body.worked,
+    });
+    await promotion.save();
+    await Promotion.populate(promotion, {
+      path: 'redemptionFeedback.user',
+      select: 'name email profilePicture',
+    });
+
+    res.status(201).json({
+      feedback: promotion.redemptionFeedback,
+      ...getRedemptionFeedbackSummary(promotion),
+    });
   } catch (error) {
     res.status(500).json(safeError(error));
   }

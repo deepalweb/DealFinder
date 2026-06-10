@@ -44,11 +44,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   bool _followBusy = false;
   bool _isFollowing = false;
   bool _loadingRatings = true;
+  bool _loadingReviews = true;
   bool _submittingRating = false;
+  bool _submittingReview = false;
   String? _error;
   String _activeTab = 'active';
   final ApiService _apiService = ApiService();
+  final TextEditingController _reviewController = TextEditingController();
   List<Map<String, dynamic>> _ratings = [];
+  List<Map<String, dynamic>> _reviews = [];
   double _averageRating = 0;
   double _userRating = 0;
   int _ratingsCount = 0;
@@ -61,12 +65,19 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     _bootstrap();
   }
 
+  @override
+  void dispose() {
+    _reviewController.dispose();
+    super.dispose();
+  }
+
   Future<void> _bootstrap() async {
     await _loadUserAuth();
     await Future.wait([
       _fetchMerchant(),
       _loadFollowStatus(),
       _fetchMerchantRatings(),
+      _fetchMerchantReviews(),
     ]);
   }
 
@@ -142,6 +153,29 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     } finally {
       if (mounted) {
         setState(() => _loadingRatings = false);
+      }
+    }
+  }
+
+  Future<void> _fetchMerchantReviews() async {
+    if (mounted) {
+      setState(() => _loadingReviews = true);
+    }
+
+    try {
+      final reviews = await _apiService.fetchMerchantReviews(widget.merchantId);
+      if (!mounted) return;
+      setState(() {
+        _reviews = reviews;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _reviews = [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loadingReviews = false);
       }
     }
   }
@@ -233,6 +267,61 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     } finally {
       if (mounted) {
         setState(() => _submittingRating = false);
+      }
+    }
+  }
+
+  Future<void> _submitReview() async {
+    final text = _reviewController.text.trim();
+    if (text.isEmpty) return;
+    if (_userToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_merchantLocalizedText(
+            context,
+            'Please log in to review this store.',
+            'මෙම store එක review කිරීමට කරුණාකර log in වෙන්න.',
+            'இந்த store-ஐ review செய்ய log in செய்யவும்.',
+          )),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _submittingReview = true);
+    try {
+      final review = await _apiService.postMerchantReview(
+        widget.merchantId,
+        text,
+        _userToken!,
+      );
+      if (!mounted) return;
+      setState(() {
+        _reviews = [..._reviews, review];
+        _reviewController.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_merchantLocalizedText(
+            context,
+            'Store review posted!',
+            'Store review එක පළ කළා!',
+            'Store review பதிவுசெய்யப்பட்டது!',
+          )),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${_merchantLocalizedText(context, 'Failed to post store review', 'Store review පළ කිරීමට අසමත් විය', 'Store review பதிவிட முடியவில்லை')}: $e',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _submittingReview = false);
       }
     }
   }
@@ -525,6 +614,15 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     return '$start - $end';
   }
 
+  String _formatReviewDate(dynamic value) {
+    final raw = (value ?? '').toString();
+    if (raw.isEmpty) return '';
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return '';
+    final local = parsed.isUtc ? parsed.toLocal() : parsed;
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
+  }
+
   Future<void> _openExternalUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
@@ -780,6 +878,173 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
+  Widget _buildStoreReviewsCard() {
+    final theme = Theme.of(context);
+
+    String reviewerName(Map<String, dynamic> review) {
+      final user = review['user'];
+      if (user is Map<String, dynamic>) {
+        return (user['name'] ?? user['email'] ?? 'DealFinder user').toString();
+      }
+      return _merchantLocalizedText(
+        context,
+        'DealFinder user',
+        'DealFinder user',
+        'DealFinder user',
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6EBF2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.rate_review_outlined,
+                color: Color(0xFF1E88E5),
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${_merchantLocalizedText(context, 'Store Reviews', 'Store Reviews', 'Store Reviews')} (${_reviews.length})',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF14213D),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reviewController,
+            enabled: _userToken != null && !_submittingReview,
+            minLines: 2,
+            maxLines: 4,
+            maxLength: 1000,
+            decoration: InputDecoration(
+              hintText: _userToken == null
+                  ? _merchantLocalizedText(
+                      context,
+                      'Log in to write a store review',
+                      'Store review එකක් ලිවීමට log in වෙන්න',
+                      'Store review எழுத log in செய்யவும்',
+                    )
+                  : _merchantLocalizedText(
+                      context,
+                      'Share your experience with this store',
+                      'මෙම store එක ගැන ඔබගේ අත්දැකීම ලියන්න',
+                      'இந்த store பற்றிய உங்கள் அனுபவத்தை பகிரவும்',
+                    ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: _userToken == null || _submittingReview
+                  ? null
+                  : _submitReview,
+              icon: _submittingReview
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded),
+              label: Text(_merchantLocalizedText(
+                context,
+                'Post Review',
+                'Review පළ කරන්න',
+                'Review பதிவிடவும்',
+              )),
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (_loadingReviews)
+            const LinearProgressIndicator(minHeight: 2)
+          else if (_reviews.isEmpty)
+            Text(
+              _merchantLocalizedText(
+                context,
+                'No store reviews yet.',
+                'තවම store reviews නැහැ.',
+                'இன்னும் store reviews இல்லை.',
+              ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF607080),
+              ),
+            )
+          else
+            Column(
+              children: _reviews.reversed.take(5).map((review) {
+                final date = _formatReviewDate(review['createdAt']);
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F9FC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              reviewerName(review),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF14213D),
+                              ),
+                            ),
+                          ),
+                          if (date.isNotEmpty)
+                            Text(
+                              date,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF7C8896),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        (review['text'] ?? '').toString(),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF425466),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -843,6 +1108,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                         await Future.wait([
                           _fetchMerchant(),
                           _fetchMerchantRatings(),
+                          _fetchMerchantReviews(),
                         ]);
                       },
                       child: ListView(
@@ -1048,6 +1314,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                     ],
                                     const SizedBox(height: 16),
                                     _buildStoreRatingCard(),
+                                    const SizedBox(height: 16),
+                                    _buildStoreReviewsCard(),
                                     const SizedBox(height: 16),
                                     Wrap(
                                       spacing: 10,

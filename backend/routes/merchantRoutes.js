@@ -173,6 +173,41 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
   }
 });
 
+router.get('/:id/reviews', async (req, res) => {
+  try {
+    const merchant = await Merchant.findById(req.params.id).populate(
+      'reviews.user',
+      'name email profilePicture',
+    );
+    if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
+    res.status(200).json(merchant.reviews || []);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/:id/reviews', authenticateJWT, async (req, res) => {
+  try {
+    const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+    if (!text) return res.status(400).json({ message: 'Review text is required.' });
+    if (text.length > 1000) {
+      return res.status(400).json({ message: 'Review text must be 1000 characters or fewer.' });
+    }
+
+    const merchant = await Merchant.findById(req.params.id);
+    if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
+
+    merchant.reviews.push({ user: req.user.id, text });
+    await merchant.save();
+    const newReview = merchant.reviews[merchant.reviews.length - 1];
+    await Merchant.populate(newReview, { path: 'user', select: 'name email profilePicture' });
+
+    res.status(201).json(newReview);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Create a new merchant (Admin Only)
 router.post('/', authenticateJWT, authorizeAdmin, [
   body('name').trim().notEmpty().withMessage('Name is required'),

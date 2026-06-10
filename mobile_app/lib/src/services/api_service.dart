@@ -647,6 +647,8 @@ class ApiService {
         'averageRating': ratingValues.isNotEmpty
             ? ratingValues.reduce((a, b) => a + b) / ratingValues.length
             : 0.0,
+        'workedCount': 0,
+        'didntWorkCount': 0,
         'favoriteCount': 0,
         'clickCount': 0,
         'viewCount': 0,
@@ -698,6 +700,32 @@ class ApiService {
     } else {
       throw Exception('Failed to post rating: ${response.body}');
     }
+  }
+
+  Future<Map<String, dynamic>> fetchPromotionRedemptionFeedback(
+      String promotionId) async {
+    final response = await http.get(
+        Uri.parse('${_baseUrl}promotions/$promotionId/redemption-feedback'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to load deal feedback');
+  }
+
+  Future<Map<String, dynamic>> postPromotionRedemptionFeedback(
+      String promotionId, bool worked, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions/$promotionId/redemption-feedback'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'worked': worked}),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to save deal feedback: ${response.body}');
   }
 
   Future<void> recordPromotionClick(
@@ -807,6 +835,39 @@ class ApiService {
       return [];
     }
     throw Exception('Failed to load store ratings');
+  }
+
+  Future<List<Map<String, dynamic>>> fetchMerchantReviews(
+      String merchantId) async {
+    final response =
+        await http.get(Uri.parse('${_baseUrl}merchants/$merchantId/reviews'));
+    if (response.statusCode == 200) {
+      final dynamic data = jsonDecode(response.body);
+      if (data is List) {
+        return data.cast<Map<String, dynamic>>();
+      }
+      if (data is Map<String, dynamic>) {
+        return [data];
+      }
+      return [];
+    }
+    throw Exception('Failed to load store reviews');
+  }
+
+  Future<Map<String, dynamic>> postMerchantReview(
+      String merchantId, String text, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}merchants/$merchantId/reviews'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'text': text}),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to post store review: ${response.body}');
   }
 
   Future<List<Map<String, dynamic>>> postMerchantRating(
