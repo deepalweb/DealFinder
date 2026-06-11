@@ -1,7 +1,9 @@
 const Promotion = require('../models/Promotion');
 const User = require('../models/User');
+const DealAlert = require('../models/DealAlert');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
+const { hasRecentNotification } = require('./jobNotificationUtils');
 
 /**
  * Track promotion price changes and notify users
@@ -25,11 +27,22 @@ async function checkPriceDrops() {
 
     for (const pref of preferences) {
       const user = pref.userId;
-      if (!user || !user.favorites || user.favorites.length === 0) continue;
+      if (!user) continue;
+
+      const dealAlertRows = await DealAlert.find({
+        userId: user._id,
+        active: true,
+        alertTypes: 'price_drop',
+      }).select('promotion');
+      const watchedDealIds = [
+        ...(user.favorites || []),
+        ...dealAlertRows.map((alert) => alert.promotion),
+      ];
+      if (watchedDealIds.length === 0) continue;
 
       // Get user's favorite deals
       const favoriteDeals = await Promotion.find({
-        _id: { $in: user.favorites },
+        _id: { $in: watchedDealIds },
         status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] }
       }).populate('merchant');
 
@@ -136,9 +149,23 @@ async function notifyPriceDrop(promotionId, changeDetailsOrOldDiscount, maybeNew
     }
 
     // Find users who favorited this deal
-    const users = await User.find({
+    const favoriteUsers = await User.find({
       favorites: promotionId
     });
+    const dealAlerts = await DealAlert.find({
+      promotion: promotionId,
+      active: true,
+      alertTypes: 'price_drop',
+    });
+    const alertUserIds = dealAlerts.map((alert) => alert.userId);
+    const alertUsers = alertUserIds.length
+      ? await User.find({ _id: { $in: alertUserIds } })
+      : [];
+    const usersById = new Map([
+      ...favoriteUsers.map((user) => [String(user._id), user]),
+      ...alertUsers.map((user) => [String(user._id), user]),
+    ]);
+    const users = Array.from(usersById.values());
 
     console.log(`[Price Drop] Found ${users.length} users who favorited this deal`);
 
@@ -168,8 +195,18 @@ async function notifyPriceDrop(promotionId, changeDetailsOrOldDiscount, maybeNew
       : `"${promotion.title}" at ${merchantName} - Discount increased from ${oldDiscount} to ${newDiscount}!`;
 
     let notificationsSent = 0;
+    const recentWindowStart = new Date(Date.now() - 6 * 60 * 60 * 1000);
 
     for (const pref of preferences) {
+      const alreadySent = await hasRecentNotification({
+        userId: pref.userId,
+        type: 'price_drop',
+        dealId: promotion._id,
+        merchantId: typeof promotion.merchant === 'object' ? promotion.merchant._id : promotion.merchant,
+        since: recentWindowStart,
+      });
+      if (alreadySent) continue;
+
       await NotificationService.sendNotification(
         pref.userId,
         'price_drop',
@@ -191,6 +228,15 @@ async function notifyPriceDrop(promotionId, changeDetailsOrOldDiscount, maybeNew
         }
       );
 
+      await DealAlert.updateMany(
+        {
+          userId: pref.userId,
+          promotion: promotion._id,
+          active: true,
+          alertTypes: 'price_drop',
+        },
+        { $set: { lastPriceDropNotifiedAt: new Date() } }
+      );
       notificationsSent++;
     }
 

@@ -77,6 +77,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   bool? _userRedemptionWorked;
   bool _submittingRedemptionFeedback = false;
   bool _creatingRedemptionQr = false;
+  bool _dealAlertEnabled = false;
+  bool _loadingDealAlert = false;
   Timer? _countdownTimer;
 
   String _t(String en, String si, String ta) {
@@ -98,7 +100,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _loadUserAuth().then((_) => _loadFavoriteStatus());
+    _loadUserAuth().then((_) {
+      _loadFavoriteStatus();
+      _loadDealAlertStatus();
+    });
     if (!_isPlatformBankOffer) {
       _loadReviewsAndStats();
     } else {
@@ -211,6 +216,68 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     setState(() {
       _isFavorite = isFav;
     });
+  }
+
+  Future<void> _loadDealAlertStatus() async {
+    if (_isPlatformBankOffer || _userToken == null) return;
+    try {
+      final status =
+          await _apiService.fetchDealAlertStatus(widget.promotion.id);
+      if (!mounted) return;
+      setState(() {
+        _dealAlertEnabled = status['subscribed'] == true;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _toggleDealAlert() async {
+    if (_isPlatformBankOffer) return;
+    if (_userToken == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_t(
+            'Please log in to get deal alerts.',
+            'Deal alerts ලබා ගැනීමට කරුණාකර log in වෙන්න.',
+            'Deal alerts பெற log in செய்யவும்.',
+          )),
+        ),
+      );
+      return;
+    }
+
+    final nextEnabled = !_dealAlertEnabled;
+    setState(() => _loadingDealAlert = true);
+    try {
+      if (nextEnabled) {
+        await _apiService.enableDealAlert(widget.promotion.id);
+      } else {
+        await _apiService.disableDealAlert(widget.promotion.id);
+      }
+      if (!mounted) return;
+      setState(() => _dealAlertEnabled = nextEnabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(nextEnabled
+              ? _t(
+                  'Deal alerts enabled.',
+                  'Deal alerts සක්‍රීය කළා.',
+                  'Deal alerts இயக்கப்பட்டது.',
+                )
+              : _t(
+                  'Deal alerts disabled.',
+                  'Deal alerts අක්‍රීය කළා.',
+                  'Deal alerts நிறுத்தப்பட்டது.',
+                )),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update deal alert: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingDealAlert = false);
+    }
   }
 
   Future<void> _toggleFavorite() async {
@@ -1276,6 +1343,59 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       ),
     );
     final secondaryActionButtons = <Widget>[
+      if (!_isPlatformBankOffer)
+        Semantics(
+          button: true,
+          label: _dealAlertEnabled
+              ? _t(
+                  'Disable deal alerts',
+                  'Deal alerts අක්‍රීය කරන්න',
+                  'Deal alerts நிறுத்தவும்',
+                )
+              : _t(
+                  'Notify me about this deal',
+                  'මෙම deal එක ගැන මට දැනුම් දෙන්න',
+                  'இந்த deal பற்றி எனக்கு அறிவிக்கவும்',
+                ),
+          child: OutlinedButton.icon(
+            icon: _loadingDealAlert
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(
+                    _dealAlertEnabled
+                        ? Icons.notifications_active
+                        : Icons.notifications_none,
+                    size: 18,
+                  ),
+            label: Text(_dealAlertEnabled
+                ? _t(
+                    'Alerts On',
+                    'Alerts On',
+                    'Alerts On',
+                  )
+                : _t(
+                    'Notify me',
+                    'මට දැනුම් දෙන්න',
+                    'எனக்கு அறிவிக்கவும்',
+                  )),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _dealAlertEnabled
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface,
+              backgroundColor: _dealAlertEnabled
+                  ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
+                  : null,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _loadingDealAlert ? null : _toggleDealAlert,
+          ),
+        ),
       if (_showsVisitNow && !_isPlatformBankOffer)
         Semantics(
           button: true,
@@ -1414,6 +1534,32 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               onPressed: _toggleFavorite,
             ),
           ),
+          if (!_isPlatformBankOffer)
+            IconButton(
+              icon: _loadingDealAlert
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _dealAlertEnabled
+                          ? Icons.notifications_active
+                          : Icons.notifications_none,
+                    ),
+              tooltip: _dealAlertEnabled
+                  ? _t(
+                      'Disable deal alerts',
+                      'Deal alerts අක්‍රීය කරන්න',
+                      'Deal alerts நிறுத்தவும்',
+                    )
+                  : _t(
+                      'Notify me',
+                      'මට දැනුම් දෙන්න',
+                      'எனக்கு அறிவிக்கவும்',
+                    ),
+              onPressed: _loadingDealAlert ? null : _toggleDealAlert,
+            ),
           Semantics(
             button: true,
             label: l10n.shareDeal,
@@ -2420,6 +2566,38 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               ),
             ),
             const SizedBox(width: 10),
+            if (!_isPlatformBankOffer) ...[
+              SizedBox(
+                width: 52,
+                height: 52,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    foregroundColor: _dealAlertEnabled
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: _loadingDealAlert ? null : _toggleDealAlert,
+                  child: _loadingDealAlert
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _dealAlertEnabled
+                              ? Icons.notifications_active
+                              : Icons.notifications_none,
+                          size: 22,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             SizedBox(
               width: 52,
               height: 52,

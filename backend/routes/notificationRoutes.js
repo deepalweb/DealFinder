@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const NotificationLog = require('../models/NotificationLog');
 const NotificationPreference = require('../models/NotificationPreference');
+const DealAlert = require('../models/DealAlert');
+const Promotion = require('../models/Promotion');
 const NotificationService = require('../services/NotificationService');
 const NotificationAnalyticsService = require('../services/NotificationAnalyticsService');
 const transporter = require('../mailer');
@@ -160,6 +162,87 @@ router.post('/preferences/reset', authenticateJWT, async (req, res) => {
     const prefs = new NotificationPreference({ userId: req.user.id });
     await prefs.save();
     res.status(200).json(prefs);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/deal-alerts/:promotionId', authenticateJWT, async (req, res) => {
+  try {
+    const alert = await DealAlert.findOne({
+      userId: req.user.id,
+      promotion: req.params.promotionId,
+      active: true,
+    }).lean();
+
+    res.status(200).json({
+      subscribed: Boolean(alert),
+      alertTypes: alert?.alertTypes || [],
+      alert,
+    });
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/deal-alerts/:promotionId', authenticateJWT, async (req, res) => {
+  try {
+    const promotion = await Promotion.findById(req.params.promotionId).select('_id title');
+    if (!promotion) {
+      return res.status(404).json({ message: 'Promotion not found' });
+    }
+
+    const requestedTypes = Array.isArray(req.body?.alertTypes)
+      ? req.body.alertTypes
+      : ['expiry', 'price_drop'];
+    const alertTypes = [...new Set(
+      requestedTypes.filter((type) => ['expiry', 'price_drop'].includes(type))
+    )];
+    if (!alertTypes.length) {
+      return res.status(400).json({ message: 'At least one alert type is required.' });
+    }
+
+    const alert = await DealAlert.findOneAndUpdate(
+      { userId: req.user.id, promotion: promotion._id },
+      {
+        $set: {
+          alertTypes,
+          active: true,
+        },
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+    await NotificationPreference.updateOne(
+      { userId: req.user.id },
+      { $setOnInsert: { userId: req.user.id } },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+
+    res.status(200).json({
+      message: 'Deal alert enabled',
+      subscribed: true,
+      alertTypes: alert.alertTypes,
+      alert,
+    });
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.delete('/deal-alerts/:promotionId', authenticateJWT, async (req, res) => {
+  try {
+    const alert = await DealAlert.findOneAndUpdate(
+      { userId: req.user.id, promotion: req.params.promotionId },
+      { $set: { active: false } },
+      { new: true }
+    );
+
+    res.status(200).json({
+      message: 'Deal alert disabled',
+      subscribed: false,
+      alertTypes: [],
+      alert,
+    });
   } catch (error) {
     res.status(500).json(safeError(error));
   }

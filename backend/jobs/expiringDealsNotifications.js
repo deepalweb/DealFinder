@@ -1,5 +1,6 @@
 const Promotion = require('../models/Promotion');
 const User = require('../models/User');
+const DealAlert = require('../models/DealAlert');
 const NotificationPreference = require('../models/NotificationPreference');
 const NotificationService = require('../services/NotificationService');
 const { hasRecentNotification } = require('./jobNotificationUtils');
@@ -149,6 +150,69 @@ async function checkExpiringDealsForUsers() {
           }
         );
 
+        notificationsSent++;
+      }
+    }
+
+    const alertRows = await DealAlert.find({
+      active: true,
+      alertTypes: 'expiry',
+    })
+      .populate('userId')
+      .populate({
+        path: 'promotion',
+        match: {
+          status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
+          endDate: { $gte: now, $lte: in48Hours },
+        },
+        populate: { path: 'merchant' },
+      });
+
+    for (const alert of alertRows) {
+      const user = alert.userId;
+      const deal = alert.promotion;
+      if (!user || !deal) continue;
+
+      const pref = preferences.find((item) => String(item.userId?._id) === String(user._id));
+      if (!pref) continue;
+
+      const expiryHours = pref.preferences.expiringDeals.hours || 24;
+      const expiryThreshold = new Date(now.getTime() + expiryHours * 60 * 60 * 1000);
+      if (deal.endDate > expiryThreshold) continue;
+
+      const hoursLeft = Math.max(0, Math.floor((deal.endDate.getTime() - now.getTime()) / (60 * 60 * 1000)));
+      const merchantName = typeof deal.merchant === 'object' ? deal.merchant.name : 'a store';
+      const merchantId = typeof deal.merchant === 'object' ? deal.merchant._id : deal.merchant;
+      const alreadySent = await hasRecentNotification({
+        userId: user._id,
+        type: 'expiring_deal',
+        dealId: deal._id,
+        merchantId,
+        since: recentWindowStart,
+      });
+
+      if (alreadySent) continue;
+
+      const notification = await NotificationService.sendNotification(
+        user._id,
+        'expiring_deal',
+        {
+          dealId: deal._id.toString(),
+          merchantId: merchantId?.toString(),
+          hoursLeft,
+          source: 'deal_alert',
+        },
+        {
+          title: '⏰ Deal Alert: Expiring Soon',
+          body: `"${deal.title}" at ${merchantName} expires in ${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''}.`,
+          channels: ['push', 'web', 'email'],
+          priority: hoursLeft <= 6 ? 'urgent' : 'high',
+        }
+      );
+
+      if (notification) {
+        alert.lastExpiryNotifiedAt = new Date();
+        await alert.save();
         notificationsSent++;
       }
     }

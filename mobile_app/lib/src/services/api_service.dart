@@ -1467,6 +1467,44 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> fetchDealAlertStatus(String promotionId) async {
+    final response =
+        await _authGet('${_baseUrl}notifications/deal-alerts/$promotionId');
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to load deal alert status',
+    ));
+  }
+
+  Future<Map<String, dynamic>> enableDealAlert(String promotionId) async {
+    final response = await _authPost(
+      '${_baseUrl}notifications/deal-alerts/$promotionId',
+      body: {
+        'alertTypes': ['expiry', 'price_drop'],
+      },
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to enable deal alert',
+    ));
+  }
+
+  Future<void> disableDealAlert(String promotionId) async {
+    final response =
+        await _authDelete('${_baseUrl}notifications/deal-alerts/$promotionId');
+    if (response.statusCode == 200) return;
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to disable deal alert',
+    ));
+  }
+
   // Create a new promotion (merchant only)
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String token) async {
