@@ -744,6 +744,37 @@ class ApiService {
     throw Exception('Failed to report deal: ${response.body}');
   }
 
+  Future<Map<String, dynamic>> createPromotionRedemption(
+      String promotionId, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions/$promotionId/redemptions'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to create redemption QR: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>> redeemPromotionQr(
+      String redemptionToken, String token) async {
+    final response = await http.post(
+      Uri.parse('${_baseUrl}promotions/redemptions/redeem'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'token': redemptionToken}),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('Failed to redeem QR: ${response.body}');
+  }
+
   Future<void> recordPromotionClick(
     String promotionId, {
     String type = 'click',

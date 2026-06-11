@@ -7,6 +7,8 @@ const Merchant = require('../models/Merchant');
 const PromotionClick = require('../models/PromotionClick');
 const User = require('../models/User');
 const Report = require('../models/Report');
+const Redemption = require('../models/Redemption');
+const crypto = require('crypto');
 const { authenticateJWT, authorizeAdmin, authorizePromotionOwnerOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 const { notifyFavoriteStoreFollowers } = require('../jobs/favoriteStoreNotifications');
 const { notifyFlashSale } = require('../jobs/flashSaleNotifications');
@@ -59,6 +61,25 @@ function getRedemptionFeedbackSummary(promotion) {
     },
     { workedCount: 0, didntWorkCount: 0 }
   );
+}
+
+function buildRedemptionPayload(redemption) {
+  return {
+    token: redemption.token,
+    status: redemption.status,
+    expiresAt: redemption.expiresAt,
+    redeemedAt: redemption.redeemedAt,
+    promotion: redemption.promotion,
+    merchant: redemption.merchant,
+  };
+}
+
+async function resolveMerchantIdForRedemption(user) {
+  if (user?.role === 'admin') return null;
+  if (user?.merchantId) return user.merchantId.toString();
+  if (!user?.id) return '';
+  const dbUser = await User.findById(user.id).select('merchantId').lean();
+  return dbUser?.merchantId ? dbUser.merchantId.toString() : '';
 }
 
 const COLOMBO_TIME_ZONE = 'Asia/Colombo';
@@ -529,12 +550,13 @@ router.get('/:id/stats', async (req, res) => {
     const ratings = Array.isArray(promotion.ratings) ? promotion.ratings : [];
     const comments = Array.isArray(promotion.comments) ? promotion.comments : [];
 
-    const [favoriteCount, totalClickCount, viewCount, directionCount] =
+    const [favoriteCount, totalClickCount, viewCount, directionCount, redeemCount] =
         await Promise.all([
           User.countDocuments({ favorites: promotion._id }),
           PromotionClick.countDocuments({ promotion: promotion._id }),
           PromotionClick.countDocuments({ promotion: promotion._id, type: 'view' }),
           PromotionClick.countDocuments({ promotion: promotion._id, type: 'direction' }),
+          PromotionClick.countDocuments({ promotion: promotion._id, type: 'redeem' }),
         ]);
 
     const averageRating = ratings.length
@@ -550,6 +572,7 @@ router.get('/:id/stats', async (req, res) => {
       clickCount: totalClickCount,
       viewCount,
       directionCount,
+      redeemCount,
     });
   } catch (error) {
     console.error(`Error fetching promotion stats ${req.params.id}:`, error);
@@ -1223,6 +1246,124 @@ router.post('/:id/reports', authenticateJWT, async (req, res) => {
     });
 
     res.status(201).json(report);
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/:id/redemptions', authenticateJWT, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid promotion ID.' });
+    }
+
+    const promotion = await Promotion.findById(req.params.id)
+      .select('merchant title endDate status fulfillmentType')
+      .populate('merchant', 'name');
+    if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+    if (promotion.fulfillmentType === 'order') {
+      return res.status(400).json({ message: 'QR redemption is only available for visit or hybrid deals.' });
+    }
+    if (promotion.endDate && new Date(promotion.endDate) < new Date()) {
+      return res.status(400).json({ message: 'This deal is expired.' });
+    }
+
+    const existing = await Redemption.findOne({
+      promotion: promotion._id,
+      user: req.user.id,
+      status: 'issued',
+      expiresAt: { $gt: new Date() },
+    });
+
+    if (existing) {
+      return res.status(200).json(buildRedemptionPayload(existing));
+    }
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const redemption = await Redemption.create({
+      promotion: promotion._id,
+      merchant: promotion.merchant._id || promotion.merchant,
+      user: req.user.id,
+      token: crypto.randomBytes(24).toString('hex'),
+      expiresAt,
+    });
+
+    res.status(201).json(buildRedemptionPayload(redemption));
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/redemptions/verify', authenticateJWT, async (req, res) => {
+  try {
+    const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
+    if (!token) return res.status(400).json({ message: 'Redemption token is required.' });
+
+    const redemption = await Redemption.findOne({ token })
+      .populate('promotion', 'title status endDate')
+      .populate('merchant', 'name')
+      .populate('user', 'name email');
+    if (!redemption) return res.status(404).json({ message: 'Redemption not found.' });
+
+    if (redemption.expiresAt < new Date() && redemption.status === 'issued') {
+      redemption.status = 'expired';
+      await redemption.save();
+    }
+
+    if (req.user.role !== 'admin') {
+      const merchantId = await resolveMerchantIdForRedemption(req.user);
+      if (!merchantId || redemption.merchant._id.toString() !== merchantId.toString()) {
+        return res.status(403).json({ message: 'Forbidden: This redemption is for another merchant.' });
+      }
+    }
+
+    res.status(200).json(buildRedemptionPayload(redemption));
+  } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.post('/redemptions/redeem', authenticateJWT, async (req, res) => {
+  try {
+    const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
+    if (!token) return res.status(400).json({ message: 'Redemption token is required.' });
+
+    const redemption = await Redemption.findOne({ token })
+      .populate('promotion', 'title status endDate')
+      .populate('merchant', 'name')
+      .populate('user', 'name email');
+    if (!redemption) return res.status(404).json({ message: 'Redemption not found.' });
+
+    if (req.user.role !== 'admin') {
+      const merchantId = await resolveMerchantIdForRedemption(req.user);
+      if (!merchantId || redemption.merchant._id.toString() !== merchantId.toString()) {
+        return res.status(403).json({ message: 'Forbidden: This redemption is for another merchant.' });
+      }
+    }
+
+    if (redemption.status === 'redeemed') {
+      return res.status(409).json({ message: 'This QR code has already been redeemed.', redemption: buildRedemptionPayload(redemption) });
+    }
+    if (redemption.expiresAt < new Date()) {
+      redemption.status = 'expired';
+      await redemption.save();
+      return res.status(400).json({ message: 'This QR code is expired.', redemption: buildRedemptionPayload(redemption) });
+    }
+
+    redemption.status = 'redeemed';
+    redemption.redeemedAt = new Date();
+    redemption.redeemedBy = req.user.id;
+    await redemption.save();
+
+    await PromotionClick.create({
+      promotion: redemption.promotion._id || redemption.promotion,
+      merchant: redemption.merchant._id || redemption.merchant,
+      user: redemption.user._id || redemption.user,
+      type: 'redeem',
+    });
+
+    res.status(200).json(buildRedemptionPayload(redemption));
   } catch (error) {
     res.status(500).json(safeError(error));
   }

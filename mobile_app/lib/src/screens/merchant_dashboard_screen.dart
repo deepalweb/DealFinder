@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
@@ -251,6 +252,20 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     }
   }
 
+  Future<void> _openRedemptionScanner() async {
+    if (!_ensureValidMerchantSession() || _token == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RedemptionScannerScreen(
+          apiService: _apiService,
+          token: _token!,
+        ),
+      ),
+    );
+    await _loadDashboard();
+  }
+
   Future<void> _openEditPromotion(Promotion promotion) async {
     if (!_ensureValidMerchantSession()) return;
     final result = await Navigator.push(
@@ -272,7 +287,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text(_t('Delete Promotion', 'ප්‍රවර්ධනය මකන්න', 'சலுகையை நீக்கு')),
+            title: Text(
+                _t('Delete Promotion', 'ප්‍රවර්ධනය මකන්න', 'சலுகையை நீக்கு')),
             content: Text(
                 '${_t('Delete', 'මකන්න', 'நீக்கு')} "${promotion.title}"? ${_t('This action cannot be undone.', 'මෙම ක්‍රියාව ආපසු හැරවිය නොහැක.', 'இந்த செயலை மீண்டும் மாற்ற முடியாது.')}'),
             actions: [
@@ -415,7 +431,9 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             !_hasValidMerchantId &&
             !_isDemoMerchantSession)) {
       return Scaffold(
-        appBar: AppBar(title: Text(_t('Merchant Dashboard', 'වෙළෙන්දාගේ පුවරුව', 'வணிகர் டாஷ்போர்ட்'))),
+        appBar: AppBar(
+            title: Text(_t('Merchant Dashboard', 'වෙළෙන්දාගේ පුවරුව',
+                'வணிகர் டாஷ்போர்ட்'))),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -425,8 +443,12 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                 Icon(Icons.store_outlined, size: 80, color: Colors.grey[400]),
                 const SizedBox(height: 20),
                 Text(
-                  _t('Merchant Profile Not Ready', 'වෙළෙන්දාගේ පැතිකඩ තවම සූදානම් නැහැ', 'வணிகர் சுயவிவரம் இன்னும் தயாராக இல்லை'),
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  _t(
+                      'Merchant Profile Not Ready',
+                      'වෙළෙන්දාගේ පැතිකඩ තවම සූදානම් නැහැ',
+                      'வணிகர் சுயவிவரம் இன்னும் தயாராக இல்லை'),
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
@@ -443,7 +465,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                 ElevatedButton.icon(
                   onPressed: _initializeMerchantProfile,
                   icon: const Icon(Icons.store),
-                  label: Text(_t('Initialize Store Profile', 'වෙළඳසැල් පැතිකඩ සකසන්න', 'கடை சுயவிவரத்தை அமைக்கவும்')),
+                  label: Text(_t('Initialize Store Profile',
+                      'වෙළඳසැල් පැතිකඩ සකසන්න', 'கடை சுயவிவரத்தை அமைக்கவும்')),
                 ),
               ],
             ),
@@ -454,7 +477,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_t('Merchant Dashboard', 'වෙළෙන්දාගේ පුවරුව', 'வணிகர் டாஷ்போர்ட்')),
+        title: Text(
+            _t('Merchant Dashboard', 'වෙළෙන්දාගේ පුවරුව', 'வணிகர் டாஷ்போர்ட்')),
         actions: [
           IconButton(
             onPressed: _loadDashboard,
@@ -505,7 +529,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openCreatePromotion,
         icon: const Icon(Icons.add),
-        label: Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න', 'சலுகையைச் சேர்')),
+        label:
+            Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න', 'சலுகையைச் சேர்')),
       ),
     );
   }
@@ -543,7 +568,9 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      (_merchantData?['name'] ?? _merchantName ?? _t('My Store', 'මගේ වෙළඳසැල', 'என் கடை'))
+                      (_merchantData?['name'] ??
+                              _merchantName ??
+                              _t('My Store', 'මගේ වෙළඳසැල', 'என் கடை'))
                           .toString(),
                       style: const TextStyle(
                         color: Colors.white,
@@ -577,7 +604,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     backgroundColor: Colors.white.withValues(alpha: 0.12),
                   ),
                   icon: const Icon(Icons.edit_outlined),
-                  label: Text(_t('Edit Profile', 'පැතිකඩ සංස්කරණය', 'சுயவிவரத்தைத் திருத்து')),
+                  label: Text(_t('Edit Profile', 'පැතිකඩ සංස්කරණය',
+                      'சுயவிவரத்தைத் திருத்து')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -589,10 +617,28 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     foregroundColor: const Color(0xFF4F46E5),
                   ),
                   icon: const Icon(Icons.add),
-                  label: Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න', 'சலுகையைச் சேர்')),
+                  label: Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න',
+                      'சலுகையைச் சேர்')),
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _openRedemptionScanner,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+              ),
+              icon: const Icon(Icons.qr_code_scanner_rounded),
+              label: Text(_t(
+                'Scan Redemption QR',
+                'Redemption QR scan කරන්න',
+                'Redemption QR scan செய்யவும்',
+              )),
+            ),
           ),
         ],
       ),
@@ -605,13 +651,13 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         Row(
           children: [
             Expanded(
-              child:
-                  _buildStatCard(_t('Total', 'එකතුව', 'மொத்தம்'), '${_promotions.length}', Icons.sell),
+              child: _buildStatCard(_t('Total', 'එකතුව', 'மொத்தம்'),
+                  '${_promotions.length}', Icons.sell),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child:
-                  _buildStatCard(_t('Active', 'සක්‍රීය', 'செயலில்'), '$_activeCount', Icons.check_circle),
+              child: _buildStatCard(_t('Active', 'සක්‍රීය', 'செயலில்'),
+                  '$_activeCount', Icons.check_circle),
             ),
           ],
         ),
@@ -619,7 +665,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         Row(
           children: [
             Expanded(
-              child: _buildStatCard(_t('Expired', 'කල් ඉකුත් වූ', 'காலாவதியான'), '$_expiredCount', Icons.history),
+              child: _buildStatCard(_t('Expired', 'කල් ඉකුත් වූ', 'காலாவதியான'),
+                  '$_expiredCount', Icons.history),
             ),
             const SizedBox(width: 12),
             const Expanded(child: SizedBox.shrink()),
@@ -678,7 +725,10 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _t("Welcome! Let's set up your store", 'සාදරයෙන් පිළිගනිමු! ඔබගේ වෙළඳසැල සකස් කරමු', 'வரவேற்கிறோம்! உங்கள் கடையை அமைப்போம்'),
+                        _t(
+                            "Welcome! Let's set up your store",
+                            'සාදරයෙන් පිළිගනිමු! ඔබගේ වෙළඳසැල සකස් කරමු',
+                            'வரவேற்கிறோம்! உங்கள் கடையை அமைப்போம்'),
                         style: const TextStyle(
                             fontWeight: FontWeight.w800, fontSize: 16),
                       ),
@@ -689,7 +739,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                           'වෙබ් පුවරුවේ භාවිතා කරන එම වෙළෙන්දාගේ පිරික්සුම් ලැයිස්තුව අනුගමනය කරන්න.',
                           'இணைய டாஷ்போர்டில் பயன்படுத்தும் அதே வணிகர் பட்டியலைப் பின்பற்றவும்.',
                         ),
-                        style: const TextStyle(fontSize: 13, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 13, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -698,26 +749,38 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             ),
             const SizedBox(height: 16),
             _buildChecklistItem(
-              label: _t('Complete your store profile', 'ඔබගේ වෙළඳසැල් පැතිකඩ සම්පූර්ණ කරන්න', 'உங்கள் கடை சுயவிவரத்தை முடிக்கவும்'),
+              label: _t(
+                  'Complete your store profile',
+                  'ඔබගේ වෙළඳසැල් පැතිකඩ සම්පූර්ණ කරන්න',
+                  'உங்கள் கடை சுயவிவரத்தை முடிக்கவும்'),
               done: _hasProfileContent,
               icon: Icons.person_outline,
-              actionLabel: _t('Set Up Profile', 'පැතිකඩ සකසන්න', 'சுயவிவரத்தை அமைக்கவும்'),
+              actionLabel: _t(
+                  'Set Up Profile', 'පැතිකඩ සකසන්න', 'சுயவிவரத்தை அமைக்கவும்'),
               onTap: _openEditProfile,
             ),
             const SizedBox(height: 10),
             _buildChecklistItem(
-              label: _t('Add your location so customers can find nearby deals', 'පාරිභෝගිකයින්ට අසල ඩීල් සොයාගැනීමට ඔබගේ ස්ථානය එක් කරන්න', 'அருகிலுள்ள சலுகைகளை வாடிக்கையாளர்கள் காண உங்கள் இருப்பிடத்தைச் சேர்க்கவும்'),
+              label: _t(
+                  'Add your location so customers can find nearby deals',
+                  'පාරිභෝගිකයින්ට අසල ඩීල් සොයාගැනීමට ඔබගේ ස්ථානය එක් කරන්න',
+                  'அருகிலுள்ள சலுகைகளை வாடிக்கையாளர்கள் காண உங்கள் இருப்பிடத்தைச் சேர்க்கவும்'),
               done: _hasLocation,
               icon: Icons.location_on_outlined,
-              actionLabel: _t('Add Location', 'ස්ථානය එක් කරන්න', 'இருப்பிடத்தைச் சேர்'),
+              actionLabel:
+                  _t('Add Location', 'ස්ථානය එක් කරන්න', 'இருப்பிடத்தைச் சேர்'),
               onTap: _openEditProfile,
             ),
             const SizedBox(height: 10),
             _buildChecklistItem(
-              label: _t('Create your first promotion', 'ඔබගේ පළමු ප්‍රවර්ධනය සෑදිය', 'உங்கள் முதல் சலுகையை உருவாக்கவும்'),
+              label: _t(
+                  'Create your first promotion',
+                  'ඔබගේ පළමු ප්‍රවර්ධනය සෑදිය',
+                  'உங்கள் முதல் சலுகையை உருவாக்கவும்'),
               done: _promotions.isNotEmpty,
               icon: Icons.local_offer_outlined,
-              actionLabel: _t('Create Deal', 'ඩීල් එකක් සෑදිය', 'சலுகையை உருவாக்கு'),
+              actionLabel:
+                  _t('Create Deal', 'ඩීල් එකක් සෑදිය', 'சலுகையை உருவாக்கு'),
               onTap: _openCreatePromotion,
             ),
           ],
@@ -828,8 +891,12 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             const SizedBox(height: 16),
             Text(
               _promotions.isEmpty
-                  ? _t('No promotions yet', 'තවම ප්‍රවර්ධන නැහැ', 'இன்னும் சலுகைகள் இல்லை')
-                  : _t('No promotions in this view', 'මෙම දසුනේ ප්‍රවර්ධන නොමැත', 'இந்த காட்சியில் சலுகைகள் இல்லை'),
+                  ? _t('No promotions yet', 'තවම ප්‍රවර්ධන නැහැ',
+                      'இன்னும் சலுகைகள் இல்லை')
+                  : _t(
+                      'No promotions in this view',
+                      'මෙම දසුනේ ප්‍රවර්ධන නොමැත',
+                      'இந்த காட்சியில் சலுகைகள் இல்லை'),
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -837,8 +904,14 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             const SizedBox(height: 8),
             Text(
               _promotions.isEmpty
-                  ? _t('Create your first promotion to start attracting customers.', 'පාරිභෝගිකයින් ආකර්ෂණය කිරීමට ඔබගේ පළමු ප්‍රවර්ධනය සෑදිය.', 'வாடிக்கையாளர்களை ஈர்க்க உங்கள் முதல் சலுகையை உருவாக்கவும்.')
-                  : _t('Try a different filter or refresh the dashboard.', 'වෙනත් පෙරහනක් උත්සාහ කරන්න හෝ පුවරුව නැවත පූරණය කරන්න.', 'வேறு வடிகட்டியை முயற்சிக்கவும் அல்லது டாஷ்போர்டை புதுப்பிக்கவும்.'),
+                  ? _t(
+                      'Create your first promotion to start attracting customers.',
+                      'පාරිභෝගිකයින් ආකර්ෂණය කිරීමට ඔබගේ පළමු ප්‍රවර්ධනය සෑදිය.',
+                      'வாடிக்கையாளர்களை ஈர்க்க உங்கள் முதல் சலுகையை உருவாக்கவும்.')
+                  : _t(
+                      'Try a different filter or refresh the dashboard.',
+                      'වෙනත් පෙරහනක් උත්සාහ කරන්න හෝ පුවරුව නැවත පූරණය කරන්න.',
+                      'வேறு வடிகட்டியை முயற்சிக்கவும் அல்லது டாஷ்போர்டை புதுப்பிக்கவும்.'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey[600]),
             ),
@@ -846,7 +919,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             ElevatedButton.icon(
               onPressed: _openCreatePromotion,
               icon: const Icon(Icons.add),
-              label: Text(_t('Create Promotion', 'ප්‍රවර්ධනය සෑදිය', 'சலுகையை உருவாக்கு')),
+              label: Text(_t(
+                  'Create Promotion', 'ප්‍රවර්ධනය සෑදිය', 'சலுகையை உருவாக்கு')),
             ),
           ],
         ),
@@ -1060,6 +1134,145 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             child: Text(
               message,
               style: TextStyle(color: color.withValues(alpha: 0.95)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class RedemptionScannerScreen extends StatefulWidget {
+  final ApiService apiService;
+  final String token;
+
+  const RedemptionScannerScreen({
+    super.key,
+    required this.apiService,
+    required this.token,
+  });
+
+  @override
+  State<RedemptionScannerScreen> createState() =>
+      _RedemptionScannerScreenState();
+}
+
+class _RedemptionScannerScreenState extends State<RedemptionScannerScreen> {
+  final MobileScannerController _scannerController = MobileScannerController();
+  bool _busy = false;
+  String? _lastMessage;
+
+  @override
+  void dispose() {
+    _scannerController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCode(String? value) async {
+    final redemptionToken = value?.trim() ?? '';
+    if (_busy || redemptionToken.isEmpty) return;
+
+    setState(() {
+      _busy = true;
+      _lastMessage = null;
+    });
+    await _scannerController.stop();
+
+    try {
+      final result = await widget.apiService.redeemPromotionQr(
+        redemptionToken,
+        widget.token,
+      );
+      final promotion = result['promotion'];
+      final title =
+          promotion is Map ? (promotion['title'] ?? 'Deal').toString() : 'Deal';
+      if (!mounted) return;
+      setState(() {
+        _lastMessage = 'Redeemed: $title';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Redemption successful for $title'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _lastMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_lastMessage!)),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _scanAgain() async {
+    setState(() => _lastMessage = null);
+    await _scannerController.start();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Scan Redemption QR'),
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                MobileScanner(
+                  controller: _scannerController,
+                  onDetect: (capture) {
+                    final barcode = capture.barcodes.firstOrNull;
+                    _handleCode(barcode?.rawValue);
+                  },
+                ),
+                Center(
+                  child: Container(
+                    width: 250,
+                    height: 250,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white, width: 3),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                ),
+                if (_busy)
+                  Container(
+                    color: Colors.black.withValues(alpha: 0.38),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  _lastMessage ??
+                      'Point the camera at a customer redemption QR.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: _busy ? null : _scanAgain,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: const Text('Scan Again'),
+                ),
+              ],
             ),
           ),
         ],

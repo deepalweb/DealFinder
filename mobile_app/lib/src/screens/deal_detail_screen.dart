@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
@@ -71,6 +72,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   int _didntWorkCount = 0;
   bool? _userRedemptionWorked;
   bool _submittingRedemptionFeedback = false;
+  bool _creatingRedemptionQr = false;
   Timer? _countdownTimer;
 
   String _t(String en, String si, String ta) {
@@ -928,6 +930,82 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
   }
 
+  Future<void> _showRedemptionQr() async {
+    if (_isPlatformBankOffer) return;
+    if (_userToken == null) {
+      _showAuthRequiredMessage(_t(
+        'get a redemption QR',
+        'redemption QR ලබා ගැනීමට',
+        'redemption QR பெற',
+      ));
+      return;
+    }
+
+    setState(() => _creatingRedemptionQr = true);
+    try {
+      final redemption = await _apiService.createPromotionRedemption(
+        widget.promotion.id,
+        _userToken!,
+      );
+      if (!mounted) return;
+      final token = (redemption['token'] ?? '').toString();
+      final expiresAt = (redemption['expiresAt'] ?? '').toString();
+      if (token.isEmpty) throw Exception('Missing redemption token');
+
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(_t(
+            'Show this QR at the store',
+            'මෙම QR එක store එකට පෙන්වන්න',
+            'இந்த QR-ஐ store-ல் காட்டவும்',
+          )),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              QrImageView(
+                data: token,
+                version: QrVersions.auto,
+                size: 220,
+                backgroundColor: Colors.white,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _t(
+                  'Valid for 15 minutes.',
+                  'මිනිත්තු 15ක් වලංගුයි.',
+                  '15 நிமிடங்களுக்கு செல்லுபடியாகும்.',
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (expiresAt.isNotEmpty)
+                Text(
+                  expiresAt,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to create redemption QR: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _creatingRedemptionQr = false);
+      }
+    }
+  }
+
   Future<void> _submitComment() async {
     debugPrint('DEBUG: _submitComment called');
     if (_isPlatformBankOffer) {
@@ -1156,6 +1234,36 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       ),
     );
     final secondaryActionButtons = <Widget>[
+      if (_showsVisitNow && !_isPlatformBankOffer)
+        Semantics(
+          button: true,
+          label: _t(
+            'Show redemption QR',
+            'Redemption QR පෙන්වන්න',
+            'Redemption QR காட்டவும்',
+          ),
+          child: OutlinedButton.icon(
+            icon: _creatingRedemptionQr
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.qr_code_2_rounded, size: 18),
+            label: Text(_t(
+              'Show QR',
+              'QR පෙන්වන්න',
+              'QR காட்டவும்',
+            )),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: _creatingRedemptionQr ? null : _showRedemptionQr,
+          ),
+        ),
       if ((!_supportsDelivery && !_supportsPickup) &&
           promotion.url != null &&
           promotion.url!.isNotEmpty)
