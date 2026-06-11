@@ -70,6 +70,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   int _directionCount = 0;
   int _workedCount = 0;
   int _didntWorkCount = 0;
+  int _redeemCount = 0;
+  int _reportCount = 0;
+  String? _trustStatus;
+  String? _trustLabel;
   bool? _userRedemptionWorked;
   bool _submittingRedemptionFeedback = false;
   bool _creatingRedemptionQr = false;
@@ -625,6 +629,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         _workedCount = (stats['workedCount'] as num?)?.toInt() ?? _workedCount;
         _didntWorkCount =
             (stats['didntWorkCount'] as num?)?.toInt() ?? _didntWorkCount;
+        _redeemCount = (stats['redeemCount'] as num?)?.toInt() ?? _redeemCount;
+        final trust = stats['trustSummary'];
+        if (trust is Map<String, dynamic>) {
+          _trustStatus = trust['status'] as String? ?? _trustStatus;
+          _trustLabel = trust['label'] as String? ?? _trustLabel;
+          _reportCount =
+              (trust['reportCount'] as num?)?.toInt() ?? _reportCount;
+        }
         _reviewCount = (stats['ratingsCount'] as num?)?.toInt() ?? _reviewCount;
         _averageRating =
             (stats['averageRating'] as num?)?.toDouble() ?? _averageRating;
@@ -1110,6 +1122,18 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         label: l10n.directionsLabel,
         value: _directionCount,
       ),
+      if (_redeemCount > 0)
+        _DealStatItem(
+          icon: Icons.qr_code_2_rounded,
+          label: _t('Redeemed', 'Redeemed', 'Redeemed'),
+          value: _redeemCount,
+        ),
+      if (_reportCount > 0)
+        _DealStatItem(
+          icon: Icons.report_problem_outlined,
+          label: _t('Reports', 'Reports', 'Reports'),
+          value: _reportCount,
+        ),
     ];
     final statusChips = <Widget>[
       if (promotion.featured == true)
@@ -1126,7 +1150,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           backgroundColor: const Color(0xFFFFF4ED),
           foregroundColor: const Color(0xFF9A3412),
         ),
-      if (promotion.isVerifiedActiveDeal)
+      if (((_trustStatus ?? promotion.trustStatus) ?? '').isNotEmpty &&
+          ((_trustStatus ?? promotion.trustStatus) != 'standard'))
+        DealVerificationBadge(
+          compact: false,
+          status: (_trustStatus ?? promotion.trustStatus)!,
+          label: _trustLabel ?? promotion.trustLabel,
+        )
+      else if (promotion.isVerifiedActiveDeal)
         const DealVerificationBadge(compact: false),
       if ((promotion.category ?? '').trim().isNotEmpty)
         _buildInfoPill(

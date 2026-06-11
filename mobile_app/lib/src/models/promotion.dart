@@ -31,6 +31,13 @@ class Promotion {
   final String? merchantLogoUrl;
   final double? averageRating;
   final int ratingsCount;
+  final String? trustStatus;
+  final String? trustLabel;
+  final bool adminVerified;
+  final int workedCount;
+  final int didntWorkCount;
+  final int redeemCount;
+  final int reportCount;
   final String? merchantCurrency;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -76,6 +83,13 @@ class Promotion {
     this.merchantLogoUrl,
     this.averageRating,
     this.ratingsCount = 0,
+    this.trustStatus,
+    this.trustLabel,
+    this.adminVerified = false,
+    this.workedCount = 0,
+    this.didntWorkCount = 0,
+    this.redeemCount = 0,
+    this.reportCount = 0,
     this.merchantCurrency,
     this.createdAt,
     this.updatedAt,
@@ -219,6 +233,9 @@ class Promotion {
             : null);
     final ratingsCount = (json['ratingsCount'] as num?)?.toInt() ??
         (ratings != null ? ratingValues.length : 0);
+    final trustSummary = json['trustSummary'] is Map<String, dynamic>
+        ? json['trustSummary'] as Map<String, dynamic>
+        : const <String, dynamic>{};
 
     double? latitude;
     double? longitude;
@@ -275,6 +292,14 @@ class Promotion {
       longitude: longitude,
       averageRating: averageRating,
       ratingsCount: ratingsCount,
+      trustStatus: trustSummary['status'] as String?,
+      trustLabel: trustSummary['label'] as String?,
+      adminVerified: trustSummary['adminVerified'] == true ||
+          json['adminVerified'] == true,
+      workedCount: (trustSummary['workedCount'] as num?)?.toInt() ?? 0,
+      didntWorkCount: (trustSummary['didntWorkCount'] as num?)?.toInt() ?? 0,
+      redeemCount: (trustSummary['redeemCount'] as num?)?.toInt() ?? 0,
+      reportCount: (trustSummary['reportCount'] as num?)?.toInt() ?? 0,
       createdAt: parseDate(json['createdAt'] as String?),
       updatedAt: parseDate(json['updatedAt'] as String?),
       status: json['status'] as String?,
@@ -340,6 +365,15 @@ class Promotion {
       'longitude': longitude,
       'averageRating': averageRating,
       'ratings': List.generate(ratingsCount, (_) => {}),
+      'trustSummary': {
+        'status': trustStatus,
+        'label': trustLabel,
+        'adminVerified': adminVerified,
+        'workedCount': workedCount,
+        'didntWorkCount': didntWorkCount,
+        'redeemCount': redeemCount,
+        'reportCount': reportCount,
+      },
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'status': status,
@@ -386,6 +420,13 @@ class Promotion {
     String? merchantLogoUrl,
     double? averageRating,
     int? ratingsCount,
+    String? trustStatus,
+    String? trustLabel,
+    bool? adminVerified,
+    int? workedCount,
+    int? didntWorkCount,
+    int? redeemCount,
+    int? reportCount,
     String? merchantCurrency,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -431,6 +472,13 @@ class Promotion {
       merchantLogoUrl: merchantLogoUrl ?? this.merchantLogoUrl,
       averageRating: averageRating ?? this.averageRating,
       ratingsCount: ratingsCount ?? this.ratingsCount,
+      trustStatus: trustStatus ?? this.trustStatus,
+      trustLabel: trustLabel ?? this.trustLabel,
+      adminVerified: adminVerified ?? this.adminVerified,
+      workedCount: workedCount ?? this.workedCount,
+      didntWorkCount: didntWorkCount ?? this.didntWorkCount,
+      redeemCount: redeemCount ?? this.redeemCount,
+      reportCount: reportCount ?? this.reportCount,
       merchantCurrency: merchantCurrency ?? this.merchantCurrency,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
 import '../config/app_theme.dart';
+import 'deal_verification_badge.dart';
 
 class ModernDealCard extends StatefulWidget {
   final Promotion promotion;
@@ -223,6 +224,8 @@ class _ModernDealCardState extends State<ModernDealCard> {
               : null;
           final averageRating = p.averageRating ?? 0.0;
           final hasRatings = p.ratingsCount > 0 && p.averageRating != null;
+          final hasTrustBadge =
+              (p.trustStatus ?? '').isNotEmpty && p.trustStatus != 'standard';
           final currentPrice = p.discountedPrice ?? p.price ?? p.originalPrice;
           final savings = p.originalPrice != null &&
                   currentPrice != null &&
@@ -322,6 +325,16 @@ class _ModernDealCardState extends State<ModernDealCard> {
                               horizontal: compact ? 7 : 9,
                               vertical: compact ? AppSpacing.xs : 5,
                             ),
+                          ),
+                        ),
+                      if (hasTrustBadge)
+                        Positioned(
+                          bottom: AppSpacing.md,
+                          left: AppSpacing.md,
+                          child: DealVerificationBadge(
+                            status: p.trustStatus!,
+                            label: p.trustLabel,
+                            compact: compact,
                           ),
                         ),
                     ],

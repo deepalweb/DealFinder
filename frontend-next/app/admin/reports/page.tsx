@@ -107,6 +107,19 @@ export default function AdminReportsPage() {
     }
   };
 
+  const runReportAction = async (report: ReportRecord, action: string, label: string) => {
+    setBusyId(report._id);
+    try {
+      await AdminAPI.runReportAction(report._id, action);
+      toast.success(label);
+      await loadReports();
+    } catch {
+      toast.error('Failed to run report action.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div>
       <AdminPageHeader
@@ -185,6 +198,33 @@ export default function AdminReportsPage() {
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  {report.targetType === 'promotion' && report.status !== 'resolved' && (
+                    <>
+                      <button
+                        className="btn-secondary"
+                        disabled={busyId === report._id}
+                        onClick={() => runReportAction(report, 'pause_promotion', 'Promotion paused.')}
+                      >
+                        Pause deal
+                      </button>
+                      <button
+                        className="btn-secondary"
+                        disabled={busyId === report._id}
+                        onClick={() => runReportAction(report, 'verify_promotion', 'Promotion verified.')}
+                      >
+                        Mark verified
+                      </button>
+                    </>
+                  )}
+                  {report.targetType === 'merchant' && report.status !== 'resolved' && (
+                    <button
+                      className="btn-secondary"
+                      disabled={busyId === report._id}
+                      onClick={() => runReportAction(report, 'suspend_merchant', 'Merchant suspended.')}
+                    >
+                      Suspend store
+                    </button>
+                  )}
                   {report.status === 'open' && (
                     <button
                       className="btn-secondary"

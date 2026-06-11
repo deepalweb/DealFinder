@@ -63,6 +63,89 @@ function getRedemptionFeedbackSummary(promotion) {
   );
 }
 
+function buildTrustSummary(promotion, metrics = {}) {
+  const feedback = getRedemptionFeedbackSummary(promotion);
+  const workedCount = metrics.workedCount ?? feedback.workedCount;
+  const didntWorkCount = metrics.didntWorkCount ?? feedback.didntWorkCount;
+  const redeemCount = metrics.redeemCount || 0;
+  const reportCount = metrics.reportCount || 0;
+  const adminVerified = promotion?.adminVerified === true;
+
+  let status = adminVerified ? 'verified' : 'standard';
+  let label = adminVerified ? 'Verified' : 'Active';
+  if (reportCount > 0 && !adminVerified) {
+    status = 'reported';
+    label = 'Reported issue';
+  } else if (redeemCount > 0) {
+    status = 'redeemed';
+    label = 'QR redeemed';
+  } else if (workedCount > 0 && workedCount >= didntWorkCount) {
+    status = 'worked';
+    label = 'Worked recently';
+  }
+
+  return {
+    status,
+    label,
+    adminVerified,
+    workedCount,
+    didntWorkCount,
+    redeemCount,
+    reportCount,
+    verifiedAt: promotion?.verifiedAt,
+  };
+}
+
+async function attachPromotionTrustSummaries(promotions) {
+  const list = Array.isArray(promotions) ? promotions : [];
+  const ids = list.map((promotion) => promotion?._id).filter(Boolean);
+  if (!ids.length) return list.map((promotion) => ({ ...promotion, trustSummary: buildTrustSummary(promotion) }));
+
+  const [reportRows, redeemRows] = await Promise.all([
+    Report.aggregate([
+      { $match: { targetType: 'promotion', promotion: { $in: ids }, status: { $in: ['open', 'reviewing'] } } },
+      { $group: { _id: '$promotion', count: { $sum: 1 } } },
+    ]),
+    PromotionClick.aggregate([
+      { $match: { promotion: { $in: ids }, type: 'redeem' } },
+      { $group: { _id: '$promotion', count: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const reportMap = new Map(reportRows.map((row) => [String(row._id), row.count || 0]));
+  const redeemMap = new Map(redeemRows.map((row) => [String(row._id), row.count || 0]));
+
+  return list.map((promotion) => ({
+    ...promotion,
+    trustSummary: buildTrustSummary(promotion, {
+      reportCount: reportMap.get(String(promotion._id)) || 0,
+      redeemCount: redeemMap.get(String(promotion._id)) || 0,
+    }),
+  }));
+}
+
+async function attachHomepageSectionTrustSummaries(sections) {
+  const sectionEntries = Object.entries(sections.sections || {});
+  const enrichedSectionEntries = await Promise.all(
+    sectionEntries.map(async ([key, section]) => ([
+      key,
+      {
+        ...section,
+        items: await attachPromotionTrustSummaries(section.items || []),
+      },
+    ]))
+  );
+  const enrichedSections = Object.fromEntries(enrichedSectionEntries);
+
+  return {
+    banner: enrichedSections.banner?.items || [],
+    hotDeals: enrichedSections.hot_deals?.items || [],
+    newThisWeek: enrichedSections.new_this_week?.items || [],
+    flashSales: enrichedSections.flash_sales?.items || [],
+    sections: enrichedSections,
+  };
+}
+
 function buildRedemptionPayload(redemption) {
   return {
     token: redemption.token,
@@ -262,14 +345,17 @@ router.get('/homepage', async (req, res) => {
         .lean()
     ]);
 
+    const latestWithTrust = await attachPromotionTrustSummaries(latest.map(sanitizePromotionPayload));
+    const trustedSections = await attachHomepageSectionTrustSummaries(sections);
+
     homepageCache = {
-      featured: sections.hotDeals,
-      latest: latest.map(sanitizePromotionPayload),
-      banner: sections.banner,
-      hotDeals: sections.hotDeals,
-      newThisWeek: sections.newThisWeek,
-      flashSales: sections.flashSales,
-      sections: sections.sections,
+      featured: trustedSections.hotDeals,
+      latest: latestWithTrust,
+      banner: trustedSections.banner,
+      hotDeals: trustedSections.hotDeals,
+      newThisWeek: trustedSections.newThisWeek,
+      flashSales: trustedSections.flashSales,
+      sections: trustedSections.sections,
     };
     homepageCacheTs = Date.now();
 
@@ -436,7 +522,7 @@ router.get('/nearby', async (req, res) => {
         { $limit: promotionLimit }
       ]);
 
-      const sanitizedPromotions = promotions.map(sanitizePromotionPayload);
+      const sanitizedPromotions = await attachPromotionTrustSummaries(promotions.map(sanitizePromotionPayload));
 
       // Cache the result
       setNearbyCache(lat, lon, searchRadiusKm, sanitizedPromotions);
@@ -495,7 +581,7 @@ router.get('/', async (req, res) => {
       promotionsQuery = promotionsQuery.limit(limit).skip(skip);
     }
     
-    const promotions = (await promotionsQuery).map(sanitizePromotionPayload);
+    const promotions = await attachPromotionTrustSummaries((await promotionsQuery).map(sanitizePromotionPayload));
     res.status(200).json(promotions);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
@@ -550,13 +636,14 @@ router.get('/:id/stats', async (req, res) => {
     const ratings = Array.isArray(promotion.ratings) ? promotion.ratings : [];
     const comments = Array.isArray(promotion.comments) ? promotion.comments : [];
 
-    const [favoriteCount, totalClickCount, viewCount, directionCount, redeemCount] =
+    const [favoriteCount, totalClickCount, viewCount, directionCount, redeemCount, openReportCount] =
         await Promise.all([
           User.countDocuments({ favorites: promotion._id }),
           PromotionClick.countDocuments({ promotion: promotion._id }),
           PromotionClick.countDocuments({ promotion: promotion._id, type: 'view' }),
           PromotionClick.countDocuments({ promotion: promotion._id, type: 'direction' }),
           PromotionClick.countDocuments({ promotion: promotion._id, type: 'redeem' }),
+          Report.countDocuments({ targetType: 'promotion', promotion: promotion._id, status: { $in: ['open', 'reviewing'] } }),
         ]);
 
     const averageRating = ratings.length
@@ -573,6 +660,10 @@ router.get('/:id/stats', async (req, res) => {
       viewCount,
       directionCount,
       redeemCount,
+      trustSummary: buildTrustSummary(promotion, {
+        redeemCount,
+        reportCount: openReportCount,
+      }),
     });
   } catch (error) {
     console.error(`Error fetching promotion stats ${req.params.id}:`, error);
@@ -590,7 +681,7 @@ router.get('/merchant/:merchantId', async (req, res) => {
       .select('-comments')
       .sort(newestFirstSort)
       .lean();
-    res.status(200).json(promotions);
+    res.status(200).json(await attachPromotionTrustSummaries(promotions.map(sanitizePromotionPayload)));
   } catch (error) {
     console.error(`Error fetching promotions for merchant ${req.params.merchantId}:`, error);
     res.status(500).json(safeError(error));
@@ -602,7 +693,10 @@ router.get('/:id', async (req, res) => {
   try {
     const promotion = await Promotion.findById(req.params.id).populate('merchant');
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
-    res.status(200).json(promotion);
+    const [withTrust] = await attachPromotionTrustSummaries([
+      sanitizePromotionPayload(promotion.toObject()),
+    ]);
+    res.status(200).json(withTrust);
   } catch (error) {
     console.error(`Error fetching promotion ${req.params.id}:`, error);
     res.status(500).json(safeError(error));

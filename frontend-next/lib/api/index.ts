@@ -341,6 +341,15 @@ export const AdminAPI = {
   updateReport: (id: string, data: any) =>
     fetchAPI<any>(`admin/reports/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
       .then((res) => { invalidateCache('admin/reports'); return res; }),
+  runReportAction: (id: string, action: string) =>
+    fetchAPI<any>(`admin/reports/${id}/action`, { method: 'POST', body: JSON.stringify({ action }) })
+      .then((res) => {
+        invalidateCache('admin/reports');
+        invalidateCache('admin/promotions');
+        invalidateCache('promotions');
+        invalidateCache('merchants');
+        return res;
+      }),
 };
 
 // Notifications

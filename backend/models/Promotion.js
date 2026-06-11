@@ -59,6 +59,9 @@ const promotionSchema = new mongoose.Schema({
     ],
     default: 'draft'
   },
+  adminVerified: { type: Boolean, default: false, index: true },
+  verifiedAt: { type: Date },
+  verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   comments: [{
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     text: { type: String, required: true },
