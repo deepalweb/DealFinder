@@ -173,7 +173,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         widget.promotion.id, widget.promotion.category);
     if (_isPlatformBankOffer) return;
     try {
-      await _apiService.recordPromotionClick(widget.promotion.id, type: 'view');
+      final prefs = await SharedPreferences.getInstance();
+      await _apiService.recordPromotionClick(
+        widget.promotion.id,
+        type: 'view',
+        token: prefs.getString('userToken'),
+        userId: prefs.getString('userId'),
+      );
       await _fetchPromotionStats();
     } catch (_) {}
   }
@@ -301,7 +307,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Future<List<Promotion>> _fetchRecommendedDeals() async {
     try {
-      // Fetch all promotions and filter out the current one
+      final recommended = await _apiService.fetchRecommendedPromotions(
+        limit: 6,
+        excludePromotionId: widget.promotion.id,
+      );
+      if (recommended.isNotEmpty) return recommended.take(5).toList();
+
       final allPromos = await _apiService.fetchPromotions();
       return allPromos
           .where((p) => p.id != widget.promotion.id)

@@ -96,6 +96,51 @@ function buildTrustSummary(promotion, metrics = {}) {
   };
 }
 
+function parseFiniteNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function getPromotionCategory(promotion) {
+  return String(promotion?.category || '').trim().toLowerCase();
+}
+
+function getPromotionMerchantId(promotion) {
+  const merchant = promotion?.merchant;
+  if (!merchant) return '';
+  return String(merchant._id || merchant);
+}
+
+function getDiscountSignal(promotion) {
+  const percentage = Number(promotion?.discountPercentage);
+  if (Number.isFinite(percentage) && percentage > 0) return percentage;
+
+  const discount = String(promotion?.discount || '');
+  const percentMatch = discount.match(/(\d+(?:\.\d+)?)\s*%/);
+  if (percentMatch) return Number(percentMatch[1]) || 0;
+
+  const original = Number(promotion?.originalPrice);
+  const discounted = Number(promotion?.discountedPrice ?? promotion?.price);
+  if (Number.isFinite(original) && original > 0 && Number.isFinite(discounted) && discounted < original) {
+    return Math.round(((original - discounted) / original) * 100);
+  }
+
+  return 0;
+}
+
+function haversineDistanceKm(fromLat, fromLon, toLat, toLon) {
+  if (![fromLat, fromLon, toLat, toLon].every(Number.isFinite)) return null;
+  const toRadians = (degrees) => degrees * (Math.PI / 180);
+  const earthRadiusKm = 6371;
+  const dLat = toRadians(toLat - fromLat);
+  const dLon = toRadians(toLon - fromLon);
+  const lat1 = toRadians(fromLat);
+  const lat2 = toRadians(toLat);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 async function attachPromotionTrustSummaries(promotions) {
   const list = Array.isArray(promotions) ? promotions : [];
   const ids = list.map((promotion) => promotion?._id).filter(Boolean);
@@ -559,6 +604,145 @@ router.post('/admin/clear-cache', authenticateJWT, authorizeAdmin, async (req, r
     });
   } catch (error) {
     console.error('[Cache Clear] Error:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
+router.get('/recommended', gentleAuthenticateJWT, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 10, 30);
+    const excludeIds = String(req.query.exclude || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => mongoose.Types.ObjectId.isValid(id))
+      .map((id) => new mongoose.Types.ObjectId(id));
+    const latitude = parseFiniteNumber(req.query.latitude);
+    const longitude = parseFiniteNumber(req.query.longitude);
+    const now = new Date();
+    const since = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
+    const query = buildActivePromotionQuery(now);
+    if (excludeIds.length) {
+      query._id = { $nin: excludeIds };
+    }
+
+    const userId = req.user?.id && mongoose.Types.ObjectId.isValid(req.user.id)
+      ? new mongoose.Types.ObjectId(req.user.id)
+      : null;
+
+    const [user, userClickRows, promotionClickRows, promotions] = await Promise.all([
+      userId
+        ? User.findById(userId).select('favorites followingMerchants').lean()
+        : null,
+      userId
+        ? PromotionClick.find({ user: userId, timestamp: { $gte: since } })
+            .populate('promotion', 'category merchant')
+            .sort({ timestamp: -1 })
+            .limit(120)
+            .lean()
+        : [],
+      PromotionClick.aggregate([
+        { $match: { timestamp: { $gte: since } } },
+        {
+          $group: {
+            _id: '$promotion',
+            views: { $sum: { $cond: [{ $eq: ['$type', 'view'] }, 1, 0] } },
+            clicks: { $sum: { $cond: [{ $eq: ['$type', 'click'] }, 1, 0] } },
+            directions: { $sum: { $cond: [{ $eq: ['$type', 'direction'] }, 1, 0] } },
+            redeems: { $sum: { $cond: [{ $eq: ['$type', 'redeem'] }, 1, 0] } },
+          },
+        },
+      ]),
+      Promotion.find(query)
+        .select('-comments')
+        .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
+        .sort(newestFirstSort)
+        .limit(120)
+        .lean(),
+    ]);
+
+    const favoriteIds = new Set((user?.favorites || []).map((id) => String(id)));
+    const followedMerchantIds = new Set((user?.followingMerchants || []).map((id) => String(id)));
+    const categoryAffinity = new Map();
+    const merchantAffinity = new Map();
+
+    for (const row of userClickRows) {
+      const promotion = row.promotion;
+      const category = getPromotionCategory(promotion);
+      const merchantId = getPromotionMerchantId(promotion);
+      const weight = row.type === 'redeem' ? 7 : row.type === 'direction' ? 5 : row.type === 'click' ? 3 : 2;
+      if (category) categoryAffinity.set(category, (categoryAffinity.get(category) || 0) + weight);
+      if (merchantId) merchantAffinity.set(merchantId, (merchantAffinity.get(merchantId) || 0) + weight);
+    }
+
+    const promotionClickMap = new Map(promotionClickRows.map((row) => [String(row._id), row]));
+    const sanitizedPromotions = await attachPromotionTrustSummaries(promotions.map(sanitizePromotionPayload));
+    const scored = sanitizedPromotions.map((promotion) => {
+      const promotionId = String(promotion._id);
+      const merchantId = getPromotionMerchantId(promotion);
+      const category = getPromotionCategory(promotion);
+      const metrics = promotionClickMap.get(promotionId) || {};
+      const distanceKm = haversineDistanceKm(
+        latitude,
+        longitude,
+        promotion.latitude ?? promotion.merchant?.location?.coordinates?.[1],
+        promotion.longitude ?? promotion.merchant?.location?.coordinates?.[0],
+      );
+
+      let score = 0;
+      let reason = 'Popular right now';
+      const categoryScore = categoryAffinity.get(category) || 0;
+      const merchantScore = merchantAffinity.get(merchantId) || 0;
+
+      if (categoryScore > 0) {
+        score += categoryScore * 2.2;
+        reason = 'Based on categories you view';
+      }
+      if (merchantScore > 0) {
+        score += merchantScore * 2.6;
+        reason = 'From stores you like';
+      }
+      if (favoriteIds.has(promotionId)) {
+        score += 14;
+        reason = 'Saved in your favorites';
+      }
+      if (followedMerchantIds.has(merchantId)) {
+        score += 12;
+        reason = 'From a store you follow';
+      }
+      if (distanceKm != null) {
+        score += Math.max(0, 12 - distanceKm);
+        if (distanceKm <= 5 && reason === 'Popular right now') reason = 'Popular near you';
+      }
+
+      score += Math.min(12, (metrics.redeems || 0) * 4);
+      score += Math.min(10, (metrics.directions || 0) * 2);
+      score += Math.min(8, (metrics.clicks || 0) * 1.2);
+      score += Math.min(6, (metrics.views || 0) * 0.4);
+      score += Math.min(8, getDiscountSignal(promotion) / 8);
+      score += Math.min(6, (promotion.averageRating || 0) * 1.2);
+      score += Math.min(4, (promotion.ratingsCount || 0) * 0.25);
+      if (promotion.trustSummary?.status === 'verified') score += 4;
+      if (promotion.trustSummary?.status === 'reported') score -= 8;
+      if (promotion.featured === true) score += 3;
+      if (promotion.createdAt && now - new Date(promotion.createdAt) < 7 * 24 * 60 * 60 * 1000) score += 2;
+
+      return {
+        ...promotion,
+        recommendationScore: Number(score.toFixed(2)),
+        recommendationReason: reason,
+      };
+    });
+
+    scored.sort((a, b) => {
+      if (b.recommendationScore !== a.recommendationScore) {
+        return b.recommendationScore - a.recommendationScore;
+      }
+      return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+    });
+
+    res.status(200).json(scored.slice(0, limit));
+  } catch (error) {
+    console.error('Error in GET /api/promotions/recommended:', error);
     res.status(500).json(safeError(error));
   }
 });

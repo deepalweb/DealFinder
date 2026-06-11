@@ -38,6 +38,8 @@ class Promotion {
   final int didntWorkCount;
   final int redeemCount;
   final int reportCount;
+  final double recommendationScore;
+  final String? recommendationReason;
   final String? merchantCurrency;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -90,6 +92,8 @@ class Promotion {
     this.didntWorkCount = 0,
     this.redeemCount = 0,
     this.reportCount = 0,
+    this.recommendationScore = 0,
+    this.recommendationReason,
     this.merchantCurrency,
     this.createdAt,
     this.updatedAt,
@@ -300,6 +304,9 @@ class Promotion {
       didntWorkCount: (trustSummary['didntWorkCount'] as num?)?.toInt() ?? 0,
       redeemCount: (trustSummary['redeemCount'] as num?)?.toInt() ?? 0,
       reportCount: (trustSummary['reportCount'] as num?)?.toInt() ?? 0,
+      recommendationScore:
+          (json['recommendationScore'] as num?)?.toDouble() ?? 0,
+      recommendationReason: json['recommendationReason'] as String?,
       createdAt: parseDate(json['createdAt'] as String?),
       updatedAt: parseDate(json['updatedAt'] as String?),
       status: json['status'] as String?,
@@ -374,6 +381,8 @@ class Promotion {
         'redeemCount': redeemCount,
         'reportCount': reportCount,
       },
+      'recommendationScore': recommendationScore,
+      'recommendationReason': recommendationReason,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
       'status': status,
@@ -427,6 +436,8 @@ class Promotion {
     int? didntWorkCount,
     int? redeemCount,
     int? reportCount,
+    double? recommendationScore,
+    String? recommendationReason,
     String? merchantCurrency,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -479,6 +490,8 @@ class Promotion {
       didntWorkCount: didntWorkCount ?? this.didntWorkCount,
       redeemCount: redeemCount ?? this.redeemCount,
       reportCount: reportCount ?? this.reportCount,
+      recommendationScore: recommendationScore ?? this.recommendationScore,
+      recommendationReason: recommendationReason ?? this.recommendationReason,
       merchantCurrency: merchantCurrency ?? this.merchantCurrency,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

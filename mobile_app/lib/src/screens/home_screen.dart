@@ -43,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<Promotion> _hotDeals = [];
   List<Promotion> _newThisWeekDeals = [];
   List<Promotion> _flashSalesDeals = [];
+  List<Promotion> _personalizedDeals = [];
   bool _bannerManaged = false;
   bool _hotDealsManaged = false;
   bool _newThisWeekManaged = false;
@@ -100,6 +101,7 @@ class _HomeScreenState extends State<HomeScreen>
       _loadLocation(),
       _loadDeals(),
       _loadCuratedSections(),
+      _loadPersonalizedDeals(),
     ]);
   }
 
@@ -159,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
       // Fetch nearby deals from backend
       _loadNearbyDeals(pos.latitude, pos.longitude);
+      _loadPersonalizedDeals(latitude: pos.latitude, longitude: pos.longitude);
     }
   }
 
@@ -267,12 +270,32 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  Future<void> _loadPersonalizedDeals({
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final deals = await _api.fetchRecommendedPromotions(
+        limit: 10,
+        latitude: latitude ?? _position?.latitude,
+        longitude: longitude ?? _position?.longitude,
+      );
+      if (!mounted) return;
+      setState(() {
+        _personalizedDeals = _withComputedDistances(deals);
+      });
+    } catch (_) {
+      // Trending deals remain the fallback when personalized ranking is unavailable.
+    }
+  }
+
   Future<void> _refresh() async {
     HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     await _loadDeals();
     await _loadCuratedSections();
     await _loadLocation();
+    await _loadPersonalizedDeals();
 
     if (mounted && !_isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -487,7 +510,25 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   List<Promotion> get _recommendedDeals {
-    return _trendingDeals;
+    final source =
+        _personalizedDeals.isNotEmpty ? _personalizedDeals : _trendingDeals;
+    final now = DateTime.now();
+    final deals = source
+        .where((p) =>
+            p.hasStarted &&
+            (p.endDate == null || p.endDate!.isAfter(now)) &&
+            (_selectedCategory == null ||
+                BankCardPromotionSupport.effectiveCategoryId(p) ==
+                    _selectedCategory))
+        .toList();
+    if (_personalizedDeals.isEmpty) return deals.take(8).toList();
+    deals.sort((a, b) {
+      final scoreCompare =
+          b.recommendationScore.compareTo(a.recommendationScore);
+      if (scoreCompare != 0) return scoreCompare;
+      return _compareByRecent(a, b);
+    });
+    return deals.take(10).toList();
   }
 
   List<Promotion> get _bankCardDeals {
@@ -1520,8 +1561,7 @@ class _HomeScreenState extends State<HomeScreen>
                   deal: _nearbyDeals.first,
                   onOpenDeal: () => _openDeal(_nearbyDeals.first),
                 ),
-                if (_nearbyDeals.length > 1)
-                  const SizedBox(width: 12),
+                if (_nearbyDeals.length > 1) const SizedBox(width: 12),
                 if (_nearbyDeals.length > 1)
                   _buildCompactDealPreview(
                     deal: _nearbyDeals[1],
@@ -1577,8 +1617,7 @@ class _HomeScreenState extends State<HomeScreen>
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _locationIssue ??
-                                  l10n.showNearbyDealsMapAccess,
+                              _locationIssue ?? l10n.showNearbyDealsMapAccess,
                               style: TextStyle(
                                 fontSize: 12.5,
                                 color: Colors.blue[800],
@@ -1599,8 +1638,7 @@ class _HomeScreenState extends State<HomeScreen>
                         if (_position != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                  l10n.locationEnabledLoading),
+                              content: Text(l10n.locationEnabledLoading),
                               backgroundColor: const Color(0xFF4CAF50),
                             ),
                           );
@@ -1785,7 +1823,8 @@ class _HomeScreenState extends State<HomeScreen>
                   categoryId: category.id,
                 ),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
@@ -1868,8 +1907,9 @@ class _HomeScreenState extends State<HomeScreen>
                     onSecondaryAction: _hasDirections(_flashSales[i])
                         ? () => _openDirectionsFor(_flashSales[i])
                         : null,
-                    secondaryActionLabel:
-                        _hasDirections(_flashSales[i]) ? l10n.getDirections : null,
+                    secondaryActionLabel: _hasDirections(_flashSales[i])
+                        ? l10n.getDirections
+                        : null,
                     onTap: () => _openDeal(_flashSales[i]),
                   ),
                 ),
@@ -1936,8 +1976,9 @@ class _HomeScreenState extends State<HomeScreen>
                     onSecondaryAction: _hasDirections(_newDeals[i])
                         ? () => _openDirectionsFor(_newDeals[i])
                         : null,
-                    secondaryActionLabel:
-                        _hasDirections(_newDeals[i]) ? l10n.getDirections : null,
+                    secondaryActionLabel: _hasDirections(_newDeals[i])
+                        ? l10n.getDirections
+                        : null,
                     onTap: () => _openDeal(_newDeals[i]),
                   ),
                 ),

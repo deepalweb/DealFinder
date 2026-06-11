@@ -583,6 +583,46 @@ class ApiService {
     }
   }
 
+  Future<List<Promotion>> fetchRecommendedPromotions({
+    int limit = 10,
+    double? latitude,
+    double? longitude,
+    String? excludePromotionId,
+  }) async {
+    final query = <String, String>{
+      'limit': limit.toString(),
+      if (latitude != null) 'latitude': latitude.toString(),
+      if (longitude != null) 'longitude': longitude.toString(),
+      if (excludePromotionId != null && excludePromotionId.isNotEmpty)
+        'exclude': excludePromotionId,
+    };
+    final uri = Uri.parse('${_baseUrl}promotions/recommended')
+        .replace(queryParameters: query);
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      },
+    ).timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      if (body is! List) return [];
+      return _visibleConsumerPromotions(
+        body.whereType<Map<String, dynamic>>().map(Promotion.fromJson),
+      );
+    }
+
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to load recommendations',
+    ));
+  }
+
   // Fetch comments (reviews) for a promotion
   Future<List<Map<String, dynamic>>> fetchPromotionComments(
       String promotionId) async {
