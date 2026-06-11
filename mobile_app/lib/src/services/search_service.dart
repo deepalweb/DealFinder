@@ -204,11 +204,22 @@ class SearchService {
           results
               .sort((a, b) => _discountSignal(b).compareTo(_discountSignal(a)));
           break;
+        case 'highest_rated':
+        case 'rating':
+          results.sort((a, b) {
+            final ratingCompare =
+                (b.averageRating ?? 0).compareTo(a.averageRating ?? 0);
+            if (ratingCompare != 0) return ratingCompare;
+            return b.ratingsCount.compareTo(a.ratingsCount);
+          });
+          break;
         case 'newest':
+        case 'latest':
           results.sort((a, b) => (b.startDate ?? DateTime(1970))
               .compareTo(a.startDate ?? DateTime(1970)));
           break;
         case 'expiry':
+        case 'ending_soon':
           results.sort((a, b) => (a.endDate ?? DateTime(2100))
               .compareTo(b.endDate ?? DateTime(2100)));
           break;

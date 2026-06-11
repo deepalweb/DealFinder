@@ -339,6 +339,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         0;
   }
 
+  int _discountSignal(Promotion promotion) {
+    final percentage = promotion.discountPercentage;
+    if (percentage != null) return percentage;
+    final match = RegExp(r'(\d+)').firstMatch(promotion.discount ?? '');
+    return match == null ? 0 : int.tryParse(match.group(1) ?? '') ?? 0;
+  }
+
   List<Promotion> get _sortedResults {
     final sorted = List<Promotion>.from(_results);
     switch (_selectedSort) {
@@ -346,6 +353,25 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         sorted.sort(
           (a, b) => (b.startDate ?? DateTime(1970))
               .compareTo(a.startDate ?? DateTime(1970)),
+        );
+        break;
+      case 'discount':
+        sorted.sort(
+          (a, b) => _discountSignal(b).compareTo(_discountSignal(a)),
+        );
+        break;
+      case 'highest_rated':
+        sorted.sort((a, b) {
+          final ratingCompare =
+              (b.averageRating ?? 0).compareTo(a.averageRating ?? 0);
+          if (ratingCompare != 0) return ratingCompare;
+          return b.ratingsCount.compareTo(a.ratingsCount);
+        });
+        break;
+      case 'ending_soon':
+        sorted.sort(
+          (a, b) => (a.endDate ?? DateTime(2100))
+              .compareTo(b.endDate ?? DateTime(2100)),
         );
         break;
       case 'price_low':
@@ -653,6 +679,24 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                 _buildSortChip('latest', 'Latest', Icons.access_time_rounded),
                 const SizedBox(width: 8),
                 _buildSortChip(
+                  'discount',
+                  'Discount',
+                  Icons.local_offer_outlined,
+                ),
+                const SizedBox(width: 8),
+                _buildSortChip(
+                  'highest_rated',
+                  'Top Rated',
+                  Icons.star_rounded,
+                ),
+                const SizedBox(width: 8),
+                _buildSortChip(
+                  'ending_soon',
+                  'Ending Soon',
+                  Icons.schedule_rounded,
+                ),
+                const SizedBox(width: 8),
+                _buildSortChip(
                   'price_low',
                   'Lowest Price',
                   Icons.south_rounded,
@@ -778,61 +822,60 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       body: FutureBuilder<List<Promotion>>(
         future: _futureResults,
         builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                _results.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              _results.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            if (snapshot.hasError) {
-              return _buildEmptyState(
-                title: 'Search is having trouble',
-                message: 'We could not load the latest results right now.',
-                actionLabel: 'Retry',
-                onAction: _refreshResults,
-              );
-            }
-
-            if (!snapshot.hasData || _results.isEmpty) {
-              return _buildEmptyState(
-                title: widget.query.trim().isNotEmpty
-                    ? 'No results for "${widget.query}"'
-                    : 'No deals found',
-                message: widget.query.trim().isNotEmpty
-                    ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
-                    : 'Try a different quick preset or clear the active filters to see more deals.',
-              );
-            }
-
-            final visibleResults = _visibleResults;
-
-            return RefreshIndicator(
-              onRefresh: _refreshResults,
-              child: Column(
-                children: [
-                  _buildResultHeader(visibleResults.length),
-                  Expanded(
-                    child: visibleResults.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              SizedBox(
-                                height:
-                                    MediaQuery.of(context).size.height * 0.55,
-                                child: _buildEmptyState(
-                                  title: 'No matches in this filter',
-                                  message:
-                                      'Try another category or clear the active filter to see more deals.',
-                                  actionLabel: 'Clear filters',
-                                  onAction: _clearAllFilters,
-                                ),
-                              ),
-                            ],
-                          )
-                        : _buildResultsGrid(visibleResults),
-                  ),
-                ],
-              ),
+          if (snapshot.hasError) {
+            return _buildEmptyState(
+              title: 'Search is having trouble',
+              message: 'We could not load the latest results right now.',
+              actionLabel: 'Retry',
+              onAction: _refreshResults,
             );
+          }
+
+          if (!snapshot.hasData || _results.isEmpty) {
+            return _buildEmptyState(
+              title: widget.query.trim().isNotEmpty
+                  ? 'No results for "${widget.query}"'
+                  : 'No deals found',
+              message: widget.query.trim().isNotEmpty
+                  ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
+                  : 'Try a different quick preset or clear the active filters to see more deals.',
+            );
+          }
+
+          final visibleResults = _visibleResults;
+
+          return RefreshIndicator(
+            onRefresh: _refreshResults,
+            child: Column(
+              children: [
+                _buildResultHeader(visibleResults.length),
+                Expanded(
+                  child: visibleResults.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.55,
+                              child: _buildEmptyState(
+                                title: 'No matches in this filter',
+                                message:
+                                    'Try another category or clear the active filter to see more deals.',
+                                actionLabel: 'Clear filters',
+                                onAction: _clearAllFilters,
+                              ),
+                            ),
+                          ],
+                        )
+                      : _buildResultsGrid(visibleResults),
+                ),
+              ],
+            ),
+          );
         },
       ),
     );

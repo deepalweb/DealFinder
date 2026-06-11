@@ -23,6 +23,11 @@ const String capabilityVisitStore = 'visit_store';
 const String capabilityBudgetMeals = 'budget_meals';
 const String capabilitySameDayService = 'same_day_service';
 const String capabilityUnderRs2000 = 'under_rs_2000';
+const String capabilityVerified = 'verified';
+const String capabilityQrRedeemable = 'qr_redeemable';
+const String capabilityEndingToday = 'ending_today';
+const String capabilityHighestRated = 'highest_rated';
+const String capabilityHideReported = 'hide_reported';
 
 const List<DealCapabilityPreset> dealCapabilityPresets = [
   DealCapabilityPreset(
@@ -60,6 +65,36 @@ const List<DealCapabilityPreset> dealCapabilityPresets = [
     label: 'Under Rs. 2000',
     description: 'Low-cost deals across categories',
     icon: Icons.currency_rupee,
+  ),
+  DealCapabilityPreset(
+    id: capabilityVerified,
+    label: 'Verified',
+    description: 'Admin-verified and trusted deals',
+    icon: Icons.verified_rounded,
+  ),
+  DealCapabilityPreset(
+    id: capabilityQrRedeemable,
+    label: 'QR Redeemable',
+    description: 'In-store deals you can redeem with QR',
+    icon: Icons.qr_code_2_rounded,
+  ),
+  DealCapabilityPreset(
+    id: capabilityEndingToday,
+    label: 'Ending Today',
+    description: 'Deals expiring before midnight',
+    icon: Icons.schedule_rounded,
+  ),
+  DealCapabilityPreset(
+    id: capabilityHighestRated,
+    label: 'Top Rated',
+    description: 'Deals with strong user ratings',
+    icon: Icons.star_rounded,
+  ),
+  DealCapabilityPreset(
+    id: capabilityHideReported,
+    label: 'Hide Reported',
+    description: 'Remove deals with open issue reports',
+    icon: Icons.report_off_outlined,
   ),
 ];
 
@@ -116,6 +151,20 @@ bool matchesDealCapabilityPreset(Promotion promotion, String presetId) {
       return promotion.supportsDelivery || promotion.supportsPickup;
     case capabilityUnderRs2000:
       return price != null && price <= 2000;
+    case capabilityVerified:
+      return promotion.trustStatus == 'verified' || promotion.adminVerified;
+    case capabilityQrRedeemable:
+      return promotion.supportsVisit && promotion.status != 'admin_paused';
+    case capabilityEndingToday:
+      final endDate = promotion.endDate;
+      if (endDate == null) return false;
+      final now = DateTime.now();
+      final endOfToday = DateTime(now.year, now.month, now.day + 1);
+      return endDate.isAfter(now) && endDate.isBefore(endOfToday);
+    case capabilityHighestRated:
+      return (promotion.averageRating ?? 0) >= 4 && promotion.ratingsCount > 0;
+    case capabilityHideReported:
+      return promotion.trustStatus != 'reported';
     default:
       return true;
   }

@@ -128,6 +128,28 @@ function getDiscountSignal(promotion) {
   return 0;
 }
 
+function matchesPromotionTextSearch(promotion, rawSearch) {
+  const search = String(rawSearch || '').trim().toLowerCase();
+  if (!search) return true;
+  const fields = [
+    promotion.title,
+    promotion.description,
+    promotion.discount,
+    promotion.code,
+    promotion.category,
+    promotion.bankName,
+    promotion.offerType,
+    promotion.merchant?.name,
+    promotion.merchant?.address,
+    promotion.merchant?.contactInfo,
+  ];
+  return fields.some((field) => String(field || '').toLowerCase().includes(search));
+}
+
+function isTruthyQuery(value) {
+  return ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase());
+}
+
 function haversineDistanceKm(fromLat, fromLon, toLat, toLon) {
   if (![fromLat, fromLon, toLat, toLon].every(Number.isFinite)) return null;
   const toRadians = (degrees) => degrees * (Math.PI / 180);
@@ -752,21 +774,88 @@ router.get('/', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 0; // 0 means no limit
     const skip = parseInt(req.query.skip) || 0;
+    const sortBy = String(req.query.sortBy || req.query.sort || 'recent');
+    const latitude = parseFiniteNumber(req.query.latitude);
+    const longitude = parseFiniteNumber(req.query.longitude);
+    const radiusKm = parseFiniteNumber(req.query.radiusKm || req.query.radius);
 
     const query = buildActivePromotionQuery();
+    if (req.query.category) {
+      query.category = new RegExp(String(req.query.category).trim(), 'i');
+    }
     
-    let promotionsQuery = Promotion.find(query)
+    let promotions = await Promotion.find(query)
       .select('-comments')
       .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
       .sort(newestFirstSort)
       .lean();
-    
-    if (limit > 0) {
-      promotionsQuery = promotionsQuery.limit(limit).skip(skip);
-    }
-    
-    const promotions = await attachPromotionTrustSummaries((await promotionsQuery).map(sanitizePromotionPayload));
-    res.status(200).json(promotions);
+
+    promotions = await attachPromotionTrustSummaries(promotions.map(sanitizePromotionPayload));
+
+    const now = new Date();
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    const minRating = parseFiniteNumber(req.query.minRating);
+    const minDiscount = parseFiniteNumber(req.query.minDiscount);
+    const maxPrice = parseFiniteNumber(req.query.maxPrice);
+    const minPrice = parseFiniteNumber(req.query.minPrice);
+
+    promotions = promotions
+      .map((promotion) => {
+        const distanceKm = haversineDistanceKm(
+          latitude,
+          longitude,
+          promotion.latitude ?? promotion.merchant?.location?.coordinates?.[1],
+          promotion.longitude ?? promotion.merchant?.location?.coordinates?.[0],
+        );
+        return distanceKm == null ? promotion : { ...promotion, distanceKm, distance: distanceKm * 1000 };
+      })
+      .filter((promotion) => {
+        if (!matchesPromotionTextSearch(promotion, req.query.search || req.query.q)) return false;
+        if (isTruthyQuery(req.query.verifiedOnly) && promotion.trustSummary?.status !== 'verified') return false;
+        if (isTruthyQuery(req.query.hideReported) && promotion.trustSummary?.status === 'reported') return false;
+        if (isTruthyQuery(req.query.reportedOnly) && promotion.trustSummary?.status !== 'reported') return false;
+        if (isTruthyQuery(req.query.qrRedeemable) && promotion.fulfillmentType === 'order') return false;
+        if (isTruthyQuery(req.query.bankCards) && !promotion.bankName && promotion.category !== 'bank_cards') return false;
+        if (isTruthyQuery(req.query.endingToday)) {
+          if (!promotion.endDate || new Date(promotion.endDate) > endOfToday) return false;
+        }
+        if (minRating != null && (promotion.averageRating || 0) < minRating) return false;
+        if (minDiscount != null && getDiscountSignal(promotion) < minDiscount) return false;
+        const price = Number(promotion.discountedPrice ?? promotion.price ?? promotion.originalPrice ?? 0);
+        if (minPrice != null && price < minPrice) return false;
+        if (maxPrice != null && price > maxPrice) return false;
+        if (radiusKm != null && (promotion.distanceKm == null || promotion.distanceKm > radiusKm)) return false;
+        return true;
+      });
+
+    promotions.sort((a, b) => {
+      switch (sortBy) {
+        case 'discount':
+          return getDiscountSignal(b) - getDiscountSignal(a);
+        case 'highest_rated':
+        case 'rating':
+          return (b.averageRating || 0) - (a.averageRating || 0)
+            || (b.ratingsCount || 0) - (a.ratingsCount || 0);
+        case 'ending_soon':
+          return new Date(a.endDate || '2100-01-01') - new Date(b.endDate || '2100-01-01');
+        case 'nearest':
+        case 'distance':
+          return (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY);
+        case 'price_low':
+          return Number(a.discountedPrice ?? a.price ?? a.originalPrice ?? Number.POSITIVE_INFINITY)
+            - Number(b.discountedPrice ?? b.price ?? b.originalPrice ?? Number.POSITIVE_INFINITY);
+        case 'price_high':
+          return Number(b.discountedPrice ?? b.price ?? b.originalPrice ?? 0)
+            - Number(a.discountedPrice ?? a.price ?? a.originalPrice ?? 0);
+        case 'recent':
+        default:
+          return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+      }
+    });
+
+    const paged = limit > 0 ? promotions.slice(skip, skip + limit) : promotions.slice(skip);
+    res.status(200).json(paged);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
     res.status(500).json(safeError(error));

@@ -555,8 +555,10 @@ class ApiService {
 
   // Search promotions by query (title, description, merchant, etc.)
   Future<List<Promotion>> searchPromotions(String query) async {
-    final response =
-        await http.get(Uri.parse('${_baseUrl}promotions?search=$query'));
+    final uri = Uri.parse('${_baseUrl}promotions').replace(
+      queryParameters: {'search': query},
+    );
+    final response = await http.get(uri);
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
       return _visibleConsumerPromotions(

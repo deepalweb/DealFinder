@@ -187,6 +187,11 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           return _extractDiscount(b.discount).compareTo(
             _extractDiscount(a.discount),
           );
+        case 'highest_rated':
+          final ratingCompare =
+              (b.averageRating ?? 0).compareTo(a.averageRating ?? 0);
+          if (ratingCompare != 0) return ratingCompare;
+          return b.ratingsCount.compareTo(a.ratingsCount);
         case 'price_low':
           final aPrice = a.discountedPrice ??
               a.price ??
@@ -419,15 +424,27 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   String? get _contextSubtitle {
     switch (_activeSectionPreset) {
       case 'flash_sales':
-        return _t('Showing quick-turn deals closing within the next day.', 'ඊළඟ දවස ඇතුළත අවසන් වන ඉක්මන් ඩීල් පෙන්වයි.', 'அடுத்த நாளுக்குள் முடியும் விரைவு சலுகைகள் காட்டப்படுகின்றன.');
+        return _t(
+            'Showing quick-turn deals closing within the next day.',
+            'ඊළඟ දවස ඇතුළත අවසන් වන ඉක්මන් ඩීල් පෙන්වයි.',
+            'அடுத்த நாளுக்குள் முடியும் விரைவு சலுகைகள் காட்டப்படுகின்றன.');
       case 'ending_soon':
-        return _t('Showing the deals that are most likely to expire today.', 'අද කල් ඉකුත් වීමට වැඩි ඉඩක් ඇති ඩීල් පෙන්වයි.', 'இன்று காலாவதியாக அதிக வாய்ப்புள்ள சலுகைகள் காட்டப்படுகின்றன.');
+        return _t(
+            'Showing the deals that are most likely to expire today.',
+            'අද කල් ඉකුත් වීමට වැඩි ඉඩක් ඇති ඩීල් පෙන්වයි.',
+            'இன்று காலாவதியாக அதிக வாய்ப்புள்ள சலுகைகள் காட்டப்படுகின்றன.');
       case 'new_this_week':
-        return _t('Showing recently added deals so fresh offers stay easy to find.', 'අලුතින් එක් කළ ඩීල් පෙන්වමින් නව දීමනා පහසුවෙන් සොයාගත හැක.', 'புதிய சலுகைகளை எளிதாக காண சமீபத்தில் சேர்க்கப்பட்ட சலுகைகள் காட்டப்படுகின்றன.');
+        return _t(
+            'Showing recently added deals so fresh offers stay easy to find.',
+            'අලුතින් එක් කළ ඩීල් පෙන්වමින් නව දීමනා පහසුවෙන් සොයාගත හැක.',
+            'புதிய சலுகைகளை எளிதாக காண சமீபத்தில் சேர்க்கப்பட்ட சலுகைகள் காட்டப்படுகின்றன.');
       default:
         if (_selectedCategory == BankCardPromotionSupport.categoryId ||
             _activePrimaryFilter == primaryBankCards) {
-          return _t('Showing bank card promotions, cashback offers, and installment deals.', 'බැංකු කාඩ් ප්‍රවර්ධන, මුදල් ආපසු දීමනා සහ වාරික ඩීල් පෙන්වයි.', 'வங்கி அட்டை சலுகைகள், கேஷ்பேக் சலுகைகள், மற்றும் தவணை ஒப்பந்தங்கள் காட்டப்படுகின்றன.');
+          return _t(
+              'Showing bank card promotions, cashback offers, and installment deals.',
+              'බැංකු කාඩ් ප්‍රවර්ධන, මුදල් ආපසු දීමනා සහ වාරික ඩීල් පෙන්වයි.',
+              'வங்கி அட்டை சலுகைகள், கேஷ்பேக் சலுகைகள், மற்றும் தவணை ஒப்பந்தங்கள் காட்டப்படுகின்றன.');
         }
         return null;
     }
@@ -807,6 +824,24 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 ),
               ),
               PopupMenuItem(
+                value: 'highest_rated',
+                child: Row(
+                  children: [
+                    Icon(Icons.star_rounded,
+                        size: 20,
+                        color: _sortBy == 'highest_rated'
+                            ? Theme.of(context).colorScheme.primary
+                            : null),
+                    const SizedBox(width: 8),
+                    Text('Top Rated',
+                        style: TextStyle(
+                            fontWeight: _sortBy == 'highest_rated'
+                                ? FontWeight.bold
+                                : null)),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
                 value: 'price_low',
                 child: Row(
                   children: [
@@ -1100,7 +1135,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 Text(
                   hasPreset
                       ? '${widget.initialContextTitle ?? _screenTitle} ${_t('view', 'දසුන', 'காட்சி')}'
-                      : _t('Category filter applied', 'ප්‍රවර්ග පෙරහන යොදා ඇත', 'வகை வடிகட்டி பயன்படுத்தப்பட்டுள்ளது'),
+                      : _t('Category filter applied', 'ප්‍රවර්ග පෙරහන යොදා ඇත',
+                          'வகை வடிகட்டி பயன்படுத்தப்பட்டுள்ளது'),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF163A70),
@@ -1215,10 +1251,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.explore_rounded, color: Colors.white, size: 15),
+                    const Icon(Icons.explore_rounded,
+                        color: Colors.white, size: 15),
                     const SizedBox(width: 6),
                     Text(
-                      _t('Explore smarter', 'බුද්ධිමත් ලෙස සොයන්න', 'சாமர்த்தியமாக ஆராய்'),
+                      _t('Explore smarter', 'බුද්ධිමත් ලෙස සොයන්න',
+                          'சாமர்த்தியமாக ஆராய்'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
@@ -1240,7 +1278,10 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           ),
           const SizedBox(height: 14),
           Text(
-            _t('Discover what is worth opening first', 'මුලින්ම විවෘත කළ යුතු දේ සොයා ගන්න', 'முதலில் திறக்க வேண்டியவற்றை கண்டறியவும்'),
+            _t(
+                'Discover what is worth opening first',
+                'මුලින්ම විවෘත කළ යුතු දේ සොයා ගන්න',
+                'முதலில் திறக்க வேண்டியவற்றை கண்டறியவும்'),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -1281,14 +1322,18 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      _t('Search products, stores, food, or card offers', 'නිෂ්පාදන, වෙළඳසැල්, ආහාර හෝ කාඩ් දීමනා සොයන්න', 'பொருட்கள், கடைகள், உணவு அல்லது அட்டை சலுகைகளைத் தேடுங்கள்'),
+                      _t(
+                          'Search products, stores, food, or card offers',
+                          'නිෂ්පාදන, වෙළඳසැල්, ආහාර හෝ කාඩ් දීමනා සොයන්න',
+                          'பொருட்கள், கடைகள், உணவு அல்லது அட்டை சலுகைகளைத் தேடுங்கள்'),
                       style: const TextStyle(
                         color: Color(0xFF475569),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_rounded, color: Color(0xFF2563EB)),
+                  const Icon(Icons.arrow_forward_rounded,
+                      color: Color(0xFF2563EB)),
                 ],
               ),
             ),
@@ -1323,7 +1368,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         : primaryHalfOff),
               ),
               _buildHeroShortcut(
-                label: '$totalCategories ${_t('categories', 'ප්‍රවර්ග', 'வகைகள்')}',
+                label:
+                    '$totalCategories ${_t('categories', 'ප්‍රවර්ග', 'வகைகள்')}',
                 icon: Icons.grid_view_rounded,
                 onTap: () {},
               ),
@@ -1425,8 +1471,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
             p.endDate!.isAfter(now) &&
             p.endDate!.isBefore(cutoff);
       })
-      ..sort((a, b) => (a.endDate ?? DateTime(9999))
-          .compareTo(b.endDate ?? DateTime(9999)));
+      ..sort((a, b) =>
+          (a.endDate ?? DateTime(9999)).compareTo(b.endDate ?? DateTime(9999)));
 
     final nearby = List<Promotion>.from(allDeals)
       ..retainWhere((p) => p.distance != null)
@@ -1458,19 +1504,26 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
     addSection(
       _t('Ending Soon', 'ඉක්මනින් අවසන්', 'விரைவில் முடியும்'),
-      _t('Catch expiring deals before they disappear.', 'අතුරුදහන් වීමට පෙර කල් ඉකුත් වන ඩීල් ලබාගන්න.', 'மறையும் முன் காலாவதியாகும் சலுகைகளைப் பிடிக்கவும்.'),
+      _t(
+          'Catch expiring deals before they disappear.',
+          'අතුරුදහන් වීමට පෙර කල් ඉකුත් වන ඩීල් ලබාගන්න.',
+          'மறையும் முன் காலாவதியாகும் சலுகைகளைப் பிடிக்கவும்.'),
       Icons.schedule_rounded,
       endingSoon,
     );
     addSection(
       _t('Near You', 'ඔබ අසල', 'உங்கள் அருகில்'),
-      _t('Closest deals first when distance is available.', 'දුර ලබා ගත හැකි විට සමීපතම ඩීල් පළමුව පෙන්වයි.', 'தூரத் தகவல் இருக்கும் போது மிக அருகிலுள்ள சலுகைகள் முதலில் காட்டப்படும்.'),
+      _t(
+          'Closest deals first when distance is available.',
+          'දුර ලබා ගත හැකි විට සමීපතම ඩීල් පළමුව පෙන්වයි.',
+          'தூரத் தகவல் இருக்கும் போது மிக அருகிலுள்ள சலுகைகள் முதலில் காட்டப்படும்.'),
       Icons.near_me_rounded,
       nearby,
     );
     addSection(
       _t('Big Savings', 'විශාල ඉතිරිකිරීම්', 'பெரிய சேமிப்பு'),
-      _t('The strongest discounts right now.', 'දැනට ඇති හොඳම වට්ටම්.', 'இப்போது கிடைக்கும் சிறந்த தள்ளுபடிகள்.'),
+      _t('The strongest discounts right now.', 'දැනට ඇති හොඳම වට්ටම්.',
+          'இப்போது கிடைக்கும் சிறந்த தள்ளுபடிகள்.'),
       Icons.local_fire_department_outlined,
       bigDiscounts,
     );
@@ -1542,7 +1595,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DealDetailScreen(promotion: promotion),
+                          builder: (_) =>
+                              DealDetailScreen(promotion: promotion),
                         ),
                       );
                     },
@@ -1575,17 +1629,17 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           ),
         );
       },
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.045),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
           ],
         ),
         child: Column(
@@ -1665,8 +1719,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: Padding(
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
