@@ -10,12 +10,16 @@ Example:
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8080
 # optional alias if you want to provide the full public API origin explicitly
 NEXT_PUBLIC_API_BASE=http://localhost:8080
+NEXT_PUBLIC_SITE_URL=https://dealfinderapp.lk
 NEXT_PUBLIC_GA_ID=G-KW321NZHVV
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=google-search-console-token
 ```
 
 Production note:
 
 Set `NEXT_PUBLIC_BACKEND_URL` (or `NEXT_PUBLIC_API_BASE`) to the backend host explicitly. The frontend should not assume the website origin also serves `/api`.
+Set `NEXT_PUBLIC_SITE_URL` to the canonical public website URL because robots.txt, sitemap.xml, canonical URLs, and Open Graph URLs use it.
+Set `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` to the token from Google Search Console's HTML tag verification method.
 
 First, run the development server:
 

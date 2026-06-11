@@ -1,5 +1,6 @@
 export const SITE_NAME = 'DealFinder';
-export const SITE_URL = 'https://dealfinderapp.lk';
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.trim() || 'https://dealfinderapp.lk';
 export const DEFAULT_TITLE = "DealFinder - Sri Lanka's Smartest Way to Find Deals";
 export const DEFAULT_DESCRIPTION =
   'Discover exclusive discounts from top stores near you. Smart search, real-time updates, personalized recommendations. Find the best deals in Sri Lanka.';
