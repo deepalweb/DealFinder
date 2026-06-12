@@ -1570,14 +1570,28 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
           ),
           if (!_isPlatformBankOffer)
-            IconButton(
-              icon: const Icon(Icons.flag_outlined),
-              tooltip: _t(
-                'Report deal',
-                'Deal report කරන්න',
-                'Deal report செய்யவும்',
-              ),
-              onPressed: _showReportDealDialog,
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded),
+              tooltip: _t('More', 'තවත්', 'மேலும்'),
+              onSelected: (value) {
+                if (value == 'report') _showReportDealDialog();
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'report',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.flag_outlined, size: 20),
+                      const SizedBox(width: 10),
+                      Text(_t(
+                        'Report deal',
+                        'Deal report කරන්න',
+                        'Deal report செய்யவும்',
+                      )),
+                    ],
+                  ),
+                ),
+              ],
             ),
         ],
       ),
@@ -1669,121 +1683,15 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               },
             ),
             const SizedBox(height: 20.0),
-            const Divider(height: 32, thickness: 1.2),
-
-            // Action Buttons
-            SizedBox(
-              width: double.infinity,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  const gap = 10.0;
-                  final fullWidth = constraints.maxWidth;
-                  final halfWidth = (fullWidth - gap) / 2;
-                  final rows = <Widget>[];
-
-                  for (var i = 0; i < primaryActionButtons.length; i += 2) {
-                    final remaining = primaryActionButtons.length - i;
-                    if (remaining == 1) {
-                      rows.add(
-                        _buildActionButtonShell(
-                          width: fullWidth,
-                          child: primaryActionButtons[i],
-                        ),
-                      );
-                    } else {
-                      rows.add(
-                        Row(
-                          children: [
-                            _buildActionButtonShell(
-                              width: halfWidth,
-                              child: primaryActionButtons[i],
-                            ),
-                            const SizedBox(width: gap),
-                            _buildActionButtonShell(
-                              width: halfWidth,
-                              child: primaryActionButtons[i + 1],
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  }
-
-                  if (callButton != null && whatsappButton != null) {
-                    rows.add(
-                      Row(
-                        children: [
-                          _buildActionButtonShell(
-                            width: halfWidth,
-                            child: callButton,
-                          ),
-                          const SizedBox(width: gap),
-                          _buildActionButtonShell(
-                            width: halfWidth,
-                            child: whatsappButton,
-                          ),
-                        ],
-                      ),
-                    );
-                  } else if (callButton != null || whatsappButton != null) {
-                    rows.add(
-                      _buildActionButtonShell(
-                        width: fullWidth,
-                        child: callButton ?? whatsappButton!,
-                      ),
-                    );
-                  }
-
-                  if (!_showsVisitNow) {
-                    rows.add(
-                      _buildActionButtonShell(
-                        width: fullWidth,
-                        child: directionsButton,
-                      ),
-                    );
-                  }
-
-                  for (var i = 0; i < secondaryActionButtons.length; i += 2) {
-                    final remaining = secondaryActionButtons.length - i;
-                    if (remaining == 1) {
-                      rows.add(
-                        _buildActionButtonShell(
-                          width: fullWidth,
-                          child: secondaryActionButtons[i],
-                        ),
-                      );
-                    } else {
-                      rows.add(
-                        Row(
-                          children: [
-                            _buildActionButtonShell(
-                              width: halfWidth,
-                              child: secondaryActionButtons[i],
-                            ),
-                            const SizedBox(width: gap),
-                            _buildActionButtonShell(
-                              width: halfWidth,
-                              child: secondaryActionButtons[i + 1],
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  }
-
-                  return Column(
-                    children: [
-                      for (var i = 0; i < rows.length; i++) ...[
-                        if (i > 0) const SizedBox(height: gap),
-                        rows[i],
-                      ],
-                    ],
-                  );
-                },
-              ),
+            _buildDealActionPanel(
+              theme: theme,
+              primaryActions: primaryActionButtons,
+              callButton: callButton,
+              whatsappButton: whatsappButton,
+              directionsButton: !_showsVisitNow ? directionsButton : null,
+              secondaryActions: secondaryActionButtons,
             ),
             const SizedBox(height: 20.0),
-            const Divider(height: 32, thickness: 1.2),
 
             _buildRecommendationsSection(theme),
             _buildRatingsReviewsSection(theme),
@@ -2453,6 +2361,130 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildDealActionPanel({
+    required ThemeData theme,
+    required List<Widget> primaryActions,
+    required Widget? callButton,
+    required Widget? whatsappButton,
+    required Widget? directionsButton,
+    required List<Widget> secondaryActions,
+  }) {
+    const gap = 10.0;
+
+    List<Widget> buildRows(List<Widget> actions, double fullWidth) {
+      final halfWidth = (fullWidth - gap) / 2;
+      final rows = <Widget>[];
+      for (var i = 0; i < actions.length; i += 2) {
+        final remaining = actions.length - i;
+        if (remaining == 1) {
+          rows.add(
+            _buildActionButtonShell(width: fullWidth, child: actions[i]),
+          );
+        } else {
+          rows.add(
+            Row(
+              children: [
+                _buildActionButtonShell(width: halfWidth, child: actions[i]),
+                const SizedBox(width: gap),
+                _buildActionButtonShell(
+                  width: halfWidth,
+                  child: actions[i + 1],
+                ),
+              ],
+            ),
+          );
+        }
+      }
+      return rows;
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fullWidth = constraints.maxWidth - 32;
+        final primary = <Widget>[
+          ...primaryActions,
+          if (directionsButton != null) directionsButton,
+        ];
+        final contact = <Widget>[
+          if (callButton != null) callButton,
+          if (whatsappButton != null) whatsappButton,
+        ];
+        final primaryRows = buildRows([...primary, ...contact], fullWidth);
+        final secondaryRows = buildRows(secondaryActions, fullWidth);
+
+        if (primaryRows.isEmpty && secondaryRows.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        Widget sectionTitle(String title, IconData icon) {
+          return Row(
+            children: [
+              Icon(icon, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF14213D),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (primaryRows.isNotEmpty) ...[
+                sectionTitle(
+                  _t('Use this deal', 'මෙම deal එක භාවිත කරන්න',
+                      'இந்த deal-ஐ பயன்படுத்தவும்'),
+                  Icons.touch_app_outlined,
+                ),
+                const SizedBox(height: 12),
+                for (var i = 0; i < primaryRows.length; i++) ...[
+                  if (i > 0) const SizedBox(height: gap),
+                  primaryRows[i],
+                ],
+              ],
+              if (primaryRows.isNotEmpty && secondaryRows.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Divider(height: 1, color: theme.colorScheme.outlineVariant),
+                const SizedBox(height: 14),
+              ],
+              if (secondaryRows.isNotEmpty) ...[
+                sectionTitle(
+                  _t('More options', 'තවත් විකල්ප', 'மேலும் விருப்பங்கள்'),
+                  Icons.tune_rounded,
+                ),
+                const SizedBox(height: 12),
+                for (var i = 0; i < secondaryRows.length; i++) ...[
+                  if (i > 0) const SizedBox(height: gap),
+                  secondaryRows[i],
+                ],
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 

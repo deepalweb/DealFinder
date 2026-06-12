@@ -639,6 +639,15 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             ],
           ),
           const SizedBox(height: 14),
+          const Text(
+            'Quick filters',
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -670,6 +679,15 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          const Text(
+            'Sort by',
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
