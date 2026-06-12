@@ -30,7 +30,8 @@ jobs:
         working-directory: ./frontend-next
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net/api
+          NEXT_PUBLIC_API_URL: https://dealfinderapp.lk
+          NEXT_PUBLIC_GA_ID: G-KW321NZHVV
           NODE_ENV: production
 
       - name: Install backend dependencies
