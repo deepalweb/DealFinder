@@ -294,6 +294,15 @@ function scorePromotion({
 
 function applySort(results, sortBy) {
   switch (sortBy) {
+    case 'distance':
+    case 'nearest':
+      results.sort((a, b) => {
+        const aDistance = a.distanceKm ?? Number.POSITIVE_INFINITY;
+        const bDistance = b.distanceKm ?? Number.POSITIVE_INFINITY;
+        const byDistance = aDistance - bDistance;
+        return byDistance !== 0 ? byDistance : b.score - a.score;
+      });
+      break;
     case 'ending_soon':
       results.sort((a, b) => new Date(a.promotion.endDate) - new Date(b.promotion.endDate));
       break;

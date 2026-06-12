@@ -291,7 +291,9 @@ class Promotion {
       location: json['location'] as String?,
       distance: merchantData != null && merchantData['distance'] != null
           ? (merchantData['distance'] as num?)?.toDouble()
-          : null,
+          : json['aiMeta'] is Map && json['aiMeta']['distanceKm'] != null
+              ? ((json['aiMeta']['distanceKm'] as num?)?.toDouble() ?? 0) * 1000
+              : null,
       latitude: latitude,
       longitude: longitude,
       averageRating: averageRating,

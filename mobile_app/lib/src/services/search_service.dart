@@ -8,6 +8,25 @@ import '../utils/bank_card_promotion_support.dart';
 class SearchService {
   static const String _searchHistoryKey = 'searchHistory';
   static const String _savedSearchesKey = 'savedSearches';
+  static const List<String> _nearbyIntentTerms = [
+    'near me',
+    'nearby',
+    'closest',
+    'nearest',
+    'around me',
+    'lagama',
+    'langama',
+    'laga',
+    'ළගම',
+    'ලගම',
+    'ළඟම',
+    'ලඟම',
+    'අසල',
+    'කිට්ටුව',
+    'கிட்ட',
+    'அருகில்',
+    'பக்கத்தில்',
+  ];
 
   static double _effectivePrice(Promotion deal) {
     return deal.discountedPrice ?? deal.price ?? deal.originalPrice ?? 0;
@@ -22,6 +41,43 @@ class SearchService {
 
     final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(rawDiscount);
     return match != null ? double.tryParse(match.group(1)!) ?? 0 : 0;
+  }
+
+  static bool _looksLikeNearbySearch(String query, String sortBy) {
+    final normalized = query.toLowerCase();
+    return sortBy == 'distance' ||
+        _nearbyIntentTerms.any((term) => normalized.contains(term));
+  }
+
+  static Future<Position?> _tryGetSearchLocation({
+    required String query,
+    required String sortBy,
+    double? latitude,
+    double? longitude,
+  }) async {
+    if (latitude != null && longitude != null) return null;
+    if (!_looksLikeNearbySearch(query, sortBy)) return null;
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.medium,
+        timeLimit: const Duration(seconds: 8),
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<List<String>> getSearchHistory() async {
@@ -116,6 +172,39 @@ class SearchService {
     double? radiusKm,
   }) async {
     try {
+      final inferredPosition = await _tryGetSearchLocation(
+        query: query,
+        sortBy: sortBy,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      final searchLatitude = latitude ?? inferredPosition?.latitude;
+      final searchLongitude = longitude ?? inferredPosition?.longitude;
+      final shouldUseNaturalApi = query.trim().isNotEmpty ||
+          category != null ||
+          sortBy != 'relevance' ||
+          searchLatitude != null ||
+          searchLongitude != null;
+
+      if (shouldUseNaturalApi) {
+        try {
+          final apiResults = await ApiService().naturalSearchPromotions(
+            query: query,
+            category: category,
+            sortBy: sortBy,
+            latitude: searchLatitude,
+            longitude: searchLongitude,
+            radiusKm:
+                radiusKm ?? (_looksLikeNearbySearch(query, sortBy) ? 10 : null),
+          );
+          if (apiResults.isNotEmpty || query.trim().isNotEmpty) {
+            return apiResults;
+          }
+        } catch (_) {
+          // Fall through to local cached search so search still works offline.
+        }
+      }
+
       List<Promotion> results = await ApiService().fetchPromotions();
 
       // Text search
@@ -173,14 +262,16 @@ class SearchService {
             .toList();
       }
 
-      if (latitude != null && longitude != null && radiusKm != null) {
+      if (searchLatitude != null &&
+          searchLongitude != null &&
+          radiusKm != null) {
         final radiusMeters = radiusKm * 1000;
         results = results
             .where((deal) => deal.latitude != null && deal.longitude != null)
             .map((deal) {
               final distanceMeters = Geolocator.distanceBetween(
-                latitude,
-                longitude,
+                searchLatitude,
+                searchLongitude,
                 deal.latitude!,
                 deal.longitude!,
               );

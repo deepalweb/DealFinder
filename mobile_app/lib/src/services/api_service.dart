@@ -570,6 +570,64 @@ class ApiService {
     }
   }
 
+  Future<List<Promotion>> naturalSearchPromotions({
+    required String query,
+    String? category,
+    String sortBy = 'relevance',
+    double? latitude,
+    double? longitude,
+    double? radiusKm,
+    int limit = 50,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('userToken');
+    final filters = <String, dynamic>{
+      if (category != null && category.isNotEmpty) 'categories': [category],
+      if (sortBy.isNotEmpty && sortBy != 'relevance') 'sortBy': sortBy,
+      if (radiusKm != null) 'radiusKm': radiusKm,
+    };
+    final location = latitude != null && longitude != null
+        ? <String, dynamic>{
+            'latitude': latitude,
+            'longitude': longitude,
+            if (radiusKm != null) 'radiusKm': radiusKm,
+          }
+        : null;
+
+    final response = await http
+        .post(
+          Uri.parse('${_baseUrl}ai/search'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'query': query,
+            'filters': filters,
+            if (location != null) 'location': location,
+            'limit': limit,
+            'sessionId': 'mobile',
+          }),
+        )
+        .timeout(const Duration(seconds: 20));
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final results = body is Map<String, dynamic> ? body['results'] : null;
+      if (results is! List) return [];
+      return _visibleConsumerPromotions(
+        results.whereType<Map<String, dynamic>>().map(Promotion.fromJson),
+      );
+    }
+
+    throw Exception(_extractErrorMessage(
+      response,
+      fallback: 'Failed to search promotions',
+    ));
+  }
+
   // Filter promotions by category
   Future<List<Promotion>> filterPromotionsByCategory(String category) async {
     final response =

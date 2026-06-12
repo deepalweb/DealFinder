@@ -1,6 +1,7 @@
 const { createResponse } = require('./azureOpenAIClient');
 const { getAiConfig, isAzureOpenAIConfigured } = require('./config');
 const {
+  expandNaturalLanguageQuery,
   extractMatchedCategories,
   normalizeCategoryId,
   tokenizeText,
@@ -42,19 +43,61 @@ function parseDiscountIntent(query) {
   return match ? Number(match[1]) : null;
 }
 
+function parseNearbyIntent(query) {
+  const value = String(query || '').toLowerCase();
+  return [
+    'near me',
+    'nearby',
+    'closest',
+    'nearest',
+    'around me',
+    'near eka',
+    'lagama',
+    'langama',
+    'laga',
+    'ළගම',
+    'ලගම',
+    'ළඟම',
+    'ලඟම',
+    'අසල',
+    'කිට්ටුව',
+    'கிட்ட',
+    'அருகில்',
+    'பக்கத்தில்',
+    'நெருக்கம்',
+  ].some((term) => value.includes(term));
+}
+
+function parseUrgencyIntent(query) {
+  const value = String(query || '').toLowerCase();
+  return [
+    'ending today',
+    'ending soon',
+    'expires today',
+    'today',
+    'අද',
+    'இன்று',
+  ].some((term) => value.includes(term));
+}
+
 function heuristicQueryUnderstanding(query) {
   const normalizedQuery = String(query || '').trim().toLowerCase();
-  const categories = extractMatchedCategories(normalizedQuery).map(normalizeCategoryId);
+  const expanded = expandNaturalLanguageQuery(normalizedQuery);
+  const categories = [
+    ...extractMatchedCategories(normalizedQuery),
+    ...expanded.categories,
+  ].map(normalizeCategoryId);
   const priceIntent = parsePriceIntent(normalizedQuery);
   const minDiscountPercent = parseDiscountIntent(normalizedQuery);
-  const wantsNearby = normalizedQuery.includes('near me') || normalizedQuery.includes('nearby');
-  const wantsUrgency = normalizedQuery.includes('ending today')
-    || normalizedQuery.includes('ending soon')
-    || normalizedQuery.includes('expires today')
-    || normalizedQuery.includes('today');
+  const wantsNearby = parseNearbyIntent(normalizedQuery);
+  const wantsUrgency = parseUrgencyIntent(normalizedQuery);
+  const expandedQuery = [
+    normalizedQuery,
+    ...expanded.terms,
+  ].filter(Boolean).join(' ');
 
   return {
-    normalizedQuery,
+    normalizedQuery: expandedQuery,
     intent: {
       type: 'deal_search',
       wantsNearby,
@@ -62,7 +105,7 @@ function heuristicQueryUnderstanding(query) {
       wantsFeatured: normalizedQuery.includes('best') || normalizedQuery.includes('top'),
     },
     filters: {
-      categories,
+      categories: [...new Set(categories)],
       merchantQuery: '',
       minPrice: priceIntent.minPrice,
       maxPrice: priceIntent.maxPrice,
@@ -70,7 +113,7 @@ function heuristicQueryUnderstanding(query) {
       featuredOnly: normalizedQuery.includes('featured'),
       expiringWithinDays: wantsUrgency ? 2 : null,
       radiusKm: wantsNearby ? 10 : null,
-      sortBy: wantsUrgency ? 'ending_soon' : 'relevance',
+      sortBy: wantsNearby ? 'distance' : wantsUrgency ? 'ending_soon' : 'relevance',
     },
     aiUsed: false,
     fallbackUsed: true,
@@ -140,6 +183,7 @@ async function understandSearchQuery({ query, location, model }) {
     'Convert the user query into compact JSON only.',
     'Never add markdown fences or explanation.',
     'Supported categories: food_dining, beauty_salon, repairs_services, shopping_retail, health_wellness, daily_essentials, auto_services, education_courses, entertainment_activities, other.',
+    'Understand Sinhala, Singlish, English, and Tamil local search language. Examples: "ලගම තියෙන කොට්ටු කඩා", "lagama kottu kade", and "அருகில் கொத்து கடை" mean nearby kottu/food places.',
     'Use this JSON shape exactly:',
     '{"normalizedQuery":"","intent":{"wantsNearby":false,"wantsUrgency":false,"wantsFeatured":false},"filters":{"categories":[],"merchantQuery":"","minPrice":null,"maxPrice":null,"minDiscountPercent":null,"featuredOnly":false,"expiringWithinDays":null,"radiusKm":null,"sortBy":"relevance"}}',
     'Keep unknown fields null or empty.',
