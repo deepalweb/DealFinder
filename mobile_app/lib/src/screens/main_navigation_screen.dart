@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
+import '../config/app_theme.dart';
 import 'home_screen.dart';
 import 'user_profile_screen.dart';
 import 'favorites_screen.dart';
@@ -121,9 +122,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   Widget build(BuildContext context) {
     final localizations = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: theme.scaffoldBackgroundColor,
       extendBody: true,
       body: IndexedStack(
         index: _selectedIndex,
@@ -135,14 +138,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           margin: const EdgeInsets.only(top: 4),
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xF7FFFFFF),
+            color: isDark
+                ? AppColors.cardDark.withValues(alpha: 0.96)
+                : Colors.white.withValues(alpha: 0.96),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: const Color(0xFFD9DDE6)),
-            boxShadow: const [
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : const Color(0xFFD9DDE6),
+            ),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 20,
-                offset: Offset(0, 10),
+                color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.07),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
               ),
             ],
           ),
@@ -161,6 +168,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     activeIcon: item.activeIcon,
                     accent: item.accent,
                     accentSoft: item.accentSoft,
+                    isDark: isDark,
                     label: label,
                     onTap: () => _onItemTapped(index),
                   ),
@@ -187,6 +195,7 @@ class _NavigationBarItem extends StatelessWidget {
     required this.activeIcon,
     required this.accent,
     required this.accentSoft,
+    required this.isDark,
     required this.label,
     required this.onTap,
   });
@@ -196,11 +205,18 @@ class _NavigationBarItem extends StatelessWidget {
   final IconData activeIcon;
   final Color accent;
   final Color accentSoft;
+  final bool isDark;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final inactiveColor =
+        isDark ? AppColors.textSecondaryDark : const Color(0xFF8E8E93);
+    final selectedBackground = isDark
+        ? accent.withValues(alpha: 0.18)
+        : accentSoft.withValues(alpha: 0.92);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -215,8 +231,7 @@ class _NavigationBarItem extends StatelessWidget {
           ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color:
-                selected ? accentSoft.withValues(alpha: 0.92) : Colors.transparent,
+            color: selected ? selectedBackground : Colors.transparent,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -241,7 +256,7 @@ class _NavigationBarItem extends StatelessWidget {
                 child: Icon(
                   selected ? activeIcon : icon,
                   size: 19,
-                  color: selected ? accent : const Color(0xFF8E8E93),
+                  color: selected ? accent : inactiveColor,
                 ),
               ),
               const SizedBox(height: 2),
@@ -251,8 +266,8 @@ class _NavigationBarItem extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? accent : const Color(0xFF8E8E93),
-                  letterSpacing: -0.1,
+                  color: selected ? accent : inactiveColor,
+                  letterSpacing: 0,
                 ),
                 child: Text(
                   label,
