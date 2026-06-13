@@ -31,9 +31,6 @@
   "nearby": "Nearby",
   "@nearby": { "description": "Quick action nearby label" },
 
-  "coupons": "Coupons",
-  "@coupons": { "description": "Quick action coupons label" },
-
   "scanQR": "Scan QR",
   "@scanQR": { "description": "Quick action scan QR label" },
 
@@ -78,9 +75,6 @@
 
   "notifications": "Notifications",
   "@notifications": { "description": "Notifications screen title" },
-
-  "couponsComing": "Coupons coming soon!",
-  "@couponsComing": { "description": "Coupons snackbar message" },
 
   "daysLeft": "{days}d left",
   "@daysLeft": {

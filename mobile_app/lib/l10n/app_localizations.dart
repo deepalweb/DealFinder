@@ -154,12 +154,6 @@ abstract class AppLocalizations {
   /// **'Nearby'**
   String get nearby;
 
-  /// Quick action coupons label
-  ///
-  /// In en, this message translates to:
-  /// **'Coupons'**
-  String get coupons;
-
   /// Quick action scan QR label
   ///
   /// In en, this message translates to:
@@ -249,12 +243,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Notifications'**
   String get notifications;
-
-  /// Coupons snackbar message
-  ///
-  /// In en, this message translates to:
-  /// **'Coupons coming soon!'**
-  String get couponsComing;
 
   /// Days left countdown
   ///

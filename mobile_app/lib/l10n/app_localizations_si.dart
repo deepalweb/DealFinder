@@ -38,9 +38,6 @@ class AppLocalizationsSi extends AppLocalizations {
   String get nearby => 'ආසන්න';
 
   @override
-  String get coupons => 'කූපන්';
-
-  @override
   String get scanQR => 'QR ස්කෑන්';
 
   @override
@@ -84,9 +81,6 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get notifications => 'දැනුම්දීම්';
-
-  @override
-  String get couponsComing => 'කූපන් ඉක්මනින් එනවා!';
 
   @override
   String daysLeft(int days) {
@@ -366,7 +360,7 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get searchStoresHint =>
-      'Search stores or try Sinhala like කෑම, ඉලෙක්ට්‍රොනික්';
+      'Stores සොයන්න හෝ කෑම, ඉලෙක්ට්‍රොනික් වැනි Sinhala යොදන්න';
 
   @override
   String activeFiltersLabel(int count) {

@@ -38,9 +38,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nearby => 'Nearby';
 
   @override
-  String get coupons => 'Coupons';
-
-  @override
   String get scanQR => 'Scan QR';
 
   @override
@@ -84,9 +81,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get notifications => 'Notifications';
-
-  @override
-  String get couponsComing => 'Coupons coming soon!';
 
   @override
   String daysLeft(int days) {
