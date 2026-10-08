@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const { authenticateJWT, authorizeAdmin, authorizeSelfOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
+const { findUserByEmail: findPostgresUserByEmail } = require('../services/postgresUserService');
 
 function safeError(error) {
   if (process.env.NODE_ENV === 'production') {
@@ -42,7 +43,7 @@ function generateToken(user) {
   return jwt.sign(
     // Ensure merchantId is included in the token if the user is a merchant
     { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_SECRET || 'your_jwt_secret',
+    process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
 }
@@ -52,7 +53,7 @@ function generateRefreshToken(user) {
   return jwt.sign(
     // Ensure merchantId is included in the token if the user is a merchant
     { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret',
+    process.env.JWT_REFRESH_SECRET,
     { expiresIn: '30d' }
   );
 }
@@ -144,7 +145,7 @@ router.post('/firebase-auth', async (req, res) => {
         name: displayName,
         email,
         password: hashedPassword,
-        role: role || 'user',
+        role: role === 'merchant' ? 'merchant' : 'user', // never trust a client-supplied admin role
         businessName,
       });
       const savedUser = await user.save();
@@ -363,27 +364,31 @@ router.post('/login', [
   }
   try {
     const { email, password } = req.body;
-    
+
     // Find user
-    let user = await User.findOne({ email });
+    let user = process.env.DATA_SOURCE === 'postgres'
+      ? await findPostgresUserByEmail(email)
+      : await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
-    
+
     // Check password using bcrypt
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    user = await ensureMerchantProfileForUser(user, {
-      businessName: user.businessName || user.name,
-      contactInfo: user.email,
-      logo: user.logo,
-    });
-    
+    if (process.env.DATA_SOURCE !== 'postgres') {
+      user = await ensureMerchantProfileForUser(user, {
+        businessName: user.businessName || user.name,
+        contactInfo: user.email,
+        logo: user.logo,
+      });
+    }
+
     // Don't return the password
-    const userResponse = user.toObject();
+    const userResponse = user.toObject ? user.toObject() : { ...user };
     delete userResponse.password;
     // Generate tokens
     const token = generateToken(user);
@@ -401,7 +406,7 @@ router.post('/refresh-token', (req, res) => {
   if (!refreshToken || !refreshTokens.has(refreshToken)) {
     return res.status(401).json({ message: 'Invalid refresh token' });
   }
-  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your_jwt_refresh_secret', async (err, user) => {
+  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, user) => {
     if (err) return res.status(403).json({ message: 'Invalid or expired refresh token' });
 
     try {
@@ -661,7 +666,7 @@ router.delete('/:id/following-merchants/:merchantId', authorizeSelfOrAdmin, asyn
 // Password reset request (step 1)
 router.post('/reset-password', async (req, res) => {
   const { email } = req.body;
-  if (!email || !/\S+@\S+\.\S+/.test(email)) {
+  if (typeof email !== 'string' || !/\S+@\S+\.\S+/.test(email)) {
     return res.status(400).json({ message: 'Please provide a valid email address.' });
   }
   try {
@@ -687,8 +692,12 @@ router.post('/reset-password', async (req, res) => {
 // Password reset confirmation (step 2)
 router.post('/reset-password/confirm', async (req, res) => {
   const { token, password } = req.body;
-  if (!token || !password) {
+  // Strings only: an object like {"$ne": null} would become a Mongo query operator.
+  if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) {
     return res.status(400).json({ message: 'Token and new password are required.' });
+  }
+  if (password.length < 8) {
+    return res.status(400).json({ message: 'Password must be at least 8 characters.' });
   }
   try {
     const user = await User.findOne({
@@ -732,7 +741,7 @@ router.post('/google-signin', async (req, res) => {
 
         let user = await User.findOne({ email });
         if (!user) {
-            const password = email + (process.env.JWT_SECRET || 'your_jwt_secret');
+            const password = crypto.randomBytes(32).toString('hex'); // unusable; Google users sign in via Google
             const hashedPassword = await bcrypt.hash(password, 10);
             user = new User({
                 name,

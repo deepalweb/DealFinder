@@ -181,8 +181,8 @@ export default function LoginPage() {
             <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quick Demo Access</p>
             <div className="flex gap-2">
               {[
-                { label: 'Merchant', icon: 'fa-store', email: 'jane@example.com', pass: 'password123', color: '#059669', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.3)' },
-                { label: 'User', icon: 'fa-user', email: 'john@example.com', pass: 'password123', color: 'var(--primary-color)', bg: 'rgba(99,102,241,0.06)', border: 'rgba(99,102,241,0.3)' },
+                { label: 'Merchant', icon: 'fa-store', email: 'merchant@dealfinderapp.lk', pass: 'DealFinderMerchant123!', color: '#059669', bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.3)' },
+                { label: 'User', icon: 'fa-user', email: 'demo@dealfinderapp.lk', pass: 'DealFinderDemo123!', color: 'var(--primary-color)', bg: 'rgba(99,102,241,0.06)', border: 'rgba(99,102,241,0.3)' },
               ].map(d => (
                 <button key={d.label} type="button"
                   onClick={() => setFormData({ email: d.email, password: d.pass })}

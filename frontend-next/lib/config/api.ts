@@ -17,7 +17,7 @@ export function getBackendOrigin() {
 
   if (typeof window !== 'undefined') {
     return isLocalHostname(window.location.hostname)
-      ? LOCAL_BACKEND_ORIGIN
+      ? (publicBackendOrigin || LOCAL_BACKEND_ORIGIN)
       : (publicBackendOrigin || PRODUCTION_BACKEND_ORIGIN);
   }
 

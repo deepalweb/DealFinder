@@ -1,34 +1,46 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
+/// The "Ceylon" design system: grounded in Sri Lanka's spice/gem trade
+/// (cinnamon, turmeric, tea, sapphire) rather than a generic discount-app
+/// palette. Two hard rules, enforced by convention at call sites since Dart
+/// has no way to check color combinations at compile time:
+///   1. Turmeric and Chili never appear in the same component — Turmeric
+///      means "look, save money," Chili means "act now or lose it."
+///   2. Betel Green is reserved for trust/status (Verified, Open Now) only —
+///      never repurposed as a generic "success" color elsewhere.
 class AppColors {
-  static const iosPrimary = Color(0xFF007AFF);
-  static const iosSecondary = Color(0xFF5AC8FA);
-  static const iosTertiary = Color(0xFF34C759);
-  static const iosError = Color(0xFFFF3B30);
-  
-  static const priceRed = Color(0xFFE53935);
-  static const ratingAmber = Color(0xFFF59E0B);
-  static const savingsOrange = Color(0xFFC2410C);
-  static const distanceBlue = Color(0xFF1565C0);
-  static const expiredRed = Color(0xFFB91C1C);
-  
-  static const textPrimary = Color(0xFF111827);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textTertiary = Color(0xFF9E9E9E);
-  
-  static const surfaceLight = Color(0xFFF2F2F7);
+  static const ceylonInk = Color(0xFF12312C);
+  static const turmeric = Color(0xFFE2A33B);
+  static const chili = Color(0xFFC24A3C);
+  static const betelGreen = Color(0xFF4C8C6B);
+  static const sand = Color(0xFFF6F3EA);
+  static const charcoal = Color(0xFF26241F);
+  static const ash = Color(0xFF8C8A80);
+
+  static const textPrimary = charcoal;
+  static const textSecondary = ash;
+  static const textTertiary = Color(0xFFB5B2A6);
+
+  static const surfaceLight = sand;
   static const cardLight = Color(0xFFFFFFFF);
-  static const borderLight = Color(0xFFD8D8DE);
-  static const borderSubtle = Color(0xFFE5E7EB);
-  static const borderCard = Color(0xFFE8EEF7);
-  
-  static const surfaceDark = Color(0xFF1C1C1E);
-  static const cardDark = Color(0xFF2C2C2E);
-  static const borderDark = Color(0xFF3A3A3C);
-  static const textPrimaryDark = Color(0xFFFFFFFF);
-  static const textSecondaryDark = Color(0xFFAAAAAA);
+  static const borderLight = Color(0xFFE3DFD1);
+  static const borderSubtle = Color(0xFFEAE6D9);
+
+  // Dark mode inverts to Ceylon Ink as background, Sand as text.
+  static const surfaceDark = Color(0xFF0C201C);
+  static const cardDark = Color(0xFF16332D);
+  static const borderDark = Color(0xFF25453D);
+  static const textPrimaryDark = sand;
+  static const textSecondaryDark = Color(0xFFAFC4BC);
+
+  // Translucent bar fills, meant to sit behind a BackdropFilter blur.
+  static const barBackgroundLight = Color(0xCCF6F3EA);
+  static const barBackgroundDark = Color(0xCC0C201C);
+
+  static const error = chili;
 }
 
 class AppSpacing {
@@ -39,6 +51,38 @@ class AppSpacing {
   static const lg = 12.0;
   static const xl = 16.0;
   static const xxl = 24.0;
+  static const xxxl = 32.0;
+  static const huge = 40.0;
+}
+
+/// Ceylon design system mobile type scale. Display roles (Fraunces) are for
+/// hero moments only — the hero savings amount, section headers like "Why
+/// visit?", empty-state headlines. Never used for body text or buttons; use
+/// [AppTheme]'s TextTheme.displayLarge/displayMedium explicitly at those call
+/// sites rather than letting it leak into default body/button styles.
+class AppTypeScale {
+  static const displayL = 32.0; // 32/38, Fraunces 600 — hero savings amount
+  static const displayS = 22.0; // 22/28, Fraunces 500 — section headers
+  static const title = 17.0; // 17/22, Jakarta 600 — merchant name, deal title
+  static const body = 15.0; // 15/21, Jakarta 400 — descriptions
+  static const label = 13.0; // 13/16, Jakarta 500 — badges, pills, metadata
+  static const caption = 11.0; // 11/14, Jakarta 500 — timestamps, fine print
+}
+
+/// Single CTA button style app-wide — filled Ceylon Ink, no gradient — per
+/// the design system's "one button style throughout" rule.
+class AppButtonStyles {
+  static ButtonStyle primary({Color? background, Color? foreground}) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: background ?? AppColors.ceylonInk,
+      foregroundColor: foreground ?? AppColors.sand,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+      textStyle: GoogleFonts.plusJakartaSans(fontSize: AppTypeScale.title, fontWeight: FontWeight.w600),
+    );
+  }
 }
 
 class AppRadius {
@@ -58,103 +102,20 @@ class AppOpacity {
   static const glass = 0.9;
 }
 
-class DealFinderThemeExtension extends ThemeExtension<DealFinderThemeExtension> {
-  final Color priceColor;
-  final Color savingsColor;
-  final Color ratingColor;
-  final Color distanceColor;
-  final Color expiredColor;
-  final Color cardShadow;
-  final Color glassBackground;
-  final Color chipBackground;
-
-  const DealFinderThemeExtension({
-    required this.priceColor,
-    required this.savingsColor,
-    required this.ratingColor,
-    required this.distanceColor,
-    required this.expiredColor,
-    required this.cardShadow,
-    required this.glassBackground,
-    required this.chipBackground,
-  });
-
-  @override
-  DealFinderThemeExtension copyWith({
-    Color? priceColor,
-    Color? savingsColor,
-    Color? ratingColor,
-    Color? distanceColor,
-    Color? expiredColor,
-    Color? cardShadow,
-    Color? glassBackground,
-    Color? chipBackground,
-  }) {
-    return DealFinderThemeExtension(
-      priceColor: priceColor ?? this.priceColor,
-      savingsColor: savingsColor ?? this.savingsColor,
-      ratingColor: ratingColor ?? this.ratingColor,
-      distanceColor: distanceColor ?? this.distanceColor,
-      expiredColor: expiredColor ?? this.expiredColor,
-      cardShadow: cardShadow ?? this.cardShadow,
-      glassBackground: glassBackground ?? this.glassBackground,
-      chipBackground: chipBackground ?? this.chipBackground,
-    );
-  }
-
-  @override
-  DealFinderThemeExtension lerp(ThemeExtension<DealFinderThemeExtension>? other, double t) {
-    if (other is! DealFinderThemeExtension) return this;
-    return DealFinderThemeExtension(
-      priceColor: Color.lerp(priceColor, other.priceColor, t)!,
-      savingsColor: Color.lerp(savingsColor, other.savingsColor, t)!,
-      ratingColor: Color.lerp(ratingColor, other.ratingColor, t)!,
-      distanceColor: Color.lerp(distanceColor, other.distanceColor, t)!,
-      expiredColor: Color.lerp(expiredColor, other.expiredColor, t)!,
-      cardShadow: Color.lerp(cardShadow, other.cardShadow, t)!,
-      glassBackground: Color.lerp(glassBackground, other.glassBackground, t)!,
-      chipBackground: Color.lerp(chipBackground, other.chipBackground, t)!,
-    );
-  }
-
-  static const light = DealFinderThemeExtension(
-    priceColor: AppColors.priceRed,
-    savingsColor: AppColors.savingsOrange,
-    ratingColor: AppColors.ratingAmber,
-    distanceColor: AppColors.distanceBlue,
-    expiredColor: AppColors.expiredRed,
-    cardShadow: AppColors.textPrimary,
-    glassBackground: AppColors.cardLight,
-    chipBackground: Color(0xFFFEF3C7),
-  );
-
-  static const dark = DealFinderThemeExtension(
-    priceColor: Color(0xFFEF5350),
-    savingsColor: Color(0xFFFF9800),
-    ratingColor: Color(0xFFFFC107),
-    distanceColor: Color(0xFF42A5F5),
-    expiredColor: Color(0xFFEF5350),
-    cardShadow: Color(0xFF000000),
-    glassBackground: AppColors.cardDark,
-    chipBackground: Color(0xFF4A3800),
-  );
-}
-
 class AppTheme {
   static ThemeData lightTheme() {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.iosPrimary,
-        primary: AppColors.iosPrimary,
-        secondary: AppColors.iosSecondary,
-        tertiary: AppColors.iosTertiary,
+        seedColor: AppColors.ceylonInk,
+        primary: AppColors.ceylonInk,
+        secondary: AppColors.turmeric,
+        tertiary: AppColors.betelGreen,
         surface: AppColors.surfaceLight,
         surfaceContainerHighest: AppColors.cardLight,
-        error: AppColors.iosError,
+        error: AppColors.error,
         brightness: Brightness.light,
       ),
-      extensions: const [DealFinderThemeExtension.light],
       visualDensity: VisualDensity.adaptivePlatformDensity,
       scaffoldBackgroundColor: AppColors.surfaceLight,
       splashFactory: NoSplash.splashFactory,
@@ -165,40 +126,40 @@ class AppTheme {
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         },
       ),
-      cupertinoOverrideTheme: const CupertinoThemeData(
-        primaryColor: AppColors.iosPrimary,
+      cupertinoOverrideTheme: CupertinoThemeData(
+        primaryColor: AppColors.ceylonInk,
         scaffoldBackgroundColor: AppColors.surfaceLight,
-        barBackgroundColor: Color(0xF7FFFFFF),
+        barBackgroundColor: AppColors.barBackgroundLight,
         textTheme: CupertinoTextThemeData(
-          primaryColor: AppColors.iosPrimary,
-          textStyle: TextStyle(color: AppColors.textPrimary, fontSize: 17),
-          navTitleTextStyle: TextStyle(
+          primaryColor: AppColors.ceylonInk,
+          textStyle: GoogleFonts.plusJakartaSans(color: AppColors.textPrimary, fontSize: AppTypeScale.body),
+          navTitleTextStyle: GoogleFonts.plusJakartaSans(
             color: AppColors.textPrimary,
-            fontSize: 17,
+            fontSize: AppTypeScale.title,
             fontWeight: FontWeight.w600,
           ),
-          navLargeTitleTextStyle: TextStyle(
+          navLargeTitleTextStyle: GoogleFonts.fraunces(
             color: AppColors.textPrimary,
-            fontSize: 34,
-            fontWeight: FontWeight.w700,
+            fontSize: AppTypeScale.displayL,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: Color(0xF7FFFFFF),
+        backgroundColor: AppColors.barBackgroundLight,
         surfaceTintColor: Colors.transparent,
-        foregroundColor: AppColors.textPrimary,
+        foregroundColor: AppColors.ceylonInk,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontSize: 17,
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: AppTypeScale.title,
           fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+          color: AppColors.ceylonInk,
         ),
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        iconTheme: IconThemeData(color: AppColors.iosPrimary),
-        actionsIconTheme: IconThemeData(color: AppColors.iosPrimary),
+        iconTheme: const IconThemeData(color: AppColors.ceylonInk),
+        actionsIconTheme: const IconThemeData(color: AppColors.ceylonInk),
       ),
       cardTheme: const CardThemeData(
         color: AppColors.cardLight,
@@ -209,88 +170,78 @@ class AppTheme {
           side: BorderSide(color: AppColors.borderSubtle),
         ),
       ),
-      chipTheme: const ChipThemeData(
-        backgroundColor: AppColors.cardLight,
-        selectedColor: Color(0xFFEAF3FF),
-        labelStyle: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.transparent,
+        selectedColor: AppColors.ceylonInk,
+        labelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: AppTypeScale.label,
+          fontWeight: FontWeight.w500,
+          color: AppColors.charcoal,
         ),
-        secondaryLabelStyle: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.iosPrimary,
+        secondaryLabelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: AppTypeScale.label,
+          fontWeight: FontWeight.w500,
+          color: AppColors.sand,
         ),
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        shape: StadiumBorder(side: BorderSide(color: AppColors.borderLight, width: 1)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: const StadiumBorder(side: BorderSide(color: AppColors.ash, width: 1)),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.cardLight,
-        border: OutlineInputBorder(
+        border: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
           borderSide: BorderSide.none,
         ),
-        enabledBorder: OutlineInputBorder(
+        enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
           borderSide: BorderSide(color: AppColors.borderLight),
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
-          borderSide: BorderSide(color: AppColors.iosPrimary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.ceylonInk, width: 1.5),
         ),
-        hintStyle: TextStyle(color: AppColors.textSecondary),
-        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textSecondary),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.iosPrimary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
-          shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: AppButtonStyles.primary()),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.iosPrimary,
-          side: const BorderSide(color: AppColors.borderLight, width: 1),
-          backgroundColor: Colors.white,
-          shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          foregroundColor: AppColors.ceylonInk,
+          side: const BorderSide(color: AppColors.ash, width: 1),
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.iosPrimary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          foregroundColor: AppColors.ceylonInk,
+          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        selectedItemColor: AppColors.iosPrimary,
-        unselectedItemColor: AppColors.textSecondary,
-        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.ceylonInk,
+        unselectedItemColor: AppColors.ash,
+        backgroundColor: AppColors.cardLight,
         elevation: 0,
         selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
         unselectedLabelStyle: TextStyle(fontSize: 11),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.iosPrimary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.ceylonInk,
+        foregroundColor: AppColors.sand,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: Color(0xFF1F2937),
-        contentTextStyle: TextStyle(color: Colors.white),
-        actionTextColor: AppColors.iosSecondary,
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.charcoal,
+        contentTextStyle: GoogleFonts.plusJakartaSans(color: AppColors.sand),
+        actionTextColor: AppColors.turmeric,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
         ),
       ),
@@ -298,15 +249,7 @@ class AppTheme {
         color: AppColors.borderSubtle,
         thickness: 1,
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-        displayMedium: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-        titleLarge: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.textPrimary),
-        titleMedium: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        bodyLarge: TextStyle(color: AppColors.textPrimary),
-        bodyMedium: TextStyle(color: AppColors.textSecondary),
-        bodySmall: TextStyle(color: AppColors.textSecondary),
-      ),
+      textTheme: _ceylonTypeScale(GoogleFonts.plusJakartaSansTextTheme(), AppColors.charcoal, AppColors.ash),
     );
   }
 
@@ -314,16 +257,15 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.iosPrimary,
-        primary: AppColors.iosPrimary,
-        secondary: AppColors.iosSecondary,
-        tertiary: AppColors.iosTertiary,
+        seedColor: AppColors.ceylonInk,
+        primary: AppColors.betelGreen,
+        secondary: AppColors.turmeric,
+        tertiary: AppColors.betelGreen,
         surface: AppColors.surfaceDark,
         surfaceContainerHighest: AppColors.cardDark,
-        error: AppColors.iosError,
+        error: AppColors.error,
         brightness: Brightness.dark,
       ),
-      extensions: const [DealFinderThemeExtension.dark],
       visualDensity: VisualDensity.adaptivePlatformDensity,
       scaffoldBackgroundColor: AppColors.surfaceDark,
       splashFactory: NoSplash.splashFactory,
@@ -334,40 +276,40 @@ class AppTheme {
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         },
       ),
-      cupertinoOverrideTheme: const CupertinoThemeData(
-        primaryColor: AppColors.iosPrimary,
+      cupertinoOverrideTheme: CupertinoThemeData(
+        primaryColor: AppColors.turmeric,
         scaffoldBackgroundColor: AppColors.surfaceDark,
-        barBackgroundColor: AppColors.cardDark,
+        barBackgroundColor: AppColors.barBackgroundDark,
         textTheme: CupertinoTextThemeData(
-          primaryColor: AppColors.iosPrimary,
-          textStyle: TextStyle(color: AppColors.textPrimaryDark, fontSize: 17),
-          navTitleTextStyle: TextStyle(
+          primaryColor: AppColors.turmeric,
+          textStyle: GoogleFonts.plusJakartaSans(color: AppColors.textPrimaryDark, fontSize: AppTypeScale.body),
+          navTitleTextStyle: GoogleFonts.plusJakartaSans(
             color: AppColors.textPrimaryDark,
-            fontSize: 17,
+            fontSize: AppTypeScale.title,
             fontWeight: FontWeight.w600,
           ),
-          navLargeTitleTextStyle: TextStyle(
+          navLargeTitleTextStyle: GoogleFonts.fraunces(
             color: AppColors.textPrimaryDark,
-            fontSize: 34,
-            fontWeight: FontWeight.w700,
+            fontSize: AppTypeScale.displayL,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: AppColors.cardDark,
+        backgroundColor: AppColors.barBackgroundDark,
         surfaceTintColor: Colors.transparent,
         foregroundColor: AppColors.textPrimaryDark,
         centerTitle: true,
-        titleTextStyle: TextStyle(
-          fontSize: 17,
+        titleTextStyle: GoogleFonts.plusJakartaSans(
+          fontSize: AppTypeScale.title,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimaryDark,
         ),
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        iconTheme: IconThemeData(color: AppColors.iosPrimary),
-        actionsIconTheme: IconThemeData(color: AppColors.iosPrimary),
+        iconTheme: const IconThemeData(color: AppColors.turmeric),
+        actionsIconTheme: const IconThemeData(color: AppColors.turmeric),
       ),
       cardTheme: const CardThemeData(
         color: AppColors.cardDark,
@@ -378,68 +320,60 @@ class AppTheme {
           side: BorderSide(color: AppColors.borderDark),
         ),
       ),
-      chipTheme: const ChipThemeData(
-        backgroundColor: AppColors.cardDark,
-        selectedColor: Color(0xFF1E3A5F),
-        labelStyle: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
+      chipTheme: ChipThemeData(
+        backgroundColor: Colors.transparent,
+        selectedColor: AppColors.turmeric,
+        labelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: AppTypeScale.label,
+          fontWeight: FontWeight.w500,
           color: AppColors.textPrimaryDark,
         ),
-        secondaryLabelStyle: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.iosPrimary,
+        secondaryLabelStyle: GoogleFonts.plusJakartaSans(
+          fontSize: AppTypeScale.label,
+          fontWeight: FontWeight.w500,
+          color: AppColors.ceylonInk,
         ),
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        shape: StadiumBorder(side: BorderSide(color: AppColors.borderDark, width: 1)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        shape: const StadiumBorder(side: BorderSide(color: AppColors.textSecondaryDark, width: 1)),
       ),
-      inputDecorationTheme: const InputDecorationTheme(
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.cardDark,
-        border: OutlineInputBorder(
+        border: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
           borderSide: BorderSide.none,
         ),
-        enabledBorder: OutlineInputBorder(
+        enabledBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
           borderSide: BorderSide(color: AppColors.borderDark),
         ),
-        focusedBorder: OutlineInputBorder(
+        focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.lg)),
-          borderSide: BorderSide(color: AppColors.iosPrimary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.turmeric, width: 1.5),
         ),
-        hintStyle: TextStyle(color: AppColors.textSecondaryDark),
-        contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        hintStyle: GoogleFonts.plusJakartaSans(color: AppColors.textSecondaryDark),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.iosPrimary,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
-          shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
+        style: AppButtonStyles.primary(background: AppColors.turmeric, foreground: AppColors.ceylonInk),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.iosPrimary,
-          side: const BorderSide(color: AppColors.borderDark, width: 1),
-          backgroundColor: AppColors.cardDark,
-          shape: const StadiumBorder(),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          foregroundColor: AppColors.turmeric,
+          side: const BorderSide(color: AppColors.textSecondaryDark, width: 1),
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.iosPrimary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          foregroundColor: AppColors.turmeric,
+          textStyle: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        selectedItemColor: AppColors.iosPrimary,
+        selectedItemColor: AppColors.turmeric,
         unselectedItemColor: AppColors.textSecondaryDark,
         backgroundColor: AppColors.cardDark,
         elevation: 0,
@@ -447,19 +381,19 @@ class AppTheme {
         unselectedLabelStyle: TextStyle(fontSize: 11),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.iosPrimary,
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.turmeric,
+        foregroundColor: AppColors.ceylonInk,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
-      snackBarTheme: const SnackBarThemeData(
+      snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColors.cardDark,
-        contentTextStyle: TextStyle(color: AppColors.textPrimaryDark),
-        actionTextColor: AppColors.iosSecondary,
+        contentTextStyle: GoogleFonts.plusJakartaSans(color: AppColors.textPrimaryDark),
+        actionTextColor: AppColors.turmeric,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(AppRadius.md)),
         ),
       ),
@@ -467,15 +401,31 @@ class AppTheme {
         color: AppColors.borderDark,
         thickness: 1,
       ),
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimaryDark),
-        displayMedium: TextStyle(fontWeight: FontWeight.w700, color: AppColors.textPrimaryDark),
-        titleLarge: TextStyle(fontWeight: FontWeight.w700, fontSize: 20, color: AppColors.textPrimaryDark),
-        titleMedium: TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimaryDark),
-        bodyLarge: TextStyle(color: AppColors.textPrimaryDark),
-        bodyMedium: TextStyle(color: AppColors.textSecondaryDark),
-        bodySmall: TextStyle(color: AppColors.textSecondaryDark),
+      textTheme: _ceylonTypeScale(
+        GoogleFonts.plusJakartaSansTextTheme(ThemeData(brightness: Brightness.dark).textTheme),
+        AppColors.textPrimaryDark,
+        AppColors.textSecondaryDark,
       ),
+    );
+  }
+
+  /// Maps Plus Jakarta Sans (via [base]) onto the Ceylon type scale's Title/
+  /// Body/Label/Caption roles, and Fraunces onto displayLarge/displayMedium
+  /// for the Display-L/Display-S hero roles. Nothing in this mapping wires
+  /// Fraunces into body or button styles — those stay on Jakarta throughout.
+  static TextTheme _ceylonTypeScale(TextTheme base, Color primary, Color secondary) {
+    return base.copyWith(
+      displayLarge: GoogleFonts.fraunces(fontSize: AppTypeScale.displayL, height: 38 / 32, fontWeight: FontWeight.w600, color: primary),
+      displayMedium: GoogleFonts.fraunces(fontSize: AppTypeScale.displayS, height: 28 / 22, fontWeight: FontWeight.w500, color: primary),
+      titleLarge: base.titleLarge?.copyWith(fontSize: AppTypeScale.title, fontWeight: FontWeight.w600, color: primary),
+      titleMedium: base.titleMedium?.copyWith(fontSize: AppTypeScale.title, fontWeight: FontWeight.w600, color: primary),
+      titleSmall: base.titleSmall?.copyWith(fontSize: AppTypeScale.title, fontWeight: FontWeight.w600, color: primary),
+      bodyLarge: base.bodyLarge?.copyWith(fontSize: AppTypeScale.body, height: 21 / 15, fontWeight: FontWeight.w400, color: primary),
+      bodyMedium: base.bodyMedium?.copyWith(fontSize: AppTypeScale.body, height: 21 / 15, fontWeight: FontWeight.w400, color: primary),
+      bodySmall: base.bodySmall?.copyWith(fontSize: AppTypeScale.caption, height: 14 / 11, fontWeight: FontWeight.w500, color: secondary),
+      labelLarge: base.labelLarge?.copyWith(fontSize: AppTypeScale.label, height: 16 / 13, fontWeight: FontWeight.w500, color: primary),
+      labelMedium: base.labelMedium?.copyWith(fontSize: AppTypeScale.label, height: 16 / 13, fontWeight: FontWeight.w500, color: secondary),
+      labelSmall: base.labelSmall?.copyWith(fontSize: AppTypeScale.caption, height: 14 / 11, fontWeight: FontWeight.w500, color: secondary),
     );
   }
 
@@ -485,7 +435,7 @@ class AppTheme {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
-      systemNavigationBarColor: isDark ? AppColors.surfaceDark : Colors.white,
+      systemNavigationBarColor: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
       systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
     );
   }

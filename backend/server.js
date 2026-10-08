@@ -11,6 +11,14 @@ const compression = require('compression');
 const sendExpiryNotifications = require('./jobs/expiryNotifications');
 const { initializeNotificationJobs } = require('./jobs/notificationScheduler');
 const { ensureFirebaseAdminInitialized } = require('./services/firebaseAdmin');
+const { ensurePostgresConnected } = require('./services/postgres');
+
+// Refuse to start without signing secrets: a default would let anyone forge tokens.
+for (const key of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
+  if (!process.env[key]) {
+    throw new Error(`${key} must be set (backend/.env or environment).`);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -69,11 +77,13 @@ console.log('Allowed CORS origins:', currentOrigins);
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (currentOrigins.indexOf(origin) !== -1) {
+    const isDevLocalhost = process.env.NODE_ENV !== 'production' &&
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    if (currentOrigins.indexOf(origin) !== -1 || isDevLocalhost) {
       callback(null, true);
     } else {
       console.warn(`CORS: Blocked origin - ${origin}`);
-      callback(null, true);
+      callback(null, false);
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -136,39 +146,48 @@ app.use('/api/admin', adminRouter);
 
 // Serve static files - IMPORTANT: These must come BEFORE the catch-all routes
 app.use('/backend/public/libs', express.static(path.join(__dirname, 'public/libs')));
-app.use('/scripts', express.static(path.join(__dirname, '../frontend/scripts')));
-app.use('/styles', express.static(path.join(__dirname, '../frontend/styles')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Debug route to test static file serving
 app.get('/test-static', (req, res) => {
   res.send('Static file serving is working');
 });
 
-// Connect to MongoDB with optimized settings for Azure Cosmos DB
-mongoose.connect(process.env.MONGO_URI, {
-  tls: true,
-  retryWrites: false,
-  serverSelectionTimeoutMS: 10000, // Reduced from 30s
-  socketTimeoutMS: 20000, // Reduced from 45s
-  maxPoolSize: 50, // Increased from 20
-  minPoolSize: 10, // Increased from 5
-  maxIdleTimeMS: 10000, // Reduced from 30s
-  connectTimeoutMS: 10000, // Added
-  family: 4, // Force IPv4
-})
-.then(async () => {
-  console.log('Connected to MongoDB');
-  try {
-    await mongoose.connection.collection('merchants').createIndex({ location: '2dsphere' });
-    console.log('2dsphere index ensured on merchants.location');
-  } catch (err) {
-    console.warn('Could not create 2dsphere index:', err.message);
-  }
-})
-.catch((err) => {
-  console.error('Error connecting to MongoDB:', err.message);
-  console.error('MongoDB URI host:', process.env.MONGO_URI ? process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@') + 1, process.env.MONGO_URI.indexOf('?')) : 'Not provided');
-});
+// Connect to MongoDB with optimized settings for Azure Cosmos DB.
+// Skipped entirely when running on Postgres (DATA_SOURCE=postgres) — there is
+// no Mongo instance to connect to, and every route branches away from Mongoose
+// in that mode, so attempting this connection only produces a startup error.
+if (process.env.DATA_SOURCE !== 'postgres') {
+  mongoose.connect(process.env.MONGO_URI, {
+    tls: true,
+    retryWrites: false,
+    serverSelectionTimeoutMS: 10000, // Reduced from 30s
+    socketTimeoutMS: 20000, // Reduced from 45s
+    maxPoolSize: 50, // Increased from 20
+    minPoolSize: 10, // Increased from 5
+    maxIdleTimeMS: 10000, // Reduced from 30s
+    connectTimeoutMS: 10000, // Added
+    family: 4, // Force IPv4
+  })
+  .then(async () => {
+    console.log('Connected to MongoDB');
+    try {
+      await mongoose.connection.collection('merchants').createIndex({ location: '2dsphere' });
+      console.log('2dsphere index ensured on merchants.location');
+    } catch (err) {
+      console.warn('Could not create 2dsphere index:', err.message);
+    }
+  })
+  .catch((err) => {
+    console.error('Error connecting to MongoDB:', err.message);
+    console.error('MongoDB URI host:', process.env.MONGO_URI ? process.env.MONGO_URI.substring(process.env.MONGO_URI.indexOf('@') + 1, process.env.MONGO_URI.indexOf('?')) : 'Not provided');
+  });
+} else {
+  console.log('DATA_SOURCE=postgres — skipping MongoDB connection.');
+}
+
+// Connect to Postgres (Supabase) - separate from MongoDB, does not block app startup
+ensurePostgresConnected();
 
 // Serve the frontend
 if (process.env.NODE_ENV === 'production') {
@@ -214,15 +233,11 @@ if (process.env.NODE_ENV === 'production') {
     }
   }
 } else {
-  // Development: serve old frontend
-  app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
-  });
-  app.get('*', (req, res) => {
-    if (req.path.endsWith('.js') || req.path.endsWith('.css') || req.path.endsWith('.png') || req.path.endsWith('.jpg') || req.path.endsWith('.svg')) {
-      return res.status(404).send('File not found');
-    }
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  // Development: the web app is frontend-next, run separately (npm run dev on
+  // port 3000) rather than served through this backend. The old static
+  // `frontend/` directory this used to serve no longer exists in the repo.
+  app.get('/', (_req, res) => {
+    res.status(200).send('DealFinder API is running. The web app runs separately — see frontend-next (npm run dev, http://localhost:3000).');
   });
 }
 
@@ -235,30 +250,24 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Ensure JWT_SECRET is set
-if (!process.env.JWT_SECRET) {
-  console.warn('Warning: JWT_SECRET is not set in environment variables. Using default (insecure) secret.');
-  console.warn('To fix: Set JWT_SECRET in a .env file at backend/.env or in your environment variables.');
-}
-
-// Ensure JWT_REFRESH_SECRET is set
-if (!process.env.JWT_REFRESH_SECRET) {
-  console.warn('Warning: JWT_REFRESH_SECRET is not set in environment variables. Using default (insecure) secret.');
-  console.warn('To fix: Set JWT_REFRESH_SECRET in a .env file at backend/.env or in your environment variables.');
-}
-
 // Start Server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   ensureFirebaseAdminInitialized();
 
-  // Initialize notification jobs
-  initializeNotificationJobs();
-  
-  // Legacy: Run expiry notifications daily at startup then every 24 hours
-  // (This is now handled by the job scheduler, but keeping for backward compatibility)
-  sendExpiryNotifications();
-  setInterval(sendExpiryNotifications, 24 * 60 * 60 * 1000);
+  // Notification jobs (nearby deals, expiry, price drops, etc.) all query Mongoose
+  // models directly and haven't been ported to Postgres yet — skip registering them
+  // in that mode rather than let each one fail on its schedule.
+  if (process.env.DATA_SOURCE !== 'postgres') {
+    initializeNotificationJobs();
+
+    // Legacy: Run expiry notifications daily at startup then every 24 hours
+    // (This is now handled by the job scheduler, but keeping for backward compatibility)
+    sendExpiryNotifications();
+    setInterval(sendExpiryNotifications, 24 * 60 * 60 * 1000);
+  } else {
+    console.log('DATA_SOURCE=postgres — skipping Mongo-only notification jobs.');
+  }
 });
 
 // Setup web-push

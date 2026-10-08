@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
@@ -134,47 +136,53 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: Container(
-          margin: const EdgeInsets.only(top: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          decoration: BoxDecoration(
-            color: isDark
-                ? AppColors.cardDark.withValues(alpha: 0.96)
-                : Colors.white.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(26),
-            border: Border.all(
-              color: isDark ? AppColors.borderDark : const Color(0xFFD9DDE6),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.07),
-                blurRadius: 22,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Row(
-            children: List.generate(_navItems.length, (index) {
-              final item = _navItems[index];
-              final selected = index == _selectedIndex;
-              final label = item.label(localizations);
-
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
-                  child: _NavigationBarItem(
-                    selected: selected,
-                    icon: item.icon,
-                    activeIcon: item.activeIcon,
-                    accent: item.accent,
-                    accentSoft: item.accentSoft,
-                    isDark: isDark,
-                    label: label,
-                    onTap: () => _onItemTapped(index),
-                  ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.barBackgroundDark
+                    : AppColors.barBackgroundLight,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(
+                  color: isDark ? AppColors.borderDark : const Color(0xFFD9DDE6),
                 ),
-              );
-            }),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.07),
+                    blurRadius: 22,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: List.generate(_navItems.length, (index) {
+                  final item = _navItems[index];
+                  final selected = index == _selectedIndex;
+                  final label = item.label(localizations);
+
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                      child: _NavigationBarItem(
+                        selected: selected,
+                        icon: item.icon,
+                        activeIcon: item.activeIcon,
+                        accent: item.accent,
+                        accentSoft: item.accentSoft,
+                        isDark: isDark,
+                        label: label,
+                        onTap: () => _onItemTapped(index),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
           ),
         ),
       ),

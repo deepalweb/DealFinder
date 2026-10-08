@@ -3,6 +3,10 @@ const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const BankOffer = require('../models/BankOffer');
 const { authenticateJWT, authorizeAdmin } = require('../middleware/auth');
+const pgBankOffers = require('../services/postgresBankOfferService');
+
+const usePostgres = () => process.env.DATA_SOURCE === 'postgres';
+const isValidId = (id) => (usePostgres() ? typeof id === 'string' && id.length > 0 : mongoose.Types.ObjectId.isValid(id));
 
 const router = express.Router();
 
@@ -76,7 +80,7 @@ function normalizeBankOfferPayload(body = {}) {
   const applicableMerchants = Array.isArray(body.applicableMerchants)
     ? body.applicableMerchants
         .map((merchantId) => String(merchantId || '').trim())
-        .filter((merchantId) => mongoose.Types.ObjectId.isValid(merchantId))
+        .filter((merchantId) => isValidId(merchantId))
     : [];
 
   return {
@@ -135,8 +139,14 @@ function validateNormalizedBankOffer(data) {
 
 router.get('/', async (req, res) => {
   try {
-    const query = buildActiveQuery();
     const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+
+    if (usePostgres()) {
+      const offers = await pgBankOffers.listActive({ limit });
+      return res.status(200).json(offers);
+    }
+
+    const query = buildActiveQuery();
     const offers = await BankOffer.find(query)
       .sort({ featured: -1, priority: -1, createdAt: -1, _id: -1 })
       .limit(limit)
@@ -150,6 +160,11 @@ router.get('/', async (req, res) => {
 
 router.get('/admin', authenticateJWT, authorizeAdmin, async (_req, res) => {
   try {
+    if (usePostgres()) {
+      const offers = await pgBankOffers.listAll();
+      return res.status(200).json(offers);
+    }
+
     const offers = await BankOffer.find({})
       .sort({ createdAt: -1, _id: -1 })
       .lean();
@@ -162,9 +177,16 @@ router.get('/admin', authenticateJWT, authorizeAdmin, async (_req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isValidId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid bank offer ID.' });
     }
+
+    if (usePostgres()) {
+      const offer = await pgBankOffers.getById(req.params.id);
+      if (!offer) return res.status(404).json({ message: 'Bank offer not found.' });
+      return res.status(200).json(offer);
+    }
+
     const offer = await BankOffer.findById(req.params.id).lean();
     if (!offer) {
       return res.status(404).json({ message: 'Bank offer not found.' });
@@ -244,6 +266,11 @@ router.post('/', authenticateJWT, authorizeAdmin, writeValidators, async (req, r
       updatedBy: req.user.id,
     };
 
+    if (usePostgres()) {
+      const saved = await pgBankOffers.create(payload);
+      return res.status(201).json(saved);
+    }
+
     const offer = new BankOffer(payload);
     const saved = await offer.save();
     res.status(201).json(saved);
@@ -260,16 +287,19 @@ router.put('/:id', authenticateJWT, authorizeAdmin, writeValidators, async (req,
   }
 
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isValidId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid bank offer ID.' });
     }
 
-    const existing = await BankOffer.findById(req.params.id);
+    const existing = usePostgres()
+      ? await pgBankOffers.getById(req.params.id)
+      : await BankOffer.findById(req.params.id);
     if (!existing) {
       return res.status(404).json({ message: 'Bank offer not found.' });
     }
 
-    const normalized = normalizeBankOfferPayload({ ...existing.toObject(), ...req.body });
+    const existingPlain = existing.toObject ? existing.toObject() : existing;
+    const normalized = normalizeBankOfferPayload({ ...existingPlain, ...req.body });
     const normalizedStartDate = req.body.startDate !== undefined
       ? normalizeDateInput(req.body.startDate, 'start')
       : existing.startDate;
@@ -313,6 +343,11 @@ router.put('/:id', authenticateJWT, authorizeAdmin, writeValidators, async (req,
       updatedBy: req.user.id,
     };
 
+    if (usePostgres()) {
+      const updated = await pgBankOffers.update(req.params.id, payload);
+      return res.status(200).json(updated);
+    }
+
     const updated = await BankOffer.findByIdAndUpdate(
       req.params.id,
       payload,
@@ -327,9 +362,16 @@ router.put('/:id', authenticateJWT, authorizeAdmin, writeValidators, async (req,
 
 router.delete('/:id', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    if (!isValidId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid bank offer ID.' });
     }
+
+    if (usePostgres()) {
+      const deleted = await pgBankOffers.remove(req.params.id);
+      if (!deleted) return res.status(404).json({ message: 'Bank offer not found.' });
+      return res.status(200).json({ message: 'Bank offer deleted successfully.' });
+    }
+
     const deleted = await BankOffer.findByIdAndDelete(req.params.id);
     if (!deleted) {
       return res.status(404).json({ message: 'Bank offer not found.' });

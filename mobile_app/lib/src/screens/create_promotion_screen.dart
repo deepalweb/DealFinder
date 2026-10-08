@@ -75,8 +75,11 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
     {'value': 'other', 'label': 'Other'},
   ];
 
+  // Accepts Mongo ObjectIds (24 hex chars) as well as Postgres-style ids
+  // (UUIDs, seed slugs like "seed-merchant-1") — the backend can be backed
+  // by either depending on DATA_SOURCE.
   bool get _hasValidMerchantId =>
-      RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(widget.merchantId);
+      RegExp(r'^[a-zA-Z0-9-]{3,64}$').hasMatch(widget.merchantId);
 
   bool get _isDemoMerchantSession =>
       (_token?.startsWith('demo-') ?? false) ||
