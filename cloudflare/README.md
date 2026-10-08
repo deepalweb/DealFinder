@@ -65,6 +65,8 @@ set it to `0.0.0.0/0` (the password still protects it) before testing.
 
 ## 2. Deploy and test (Azure keeps serving users)
 
+Push to the build branch (see "Automatic deploys" below), or deploy from your machine:
+
 Start Docker Desktop, then:
 
 ```sh
@@ -92,10 +94,23 @@ Logs: `npx wrangler tail`, or Dashboard → Workers → dealfinder → Logs.
    change the nameservers at your `.lk` registrar. Remove the old A/CNAME records for
    `dealfinderapp.lk` and `www` that point at Azure.
 3. Uncomment `routes` in `wrangler.jsonc` and run `npx wrangler deploy` again.
-4. GitHub → Settings → Secrets → Actions: add `CLOUDFLARE_API_TOKEN`
-   (template "Edit Cloudflare Workers") and `CLOUDFLARE_ACCOUNT_ID`.
+4. Workers → dealfinder → Settings → Build: set the branch to `main`.
    Pushes to `main` now deploy to Cloudflare. Delete `.github/workflows/main_dealfinder.yml`
    to stop deploying to Azure.
+
+## Automatic deploys (Workers Builds)
+
+The `dealfinder` Worker is connected to the GitHub repo. Its build settings
+(Workers → dealfinder → Settings → Build) must be:
+
+| Setting | Value |
+|---|---|
+| Root directory | `cloudflare` |
+| Build command | *(empty)* |
+| Deploy command | `npx wrangler deploy` |
+| Branch | `main` (or a feature branch while testing) |
+
+Use `wrangler deploy`, not `wrangler versions upload`: only `deploy` updates the container.
 
 ## 4. Shutting Azure down
 
