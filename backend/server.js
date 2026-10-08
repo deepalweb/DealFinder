@@ -21,6 +21,9 @@ for (const key of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
 }
 
 const app = express();
+// One proxy hop (Cloudflare Worker / Azure front end) sets X-Forwarded-For.
+// Without this, every user shares the proxy's IP and one rate-limit bucket.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8080;
 const APP_URL =
   process.env.APP_URL || 'https://dealfinderapp.lk';

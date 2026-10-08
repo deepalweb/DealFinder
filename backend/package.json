@@ -7,6 +7,7 @@
     "create:demo-admin": "node scripts/createDemoAdmin.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1147.0",
     "@azure/storage-blob": "^12.24.0",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",

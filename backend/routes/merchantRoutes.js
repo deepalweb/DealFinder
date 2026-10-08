@@ -3,7 +3,7 @@ const router = express.Router();
 const Merchant = require('../models/Merchant');
 const User = require('../models/User');
 const Report = require('../models/Report');
-const azureBlobService = require('../services/azureBlobService');
+const imageStorage = require('../services/imageStorage');
 const { body, validationResult } = require('express-validator');
 const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin } = require('../middleware/auth');
 const { getMerchantByIdFromPostgres, updateMerchantInPostgres } = require('../services/postgresMerchantService');
@@ -532,10 +532,10 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
 
     const cleanupTasks = [];
     if (logo !== undefined && existingMerchant.logo && existingMerchant.logo !== updatedMerchant.logo && isBlobImageUrl(existingMerchant.logo)) {
-      cleanupTasks.push(azureBlobService.deleteImage(existingMerchant.logo));
+      cleanupTasks.push(imageStorage.deleteImage(existingMerchant.logo));
     }
     if (banner !== undefined && existingMerchant.banner && existingMerchant.banner !== updatedMerchant.banner && isBlobImageUrl(existingMerchant.banner)) {
-      cleanupTasks.push(azureBlobService.deleteImage(existingMerchant.banner));
+      cleanupTasks.push(imageStorage.deleteImage(existingMerchant.banner));
     }
     if (cleanupTasks.length > 0) {
       await Promise.allSettled(cleanupTasks);
@@ -569,10 +569,10 @@ router.delete('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, async (req,
 
     const cleanupTasks = [];
     if (isBlobImageUrl(merchant.logo)) {
-      cleanupTasks.push(azureBlobService.deleteImage(merchant.logo));
+      cleanupTasks.push(imageStorage.deleteImage(merchant.logo));
     }
     if (isBlobImageUrl(merchant.banner)) {
-      cleanupTasks.push(azureBlobService.deleteImage(merchant.banner));
+      cleanupTasks.push(imageStorage.deleteImage(merchant.banner));
     }
     if (cleanupTasks.length > 0) {
       await Promise.allSettled(cleanupTasks);

@@ -1,6 +1,6 @@
 const LOCAL_BACKEND_ORIGIN = 'http://localhost:8080';
 const PRODUCTION_BACKEND_ORIGIN =
-  'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net';
+  'https://dealfinderapp.lk';
 
 function normalizeOrigin(value?: string | null) {
   return value?.trim().replace(/\/+$/, '') || null;
@@ -18,7 +18,7 @@ export function getBackendOrigin() {
   if (typeof window !== 'undefined') {
     return isLocalHostname(window.location.hostname)
       ? (publicBackendOrigin || LOCAL_BACKEND_ORIGIN)
-      : (publicBackendOrigin || PRODUCTION_BACKEND_ORIGIN);
+      : (publicBackendOrigin || window.location.origin); // web + API share one origin
   }
 
   return (

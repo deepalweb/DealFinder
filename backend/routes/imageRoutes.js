@@ -1,15 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const azureBlobService = require('../services/azureBlobService');
-const localImageService = require('../services/localImageService');
+const imageStorage = require('../services/imageStorage');
 const { authenticateJWT } = require('../middleware/auth');
-
-// Defaults to local disk storage (no cloud account needed for local dev).
-// Set IMAGE_STORAGE_PROVIDER=azure once a working Azure Blob Storage account is configured.
-function getImageService() {
-  return process.env.IMAGE_STORAGE_PROVIDER === 'azure' ? azureBlobService : localImageService;
-}
 
 const allowedImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif']);
 
@@ -81,8 +74,7 @@ router.post('/upload', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'No image file provided' });
     }
 
-    const imageService = getImageService();
-    if (!imageService.isConfigured()) {
+    if (!imageStorage.isConfigured()) {
       console.error('❌ Image storage not configured');
       return res.status(503).json({ message: 'Image upload service not configured' });
     }
@@ -91,7 +83,7 @@ router.post('/upload', authenticateJWT, async (req, res) => {
     console.log('Uploading to folder:', folder);
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const imageUrl = await imageService.uploadImage(req.file.buffer, req.file.originalname, folder, baseUrl);
+    const imageUrl = await imageStorage.uploadImage(req.file.buffer, req.file.originalname, folder, baseUrl);
 
     console.log('✅ Upload successful:', imageUrl);
     res.json({ imageUrl });
@@ -118,8 +110,7 @@ router.post('/upload-multiple', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'No image files provided' });
     }
 
-    const imageService = getImageService();
-    if (!imageService.isConfigured()) {
+    if (!imageStorage.isConfigured()) {
       console.error('❌ Image storage not configured');
       return res.status(503).json({ message: 'Image upload service not configured' });
     }
@@ -130,7 +121,7 @@ router.post('/upload-multiple', authenticateJWT, async (req, res) => {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const uploadPromises = req.files.map(file => {
       console.log('  -', file.originalname, `(${file.size} bytes)`);
-      return imageService.uploadImage(file.buffer, file.originalname, folder, baseUrl);
+      return imageStorage.uploadImage(file.buffer, file.originalname, folder, baseUrl);
     });
 
     const imageUrls = await Promise.all(uploadPromises);
@@ -157,7 +148,7 @@ router.delete('/delete', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'Image URL required' });
     }
 
-    await getImageService().deleteImage(imageUrl);
+    await imageStorage.deleteImage(imageUrl);
 
     res.json({ message: 'Image deleted successfully' });
   } catch (error) {

@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dealfinder",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+
+  "containers": [
+    {
+      "class_name": "DealFinderApp",
+      "image": "../Dockerfile",
+      "image_build_context": "..",
+      // basic = 1/4 vCPU, 1 GiB. Bump to "standard-1" if logs show out-of-memory restarts.
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "APP", "class_name": "DealFinderApp" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DealFinderApp"] }],
+
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  // Cutover step: uncomment once dealfinderapp.lk's DNS is on Cloudflare (see README).
+  // Until then the app is reachable at https://dealfinder.<your-subdomain>.workers.dev
+  // "routes": [
+  //   { "pattern": "dealfinderapp.lk", "custom_domain": true },
+  //   { "pattern": "www.dealfinderapp.lk", "custom_domain": true }
+  // ],
+
+  // Plain (non-secret) settings. Secrets go in with `npx wrangler secret put NAME`.
+  "vars": {
+    "APP_URL": "https://dealfinderapp.lk",
+    "DATA_SOURCE": "mongo"
+  }
+}

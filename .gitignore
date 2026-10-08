@@ -40,3 +40,7 @@ yarn-error.log*
 
 /backend/vapid-keys.json
 /backend/serviceAccountKey.json
+
+# cloudflare worker
+/cloudflare/node_modules
+/cloudflare/.wrangler
