@@ -10,6 +10,9 @@
 /dist
 /public
 
+# locally-uploaded images (dev fallback storage, see localImageService.js)
+/backend/uploads
+
 # misc
 .DS_Store
 *.pem
@@ -37,3 +40,7 @@ yarn-error.log*
 
 /backend/vapid-keys.json
 /backend/serviceAccountKey.json
+
+# cloudflare worker
+/cloudflare/node_modules
+/cloudflare/.wrangler

@@ -3,9 +3,12 @@ const router = express.Router();
 const Merchant = require('../models/Merchant');
 const User = require('../models/User');
 const Report = require('../models/Report');
-const azureBlobService = require('../services/azureBlobService');
+const imageStorage = require('../services/imageStorage');
 const { body, validationResult } = require('express-validator');
 const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin } = require('../middleware/auth');
+const { getMerchantByIdFromPostgres, updateMerchantInPostgres } = require('../services/postgresMerchantService');
+
+const usePostgres = () => process.env.DATA_SOURCE === 'postgres';
 
 // Remove sensitive error details from all API responses in production
 function safeError(error) {
@@ -146,6 +149,12 @@ router.get('/', async (req, res) => {
 // Get a merchant by ID
 router.get('/:id', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const pgMerchant = await getMerchantByIdFromPostgres(req.params.id);
+      if (!pgMerchant) return res.status(404).json({ message: 'Merchant not found' });
+      return res.status(200).json(pgMerchant);
+    }
+
     const merchant = await Merchant.findById(req.params.id).populate('promotions');
     if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
     const followers = await getFollowersCount(merchant._id);
@@ -394,6 +403,15 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     return res.status(400).json({ errors: errors.array() });
   }
   try {
+    if (usePostgres()) {
+      if (req.body.status !== undefined && req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Forbidden: Only admins can change merchant status.' });
+      }
+      const updated = await updateMerchantInPostgres(req.params.id, req.body);
+      if (!updated) return res.status(404).json({ message: 'Merchant not found' });
+      return res.status(200).json(updated);
+    }
+
     console.log(`PUT /api/merchants/${req.params.id} - Request Body:`, JSON.stringify(req.body, null, 2));
     const {
       name,
@@ -514,10 +532,10 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
 
     const cleanupTasks = [];
     if (logo !== undefined && existingMerchant.logo && existingMerchant.logo !== updatedMerchant.logo && isBlobImageUrl(existingMerchant.logo)) {
-      cleanupTasks.push(azureBlobService.deleteImage(existingMerchant.logo));
+      cleanupTasks.push(imageStorage.deleteImage(existingMerchant.logo));
     }
     if (banner !== undefined && existingMerchant.banner && existingMerchant.banner !== updatedMerchant.banner && isBlobImageUrl(existingMerchant.banner)) {
-      cleanupTasks.push(azureBlobService.deleteImage(existingMerchant.banner));
+      cleanupTasks.push(imageStorage.deleteImage(existingMerchant.banner));
     }
     if (cleanupTasks.length > 0) {
       await Promise.allSettled(cleanupTasks);
@@ -551,10 +569,10 @@ router.delete('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, async (req,
 
     const cleanupTasks = [];
     if (isBlobImageUrl(merchant.logo)) {
-      cleanupTasks.push(azureBlobService.deleteImage(merchant.logo));
+      cleanupTasks.push(imageStorage.deleteImage(merchant.logo));
     }
     if (isBlobImageUrl(merchant.banner)) {
-      cleanupTasks.push(azureBlobService.deleteImage(merchant.banner));
+      cleanupTasks.push(imageStorage.deleteImage(merchant.banner));
     }
     if (cleanupTasks.length > 0) {
       await Promise.allSettled(cleanupTasks);

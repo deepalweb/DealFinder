@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../config/app_theme.dart';
 import '../models/category.dart';
 import '../models/promotion.dart';
 import '../services/search_service.dart';
@@ -20,6 +21,12 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  static const _exampleQueries = [
+    'ලගම තියෙන කොට්ටු කඩ',
+    'lagama kottu kade',
+    'nearby pizza offers',
+    'அருகில் கொத்து கடை',
+  ];
 
   List<String> _history = [];
   List<String> _suggestions = [];
@@ -92,16 +99,43 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _history = []);
   }
 
+  Widget _buildExampleQueryChips() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _exampleQueries
+          .map(
+            (query) => ActionChip(
+              avatar: const Icon(Icons.auto_awesome_rounded, size: 15),
+              label: Text(query),
+              tooltip: 'Search "$query"',
+              onPressed: () => _submitSearch(query),
+            ),
+          )
+          .toList(),
+    );
+  }
+
   Widget _buildSearchField() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+    final textColor =
+        isDark ? AppColors.textPrimaryDark : const Color(0xFF14213D);
+    final mutedColor =
+        isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.035),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -114,14 +148,14 @@ class _SearchScreenState extends State<SearchScreen> {
             'Find deals faster',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF14213D),
+                  color: textColor,
                 ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Search in English, Sinhala, Tamil, or Singlish for products, stores, categories, and card offers.',
+          Text(
+            'Type naturally in Sinhala, Singlish, English, or Tamil. Nearby searches can use your location.',
             style: TextStyle(
-              color: Color(0xFF64748B),
+              color: mutedColor,
               height: 1.4,
             ),
           ),
@@ -148,7 +182,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       icon: const Icon(Icons.close_rounded),
                     ),
               filled: true,
-              fillColor: const Color(0xFFF8FAFC),
+              fillColor:
+                  isDark ? const Color(0xFF1F2937) : const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide.none,
@@ -159,6 +194,17 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 14),
+          Text(
+            'Examples',
+            style: TextStyle(
+              color: mutedColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildExampleQueryChips(),
         ],
       ),
     );
@@ -274,9 +320,10 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
-      appBar: AppBar(title: const Text('Search Deals')),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(title: const Text('Search')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -828,8 +875,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           widget.query.trim().isNotEmpty
@@ -915,15 +963,25 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : Colors.white;
+    final titleColor =
+        isDark ? AppColors.textPrimaryDark : const Color(0xFF14213D);
+    final subtitleColor =
+        isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B);
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
+            color: Colors.black.withValues(alpha: isDark ? 0.18 : 0.035),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -940,17 +998,17 @@ class _SectionCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF14213D),
+                        color: titleColor,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
+                      style: TextStyle(
+                        color: subtitleColor,
                         height: 1.4,
                       ),
                     ),

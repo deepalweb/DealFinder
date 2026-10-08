@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { MerchantAPI, UserAPI } from '@/lib/api';
+import { MerchantAPI, UserAPI, ImageAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 import MapPicker from '@/components/ui/MapPicker';
@@ -37,6 +37,8 @@ export default function EditProfilePage() {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [originalData, setOriginalData] = useState<any>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -107,11 +109,18 @@ export default function EditProfilePage() {
   const updateForm = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
   const updateSocial = (key: string, value: string) => setForm(prev => ({ ...prev, socialMedia: { ...prev.socialMedia, [key]: value } }));
 
-  const handleImageFile = (file: File, field: 'logo' | 'banner') => {
+  const handleImageFile = async (file: File, field: 'logo' | 'banner') => {
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => updateForm(field, reader.result as string);
-    reader.readAsDataURL(file);
+    const setUploading = field === 'logo' ? setUploadingLogo : setUploadingBanner;
+    setUploading(true);
+    try {
+      const url = await ImageAPI.uploadSingle(file, 'merchants');
+      updateForm(field, url);
+    } catch (err: any) {
+      toast.error(err.message || `Failed to upload ${field}.`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -365,10 +374,10 @@ export default function EditProfilePage() {
                         <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Upload a logo</p>
                         <p style={hintStyle}>PNG, JPG up to 5MB. Recommended: 400×400px</p>
                         <div className="flex gap-2 mt-3">
-                          <button type="button" onClick={() => logoInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)' }}>
-                            <i className="fas fa-upload"></i> Upload File
+                          <button type="button" disabled={uploadingLogo} onClick={() => logoInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', opacity: uploadingLogo ? 0.6 : 1, cursor: uploadingLogo ? 'not-allowed' : 'pointer' }}>
+                            {uploadingLogo ? <><i className="fas fa-spinner fa-spin"></i> Uploading...</> : <><i className="fas fa-upload"></i> Upload File</>}
                           </button>
-                          {form.logo && <button type="button" onClick={() => updateForm('logo', '')} style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', borderRadius: '0.625rem', border: '1.5px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer' }}>Remove</button>}
+                          {form.logo && !uploadingLogo && <button type="button" onClick={() => updateForm('logo', '')} style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', borderRadius: '0.625rem', border: '1.5px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer' }}>Remove</button>}
                         </div>
                         <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0], 'logo')} />
                       </div>
@@ -390,10 +399,10 @@ export default function EditProfilePage() {
                       )}
                       {form.banner && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}></div>}
                       <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-                        <button type="button" onClick={() => bannerInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', background: 'rgba(255,255,255,0.9)', color: 'var(--text-primary)', border: 'none' }}>
-                          <i className="fas fa-upload"></i> Upload
+                        <button type="button" disabled={uploadingBanner} onClick={() => bannerInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', background: 'rgba(255,255,255,0.9)', color: 'var(--text-primary)', border: 'none', opacity: uploadingBanner ? 0.6 : 1, cursor: uploadingBanner ? 'not-allowed' : 'pointer' }}>
+                          {uploadingBanner ? <><i className="fas fa-spinner fa-spin"></i> Uploading...</> : <><i className="fas fa-upload"></i> Upload</>}
                         </button>
-                        {form.banner && <button type="button" onClick={() => updateForm('banner', '')} style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', borderRadius: '0.625rem', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>}
+                        {form.banner && !uploadingBanner && <button type="button" onClick={() => updateForm('banner', '')} style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', borderRadius: '0.625rem', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>}
                       </div>
                       <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0], 'banner')} />
                     </div>

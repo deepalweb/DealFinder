@@ -38,9 +38,12 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
     return en;
   }
 
+  // Accepts Mongo ObjectIds (24 hex chars) as well as Postgres-style ids
+  // (UUIDs, seed slugs like "seed-merchant-1") — the backend can be backed
+  // by either depending on DATA_SOURCE.
   bool get _hasValidMerchantId =>
       _merchantId != null &&
-      RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(_merchantId!);
+      RegExp(r'^[a-zA-Z0-9-]{3,64}$').hasMatch(_merchantId!);
 
   bool get _isDemoMerchantSession =>
       (_token?.startsWith('demo-') ?? false) ||

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const azureBlobService = require('../services/azureBlobService');
+const imageStorage = require('../services/imageStorage');
 const { authenticateJWT } = require('../middleware/auth');
 
 const allowedImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif']);
@@ -15,10 +15,9 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
   fileFilter: (req, file, cb) => {
-    const isImageMime = typeof file.mimetype === 'string' && file.mimetype.startsWith('image/');
-    const isImageByName = hasAllowedImageExtension(file.originalname);
-
-    if (isImageMime || isImageByName) {
+    // The extension decides how the stored file is served, so it must be an image one.
+    // Mime type is not checked: mobile clients often send application/octet-stream.
+    if (hasAllowedImageExtension(file.originalname)) {
       cb(null, true);
     } else {
       cb(new Error('Only image files allowed'));
@@ -75,16 +74,17 @@ router.post('/upload', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'No image file provided' });
     }
 
-    if (!azureBlobService.isConfigured()) {
-      console.error('❌ Azure Blob Storage not configured');
+    if (!imageStorage.isConfigured()) {
+      console.error('❌ Image storage not configured');
       return res.status(503).json({ message: 'Image upload service not configured' });
     }
 
     const folder = req.body.folder || 'images';
     console.log('Uploading to folder:', folder);
-    
-    const imageUrl = await azureBlobService.uploadImage(req.file.buffer, req.file.originalname, folder);
-    
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const imageUrl = await imageStorage.uploadImage(req.file.buffer, req.file.originalname, folder, baseUrl);
+
     console.log('✅ Upload successful:', imageUrl);
     res.json({ imageUrl });
   } catch (error) {
@@ -110,17 +110,18 @@ router.post('/upload-multiple', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'No image files provided' });
     }
 
-    if (!azureBlobService.isConfigured()) {
-      console.error('❌ Azure Blob Storage not configured');
+    if (!imageStorage.isConfigured()) {
+      console.error('❌ Image storage not configured');
       return res.status(503).json({ message: 'Image upload service not configured' });
     }
 
     const folder = req.body.folder || 'images';
     console.log('Uploading', req.files.length, 'files to folder:', folder);
-    
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
     const uploadPromises = req.files.map(file => {
       console.log('  -', file.originalname, `(${file.size} bytes)`);
-      return azureBlobService.uploadImage(file.buffer, file.originalname, folder);
+      return imageStorage.uploadImage(file.buffer, file.originalname, folder, baseUrl);
     });
 
     const imageUrls = await Promise.all(uploadPromises);
@@ -147,7 +148,7 @@ router.delete('/delete', authenticateJWT, async (req, res) => {
       return res.status(400).json({ message: 'Image URL required' });
     }
 
-    await azureBlobService.deleteImage(imageUrl);
+    await imageStorage.deleteImage(imageUrl);
 
     res.json({ message: 'Image deleted successfully' });
   } catch (error) {

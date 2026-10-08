@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { Op } = require('sequelize');
 const { body, validationResult } = require('express-validator');
 const Promotion = require('../models/Promotion');
 const Merchant = require('../models/Merchant');
@@ -18,6 +19,21 @@ const {
   resolveSection,
   resolveHomepageSections,
 } = require('../services/sectionService');
+const {
+  resolveSectionFromPostgres,
+  resolveHomepageSectionsFromPostgres,
+} = require('../services/postgresSectionService');
+const {
+  getPromotionsFromPostgres,
+  getPromotionByIdFromPostgres,
+  getPromotionsByMerchantFromPostgres,
+  createPromotionInPostgres,
+  updatePromotionInPostgres,
+  deletePromotionInPostgres,
+} = require('../services/postgresPromotionService');
+const pgModels = require('../models-pg');
+
+const usePostgres = () => process.env.DATA_SOURCE === 'postgres';
 
 // Add safeError helper
 function safeError(error) {
@@ -62,6 +78,53 @@ function getRedemptionFeedbackSummary(promotion) {
     { workedCount: 0, didntWorkCount: 0 }
   );
 }
+
+// --- Postgres comment/rating/feedback serializers ---
+// Match the shape the Mongo routes return (a nested `user` object with `_id`)
+// so the mobile/web clients need no changes to read either backend.
+function serializePgAuthor(user) {
+  if (!user) return null;
+  return {
+    _id: user.id,
+    name: user.name,
+    email: user.email,
+    profilePicture: user.profilePicture,
+  };
+}
+
+function serializePgComment(comment) {
+  const c = comment.toJSON();
+  return {
+    _id: c.id,
+    text: c.text,
+    createdAt: c.createdAt,
+    user: serializePgAuthor(c.User) || c.userId,
+  };
+}
+
+function serializePgRating(rating) {
+  const r = rating.toJSON();
+  return {
+    _id: r.id,
+    value: r.value,
+    createdAt: r.createdAt,
+    user: serializePgAuthor(r.User) || r.userId,
+  };
+}
+
+function serializePgFeedback(feedback) {
+  const f = feedback.toJSON();
+  return {
+    _id: f.id,
+    worked: f.worked,
+    createdAt: f.createdAt,
+    user: serializePgAuthor(f.User) || f.userId,
+  };
+}
+
+const PG_AUTHOR_INCLUDE = [
+  { model: pgModels.User, attributes: ['id', 'name', 'email', 'profilePicture'] },
+];
 
 function buildTrustSummary(promotion, metrics = {}) {
   const feedback = getRedemptionFeedbackSummary(promotion);
@@ -232,43 +295,15 @@ async function resolveMerchantIdForRedemption(user) {
   return dbUser?.merchantId ? dbUser.merchantId.toString() : '';
 }
 
-const COLOMBO_TIME_ZONE = 'Asia/Colombo';
-const COLOMBO_OFFSET = '+05:30';
-const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function getColomboDateKey(value = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: COLOMBO_TIME_ZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(value);
-
-  const year = parts.find((part) => part.type === 'year')?.value;
-  const month = parts.find((part) => part.type === 'month')?.value;
-  const day = parts.find((part) => part.type === 'day')?.value;
-
-  return `${year}-${month}-${day}`;
-}
-
-function getColomboDayRange(value = new Date()) {
-  const dateKey = getColomboDateKey(value);
-  const start = new Date(`${dateKey}T00:00:00.000${COLOMBO_OFFSET}`);
-  const endExclusive = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-  return { start, endExclusive };
-}
-
-function normalizePromotionDateInput(value, boundary = 'start') {
-  if (!value) return value;
-  if (value instanceof Date) return value;
-
-  if (typeof value === 'string' && DATE_ONLY_PATTERN.test(value)) {
-    const time = boundary === 'end' ? '23:59:59.999' : '00:00:00.000';
-    return new Date(`${value}T${time}${COLOMBO_OFFSET}`);
-  }
-
-  return new Date(value);
-}
+const {
+  COLOMBO_TIME_ZONE,
+  COLOMBO_OFFSET,
+  DATE_ONLY_PATTERN,
+  getColomboDateKey,
+  getColomboDayRange,
+  normalizePromotionDateInput,
+  resolveLifecycleStatus,
+} = require('../utils/promotionLifecycle');
 
 function buildActivePromotionQuery(value = new Date()) {
   const { start, endExclusive } = getColomboDayRange(value);
@@ -278,14 +313,6 @@ function buildActivePromotionQuery(value = new Date()) {
     startDate: { $lt: endExclusive },
     endDate: { $gte: start },
   };
-}
-
-function resolveLifecycleStatus(startDate, endDate, value = new Date()) {
-  const { start, endExclusive } = getColomboDayRange(value);
-
-  if (endDate < start) return 'expired';
-  if (startDate >= endExclusive) return 'scheduled';
-  return 'active';
 }
 
 function sanitizePromotionPayload(promotion) {
@@ -775,6 +802,17 @@ router.get('/', async (req, res) => {
     const limit = parseInt(req.query.limit) || 0; // 0 means no limit
     const skip = parseInt(req.query.skip) || 0;
     const sortBy = String(req.query.sortBy || req.query.sort || 'recent');
+
+    if (process.env.DATA_SOURCE === 'postgres') {
+      const promotions = await getPromotionsFromPostgres({
+        limit,
+        skip,
+        category: req.query.category,
+        sortBy,
+      });
+      return res.status(200).json(promotions);
+    }
+
     const latitude = parseFiniteNumber(req.query.latitude);
     const longitude = parseFiniteNumber(req.query.longitude);
     const radiusKm = parseFiniteNumber(req.query.radiusKm || req.query.radius);
@@ -864,7 +902,9 @@ router.get('/', async (req, res) => {
 
 router.get('/sections', async (_req, res) => {
   try {
-    const sections = await resolveHomepageSections();
+    const sections = usePostgres()
+      ? await resolveHomepageSectionsFromPostgres()
+      : await resolveHomepageSections();
     res.status(200).json(sections);
   } catch (error) {
     console.error('Error in GET /api/promotions/sections:', error);
@@ -879,11 +919,14 @@ router.get('/sections/:sectionKey', async (req, res) => {
       return res.status(400).json({ message: 'Invalid section key.' });
     }
 
-    const section = await resolveSection(sectionKey, {
+    const options = {
       latitude: req.query.latitude,
       longitude: req.query.longitude,
       radiusKm: req.query.radius,
-    });
+    };
+    const section = usePostgres()
+      ? await resolveSectionFromPostgres(sectionKey, options)
+      : await resolveSection(sectionKey, options);
     res.status(200).json(section);
   } catch (error) {
     console.error(`Error in GET /api/promotions/sections/${req.params.sectionKey}:`, error);
@@ -894,6 +937,52 @@ router.get('/sections/:sectionKey', async (req, res) => {
 // Get public stats for a promotion
 router.get('/:id/stats', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const promotion = await pgModels.Promotion.findByPk(req.params.id);
+      if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+      const [ratings, feedback, commentCount, favoriteRows, clickCount, viewCount, directionCount, redeemCount, reportCount] =
+        await Promise.all([
+          pgModels.PromotionRating.findAll({ where: { promotionId: req.params.id }, attributes: ['value'] }),
+          pgModels.PromotionRedemptionFeedback.findAll({ where: { promotionId: req.params.id }, attributes: ['worked'] }),
+          pgModels.PromotionComment.count({ where: { promotionId: req.params.id } }),
+          pgModels.sequelize.query(
+            'SELECT COUNT(*)::int AS count FROM user_favorites WHERE promotion_id = :id',
+            { replacements: { id: req.params.id }, type: pgModels.sequelize.QueryTypes.SELECT },
+          ),
+          pgModels.PromotionClick.count({ where: { promotionId: req.params.id } }),
+          pgModels.PromotionClick.count({ where: { promotionId: req.params.id, type: 'view' } }),
+          pgModels.PromotionClick.count({ where: { promotionId: req.params.id, type: 'direction' } }),
+          pgModels.PromotionClick.count({ where: { promotionId: req.params.id, type: 'redeem' } }),
+          pgModels.Report.count({ where: { promotionId: req.params.id, status: { [Op.in]: ['open', 'reviewing'] } } }),
+        ]);
+
+      const ratingValues = ratings.map((r) => Number(r.value) || 0).filter((v) => v > 0);
+      const averageRating = ratingValues.length
+        ? ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length
+        : 0;
+      const feedbackSummary = getRedemptionFeedbackSummary({
+        redemptionFeedback: feedback.map((f) => ({ worked: f.worked })),
+      });
+
+      return res.status(200).json({
+        commentCount,
+        ratingsCount: ratingValues.length,
+        averageRating,
+        ...feedbackSummary,
+        favoriteCount: favoriteRows[0]?.count || 0,
+        clickCount,
+        viewCount,
+        directionCount,
+        redeemCount,
+        trustSummary: buildTrustSummary(promotion.toJSON(), {
+          ...feedbackSummary,
+          redeemCount,
+          reportCount,
+        }),
+      });
+    }
+
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: 'Invalid promotion ID.' });
     }
@@ -947,6 +1036,11 @@ router.get('/:id/stats', async (req, res) => {
 // Get promotions by merchant ID
 router.get('/merchant/:merchantId', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const promotions = await getPromotionsByMerchantFromPostgres(req.params.merchantId);
+      return res.status(200).json(promotions);
+    }
+
     if (!mongoose.Types.ObjectId.isValid(req.params.merchantId)) {
       return res.status(400).json({ message: 'Valid merchant ID is required' });
     }
@@ -964,6 +1058,12 @@ router.get('/merchant/:merchantId', async (req, res) => {
 // Get a promotion by ID
 router.get('/:id', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const pgPromotion = await getPromotionByIdFromPostgres(req.params.id);
+      if (!pgPromotion) return res.status(404).json({ message: 'Promotion not found' });
+      return res.status(200).json(pgPromotion);
+    }
+
     const promotion = await Promotion.findById(req.params.id).populate('merchant');
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     const [withTrust] = await attachPromotionTrustSummaries([
@@ -1043,6 +1143,7 @@ router.post('/', authenticateJWT, [
       minimumSpend,
       maximumBenefit,
     } = req.body;
+    if (req.user.role !== 'admin') featured = undefined; // featuring is an admin decision
     const normalizedStartDate = normalizePromotionDateInput(startDate, 'start');
     const normalizedEndDate = normalizePromotionDateInput(endDate, 'end');
     const normalizedBankOffer = normalizeBankOfferInput({
@@ -1088,6 +1189,54 @@ router.post('/', authenticateJWT, [
     }
     // If admin, they can specify any merchantId, so no changes needed to merchantId from req.body
 
+    let initialStatus = resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
+    if (req.user.role === 'admin' && ['rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
+      initialStatus = req.body.status;
+    }
+
+    if (usePostgres()) {
+      const pgMerchant = await pgModels.Merchant.findByPk(merchantId);
+      if (!pgMerchant) {
+        return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
+      }
+
+      const pgPromotionData = {
+        title,
+        description,
+        discount,
+        code,
+        category,
+        startDate: normalizedStartDate,
+        endDate: normalizedEndDate,
+        image,
+        images: images || [],
+        url,
+        fulfillmentType: fulfillmentType || 'visit',
+        orderLink,
+        visitAvailable: visitAvailable !== undefined ? visitAvailable === true || visitAvailable === 'true' : true,
+        deliveryAvailable: deliveryAvailable === true || deliveryAvailable === 'true',
+        pickupAvailable: pickupAvailable === true || pickupAvailable === 'true',
+        merchantId,
+        featured: featured === true || featured === 'true',
+        originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
+        discountedPrice: discountedPrice ? parseFloat(discountedPrice) : undefined,
+        bankName: normalizedBankOffer.bankName || undefined,
+        cardTypes: normalizedBankOffer.cardTypes,
+        offerType: normalizedBankOffer.offerType || undefined,
+        minimumSpend: normalizedBankOffer.minimumSpend,
+        maximumBenefit: normalizedBankOffer.maximumBenefit,
+        status: initialStatus,
+      };
+
+      const savedPromotion = await createPromotionInPostgres(pgPromotionData);
+
+      homepageCache = null;
+      nearbyCache.clear();
+      invalidateSectionCaches();
+
+      return res.status(201).json(savedPromotion);
+    }
+
     if (!mongoose.Types.ObjectId.isValid(merchantId)) {
       return res.status(400).json({ message: 'Invalid merchant ID.' });
     }
@@ -1098,11 +1247,6 @@ router.post('/', authenticateJWT, [
       return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
     }
 
-    let initialStatus = resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
-    if (req.user.role === 'admin' && ['rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
-      initialStatus = req.body.status;
-    }
-    
     const promotionData = {
       title,
       description,
@@ -1240,10 +1384,80 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     const normalizedStartDate = startDate !== undefined ? normalizePromotionDateInput(startDate, 'start') : undefined;
     const normalizedEndDate = endDate !== undefined ? normalizePromotionDateInput(endDate, 'end') : undefined;
 
+    if (usePostgres()) {
+      const hasBankOfferFieldsPg =
+        bankName !== undefined || cardTypes !== undefined || offerType !== undefined ||
+        minimumSpend !== undefined || maximumBenefit !== undefined;
+      if (category === 'bank_cards' || hasBankOfferFieldsPg) {
+        return res.status(400).json({
+          message: 'Bank card offers are now managed separately from merchant promotions.',
+          errors: [{ msg: 'Move this offer into the bank offers module instead of updating it as a promotion.', path: 'category' }],
+        });
+      }
+
+      const existing = await pgModels.Promotion.findByPk(req.params.id);
+      if (!existing) return res.status(404).json({ message: 'Promotion not found' });
+
+      if (req.body.status !== undefined && req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Forbidden: Merchants cannot directly change promotion status.' });
+      }
+
+      const pgUpdateData = {};
+      if (title !== undefined) pgUpdateData.title = title;
+      if (description !== undefined) pgUpdateData.description = description;
+      if (discount !== undefined) pgUpdateData.discount = discount;
+      if (code !== undefined) pgUpdateData.code = code;
+      if (category !== undefined) pgUpdateData.category = category;
+      if (image !== undefined) pgUpdateData.image = image;
+      if (images !== undefined) pgUpdateData.images = images;
+      if (url !== undefined) pgUpdateData.url = url;
+      if (fulfillmentType !== undefined) pgUpdateData.fulfillmentType = fulfillmentType;
+      if (orderLink !== undefined) pgUpdateData.orderLink = orderLink;
+      if (visitAvailable !== undefined) pgUpdateData.visitAvailable = visitAvailable === true || visitAvailable === 'true';
+      if (deliveryAvailable !== undefined) pgUpdateData.deliveryAvailable = deliveryAvailable === true || deliveryAvailable === 'true';
+      if (pickupAvailable !== undefined) pgUpdateData.pickupAvailable = pickupAvailable === true || pickupAvailable === 'true';
+      if (featured !== undefined && req.user.role === 'admin') pgUpdateData.featured = featured === true || featured === 'true';
+      if (normalizedStartDate !== undefined) pgUpdateData.startDate = normalizedStartDate;
+      if (normalizedEndDate !== undefined) pgUpdateData.endDate = normalizedEndDate;
+      if (originalPrice !== undefined) pgUpdateData.originalPrice = parseFloat(originalPrice);
+      if (discountedPrice !== undefined) pgUpdateData.discountedPrice = parseFloat(discountedPrice);
+
+      const existingOriginal = existing.originalPrice !== null && existing.originalPrice !== undefined ? parseFloat(existing.originalPrice) : null;
+      const existingDiscounted = existing.discountedPrice !== null && existing.discountedPrice !== undefined ? parseFloat(existing.discountedPrice) : null;
+      const nextOriginal = pgUpdateData.originalPrice !== undefined ? pgUpdateData.originalPrice : existingOriginal;
+      const nextDiscounted = pgUpdateData.discountedPrice !== undefined ? pgUpdateData.discountedPrice : existingDiscounted;
+      if (nextOriginal !== null && nextDiscounted !== null && nextDiscounted >= nextOriginal) {
+        return res.status(400).json({ errors: [{ msg: 'Discounted price must be less than original price.' }] });
+      }
+
+      if (req.body.status !== undefined) {
+        const allowedAdminStatuses = ['rejected', 'admin_paused', 'draft', 'active', 'scheduled', 'expired'];
+        if (!allowedAdminStatuses.includes(req.body.status)) {
+          return res.status(400).json({ message: 'Invalid status value for admin update.' });
+        }
+        pgUpdateData.status = req.body.status;
+      }
+
+      if (normalizedStartDate !== undefined || normalizedEndDate !== undefined) {
+        const sDate = normalizedStartDate || existing.startDate;
+        const eDate = normalizedEndDate || existing.endDate;
+        pgUpdateData.status = resolveLifecycleStatus(sDate, eDate);
+      } else if (pgUpdateData.status && ['active', 'scheduled', 'expired'].includes(pgUpdateData.status)) {
+        pgUpdateData.status = resolveLifecycleStatus(existing.startDate, existing.endDate);
+      }
+
+      const updatedPg = await updatePromotionInPostgres(req.params.id, pgUpdateData);
+      invalidateSectionCaches();
+      return res.status(200).json(updatedPg);
+    }
+
     const updateData = {
       title, description, discount, code, category, image, url,
-      featured: featured === true || featured === 'true'
     };
+    // Only admins change featured; leaving it out keeps the current value.
+    if (featured !== undefined && req.user.role === 'admin') {
+      updateData.featured = featured === true || featured === 'true';
+    }
     const nextCategory = category;
     const hasBankOfferFields =
       bankName !== undefined ||
@@ -1405,6 +1619,13 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
 // Delete a promotion (Protected: Admin or Promotion Owner)
 router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (req, res) => {
   try {
+    if (usePostgres()) {
+      const deleted = await deletePromotionInPostgres(req.params.id);
+      if (!deleted) return res.status(404).json({ message: 'Promotion not found' });
+      invalidateSectionCaches();
+      return res.status(200).json({ message: 'Promotion deleted successfully' });
+    }
+
     // The authorizePromotionOwnerOrAdmin middleware already fetches the promotion if the user is not an admin.
     // However, if the user is an admin, it doesn't. So we might need to fetch it here anyway for the merchant update.
     // Or, the middleware could attach the promotion to req if found.
@@ -1439,6 +1660,20 @@ router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (re
 // Uses gentleAuthenticateJWT imported from ../middleware/auth
 router.post('/:id/click', gentleAuthenticateJWT, async (req, res) => {
   try {
+    if (usePostgres()) {
+      const promotion = await pgModels.Promotion.findByPk(req.params.id);
+      if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+      await pgModels.PromotionClick.create({
+        id: crypto.randomUUID(),
+        promotionId: promotion.id,
+        merchantId: promotion.merchantId,
+        userId: req.user ? req.user.id : (req.body.userId || null),
+        type: req.body.type || 'click',
+      });
+      return res.status(201).json({ message: 'Click recorded' });
+    }
+
     const promotion = await Promotion.findById(req.params.id);
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
 
@@ -1469,6 +1704,27 @@ router.post('/:id/comments', authenticateJWT, async (req, res) => {
     const { text } = req.body; // userId will come from req.user.id
     if (!text) return res.status(400).json({ message: 'Text is required.' });
 
+    if (usePostgres()) {
+      const promotion = await pgModels.Promotion.findByPk(req.params.id);
+      if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+      const comment = await pgModels.PromotionComment.create({
+        id: crypto.randomUUID(),
+        promotionId: req.params.id,
+        userId: req.user.id,
+        text,
+      });
+      const user = await pgModels.User.findByPk(req.user.id, {
+        attributes: ['id', 'name', 'email', 'profilePicture'],
+      });
+      return res.status(201).json({
+        _id: comment.id,
+        text: comment.text,
+        createdAt: comment.createdAt,
+        user: serializePgAuthor(user) || req.user.id,
+      });
+    }
+
     const promotion = await Promotion.findById(req.params.id);
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
 
@@ -1487,6 +1743,15 @@ router.post('/:id/comments', authenticateJWT, async (req, res) => {
 // Get comments for a promotion
 router.get('/:id/comments', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const comments = await pgModels.PromotionComment.findAll({
+        where: { promotionId: req.params.id },
+        include: PG_AUTHOR_INCLUDE,
+        order: [['createdAt', 'ASC']],
+      });
+      return res.status(200).json(comments.map(serializePgComment));
+    }
+
     const promotion = await Promotion.findById(req.params.id).populate(
       'comments.user',
       'name email profilePicture',
@@ -1505,6 +1770,30 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
     if (typeof value !== 'number' || value < 1 || value > 5) {
       return res.status(400).json({ message: 'Valid rating value (1-5) is required.' });
     }
+
+    if (usePostgres()) {
+      const promotion = await pgModels.Promotion.findByPk(req.params.id);
+      if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+      // Remove any previous rating by this user to prevent multiple ratings.
+      await pgModels.PromotionRating.destroy({
+        where: { promotionId: req.params.id, userId: req.user.id },
+      });
+      await pgModels.PromotionRating.create({
+        id: crypto.randomUUID(),
+        promotionId: req.params.id,
+        userId: req.user.id,
+        value,
+      });
+
+      const ratings = await pgModels.PromotionRating.findAll({
+        where: { promotionId: req.params.id },
+        include: PG_AUTHOR_INCLUDE,
+        order: [['createdAt', 'ASC']],
+      });
+      return res.status(201).json(ratings.map(serializePgRating));
+    }
+
     const promotion = await Promotion.findById(req.params.id);
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
 
@@ -1526,6 +1815,15 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
 // Get ratings for a promotion
 router.get('/:id/ratings', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const ratings = await pgModels.PromotionRating.findAll({
+        where: { promotionId: req.params.id },
+        include: PG_AUTHOR_INCLUDE,
+        order: [['createdAt', 'ASC']],
+      });
+      return res.status(200).json(ratings.map(serializePgRating));
+    }
+
     const promotion = await Promotion.findById(req.params.id).populate(
       'ratings.user',
       'name email profilePicture',
@@ -1539,6 +1837,21 @@ router.get('/:id/ratings', async (req, res) => {
 
 router.get('/:id/redemption-feedback', async (req, res) => {
   try {
+    if (usePostgres()) {
+      const promotion = await pgModels.Promotion.findByPk(req.params.id);
+      if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+      const feedback = await pgModels.PromotionRedemptionFeedback.findAll({
+        where: { promotionId: req.params.id },
+        include: PG_AUTHOR_INCLUDE,
+      });
+      const serialized = feedback.map(serializePgFeedback);
+      return res.status(200).json({
+        feedback: serialized,
+        ...getRedemptionFeedbackSummary({ redemptionFeedback: serialized }),
+      });
+    }
+
     const promotion = await Promotion.findById(req.params.id)
       .select('redemptionFeedback')
       .populate('redemptionFeedback.user', 'name email profilePicture');
@@ -1556,6 +1869,31 @@ router.post('/:id/redemption-feedback', authenticateJWT, async (req, res) => {
   try {
     if (typeof req.body.worked !== 'boolean') {
       return res.status(400).json({ message: 'worked must be true or false.' });
+    }
+
+    if (usePostgres()) {
+      const promotion = await pgModels.Promotion.findByPk(req.params.id);
+      if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+
+      await pgModels.PromotionRedemptionFeedback.destroy({
+        where: { promotionId: req.params.id, userId: req.user.id },
+      });
+      await pgModels.PromotionRedemptionFeedback.create({
+        id: crypto.randomUUID(),
+        promotionId: req.params.id,
+        userId: req.user.id,
+        worked: req.body.worked,
+      });
+
+      const feedback = await pgModels.PromotionRedemptionFeedback.findAll({
+        where: { promotionId: req.params.id },
+        include: PG_AUTHOR_INCLUDE,
+      });
+      const serialized = feedback.map(serializePgFeedback);
+      return res.status(201).json({
+        feedback: serialized,
+        ...getRedemptionFeedbackSummary({ redemptionFeedback: serialized }),
+      });
     }
 
     const promotion = await Promotion.findById(req.params.id);

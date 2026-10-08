@@ -17,7 +17,7 @@ function authenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
       if (err) {
         // console.error("JWT Verification Error:", err.message);
         return res.status(403).json({ message: 'Invalid or expired token' });
@@ -71,7 +71,7 @@ function gentleAuthenticateJWT(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
-    jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret', (err, user) => {
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
       if (!err) {
         req.user = user;
       }
@@ -100,6 +100,18 @@ async function authorizePromotionOwnerOrAdmin(req, res, next) {
 
       if (!req.user.merchantId) {
         return res.status(403).json({ message: 'Forbidden: No merchant profile is linked to this account' });
+      }
+
+      if (process.env.DATA_SOURCE === 'postgres') {
+        const { getPromotionByIdFromPostgres } = require('../services/postgresPromotionService');
+        const promotion = await getPromotionByIdFromPostgres(req.params.id);
+        if (!promotion) {
+          return res.status(404).json({ message: 'Promotion not found' });
+        }
+        if (promotion.merchant?._id === req.user.merchantId.toString()) {
+          return next();
+        }
+        return res.status(403).json({ message: 'Forbidden: You do not own this promotion' });
       }
 
       const Promotion = require('../models/Promotion');

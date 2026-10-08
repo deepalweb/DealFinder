@@ -17,6 +17,7 @@ import '../widgets/section_header.dart';
 import '../widgets/home_shimmer.dart';
 import '../widgets/modern_deal_card.dart';
 import '../widgets/category_icon.dart';
+import '../config/app_theme.dart';
 import 'deal_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'nearby_deals_screen.dart';
@@ -668,28 +669,15 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFB9E6FF),
-              Color(0xFFD8F1FF),
-              Color(0xFFE8F2FF),
-              Color(0xFFF6F1FF),
-            ],
-            stops: [0.0, 0.24, 0.68, 1.0],
-          ),
-        ),
-        child: SafeArea(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: SafeArea(
           child: FadeTransition(
             opacity: _fadeAnimation,
             child: RefreshIndicator(
               onRefresh: _refresh,
-              color: Theme.of(context).colorScheme.primary,
+              color: theme.colorScheme.primary,
               child: CustomScrollView(
                 slivers: [
                   _buildHeader(),
@@ -706,165 +694,102 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ),
-      ),
     );
   }
 
   // ── Header with logo, location, notifications ────────────────────────────
   Widget _buildHeader() {
     return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-        child: Row(
-          children: [
-            // App Logo/Branding
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.0, end: 1.0),
-              duration: const Duration(milliseconds: 600),
-              builder: (context, value, child) {
-                return Transform.scale(
-                  scale: value,
-                  child: child,
-                );
-              },
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFE0F4FF),
-                      Color(0xFFBFE8FF),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF9FD2EE)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF2A7DA8).withValues(alpha: 0.18),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        'assets/app_icon.png',
-                        width: 28,
-                        height: 28,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ],
+      child: Builder(builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final chipColor = isDark ? AppColors.cardDark : AppColors.cardLight;
+        final borderColor = isDark ? AppColors.borderDark : AppColors.borderSubtle;
+        final textColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Image.asset(
+                  'assets/app_icon.png',
+                  width: 36,
+                  height: 36,
+                  fit: BoxFit.cover,
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            // Location
-            Expanded(
-              child: GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F7FF),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFB9DDF1)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF4B93B8).withValues(alpha: 0.16),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+              const SizedBox(width: AppSpacing.lg),
+              // Location
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NearbyDealsScreen()),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.location_on,
-                          size: 14, color: Color(0xFF0E7490)),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          _locationName,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0B3B53),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: chipColor,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 15, color: AppColors.ceylonInk),
+                        const SizedBox(width: AppSpacing.xs),
+                        Flexible(
+                          child: Text(
+                            _locationName,
+                            style: TextStyle(
+                              fontSize: AppTypeScale.caption,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.keyboard_arrow_down,
-                          size: 14, color: Color(0xFF4B7D96)),
-                    ],
+                        const SizedBox(width: AppSpacing.xxs),
+                        Icon(Icons.keyboard_arrow_down, size: 15, color: textColor.withValues(alpha: 0.5)),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            // Notification bell
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: Material(
-                color: const Color(0xFFE2F4FF),
-                borderRadius: BorderRadius.circular(24),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(24),
-                  onTap: _openNotifications,
-                  child: Stack(
-                    children: [
-                      const Center(
-                        child: Icon(
-                          Icons.notifications_outlined,
-                          size: 26,
-                          color: Color(0xFF0B5C7A),
+              const SizedBox(width: AppSpacing.md),
+              // Notification bell
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Material(
+                  color: chipColor,
+                  shape: CircleBorder(side: BorderSide(color: borderColor)),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _openNotifications,
+                    child: Stack(
+                      children: [
+                        Center(
+                          child: Icon(Icons.notifications_outlined, size: 20, color: textColor),
                         ),
-                      ),
-                      if (_notificationCount > 0)
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: IgnorePointer(
-                            child: TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 400),
-                              curve: Curves.elasticOut,
-                              builder: (context, value, child) {
-                                return Transform.scale(
-                                  scale: value,
-                                  child: child,
-                                );
-                              },
+                        if (_notificationCount > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: IgnorePointer(
                               child: Container(
-                                padding: const EdgeInsets.all(4),
+                                padding: const EdgeInsets.all(3),
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFE53935),
+                                  color: AppColors.chili,
                                   shape: BoxShape.circle,
                                 ),
-                                constraints: const BoxConstraints(
-                                  minWidth: 16,
-                                  minHeight: 16,
-                                ),
+                                constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
                                 child: Text(
-                                  _notificationCount > 9
-                                      ? '9+'
-                                      : '$_notificationCount',
+                                  _notificationCount > 9 ? '9+' : '$_notificationCount',
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 10,
+                                    fontSize: 9,
                                     fontWeight: FontWeight.bold,
                                   ),
                                   textAlign: TextAlign.center,
@@ -872,68 +797,56 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
   // ── Discovery Hero ────────────────────────────────────────────────────────
   Widget _buildDiscoveryHero() {
     return SliverToBoxAdapter(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.waving_hand_rounded,
-                        size: 14,
-                        color: Color(0xFF3B82F6),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Hi, $_userName',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Find the best deals for you',
-                    style: TextStyle(
-                      fontSize: 20,
-                      height: 1.15,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
+      child: Builder(builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final primary = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
+        final secondary = isDark ? AppColors.textSecondaryDark : AppColors.textSecondary;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xs),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hi, $_userName 👋',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppTypeScale.label,
+                  color: secondary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Find the best deals for you',
+                style: TextStyle(
+                  fontSize: AppTypeScale.displayS,
+                  height: 1.15,
+                  fontWeight: FontWeight.w700,
+                  color: primary,
+                  letterSpacing: -0.4,
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
     );
   }
 
@@ -1822,57 +1735,52 @@ class _HomeScreenState extends State<HomeScreen>
                   contextTitle: category.name,
                   categoryId: category.id,
                 ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                child: Builder(builder: (context) {
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.cardDark : AppColors.cardLight,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                        color: isDark ? AppColors.borderDark : AppColors.borderSubtle,
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: CategoryIcon(
-                            category: category.id,
-                            size: 22,
-                            color: Theme.of(context).colorScheme.primary,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.ceylonInk.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Center(
+                            child: CategoryIcon(
+                              category: category.id,
+                              size: 20,
+                              color: AppColors.ceylonInk,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 9),
-                      Text(
-                        _categoryShortLabel(category.name),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF1E293B),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          _categoryShortLabel(category.name),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: AppTypeScale.caption,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }),
               );
             },
           ),

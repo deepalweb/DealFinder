@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
 import '../config/app_theme.dart';
-import 'deal_verification_badge.dart';
+import 'deal_pills.dart';
 
 class ModernDealCard extends StatefulWidget {
   final Promotion promotion;
@@ -78,9 +78,9 @@ class _ModernDealCardState extends State<ModernDealCard> {
     const symbols = {
       'USD': r'$',
       'LKR': 'Rs.',
-      'EUR': '\u20ac',
-      'GBP': '\u00a3',
-      'INR': '\u20b9',
+      'EUR': '€',
+      'GBP': '£',
+      'INR': '₹',
       'AUD': 'A\$',
       'CAD': 'C\$',
       'SGD': 'S\$',
@@ -92,178 +92,74 @@ class _ModernDealCardState extends State<ModernDealCard> {
     return '$symbol ${amount.toStringAsFixed(whole ? 0 : 2)}';
   }
 
-  Widget _buildInfoChip({
-    required IconData icon,
-    required String label,
-    required Color background,
-    required Color foreground,
-    bool compact = false,
-    double? iconSize,
-    double? fontSize,
-    EdgeInsetsGeometry? padding,
-  }) {
-    return Container(
-      padding: padding ??
-          EdgeInsets.symmetric(
-            horizontal: compact ? AppSpacing.sm : AppSpacing.md,
-            vertical: compact ? AppSpacing.xxs : AppSpacing.xs,
-          ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: iconSize ?? (compact ? 10 : 11), color: foreground),
-          SizedBox(width: compact ? AppSpacing.xxs : AppSpacing.xs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: fontSize ?? (compact ? 9 : 10),
-              color: foreground,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   String _formatCountdown(Duration duration) {
     final totalHours = duration.inHours;
     final days = duration.inDays;
     final hours = totalHours % 24;
-    final minutes = duration.inMinutes % 60;
-    final seconds = duration.inSeconds % 60;
 
     if (totalHours >= 24) {
-      return '${days}d ${hours.toString().padLeft(2, '0')}h '
-          '${minutes.toString().padLeft(2, '0')}m';
+      return 'Ends in ${days}d ${hours}h';
     }
-
-    return '${totalHours.toString().padLeft(2, '0')}h '
-        '${minutes.toString().padLeft(2, '0')}m '
-        '${seconds.toString().padLeft(2, '0')}s';
+    if (totalHours >= 1) {
+      return 'Ends in ${totalHours}h ${duration.inMinutes % 60}m';
+    }
+    return 'Ends in ${duration.inMinutes}m';
   }
 
-  Widget _buildGlassChip({
-    required IconData icon,
-    required String label,
-    required bool compact,
-    required BuildContext context,
-    Color? iconColor,
-    double? iconSize,
-    double? fontSize,
-    EdgeInsetsGeometry? padding,
-  }) {
-    final theme = Theme.of(context).extension<DealFinderThemeExtension>()!;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: padding ??
-          EdgeInsets.symmetric(
-            horizontal: compact ? 7 : 9,
-            vertical: compact ? AppSpacing.xs : 5,
-          ),
-      decoration: BoxDecoration(
-        color: theme.glassBackground.withValues(alpha: AppOpacity.glass),
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(
-          color: theme.glassBackground.withValues(alpha: AppOpacity.overlay),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: iconSize ?? (compact ? 11 : 12),
-            color: iconColor ??
-                (isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
-          ),
-          SizedBox(width: compact ? AppSpacing.xxs : AppSpacing.xs),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: fontSize ?? (compact ? 8.5 : 9.5),
-              color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Rounds three corners and leaves one square — a deliberate asymmetry so
+  // the feed doesn't read as a repeated grid of identical rounded tiles.
+  static const _cardRadius = BorderRadius.only(
+    topLeft: Radius.circular(AppRadius.lg),
+    topRight: Radius.circular(AppRadius.lg),
+    bottomRight: Radius.circular(AppRadius.lg),
+    bottomLeft: Radius.circular(4),
+  );
+  static const _imageRadius = BorderRadius.only(
+    topLeft: Radius.circular(AppRadius.lg),
+    topRight: Radius.circular(AppRadius.lg),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context).extension<DealFinderThemeExtension>()!;
-    final cardTheme = Theme.of(context).cardTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? AppColors.cardDark : AppColors.cardLight;
+    final borderColor = isDark ? AppColors.borderDark : AppColors.borderSubtle;
+    final titleColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
 
     return GestureDetector(
       onTap: widget.onTap,
+      behavior: HitTestBehavior.opaque,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final p = widget.promotion;
           final distance = _formatDistance(p.distance);
-          final showCountdown = _timeLeft != null && p.endDate != null;
           final effectiveWidth = widget.width ?? constraints.maxWidth;
           final compact = effectiveWidth <= 190;
-          final imageFlex = compact ? 8 : 9;
-          final contentFlex = compact ? 6 : 5;
-          final contentPadding = compact ? AppSpacing.md : 10.0;
           final merchantName = p.merchantName?.trim();
           final distanceLabel = distance.isNotEmpty ? distance : null;
           final hoursLeft = _timeLeft?.inHours ?? 0;
-          final showCountdownNow =
-              showCountdown && _timeLeft != null && hoursLeft < 48;
+          final showCountdownNow = _timeLeft != null && p.endDate != null && hoursLeft < 48;
+          final expired = _timeLeft == Duration.zero;
           final expiryLabel = showCountdownNow
-              ? (_timeLeft == Duration.zero
-                  ? 'Expired'
-                  : _formatCountdown(_timeLeft!))
+              ? (expired ? 'Expired' : _formatCountdown(_timeLeft!))
               : null;
-          final averageRating = p.averageRating ?? 0.0;
-          final hasRatings = p.ratingsCount > 0 && p.averageRating != null;
-          final hasTrustBadge =
-              (p.trustStatus ?? '').isNotEmpty && p.trustStatus != 'standard';
+          final isVerified = (p.trustStatus ?? '').isNotEmpty && p.trustStatus != 'standard';
           final currentPrice = p.discountedPrice ?? p.price ?? p.originalPrice;
-          final savings = p.originalPrice != null &&
-                  currentPrice != null &&
-                  p.originalPrice! > currentPrice
-              ? p.originalPrice! - currentPrice
-              : null;
           final discountLabel = p.discountPercentage != null
-              ? '${p.discountPercentage}% OFF'
-              : (p.discount != null && p.discount!.isNotEmpty)
-                  ? p.discount!
-                  : null;
-
-          final borderSide = cardTheme.shape is RoundedRectangleBorder
-              ? (cardTheme.shape as RoundedRectangleBorder).side
-              : BorderSide.none;
+              ? '-${p.discountPercentage}%'
+              : (p.discount != null && p.discount!.isNotEmpty ? p.discount! : null);
 
           return Container(
             width: widget.width,
             decoration: BoxDecoration(
-              color: cardTheme.color,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: borderSide != BorderSide.none
-                  ? Border.all(
-                      color: borderSide.color,
-                      width: borderSide.width,
-                    )
-                  : null,
+              color: cardColor,
+              borderRadius: _cardRadius,
+              border: Border.all(color: borderColor),
               boxShadow: [
                 BoxShadow(
-                  color: theme.cardShadow.withValues(alpha: AppOpacity.light),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-                BoxShadow(
-                  color:
-                      AppColors.iosPrimary.withValues(alpha: AppOpacity.subtle),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
+                  color: AppColors.charcoal.withValues(alpha: AppOpacity.light),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -271,242 +167,100 @@ class _ModernDealCardState extends State<ModernDealCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  flex: imageFlex,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _buildImage(),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(alpha: AppOpacity.medium),
-                              Colors.black.withValues(alpha: AppOpacity.strong),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (discountLabel != null)
-                        Positioned(
-                          top: AppSpacing.md,
-                          left: AppSpacing.md,
-                          child: _buildInfoChip(
-                            icon: Icons.local_offer_rounded,
-                            label: discountLabel,
-                            background: AppColors.iosError,
-                            foreground: Colors.white,
-                            compact: compact,
-                            iconSize: compact ? 12 : 13,
-                            fontSize: compact ? 11 : 12,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: compact ? 8 : 10,
-                              vertical: compact ? 5 : 6,
+                AspectRatio(
+                  // ~40% of card height, per the design system's card image cap.
+                  aspectRatio: compact ? 1.35 : 1.6,
+                  child: ClipRRect(
+                    borderRadius: _imageRadius,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _buildImage(),
+                        if (discountLabel != null)
+                          Positioned(
+                            top: AppSpacing.md,
+                            left: AppSpacing.md,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: AppColors.ceylonInk,
+                                borderRadius: BorderRadius.circular(AppRadius.pill),
+                              ),
+                              child: Text(
+                                discountLabel,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.turmeric,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      if (hasRatings)
-                        Positioned(
-                          top: AppSpacing.md,
-                          right: AppSpacing.md,
-                          child: _buildGlassChip(
-                            icon: Icons.star_rounded,
-                            label:
-                                '${averageRating.toStringAsFixed(1)} (${p.ratingsCount})',
-                            compact: compact,
-                            context: context,
-                            iconColor: theme.ratingColor,
-                            iconSize: compact ? 11 : 12,
-                            fontSize: compact ? 8.5 : 9,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: compact ? 7 : 9,
-                              vertical: compact ? AppSpacing.xs : 5,
-                            ),
-                          ),
-                        ),
-                      if (hasTrustBadge)
-                        Positioned(
-                          bottom: AppSpacing.md,
-                          left: AppSpacing.md,
-                          child: DealVerificationBadge(
-                            status: p.trustStatus!,
-                            label: p.trustLabel,
-                            compact: compact,
-                          ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                Expanded(
-                  flex: contentFlex,
-                  child: Padding(
-                    padding: EdgeInsets.all(contentPadding),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Deal Title (Primary - Most Important)
-                        Text(
-                          p.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: compact ? 13.5 : 15,
-                            fontWeight: FontWeight.w900,
-                            color:
-                                Theme.of(context).textTheme.titleMedium?.color,
-                            height: 1.1,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        SizedBox(height: compact ? 3 : 4),
-
-                        // Merchant Name (Secondary)
-                        if (merchantName != null && merchantName.isNotEmpty)
-                          Text(
-                            merchantName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: compact ? 11 : 12,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  Theme.of(context).textTheme.bodyMedium?.color,
-                              letterSpacing: -0.1,
-                            ),
-                          ),
-                        if (merchantName != null && merchantName.isNotEmpty)
-                          SizedBox(
-                              height: compact ? AppSpacing.xs : AppSpacing.sm),
-
-                        // Distance & Expiry
+                Padding(
+                  padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Merchant name + verified badge (inline, not a separate row).
+                      if (merchantName != null && merchantName.isNotEmpty)
                         Row(
                           children: [
-                            if (distanceLabel != null) ...[
-                              Icon(
-                                Icons.location_on,
-                                size: compact ? 12 : 13,
-                                color: theme.distanceColor,
-                              ),
-                              SizedBox(width: compact ? 3 : 4),
-                              Text(
-                                distanceLabel,
-                                style: TextStyle(
-                                  fontSize: compact ? 11 : 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.distanceColor,
-                                ),
-                              ),
-                            ],
-                            if (distanceLabel != null && expiryLabel != null)
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 6),
-                                child: Text(
-                                  '•',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.color,
-                                    fontSize: compact ? 10 : 11,
-                                  ),
-                                ),
-                              ),
-                            if (expiryLabel != null)
-                              Flexible(
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _timeLeft == Duration.zero
-                                          ? Icons.timer_off_outlined
-                                          : Icons.schedule_rounded,
-                                      size: compact ? 11 : 12,
-                                      color: _timeLeft == Duration.zero
-                                          ? theme.expiredColor
-                                          : theme.savingsColor,
-                                    ),
-                                    SizedBox(width: compact ? 3 : 4),
-                                    Flexible(
-                                      child: Text(
-                                        expiryLabel,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: compact ? 9 : 10,
-                                          fontWeight: FontWeight.w600,
-                                          color: _timeLeft == Duration.zero
-                                              ? theme.expiredColor
-                                              : Theme.of(context)
-                                                  .textTheme
-                                                  .bodySmall
-                                                  ?.color,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        SizedBox(
-                            height: compact ? AppSpacing.sm : AppSpacing.md),
-                        // Price (Quaternary - Clear Hierarchy)
-                        if (currentPrice != null)
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                _priceLabel(
-                                  currentPrice,
-                                  currencyCode: p.merchantCurrency,
-                                ),
+                            Flexible(
+                              child: Text(
+                                merchantName,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: compact ? 16 : 18,
-                                  fontWeight: FontWeight.w900,
-                                  color: theme.priceColor,
-                                  letterSpacing: -0.3,
-                                  height: 1,
+                                  fontSize: AppTypeScale.title,
+                                  fontWeight: FontWeight.w600,
+                                  color: titleColor,
                                 ),
                               ),
-                              if (p.originalPrice != null &&
-                                  p.discountedPrice != null) ...[
-                                const SizedBox(width: AppSpacing.md),
-                                Text(
-                                  _priceLabel(
-                                    p.originalPrice!,
-                                    currencyCode: p.merchantCurrency,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: compact ? 11 : 12,
-                                    color: AppColors.textTertiary,
-                                    decoration: TextDecoration.lineThrough,
-                                    decorationThickness: 2,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        if (savings != null) ...[
-                          SizedBox(height: compact ? 3 : 4),
-                          Text(
-                            'Save ${_priceLabel(savings, currencyCode: p.merchantCurrency)}',
-                            style: TextStyle(
-                              fontSize: compact ? 10 : 11,
-                              fontWeight: FontWeight.w700,
-                              color: theme.savingsColor,
                             ),
-                          ),
-                        ],
+                            if (isVerified) ...[
+                              const SizedBox(width: AppSpacing.xs),
+                              const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.betelGreen),
+                            ],
+                          ],
+                        ),
+                      if (distanceLabel != null) ...[
+                        SizedBox(height: compact ? AppSpacing.xxs : AppSpacing.xs),
+                        DistanceTravelChip(distanceLabel: distanceLabel, compact: compact),
                       ],
-                    ),
+                      SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
+
+                      // Deal title.
+                      Text(
+                        p.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: compact ? AppTypeScale.body : AppTypeScale.title,
+                          fontWeight: FontWeight.w600,
+                          color: titleColor,
+                          height: 1.2,
+                        ),
+                      ),
+                      SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
+
+                      if (currentPrice != null)
+                        PriceBlock(
+                          currentPriceLabel: _priceLabel(currentPrice, currencyCode: p.merchantCurrency),
+                          originalPriceLabel: (p.originalPrice != null && p.discountedPrice != null)
+                              ? _priceLabel(p.originalPrice!, currencyCode: p.merchantCurrency)
+                              : null,
+                          compact: compact,
+                        ),
+
+                      if (expiryLabel != null) ...[
+                        SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
+                        ExpiryChip(label: expiryLabel, expired: expired, compact: compact),
+                      ],
+                    ],
                   ),
                 ),
               ],

@@ -3,9 +3,16 @@ const { v4: uuidv4 } = require('uuid');
 
 class AzureBlobService {
   constructor() {
+    // Only attempt to connect when explicitly selected as the active image
+    // storage provider — otherwise (default: local disk storage) this would
+    // try to reach Azure on every server start regardless of whether it's used.
+    if (process.env.IMAGE_STORAGE_PROVIDER !== 'azure') {
+      return;
+    }
+
     this.connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
     this.containerName = process.env.AZURE_STORAGE_CONTAINER_NAME || 'dealfinder-images';
-    
+
     if (!this.connectionString) {
       console.warn('Azure Storage connection string not configured');
       return;
