@@ -1,19 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { PromotionAPI } from '@/lib/api';
 import PromotionCard from '@/components/ui/PromotionCard';
 import SkeletonCard from '@/components/ui/SkeletonCard';
 import HeroSection from '@/components/ui/HeroSection';
 import { useLanguage } from '@/contexts/LanguageContext';
 import toast from 'react-hot-toast';
+import GoogleMapView from '@/components/ui/GoogleMapView';
 
 export default function NearbyPage() {
   const { language } = useLanguage();
-  const mapRef = useRef<any>(null);
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const markersRef = useRef<any[]>([]);
-
   const [promotions, setPromotions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -79,98 +76,6 @@ export default function NearbyPage() {
     if (userLocation) fetchDeals(userLocation.lat, userLocation.lon, r);
   };
 
-  // Initialize map when switching to map view
-  useEffect(() => {
-    if (view !== 'map' || !mapContainerRef.current) return;
-
-    import('leaflet').then(L => {
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
-
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-
-      const center: [number, number] = userLocation ? [userLocation.lat, userLocation.lon] : [6.9271, 79.8612];
-      const map = L.map(mapContainerRef.current!).setView(center, 13);
-      mapRef.current = map;
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-      }).addTo(map);
-
-      // User location marker
-      if (userLocation) {
-        const userIcon = L.divIcon({
-          html: '<div style="width:16px;height:16px;background:#6366f1;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(99,102,241,0.5)"></div>',
-          className: '',
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        });
-        L.marker([userLocation.lat, userLocation.lon], { icon: userIcon })
-          .addTo(map)
-          .bindPopup('<b>📍 You are here</b>');
-
-        // Radius circle
-        L.circle([userLocation.lat, userLocation.lon], {
-          radius: radius * 1000,
-          color: '#6366f1',
-          fillColor: '#6366f1',
-          fillOpacity: 0.05,
-          weight: 1.5,
-          dashArray: '6',
-        }).addTo(map);
-      }
-
-      // Deal markers
-      markersRef.current = [];
-      promotions.forEach(p => {
-        const coords = p.merchant?.location?.coordinates;
-        if (!coords || coords.length < 2) return;
-        const [lng, lat] = coords;
-
-        const dealIcon = L.divIcon({
-          html: `<div style="background:linear-gradient(135deg,#ef4444,#f97316);color:#fff;padding:4px 8px;border-radius:9999px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.2)">${p.discount} OFF</div>`,
-          className: '',
-          iconAnchor: [20, 10],
-        });
-
-        const distKm = p.merchant?.distance ? (p.merchant.distance / 1000).toFixed(1) : null;
-        const marker = L.marker([lat, lng], { icon: dealIcon })
-          .addTo(map)
-          .bindPopup(`
-            <div style="min-width:180px">
-              ${p.image ? `<img src="${p.image}" style="width:100%;height:80px;object-fit:cover;border-radius:6px;margin-bottom:8px" />` : ''}
-              <b style="font-size:13px">${p.title}</b><br/>
-              <span style="color:#6366f1;font-weight:700">${p.discount} OFF</span>
-              ${distKm ? `<br/><span style="color:#64748b;font-size:12px">📍 ${distKm} km away</span>` : ''}
-              <br/><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:11px">${p.code}</code>
-            </div>
-          `);
-        markersRef.current.push(marker);
-      });
-
-      // Fit bounds to show all markers
-      if (promotions.length > 0 && userLocation) {
-        const bounds = L.latLngBounds([[userLocation.lat, userLocation.lon]]);
-        promotions.forEach(p => {
-          const coords = p.merchant?.location?.coordinates;
-          if (coords?.length >= 2) bounds.extend([coords[1], coords[0]]);
-        });
-        map.fitBounds(bounds, { padding: [40, 40] });
-      }
-    });
-
-    return () => {
-      if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
-    };
-  }, [view, promotions, userLocation, radius]);
-
   useEffect(() => { getLocation(); }, []);
 
   const distanceLabel = (p: any) => {
@@ -181,7 +86,7 @@ export default function NearbyPage() {
 
   return (
     <div>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
 
       {/* Hero */}
       <HeroSection
@@ -241,7 +146,12 @@ export default function NearbyPage() {
 
             {/* Map view */}
             {view === 'map' && (
-              <div ref={mapContainerRef} className="surface-panel" style={{ height: '520px', width: '100%', borderRadius: '1.5rem', overflow: 'hidden', marginBottom: '2rem' }} />
+              <GoogleMapView lat={userLocation?.lat ?? null} lng={userLocation?.lon ?? null}
+                height="520px" radiusKm={radius} points={promotions.flatMap(p => {
+                  const coords = p.merchant?.location?.coordinates;
+                  return coords?.length >= 2 ? [{ id: p._id || p.id, lat: coords[1], lng: coords[0],
+                    title: p.title, label: p.discount || undefined, href: `/deal/${p._id || p.id}` }] : [];
+                })} />
             )}
 
             {/* List view */}

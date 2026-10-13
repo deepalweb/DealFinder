@@ -1,9 +1,10 @@
+import '../widgets/sign_in_gate.dart';
+import '../config/app_theme.dart';
 import 'dart:convert';
 
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as latlng;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -445,6 +446,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
   Future<void> _toggleFollow() async {
     if (_followBusy) return;
+    if (!await requireSignIn(context) || !mounted) return;
+    await _loadUserAuth();
+    if (!mounted) return;
     setState(() => _followBusy = true);
 
     try {
@@ -685,7 +689,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       return Container(
         width: width,
         height: height,
-        color: Colors.grey[300],
+        color: AppColors.border(context),
         child: const Icon(Icons.storefront, color: Colors.white, size: 40),
       );
     }
@@ -702,7 +706,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           errorBuilder: (_, __, ___) => Container(
             width: width,
             height: height,
-            color: Colors.grey[300],
+            color: AppColors.border(context),
             child: const Icon(Icons.storefront, color: Colors.white, size: 40),
           ),
         );
@@ -710,7 +714,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         return Container(
           width: width,
           height: height,
-          color: Colors.grey[300],
+          color: AppColors.border(context),
           child: const Icon(Icons.storefront, color: Colors.white, size: 40),
         );
       }
@@ -725,7 +729,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         errorBuilder: (_, __, ___) => Container(
           width: width,
           height: height,
-          color: Colors.grey[300],
+          color: AppColors.border(context),
           child: const Icon(Icons.storefront, color: Colors.white, size: 40),
         ),
         loadingBuilder: (context, child, loadingProgress) {
@@ -733,7 +737,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           return Container(
             width: width,
             height: height,
-            color: Colors.grey[200],
+            color: AppColors.border(context),
             child: const Center(child: CircularProgressIndicator()),
           );
         },
@@ -743,7 +747,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     return Container(
       width: width,
       height: height,
-      color: Colors.grey[300],
+      color: AppColors.border(context),
       child: const Icon(Icons.storefront, color: Colors.white, size: 40),
     );
   }
@@ -891,13 +895,13 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF1E88E5)),
+          Icon(icon, size: 16, color: AppColors.accent(context)),
           const SizedBox(width: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Color(0xFF14213D),
+              color: AppColors.text(context),
             ),
           ),
           const SizedBox(width: 4),
@@ -923,13 +927,13 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFF1E88E5)),
+          Icon(icon, size: 14, color: AppColors.accent(context)),
           const SizedBox(width: 6),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: Color(0xFF14213D),
+              color: AppColors.text(context),
             ),
           ),
         ],
@@ -968,8 +972,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     'Store Ratings',
                   ),
                   style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF14213D),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text(context),
                   ),
                 ),
               ),
@@ -993,7 +997,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   _averageRating.toStringAsFixed(1),
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF14213D),
+                    color: AppColors.text(context),
                   ),
                 ),
                 Text(
@@ -1085,18 +1089,18 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6EBF2)),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.rate_review_outlined,
-                color: Color(0xFF1E88E5),
+                color: AppColors.accent(context),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -1104,8 +1108,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 child: Text(
                   '${_merchantLocalizedText(context, 'Store Reviews', 'Store Reviews', 'Store Reviews')} (${_reviews.length})',
                   style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF14213D),
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text(context),
                   ),
                 ),
               ),
@@ -1198,9 +1202,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                           Expanded(
                             child: Text(
                               reviewerName(review),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF14213D),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text(context),
                               ),
                             ),
                           ),
@@ -1346,7 +1350,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                               child: Container(
                                 padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: AppColors.card(context),
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
@@ -1385,7 +1389,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                     .titleLarge
                                                     ?.copyWith(
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w700,
                                                     ),
                                               ),
                                               const SizedBox(height: 6),
@@ -1652,9 +1656,10 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
-                                                const Icon(
+                                                Icon(
                                                   Icons.location_on_outlined,
-                                                  color: Color(0xFF1E88E5),
+                                                  color:
+                                                      AppColors.accent(context),
                                                   size: 18,
                                                 ),
                                                 const SizedBox(width: 8),
@@ -1705,41 +1710,17 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                 height: 190,
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(20),
-                                  child: FlutterMap(
-                                    options: MapOptions(
-                                      initialCenter: latlng.LatLng(
-                                        latitude,
-                                        longitude,
-                                      ),
-                                      initialZoom: 15,
-                                    ),
-                                    children: [
-                                      TileLayer(
-                                        urlTemplate:
-                                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                        userAgentPackageName:
-                                            'com.dealfinder.mobile',
-                                      ),
-                                      MarkerLayer(
-                                        markers: [
-                                          Marker(
-                                            point: latlng.LatLng(
-                                              latitude,
-                                              longitude,
-                                            ),
-                                            width: 44,
-                                            height: 44,
-                                            child: Icon(
-                                              Icons.location_on,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              size: 36,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                  child: GoogleMap(
+                                    initialCameraPosition: CameraPosition(
+                                        target: LatLng(latitude, longitude),
+                                        zoom: 15),
+                                    myLocationButtonEnabled: false,
+                                    mapToolbarEnabled: false,
+                                    markers: {
+                                      Marker(
+                                          markerId: const MarkerId('merchant'),
+                                          position: LatLng(latitude, longitude))
+                                    },
                                   ),
                                 ),
                               ),
@@ -1889,7 +1870,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                                                               const TextStyle(
                                                             fontSize: 12,
                                                             fontWeight:
-                                                                FontWeight.w800,
+                                                                FontWeight.w700,
                                                             color: Color(
                                                                 0xFF9A3412),
                                                           ),
@@ -2019,7 +2000,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 '$count',
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: selected ? Colors.white : const Color(0xFF425466),
                 ),
               ),

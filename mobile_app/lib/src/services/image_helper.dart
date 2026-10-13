@@ -53,94 +53,96 @@ class ImageHelper {
     Duration fadeInDuration = const Duration(milliseconds: 300),
     Duration fadeOutDuration = const Duration(milliseconds: 100),
   }) {
-    final shimmer = Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: borderRadius,
+    return Builder(builder: (context) {
+      final scheme = Theme.of(context).colorScheme;
+      final shimmer = Shimmer.fromColors(
+        enabled: !MediaQuery.disableAnimationsOf(context),
+        baseColor: scheme.surfaceContainerHighest,
+        highlightColor: scheme.surface,
+        child: Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: borderRadius,
+          ),
         ),
-      ),
-    );
+      );
 
-    final errorWidget = Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E88E5), Color(0xFF0D47A1)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: borderRadius,
-      ),
-      child: const Center(
-        child: Icon(Icons.local_offer, size: 40, color: Colors.white70),
-      ),
-    );
+      final errorWidget = Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+              color: scheme.primaryContainer, borderRadius: borderRadius),
+          child: Center(
+              child: Icon(Icons.local_offer_outlined,
+                  size: 36, color: scheme.primary)));
 
-    if (imageUrl == null || imageUrl.isEmpty) {
-      return errorWidget;
-    }
+      if (imageUrl == null || imageUrl.isEmpty) {
+        return errorWidget;
+      }
 
-    // Handle base64 images (legacy support)
-    if (imageUrl.startsWith('data:image')) {
-      try {
-        final bytes =
-            base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
-        final image = Image.memory(
-          bytes,
+      // Handle base64 images (legacy support)
+      if (imageUrl.startsWith('data:image')) {
+        try {
+          final bytes =
+              base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1));
+          final image = Image.memory(
+            bytes,
+            width: width,
+            height: height,
+            fit: fit,
+            cacheWidth: width != null && width.isFinite && width > 0
+                ? width.toInt()
+                : null,
+            cacheHeight: height != null && height.isFinite && height > 0
+                ? height.toInt()
+                : null,
+            errorBuilder: (_, __, ___) => errorWidget,
+          );
+
+          if (borderRadius != null) {
+            return ClipRRect(borderRadius: borderRadius, child: image);
+          }
+          return image;
+        } catch (e) {
+          return errorWidget;
+        }
+      }
+
+      // Handle HTTP/HTTPS URLs with caching
+      if (imageUrl.startsWith('http')) {
+        final cachedImage = CachedNetworkImage(
+          imageUrl: imageUrl,
           width: width,
           height: height,
           fit: fit,
-          cacheWidth: width != null && width.isFinite && width > 0
+          memCacheWidth: width != null && width.isFinite && width > 0
               ? width.toInt()
               : null,
-          cacheHeight: height != null && height.isFinite && height > 0
+          memCacheHeight: height != null && height.isFinite && height > 0
               ? height.toInt()
               : null,
-          errorBuilder: (_, __, ___) => errorWidget,
+          maxWidthDiskCache: 1024,
+          maxHeightDiskCache: 1024,
+          placeholder: enablePlaceholder ? (_, __) => shimmer : null,
+          errorWidget: (_, __, ___) => errorWidget,
+          fadeInDuration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : fadeInDuration,
+          fadeOutDuration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : fadeOutDuration,
         );
 
         if (borderRadius != null) {
-          return ClipRRect(borderRadius: borderRadius, child: image);
+          return ClipRRect(borderRadius: borderRadius, child: cachedImage);
         }
-        return image;
-      } catch (e) {
-        return errorWidget;
+        return cachedImage;
       }
-    }
 
-    // Handle HTTP/HTTPS URLs with caching
-    if (imageUrl.startsWith('http')) {
-      final cachedImage = CachedNetworkImage(
-        imageUrl: imageUrl,
-        width: width,
-        height: height,
-        fit: fit,
-        memCacheWidth:
-            width != null && width.isFinite && width > 0 ? width.toInt() : null,
-        memCacheHeight: height != null && height.isFinite && height > 0
-            ? height.toInt()
-            : null,
-        maxWidthDiskCache: 1024,
-        maxHeightDiskCache: 1024,
-        placeholder: enablePlaceholder ? (_, __) => shimmer : null,
-        errorWidget: (_, __, ___) => errorWidget,
-        fadeInDuration: fadeInDuration,
-        fadeOutDuration: fadeOutDuration,
-      );
-
-      if (borderRadius != null) {
-        return ClipRRect(borderRadius: borderRadius, child: cachedImage);
-      }
-      return cachedImage;
-    }
-
-    return errorWidget;
+      return errorWidget;
+    });
   }
 
   // Build thumbnail for lists (smaller, faster)

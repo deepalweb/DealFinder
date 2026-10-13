@@ -1,1546 +1,708 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:deal_finder_mobile/l10n/app_localizations.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../utils/map_marker_icon.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:latlong2/latlong.dart' as latlng;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
+import '../config/app_theme.dart';
 import '../models/promotion.dart';
-import '../services/location_service.dart';
+import '../models/category.dart';
+import '../services/browsing_area.dart';
 import '../services/api_service.dart';
-import '../services/background_location_service.dart';
-import '../services/search_matcher.dart';
+import '../services/nearby_discovery_controller.dart';
+import '../services/location_service.dart';
+import '../widgets/dealfinder_mark.dart';
+import '../widgets/nearby_offer_row.dart';
+import '../widgets/discovery_offer_card.dart';
+import '../widgets/sign_in_gate.dart';
 import 'deal_detail_screen.dart';
+import 'notifications_screen.dart';
+import 'user_profile_screen.dart';
 
 class NearbyDealsScreen extends StatefulWidget {
-  const NearbyDealsScreen({super.key});
-
+  const NearbyDealsScreen(
+      {super.key, this.onNavigateAccount, this.api, this.mapBuilder});
+  final ApiService? api;
+  final Widget Function(GoogleMap map)? mapBuilder;
+  final VoidCallback? onNavigateAccount;
   @override
   State<NearbyDealsScreen> createState() => _NearbyDealsScreenState();
 }
 
 class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
-  final ApiService _apiService = ApiService();
-  final TextEditingController _searchController = TextEditingController();
-  final MapController _mapController = MapController();
-
-  List<Promotion> _nearbyDeals = [];
-  bool _isLoading = false;
-  String? _error;
-  Position? _currentPosition;
-  double _selectedRadius = 5.0;
-  String _locationName = 'Detecting location';
-  String _sortBy = 'distance';
-  String _viewMode = 'list';
-  String _activeFilter = 'all';
-  Promotion? _selectedMapDeal;
-  LocationFetchStatus? _locationStatus;
-  bool _showingCachedResults = false;
-  bool _cachedLocationChanged = false;
-  DateTime? _cachedAt;
-  String? _cachedLocationName;
-  double? _cachedDistanceKm;
-
-  List<Promotion> get _mappableDeals => _filteredDeals
-      .where((deal) => deal.latitude != null && deal.longitude != null)
-      .toList();
-
+  late final NearbyDiscoveryController _data;
+  GoogleMapController? _map;
+  bool _movingCamera = false;
+  final _icons = <String, BitmapDescriptor>{};
+  final _pendingIcons = <String>{};
+  final _sheet = DraggableScrollableController();
+  bool _mapReady = false;
+  bool _dirty = false;
+  bool _expanded = false;
+  double _sheetExtent = .60;
+  bool _locating = false;
+  LatLng _draftCenter = const LatLng(6.911, 79.854);
+  double _zoom = 13;
+  Timer? _clock;
   @override
   void initState() {
     super.initState();
-    _loadCachedPreferences();
-    _getCurrentLocationAndFetchDeals();
-    BackgroundLocationService.startLocationChecking();
+    _data = NearbyDiscoveryController(api: widget.api);
+    _data.addListener(_changed);
+    _data.initialize();
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _changed() {
+    if (!mounted) return;
+    final area = LatLng(_data.area.latitude, _data.area.longitude);
+    if (_data.loading &&
+        (_draftCenter.latitude != area.latitude ||
+            _draftCenter.longitude != area.longitude)) {
+      _draftCenter = area;
+      _dirty = false;
+      if (_mapReady) _move(area, 13);
+    }
+    setState(() {});
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
-    BackgroundLocationService.stopLocationChecking();
+    _clock?.cancel();
+    _data.removeListener(_changed);
+    _data.dispose();
+    _map?.dispose();
+    _sheet.dispose();
     super.dispose();
   }
 
-  Future<void> _loadCachedPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    final cachedRadius = prefs.getDouble('nearby_radius');
-    final cachedView = prefs.getString('nearby_view_mode');
-    final cachedSort = prefs.getString('nearby_sort_mode');
-
-    if (!mounted) return;
-
-    setState(() {
-      if (cachedRadius != null) _selectedRadius = cachedRadius;
-      if (cachedView != null) _viewMode = cachedView;
-      if (cachedSort != null) _sortBy = cachedSort;
-    });
+  Future<void> _move(LatLng center, double zoom) async {
+    _movingCamera = true;
+    _zoom = zoom;
+    await _map?.moveCamera(CameraUpdate.newLatLngZoom(center, zoom));
   }
 
-  Future<void> _persistPreference(String key, Object value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value is double) {
-      await prefs.setDouble(key, value);
-    } else if (value is String) {
-      await prefs.setString(key, value);
+  Future<void> _resize(bool expanded) async {
+    if (!_sheet.isAttached) return;
+    final extent = expanded ? .92 : .60;
+    final duration = AppMotion.duration(context, 240);
+    if (duration == Duration.zero) {
+      _sheet.jumpTo(extent);
+    } else {
+      await _sheet.animateTo(extent,
+          duration: duration, curve: Curves.easeOutCubic);
     }
   }
 
-  Future<void> _getCurrentLocationAndFetchDeals() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  void _select(Promotion offer, {bool fromMap = false}) {
+    _data.select(offer.id);
+    if (_mapReady) {
+      _move(LatLng(offer.latitude!, offer.longitude!), math.max(_zoom, 14));
+    }
+    if (fromMap) _resize(false);
+  }
 
+  Future<void> _searchMap() async {
+    if (!_dirty) {
+      await _data.search(_data.area);
+      return;
+    }
+    final l10n = AppLocalizations.of(context)!;
+    final area = BrowsingArea(
+        latitude: _draftCenter.latitude,
+        longitude: _draftCenter.longitude,
+        label: l10n.selectedMapAreaLabel,
+        source: 'map');
+    setState(() => _dirty = false);
+    await _data.search(area);
+  }
+
+  Future<void> _useLocation() async {
+    if (_locating) return;
+    setState(() => _locating = true);
+    final l10n = AppLocalizations.of(context)!;
     try {
-      final result = await LocationService.resolveCurrentLocation();
-      final position = result.position;
-
-      if (position == null) {
-        setState(() {
-          _locationStatus = result.status;
-          _error = result.message;
-          _isLoading = false;
-          _locationName = result.status == LocationFetchStatus.serviceDisabled
-              ? 'Location off'
-              : 'Location unavailable';
-        });
+      final result =
+          await LocationService.resolveCurrentLocation(requestPermission: true);
+      if (!mounted) return;
+      if (result.position == null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(l10n.locationUnavailableHint),
+            action: SnackBarAction(
+                label: l10n.openSettings,
+                onPressed: result.status == LocationFetchStatus.serviceDisabled
+                    ? Geolocator.openLocationSettings
+                    : Geolocator.openAppSettings)));
         return;
       }
-
-      setState(() {
-        _currentPosition = position;
-        _locationStatus = result.status;
-        if (result.usedLastKnownPosition) {
-          _error = result.message;
-        }
-      });
-
-      final locationName = await LocationService.getLocationName(
-          position.latitude, position.longitude);
-      if (mounted) {
-        setState(() => _locationName = locationName ?? 'Current location');
-      }
-
-      await _fetchNearbyDeals(position);
-    } catch (e) {
-      setState(() {
-        _error = 'Error getting location: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _fetchNearbyDeals(Position position, {double? radius}) async {
-    final searchRadius = radius ?? _selectedRadius;
-
-    try {
-      final nearbyResult = await _apiService.fetchNearbyPromotionsWithCache(
-        position.latitude,
-        position.longitude,
-        radiusKm: searchRadius,
-        locationName: _locationName,
-      );
-
+      final position = result.position!;
+      final accuracy = await Geolocator.getLocationAccuracy();
       if (!mounted) return;
-
-      setState(() {
-        _nearbyDeals = nearbyResult.promotions;
-        _sortDeals(_nearbyDeals);
-        _focusFirstMapDeal();
-        _isLoading = false;
-        _error = null;
-        _showingCachedResults = nearbyResult.fromCache;
-        _cachedLocationChanged = nearbyResult.locationChanged;
-        _cachedAt = nearbyResult.cachedAt;
-        _cachedLocationName = nearbyResult.cachedLocationName;
-        _cachedDistanceKm = nearbyResult.cachedDistanceKm;
-      });
-    } on TimeoutException {
-      setState(() {
-        _error =
-            'Nearby search timed out. Try a smaller radius or a quick refresh.';
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to load nearby deals. Please try again.';
-        _isLoading = false;
-      });
+      final area = BrowsingArea(
+          latitude: position.latitude,
+          longitude: position.longitude,
+          label: l10n.deviceLocationLabel,
+          source: 'gps',
+          approximate: accuracy == LocationAccuracyStatus.reduced ||
+              result.usedLastKnownPosition);
+      _draftCenter = LatLng(area.latitude, area.longitude);
+      if (_mapReady) _move(_draftCenter, 14);
+      setState(() => _dirty = false);
+      await _data.search(area);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.locationUnavailableHint)));
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
     }
   }
 
-  void _sortDeals(List<Promotion> deals) {
-    switch (_sortBy) {
-      case 'best':
-        deals.sort((a, b) => _dealScore(b).compareTo(_dealScore(a)));
-        break;
-      case 'ending':
-        deals.sort((a, b) => _timeToExpiry(a).compareTo(_timeToExpiry(b)));
-        break;
-      default:
-        deals.sort((a, b) => (a.distance ?? double.infinity)
-            .compareTo(b.distance ?? double.infinity));
-    }
-  }
-
-  double _dealScore(Promotion promotion) {
-    final discount = _extractDiscount(promotion.discount);
-    final distanceBoost = promotion.distance == null
-        ? 0
-        : (5000 - promotion.distance!).clamp(0, 5000) / 150;
-    return discount + distanceBoost;
-  }
-
-  int _timeToExpiry(Promotion promotion) {
-    if (promotion.endDate == null) return 1 << 30;
-    return promotion.endDate!.difference(DateTime.now()).inMinutes;
-  }
-
-  double _extractDiscount(String? discount) {
-    if (discount == null) return 0;
-    final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(discount);
-    return match != null ? double.tryParse(match.group(1)!) ?? 0 : 0;
-  }
-
-  String _formatDistance(double? distanceInMeters) {
-    if (distanceInMeters == null) return '';
-    if (distanceInMeters < 1000) return '${distanceInMeters.round()} m away';
-    return '${(distanceInMeters / 1000).toStringAsFixed(1)} km away';
-  }
-
-  String _expiryLabel(Promotion promotion) {
-    if (promotion.endDate == null) return 'Limited time';
-    final now = DateTime.now();
-    final hours = promotion.endDate!.difference(now).inHours;
-    if (hours <= 0) return 'Ends today';
-    if (hours < 24) return 'Ends in ${hours}h';
-    final days = promotion.endDate!.difference(now).inDays;
-    if (days == 0) return 'Ends today';
-    return 'Ends in ${days + 1}d';
-  }
-
-  String? _nearbyCacheNotice() {
-    if (!_showingCachedResults) return null;
-
-    final updatedText =
-        _cachedAt == null ? null : 'Updated ${_formatAge(_cachedAt!)}';
-
-    if (_cachedLocationChanged) {
-      final area = _cachedLocationName?.trim().isNotEmpty == true
-          ? _cachedLocationName!.trim()
-          : 'your last saved area';
-      final distance = _cachedDistanceKm == null
-          ? null
-          : '${_cachedDistanceKm!.toStringAsFixed(_cachedDistanceKm! >= 10 ? 0 : 1)} km away';
-      return [
-        'Offline - showing cached deals from $area.',
-        if (distance != null)
-          'Current location is about $distance from that area.',
-        if (updatedText != null) updatedText,
-      ].join(' ');
-    }
-
-    return [
-      'Offline - showing cached nearby deals for this area.',
-      if (updatedText != null) updatedText,
-    ].join(' ');
-  }
-
-  String _formatAge(DateTime cachedAt) {
-    final diff = DateTime.now().difference(cachedAt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
-    if (diff.inDays < 1) return '${diff.inHours}h ago';
-    return '${diff.inDays}d ago';
-  }
-
-  Future<void> _changeRadius(double newRadius) async {
-    setState(() => _selectedRadius = newRadius);
-  }
-
-  Future<void> _applyRadiusFilter(double newRadius) async {
-    await _persistPreference('nearby_radius', newRadius);
-
-    if (_currentPosition != null) {
-      setState(() => _isLoading = true);
-      await _fetchNearbyDeals(_currentPosition!, radius: newRadius);
-    }
-  }
-
-  Future<void> _setViewMode(String mode) async {
-    setState(() => _viewMode = mode);
-    await _persistPreference('nearby_view_mode', mode);
-  }
-
-  Future<void> _setSortMode(String mode) async {
-    setState(() {
-      _sortBy = mode;
-      _sortDeals(_nearbyDeals);
-      _focusFirstMapDeal();
-    });
-    await _persistPreference('nearby_sort_mode', mode);
-  }
-
-  void _focusFirstMapDeal() {
-    _selectedMapDeal = _mappableDeals.isNotEmpty ? _mappableDeals.first : null;
-  }
-
-  void _focusMapOnDeal(Promotion deal, {double zoom = 14}) {
-    if (deal.latitude == null || deal.longitude == null) return;
-    _mapController.move(
-      latlng.LatLng(deal.latitude!, deal.longitude!),
-      zoom,
-    );
-  }
-
-  List<Promotion> get _filteredDeals {
-    final term = _searchController.text.trim();
-    final now = DateTime.now();
-
-    final filtered = _nearbyDeals.where((deal) {
-      final normalizedCategory = SearchMatcher.normalizeCategory(deal.category);
-      final matchesSearch =
-          term.isEmpty || SearchMatcher.matchesPromotion(deal, term);
-
-      final matchesFilter = switch (_activeFilter) {
-        'food' => normalizedCategory == 'food_dining',
-        'beauty' => normalizedCategory == 'beauty_salon',
-        'shopping' => normalizedCategory == 'shopping_retail',
-        'discount50' => _extractDiscount(deal.discount) >= 50,
-        'ending' =>
-          deal.endDate != null && deal.endDate!.difference(now).inHours <= 24,
-        _ => true,
-      };
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-
-    _sortDeals(filtered);
-    return filtered;
-  }
-
-  List<Promotion> get _popularNearby {
-    final deals = [..._filteredDeals]
-      ..sort((a, b) => _dealScore(b).compareTo(_dealScore(a)));
-    return deals.take(5).toList();
-  }
-
-  List<Promotion> get _endingTodayNearby {
-    final now = DateTime.now();
-    return _filteredDeals
-        .where((deal) =>
-            deal.endDate != null && deal.endDate!.difference(now).inHours <= 24)
-        .take(5)
-        .toList();
-  }
-
-  List<Marker> get _markers {
-    final markers = _mappableDeals.map((deal) {
-      final selected = _selectedMapDeal?.id == deal.id;
-      return Marker(
-        point: latlng.LatLng(deal.latitude!, deal.longitude!),
-        width: 52,
-        height: 64,
-        child: GestureDetector(
-          onTap: () {
-            setState(() => _selectedMapDeal = deal);
-            _focusMapOnDeal(deal);
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFF0D47A1)
-                      : const Color(0xFF1E88E5),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  deal.discount?.isNotEmpty == true ? deal.discount! : 'Deal',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.location_on,
-                color: selected ? const Color(0xFF0D47A1) : Colors.red.shade600,
-                size: 30,
-              ),
-            ],
-          ),
-        ),
-      );
-    }).toList();
-
-    if (_currentPosition != null) {
-      markers.add(
-        Marker(
-          point: latlng.LatLng(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          ),
-          width: 24,
-          height: 24,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E88E5),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return markers;
-  }
-
-  List<CircleMarker> get _mapCircles {
-    if (_currentPosition == null) return const <CircleMarker>[];
-
-    return [
-      CircleMarker(
-        point: latlng.LatLng(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-        ),
-        radius: _selectedRadius * 1000,
-        useRadiusInMeter: true,
-        color: const Color(0x221E88E5),
-        borderStrokeWidth: 2,
-        borderColor: const Color(0xFF1E88E5),
-      ),
+  Future<void> _chooseArea() async {
+    final l10n = AppLocalizations.of(context)!;
+    final presets = <BrowsingArea>[
+      BrowsingArea.initial,
+      const BrowsingArea(
+          latitude: 6.895,
+          longitude: 79.858,
+          label: 'Colombo 04',
+          source: 'preset'),
+      const BrowsingArea(
+          latitude: 6.906,
+          longitude: 79.869,
+          label: 'Colombo 07',
+          source: 'preset'),
     ];
-  }
-
-  Future<void> _openDirections(Promotion deal) async {
-    final hasCoordinates = deal.latitude != null && deal.longitude != null;
-    final query = hasCoordinates
-        ? 'https://www.google.com/maps/dir/?api=1&destination=${deal.latitude},${deal.longitude}'
-        : 'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent('${deal.merchantName ?? deal.title} ${deal.location ?? ''}'.trim())}';
-
-    final uri = Uri.parse(query);
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Google Maps.')),
-      );
+    for (final merchant in _data.merchants) {
+      final location = merchant['location'];
+      final coordinates = location is Map ? location['coordinates'] : null;
+      if (coordinates is! List ||
+          coordinates.length < 2 ||
+          coordinates[0] is! num ||
+          coordinates[1] is! num) {
+        continue;
+      }
+      final label = (merchant['address'] ?? merchant['name'] ?? '').toString();
+      if (label.isEmpty || presets.any((a) => a.label == label)) continue;
+      presets.add(BrowsingArea(
+          latitude: (coordinates[1] as num).toDouble(),
+          longitude: (coordinates[0] as num).toDouble(),
+          label: label));
     }
+    String query = '';
+    final area = await showModalBottomSheet<BrowsingArea>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => StatefulBuilder(
+            builder: (context, update) => SafeArea(
+                child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16,
+                        16 + MediaQuery.viewInsetsOf(context).bottom),
+                    child: SizedBox(
+                        height: (MediaQuery.sizeOf(context).height -
+                                MediaQuery.viewInsetsOf(context).bottom) *
+                            .65,
+                        child: Column(children: [
+                          Row(children: [
+                            Expanded(
+                                child: Text(l10n.chooseAreaLabel,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleLarge)),
+                            IconButton(
+                                tooltip: l10n.closeDialogLabel,
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.close))
+                          ]),
+                          Text(l10n.chooseAreaMapHint),
+                          const SizedBox(height: 12),
+                          TextField(
+                              onChanged: (value) => update(() => query = value),
+                              decoration: InputDecoration(
+                                  labelText: l10n.searchAreasLabel,
+                                  prefixIcon: const Icon(Icons.search))),
+                          Expanded(
+                              child: ListView(
+                                  children: presets
+                                      .where((a) => a.label
+                                          .toLowerCase()
+                                          .contains(query.toLowerCase()))
+                                      .map((a) => ListTile(
+                                          leading: const Icon(
+                                              Icons.location_on_outlined),
+                                          title: Text(a.label),
+                                          onTap: () =>
+                                              Navigator.pop(context, a)))
+                                      .toList())),
+                        ]))))));
+    if (!mounted || area == null) return;
+    _draftCenter = LatLng(area.latitude, area.longitude);
+    if (_mapReady) _move(_draftCenter, 13);
+    setState(() => _dirty = false);
+    await _data.search(area);
   }
 
-  Future<void> _showLocationDialog() async {
-    final latController = TextEditingController(
-      text: _currentPosition?.latitude.toStringAsFixed(6) ?? '',
-    );
-    final lngController = TextEditingController(
-      text: _currentPosition?.longitude.toStringAsFixed(6) ?? '',
-    );
-    final labelController = TextEditingController(text: _locationName);
+  Future<void> _filters() async {
+    final l10n = AppLocalizations.of(context)!;
+    final query = TextEditingController(text: _data.query);
+    bool onlyOpen = _data.openOnly;
+    bool resetAll = false;
+    final apply = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => StatefulBuilder(
+            builder: (context, update) => SafeArea(
+                child: Padding(
+                    padding: EdgeInsets.fromLTRB(20, 20, 20,
+                        20 + MediaQuery.viewInsetsOf(context).bottom),
+                    child: SingleChildScrollView(
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(l10n.filterOffersLabel,
+                          style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 16),
+                      TextField(
+                          controller: query,
+                          decoration:
+                              InputDecoration(labelText: l10n.searchHint)),
+                      SwitchListTile(
+                          title: Text(l10n.openNowLabel),
+                          subtitle: Text(l10n.storeHoursHint),
+                          value: onlyOpen,
+                          onChanged: (value) => update(() => onlyOpen = value)),
+                      Wrap(spacing: 8, children: [
+                        TextButton(
+                            onPressed: () {
+                              query.clear();
+                              update(() {
+                                onlyOpen = false;
+                                resetAll = true;
+                              });
+                            },
+                            child: Text(l10n.clearAll)),
+                        OutlinedButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            child: Text(l10n.cancelDialogLabel)),
+                        FilledButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            child: Text(l10n.applyFilterLabel)),
+                      ]),
+                    ]))))));
+    if (mounted && apply == true) {
+      _data.filter(
+          onlyOpen: onlyOpen,
+          searchQuery: query.text.trim(),
+          clearCategory: resetAll);
+      if (resetAll) await _data.setRadius(3);
+    }
+    query.dispose();
+  }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-              20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Change location',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Use your current GPS position or enter coordinates manually for testing nearby results.',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await _getCurrentLocationAndFetchDeals();
-                },
-                icon: const Icon(Icons.my_location),
-                label: const Text('Use Current Location'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: labelController,
-                decoration: const InputDecoration(labelText: 'Location label'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: latController,
-                keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true, signed: true),
-                decoration: const InputDecoration(labelText: 'Latitude'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: lngController,
-                keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true, signed: true),
-                decoration: const InputDecoration(labelText: 'Longitude'),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () async {
-                        final lat = double.tryParse(latController.text.trim());
-                        final lng = double.tryParse(lngController.text.trim());
-                        if (lat == null || lng == null) return;
+  Future<void> _notifications() async {
+    if (!await requireSignIn(context) || !mounted) return;
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+  }
 
-                        final manualPosition = Position(
-                          longitude: lng,
-                          latitude: lat,
-                          timestamp: DateTime.now(),
-                          accuracy: 0,
-                          altitude: 0,
-                          altitudeAccuracy: 0,
-                          heading: 0,
-                          headingAccuracy: 0,
-                          speed: 0,
-                          speedAccuracy: 0,
-                        );
+  Future<void> _account() async {
+    if (widget.onNavigateAccount != null) {
+      widget.onNavigateAccount!();
+      return;
+    }
+    if (!await requireSignIn(context) || !mounted) return;
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const UserProfileScreen()));
+  }
 
-                        Navigator.pop(context);
-                        setState(() {
-                          _currentPosition = manualPosition;
-                          _locationName = labelController.text.trim().isEmpty
-                              ? 'Custom location'
-                              : labelController.text.trim();
-                          _isLoading = true;
-                          _error = null;
-                        });
-                        await _fetchNearbyDeals(manualPosition);
-                      },
-                      child: const Text('Apply'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
+  Widget _mapButton(String label, IconData icon, VoidCallback? onTap) =>
+      Material(
+          color: Theme.of(context).colorScheme.surface,
+          shape: const CircleBorder(),
+          elevation: 2,
+          child:
+              IconButton(tooltip: label, onPressed: onTap, icon: Icon(icon)));
+
+  List<List<Promotion>> _groups(List<Promotion> offers) {
+    final groups = <List<Promotion>>[];
+    final threshold = 90 *
+        156543.03392 *
+        math.cos(_data.area.latitude * math.pi / 180) /
+        math.pow(2, _zoom);
+    for (final offer in offers) {
+      final index = groups.indexWhere((g) =>
+          LocationService.calculateDistance(g.first.latitude!,
+                  g.first.longitude!, offer.latitude!, offer.longitude!) *
+              1000 <
+          threshold);
+      if (index == -1) {
+        groups.add([offer]);
+      } else {
+        groups[index].add(offer);
+      }
+    }
+    return groups;
+  }
+
+  Set<Marker> _markers(List<Promotion> offers) {
+    final theme = Theme.of(context);
+    return _groups(offers).map((group) {
+      final first = group.first;
+      final selected = group.any((p) => p.id == _data.selectedId);
+      final label = group.length > 1
+          ? '${group.length}'
+          : first.discount ??
+              ((first.discountedPrice ?? first.price) != null
+                  ? offerMoney(first, (first.discountedPrice ?? first.price)!)
+                  : AppLocalizations.of(context)!.viewOfferLabel);
+      final background =
+          selected ? theme.colorScheme.primary : theme.colorScheme.surface;
+      final foreground =
+          selected ? theme.colorScheme.onPrimary : theme.colorScheme.primary;
+      final key = '$label:${background.toARGB32()}:${foreground.toARGB32()}';
+      if (!_icons.containsKey(key) && _pendingIcons.add(key)) {
+        mapMarkerIcon(label, background, foreground).then((icon) {
+          if (mounted) setState(() => _icons[key] = icon);
+        }).catchError((Object _) {
+          _pendingIcons.remove(key);
+        });
+      }
+      return Marker(
+        markerId: MarkerId(first.id),
+        position: LatLng(first.latitude!, first.longitude!),
+        icon: _icons[key] ??
+            BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        zIndexInt: selected ? 2 : 1,
+        consumeTapEvents: true,
+        infoWindow: InfoWindow(
+            title: group.length > 1
+                ? AppLocalizations.of(context)!.nearbyOfferCount(group.length)
+                : first.title),
+        onTap: () {
+          if (group.length == 1 || _zoom >= 17) {
+            _select(first, fromMap: true);
+          } else {
+            _move(LatLng(first.latitude!, first.longitude!),
+                math.min(18, _zoom + 2));
+          }
+        },
+      );
+    }).toSet();
+  }
+
+  Widget _mapView(ThemeData theme, List<Promotion> offers, double mapPadding) {
+    final map = GoogleMap(
+      initialCameraPosition: CameraPosition(
+          target: LatLng(_data.area.latitude, _data.area.longitude), zoom: 13),
+      minMaxZoomPreference: const MinMaxZoomPreference(5, 18),
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: false,
+      mapToolbarEnabled: false,
+      compassEnabled: false,
+      // Move Google's logo and attribution above the overlapping results sheet.
+      padding: EdgeInsets.only(bottom: mapPadding, top: 64),
+      style: theme.brightness == Brightness.dark ? googleMapDarkStyle : null,
+      onMapCreated: (controller) {
+        if (!mounted) {
+          controller.dispose();
+          return;
+        }
+        _map = controller;
+        _mapReady = true;
+        _move(LatLng(_data.area.latitude, _data.area.longitude), 13);
+      },
+      onCameraMove: (camera) {
+        if (!mounted) return;
+        setState(() {
+          _zoom = camera.zoom;
+          if (!_movingCamera) {
+            _draftCenter = camera.target;
+            _dirty = LocationService.calculateDistance(
+                        _data.area.latitude,
+                        _data.area.longitude,
+                        camera.target.latitude,
+                        camera.target.longitude) *
+                    1000 >
+                100;
+          }
+        });
+      },
+      onCameraIdle: () => _movingCamera = false,
+      circles: {
+        Circle(
+          circleId: const CircleId('search-radius'),
+          center: LatLng(_data.area.latitude, _data.area.longitude),
+          radius: _data.radius * 1000,
+          fillColor: theme.colorScheme.primary.withValues(alpha: .08),
+          strokeColor: theme.colorScheme.primary,
+          strokeWidth: 1,
+        )
+      },
+      markers: {
+        Marker(
+            markerId: const MarkerId('search-center'),
+            position: LatLng(_data.area.latitude, _data.area.longitude),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+                BitmapDescriptor.hueAzure),
+            infoWindow: InfoWindow(
+                title: AppLocalizations.of(context)!.searchCenterLabel)),
+        ..._markers(offers),
       },
     );
-
-    latController.dispose();
-    lngController.dispose();
-    labelController.dispose();
-  }
-
-  Future<void> _openLocationSettings() async {
-    final opened = await LocationService.openLocationSettings();
-    if (!opened && mounted) {
-      await LocationService.openAppSettings();
-    }
-  }
-
-  Widget _buildFilterChip({
-    required String id,
-    required String label,
-    required IconData icon,
-  }) {
-    final selected = _activeFilter == id;
-    return GestureDetector(
-      onTap: () => setState(() {
-        _activeFilter = id;
-        _focusFirstMapDeal();
-      }),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color:
-              selected ? Theme.of(context).colorScheme.primary : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: selected
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey.shade300,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon,
-                size: 16,
-                color: selected
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: selected ? Colors.white : const Color(0xFF1A1A1A),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildViewToggleButton({
-    required String mode,
-    required IconData icon,
-    required String label,
-  }) {
-    final selected = _viewMode == mode;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _setViewMode(mode),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon,
-                  size: 18,
-                  color: selected ? Colors.white : Colors.grey.shade700),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : Colors.grey.shade800,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContextStrip(String title, List<Promotion> deals) {
-    if (deals.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-        ),
-        SizedBox(
-          height: 128,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: deals.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, index) {
-              final deal = deals[index];
-              return GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => DealDetailScreen(promotion: deal)),
-                ),
-                child: Container(
-                  width: 260,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              deal.discount ?? 'Deal',
-                              style: const TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            _formatDistance(deal.distance),
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        deal.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      const Spacer(),
-                      Text(
-                        deal.merchantName ?? 'Nearby store',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNearbyDealCard(Promotion deal) {
-    final hasPrice = deal.originalPrice != null ||
-        deal.discountedPrice != null ||
-        deal.price != null;
-    final displayPrice =
-        deal.discountedPrice ?? deal.price ?? deal.originalPrice;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (deal.imageDataString != null &&
-                    deal.imageDataString!.isNotEmpty)
-                  Image.network(
-                    deal.imageDataString!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        Container(color: const Color(0xFFEAF2FF)),
-                  )
-                else
-                  Container(color: const Color(0xFFEAF2FF)),
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.08),
-                        Colors.black.withValues(alpha: 0.35),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: Row(
-                    children: [
-                      if ((deal.discount ?? '').isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade600,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            deal.discount!,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12),
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade600,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _expiryLabel(deal),
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  left: 12,
-                  bottom: 12,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.92),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.location_on,
-                            size: 14, color: Color(0xFF1E88E5)),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDistance(deal.distance),
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  deal.merchantName ?? 'Nearby store',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  deal.title,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold, height: 1.25),
-                ),
-                const SizedBox(height: 10),
-                if (hasPrice && displayPrice != null)
-                  Wrap(
-                    spacing: 10,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      if (deal.originalPrice != null &&
-                          deal.discountedPrice != null)
-                        Text(
-                          'Rs. ${deal.originalPrice!.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.grey,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      Text(
-                        'Rs. ${displayPrice.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFE53935),
-                        ),
-                      ),
-                    ],
-                  ),
-                const SizedBox(height: 8),
-                Text(
-                  deal.description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.grey.shade700, height: 1.45),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  DealDetailScreen(promotion: deal)),
-                        ),
-                        child: const Text('Get Deal'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openDirections(deal),
-                        icon: const Icon(Icons.directions),
-                        label: const Text('Directions'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMapView() {
-    if (_currentPosition == null) {
-      return _buildEmptyLocationState();
-    }
-
-    if (_mappableDeals.isEmpty) {
-      return _buildEmptyDealsState();
-    }
-
-    final initialTarget = _selectedMapDeal?.latitude != null &&
-            _selectedMapDeal?.longitude != null
-        ? latlng.LatLng(
-            _selectedMapDeal!.latitude!,
-            _selectedMapDeal!.longitude!,
-          )
-        : latlng.LatLng(
-            _currentPosition!.latitude,
-            _currentPosition!.longitude,
-          );
-
-    return Stack(
-      children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: initialTarget,
-            initialZoom: 13.5,
-            onTap: (_, __) => setState(() => _selectedMapDeal = null),
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.dealfinder.mobile',
-            ),
-            CircleLayer(circles: _mapCircles),
-            MarkerLayer(markers: _markers),
-          ],
-        ),
-        if (_selectedMapDeal != null)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 16,
-            child: GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) =>
-                        DealDetailScreen(promotion: _selectedMapDeal!)),
-              ),
-              child: Material(
-                elevation: 10,
-                borderRadius: BorderRadius.circular(18),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              _selectedMapDeal!.discount ?? 'Nearby deal',
-                              style: const TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            _formatDistance(_selectedMapDeal!.distance),
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _selectedMapDeal!.merchantName ??
-                            _selectedMapDeal!.title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _selectedMapDeal!.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => DealDetailScreen(
-                                        promotion: _selectedMapDeal!)),
-                              ),
-                              child: const Text('Get Deal'),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () =>
-                                  _openDirections(_selectedMapDeal!),
-                              child: const Text('Directions'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildListView() {
-    final l10n = AppLocalizations.of(context)!;
-    final deals = _filteredDeals;
-
-    if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 14),
-            Text(l10n.nearbyDealsTitle),
-          ],
-        ),
-      );
-    }
-
-    if (_currentPosition == null) {
-      return _buildEmptyLocationState();
-    }
-
-    if (deals.isEmpty) {
-      return _buildEmptyDealsState();
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        HapticFeedback.mediumImpact();
-        await _getCurrentLocationAndFetchDeals();
-      },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          _buildContextStrip(l10n.popularNearYou, _popularNearby),
-          _buildContextStrip(l10n.endingTodayNearby, _endingTodayNearby),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-            child: Row(
-              children: [
-                Text(
-                  l10n.nearbyDealsTitle,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                Text(
-                  l10n.resultsLabel(deals.length),
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-          ...deals.map(_buildNearbyDealCard),
-          const SizedBox(height: 24),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyLocationState() {
-    final l10n = AppLocalizations.of(context)!;
-    final helperText = switch (_locationStatus) {
-      LocationFetchStatus.serviceDisabled =>
-        'Turn on device location to see nearby deals, distance, and directions.',
-      LocationFetchStatus.permissionDeniedForever =>
-        'Location permission is blocked for Deal Finder. Enable it from app settings.',
-      LocationFetchStatus.timeout =>
-        'We could not get a live GPS fix in time. Try again outdoors or near a window.',
-      _ => 'Turn on location to see nearby deals, distance, and directions.',
-    };
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.location_disabled,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              l10n.locationRequired,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              helperText,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: _getCurrentLocationAndFetchDeals,
-              icon: const Icon(Icons.my_location),
-              label: Text(l10n.enableLocation),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              onPressed: _openLocationSettings,
-              icon: const Icon(Icons.settings),
-              label: Text(l10n.openSettings),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyDealsState() {
-    final l10n = AppLocalizations.of(context)!;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.location_searching,
-                size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              l10n.noNearbyDealsFound,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l10n.noNearbyDealsSubtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 18),
-            Wrap(
-              spacing: 10,
-              children: [
-                OutlinedButton(
-                    onPressed: () => _changeRadius(20),
-                    child: const Text('20 km')),
-                OutlinedButton(
-                    onPressed: () => _changeRadius(50),
-                    child: const Text('50 km')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCacheBanner() {
-    final message = _nearbyCacheNotice();
-    if (message == null) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: _cachedLocationChanged
-            ? const Color(0xFFFFF4E5)
-            : const Color(0xFFFFF8E1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: _cachedLocationChanged
-              ? const Color(0xFFFFB74D)
-              : const Color(0xFFFFCC80),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            _cachedLocationChanged ? Icons.travel_explore : Icons.wifi_off,
-            size: 18,
-            color: const Color(0xFFEF6C00),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFF8D4E00),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return widget.mapBuilder?.call(map) ?? map;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final activeDeals = _filteredDeals;
-
+    final theme = Theme.of(context);
+    final offers = _data.offers;
+    final areaLabel = _data.area.source == 'map'
+        ? l10n.selectedMapAreaLabel
+        : _data.area.source == 'gps'
+            ? l10n.deviceLocationLabel
+            : _data.area.label;
+    final selected = _data.selected;
+    final ordered = [
+      if (selected != null) selected,
+      ...offers.where((p) => p.id != selected?.id)
+    ];
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.nearbyPageTitle,
-                              style: const TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on,
-                                    size: 16, color: Color(0xFFE53935)),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    _locationName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w700),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: _showLocationDialog,
-                        icon: const Icon(Icons.edit_location_alt_outlined),
-                        label: Text(l10n.changeLocation),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildCacheBanner(),
-                  TextField(
-                    controller: _searchController,
-                    onChanged: (_) => setState(_focusFirstMapDeal),
-                    decoration: InputDecoration(
-                      hintText: l10n.searchNearbyHint,
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isEmpty
-                          ? null
-                          : IconButton(
-                              onPressed: () {
-                                _searchController.clear();
-                                setState(_focusFirstMapDeal);
-                              },
-                              icon: const Icon(Icons.close),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    height: 46,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _buildFilterChip(
-                            id: 'all',
-                            label: l10n.allLabel,
-                            icon: Icons.grid_view_rounded),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                            id: 'food',
-                            label: l10n.foodLabel,
-                            icon: Icons.fastfood_outlined),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                            id: 'beauty',
-                            label: l10n.beautyLabel,
-                            icon: Icons.content_cut_outlined),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                            id: 'shopping',
-                            label: l10n.shoppingLabel,
-                            icon: Icons.shopping_bag_outlined),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                            id: 'discount50',
-                            label: '50%+',
-                            icon: Icons.percent),
-                        const SizedBox(width: 8),
-                        _buildFilterChip(
-                            id: 'ending',
-                            label: l10n.endingSoonLabel,
-                            icon: Icons.timelapse_outlined),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF2F4F7),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        _buildViewToggleButton(
-                            mode: 'list',
-                            icon: Icons.view_agenda_outlined,
-                            label: l10n.listView),
-                        _buildViewToggleButton(
-                            mode: 'map',
-                            icon: Icons.map_outlined,
-                            label: l10n.mapView),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          activeDeals.isEmpty
-                              ? l10n.noActiveNearbyDeals
-                              : l10n.activeNearbyDealsCount(activeDeals.length, activeDeals.length == 1 ? '' : 's'),
-                          style: TextStyle(
-                              color: Colors.grey.shade700,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      PopupMenuButton<String>(
-                        onSelected: _setSortMode,
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                              value: 'distance', child: Text(l10n.closestFirst)),
-                          PopupMenuItem(
-                              value: 'best', child: Text(l10n.bestDealNearby)),
-                          PopupMenuItem(
-                              value: 'ending', child: Text(l10n.endingSoonLabel)),
-                        ],
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.swap_vert, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                switch (_sortBy) {
-                                  'best' => l10n.bestNearby,
-                                  'ending' => l10n.endingSoonLabel,
-                                  _ => l10n.closest,
-                                },
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Slider(
-                          value: _selectedRadius,
-                          min: 1,
-                          max: 50,
-                          divisions: 49,
-                          label: '${_selectedRadius.round()} km',
-                          onChanged: _changeRadius,
-                          onChangeEnd: _applyRadiusFilter,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '${_selectedRadius.round()} km',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_error != null)
-                    Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(top: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.red.shade200),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline,
-                              color: Colors.red.shade700, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: TextStyle(
-                                  color: Colors.red.shade700, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
+        body: SafeArea(
+            child: Column(children: [
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+          child: Row(children: [
+            const DealFinderMark(size: 34),
+            const SizedBox(width: 8),
             Expanded(
-              child: _viewMode == 'map' ? _buildMapView() : _buildListView(),
-            ),
-          ],
-        ),
-      ),
-    );
+                child: TextButton.icon(
+                    onPressed: _chooseArea,
+                    icon: const Icon(Icons.expand_more),
+                    iconAlignment: IconAlignment.end,
+                    label: Text(areaLabel,
+                        maxLines: 1, overflow: TextOverflow.ellipsis))),
+            IconButton(
+                tooltip: l10n.notifications,
+                onPressed: _notifications,
+                icon: const Icon(Icons.notifications_none)),
+            IconButton(
+                tooltip: l10n.accountTab,
+                onPressed: _account,
+                icon: const Icon(Icons.account_circle_outlined)),
+          ])),
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(l10n.nearbyTab, style: theme.textTheme.titleLarge))),
+      SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            PopupMenuButton<double>(
+                tooltip: l10n.searchRadiusLabel,
+                initialValue: _data.radius,
+                onSelected: _data.setRadius,
+                itemBuilder: (_) => [1.0, 3.0, 5.0, 10.0]
+                    .map((r) => PopupMenuItem(
+                        value: r,
+                        child: Text(l10n.withinRadiusLabel(r.toInt()))))
+                    .toList(),
+                child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Chip(
+                        avatar: const Icon(Icons.radar),
+                        label: Text(
+                            l10n.withinRadiusLabel(_data.radius.toInt()))))),
+            const SizedBox(width: 8),
+            PopupMenuButton<String>(
+                tooltip: l10n.allCategories,
+                onSelected: (id) => _data.filter(
+                    categoryId: id == 'all' ? null : id,
+                    clearCategory: id == 'all'),
+                itemBuilder: (_) => [
+                      PopupMenuItem(
+                          value: 'all', child: Text(l10n.allCategories)),
+                      ...launchCategories.map((c) =>
+                          PopupMenuItem(value: c.id, child: Text(c.name)))
+                    ],
+                child: Chip(
+                    avatar: const Icon(Icons.category_outlined),
+                    label: Text(_data.category == null
+                        ? l10n.allCategories
+                        : getCategoryLabel(_data.category)))),
+            const SizedBox(width: 8),
+            FilterChip(
+                label: Text(l10n.openNowLabel),
+                selected: _data.openOnly,
+                onSelected: (value) => _data.filter(onlyOpen: value)),
+          ])),
+      Expanded(
+          child: LayoutBuilder(
+              builder: (context, constraints) => Stack(children: [
+                    Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: constraints.maxHeight * .70,
+                        child: _mapView(
+                            theme,
+                            offers,
+                            math.max(
+                                0,
+                                constraints.maxHeight * (_sheetExtent - .30) +
+                                    8))),
+                    Positioned(
+                        top: 12,
+                        left: 16,
+                        right: 76,
+                        child: Align(
+                            alignment: Alignment.center,
+                            child: FilledButton.tonalIcon(
+                                onPressed: _data.loading ? null : _searchMap,
+                                icon: const Icon(Icons.refresh),
+                                label: Text(_dirty
+                                    ? l10n.searchThisAreaLabel
+                                    : l10n.refreshAreaLabel)))),
+                    Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Column(children: [
+                          _mapButton(l10n.useMyLocation, Icons.my_location,
+                              _locating ? null : _useLocation),
+                          const SizedBox(height: 8),
+                          _mapButton(l10n.expandResultsLabel, Icons.list,
+                              () => _resize(true)),
+                        ])),
+                    NotificationListener<DraggableScrollableNotification>(
+                      onNotification: (notice) {
+                        final expanded = notice.extent > .75;
+                        if (_sheetExtent != notice.extent) {
+                          setState(() {
+                            _expanded = expanded;
+                            _sheetExtent = notice.extent;
+                          });
+                        }
+                        return false;
+                      },
+                      child: DraggableScrollableSheet(
+                          controller: _sheet,
+                          initialChildSize: .60,
+                          minChildSize: .28,
+                          maxChildSize: .92,
+                          snap: true,
+                          snapSizes: const [.28, .60, .92],
+                          builder: (context, scroll) => Material(
+                              color: theme.colorScheme.surface,
+                              borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(28)),
+                              elevation: 8,
+                              child: ListView(
+                                  controller: scroll,
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                  children: [
+                                    Center(
+                                        child: Container(
+                                            width: 48,
+                                            height: 4,
+                                            decoration: BoxDecoration(
+                                                color: theme
+                                                    .colorScheme.outlineVariant,
+                                                borderRadius:
+                                                    BorderRadius.circular(4)))),
+                                    const SizedBox(height: 8),
+                                    Row(children: [
+                                      Expanded(
+                                          child: Text(
+                                              l10n.nearbyOfferCount(
+                                                  offers.length),
+                                              style:
+                                                  theme.textTheme.titleLarge)),
+                                      IconButton(
+                                          tooltip: l10n.filterOffersLabel,
+                                          onPressed: _filters,
+                                          icon: const Icon(Icons.tune)),
+                                      IconButton(
+                                          tooltip: _expanded
+                                              ? l10n.collapseResultsLabel
+                                              : l10n.expandResultsLabel,
+                                          onPressed: () => _resize(!_expanded),
+                                          icon: Icon(_expanded
+                                              ? Icons.expand_more
+                                              : Icons.expand_less)),
+                                    ]),
+                                    Text(
+                                        '$areaLabel · ${_data.radius.toInt()} km',
+                                        style: theme.textTheme.bodySmall),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                        _data.area.approximate
+                                            ? l10n.approximateAreaHint
+                                            : l10n.areaDistanceHint,
+                                        style: theme.textTheme.bodySmall),
+                                    if (_data.area.approximate)
+                                      TextButton(
+                                          onPressed: Geolocator.openAppSettings,
+                                          child: Text(l10n.openSettings)),
+                                    if (_data.openOnly)
+                                      Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          child: Text(l10n.storeHoursHint)),
+                                    if (_data.cached)
+                                      Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 8),
+                                          child: Text(
+                                              l10n.offlineShowingCachedDeals)),
+                                    if (_data.loading)
+                                      const Padding(
+                                          padding: EdgeInsets.all(24),
+                                          child: Center(
+                                              child:
+                                                  CircularProgressIndicator())),
+                                    if (_data.failed ||
+                                        _data.cacheMismatch) ...[
+                                      Text(_data.cacheMismatch
+                                          ? l10n.cachedAreaMismatchHint
+                                          : l10n.checkConnectionRetry),
+                                      TextButton(
+                                          onPressed: () =>
+                                              _data.search(_data.area),
+                                          child: Text(l10n.retry)),
+                                    ] else if (!_data.loading &&
+                                        offers.isEmpty) ...[
+                                      Text(_data.openOnly
+                                          ? l10n.noKnownOpenStoresHint
+                                          : l10n.noNearbyDealsFound),
+                                      TextButton(
+                                          onPressed: () => _data.filter(
+                                              clearCategory: true,
+                                              onlyOpen: false,
+                                              searchQuery: ''),
+                                          child: Text(l10n.clearAll)),
+                                    ],
+                                    ...ordered.map((p) => Padding(
+                                        padding: const EdgeInsets.only(top: 12),
+                                        child: NearbyOfferRow(
+                                            key: ValueKey(p.id),
+                                            offer: p,
+                                            selected: p.id == _data.selectedId,
+                                            onSelect: () => _select(p),
+                                            onOpen: () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        DealDetailScreen(
+                                                            promotion: p)))))),
+                                  ]))),
+                    ),
+                  ]))),
+    ])));
   }
 }

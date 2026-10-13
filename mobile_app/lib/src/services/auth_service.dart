@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
+import 'app_session.dart';
+import 'favorites_manager.dart';
 import 'push_notification_service.dart';
 
 class AuthService {
@@ -71,9 +73,14 @@ class AuthService {
   }
 
   static Future<void> signOut() async {
-    await PushNotificationService.unsubscribeFromServer();
-    await PushNotificationService.clearAppIconBadge();
-    await _auth.signOut();
+    try {
+      await PushNotificationService.unsubscribeFromServer();
+      await PushNotificationService.clearAppIconBadge();
+    } catch (_) {}
+    try {
+      await _auth.signOut();
+    } catch (_) {}
+    // Local sign-out must still work when remote services are unavailable.
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userToken');
     await prefs.remove('userId');
@@ -82,6 +89,10 @@ class AuthService {
     await prefs.remove('userRole');
     await prefs.remove('userBusinessName');
     await prefs.remove('merchantId');
+    await prefs.remove('userProfilePicture');
+    await prefs.remove('followingMerchants');
+    await FavoritesManager.clear();
+    await AppSession.refresh();
   }
 
   static Future<void> saveSession(Map<String, dynamic> response) async {
@@ -122,6 +133,11 @@ class AuthService {
       await prefs.remove('userProfilePicture');
     }
 
-    await PushNotificationService.syncTokenWithServer();
+    await AppSession.refresh();
+    try {
+      await PushNotificationService.syncTokenWithServer();
+    } catch (_) {
+      // Notification registration must not undo an accepted sign-in.
+    }
   }
 }

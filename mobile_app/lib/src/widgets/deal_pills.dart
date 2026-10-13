@@ -24,9 +24,12 @@ class StatusPill extends StatelessWidget {
         compact: compact,
       );
 
-  factory StatusPill.closed({String? opensAt, bool compact = false}) => StatusPill(
+  factory StatusPill.closed({String? opensAt, bool compact = false}) =>
+      StatusPill(
         icon: Icons.circle,
-        label: opensAt != null && opensAt.isNotEmpty ? 'Closed · opens $opensAt' : 'Closed',
+        label: opensAt != null && opensAt.isNotEmpty
+            ? 'Closed · opens $opensAt'
+            : 'Closed',
         color: AppColors.ash,
         compact: compact,
       );
@@ -85,14 +88,18 @@ class DistanceTravelChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.place_rounded, size: compact ? 12 : 13, color: AppColors.ash),
+        Icon(Icons.place_rounded,
+            size: compact ? 12 : 13, color: AppColors.muted(context)),
         const SizedBox(width: 3),
         Flexible(
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: size, fontWeight: FontWeight.w500, color: AppColors.ash),
+            style: TextStyle(
+                fontSize: size,
+                fontWeight: FontWeight.w500,
+                color: AppColors.muted(context)),
           ),
         ),
       ],
@@ -129,16 +136,16 @@ class PriceBlock extends StatelessWidget {
           style: TextStyle(
             fontSize: compact ? 16 : 18,
             fontWeight: FontWeight.w700,
-            color: AppColors.turmeric,
+            color: AppColors.text(context),
             letterSpacing: -0.2,
           ),
         ),
         if (originalPriceLabel != null)
           Text(
             originalPriceLabel!,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
-              color: AppColors.ash,
+              color: AppColors.muted(context),
               decoration: TextDecoration.lineThrough,
               decorationThickness: 1.5,
             ),
@@ -152,7 +159,10 @@ class PriceBlock extends StatelessWidget {
             ),
             child: Text(
               discountLabel!,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.turmeric),
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.turmeric),
             ),
           ),
       ],
@@ -164,7 +174,11 @@ class PriceBlock extends StatelessWidget {
 /// canonical urgency color. Only shown when expiry is actually close, so it
 /// always signals real urgency rather than diluting the signal.
 class ExpiryChip extends StatelessWidget {
-  const ExpiryChip({super.key, required this.label, this.expired = false, this.compact = false});
+  const ExpiryChip(
+      {super.key,
+      required this.label,
+      this.expired = false,
+      this.compact = false});
 
   final String label;
   final bool expired;
@@ -178,7 +192,7 @@ class ExpiryChip extends StatelessWidget {
         Icon(
           expired ? Icons.timer_off_rounded : Icons.schedule_rounded,
           size: compact ? 12 : 13,
-          color: AppColors.chili,
+          color: Theme.of(context).colorScheme.error,
         ),
         const SizedBox(width: 4),
         Flexible(
@@ -189,7 +203,7 @@ class ExpiryChip extends StatelessWidget {
             style: TextStyle(
               fontSize: compact ? AppTypeScale.caption : AppTypeScale.label,
               fontWeight: FontWeight.w600,
-              color: AppColors.chili,
+              color: Theme.of(context).colorScheme.error,
             ),
           ),
         ),

@@ -1,3 +1,4 @@
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -39,7 +40,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
     super.initState();
     if (widget.promotion.endDate != null) {
       _updateTimeLeft();
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _timer = Timer.periodic(const Duration(minutes: 1), (_) {
         _updateTimeLeft();
       });
     }
@@ -106,167 +107,127 @@ class _ModernDealCardState extends State<ModernDealCard> {
     return 'Ends in ${duration.inMinutes}m';
   }
 
-  // Rounds three corners and leaves one square — a deliberate asymmetry so
-  // the feed doesn't read as a repeated grid of identical rounded tiles.
-  static const _cardRadius = BorderRadius.only(
-    topLeft: Radius.circular(AppRadius.lg),
-    topRight: Radius.circular(AppRadius.lg),
-    bottomRight: Radius.circular(AppRadius.lg),
-    bottomLeft: Radius.circular(4),
-  );
-  static const _imageRadius = BorderRadius.only(
-    topLeft: Radius.circular(AppRadius.lg),
-    topRight: Radius.circular(AppRadius.lg),
-  );
-
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = isDark ? AppColors.cardDark : AppColors.cardLight;
-    final borderColor = isDark ? AppColors.borderDark : AppColors.borderSubtle;
-    final titleColor = isDark ? AppColors.textPrimaryDark : AppColors.textPrimary;
-
-    return GestureDetector(
-      onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final p = widget.promotion;
-          final distance = _formatDistance(p.distance);
-          final effectiveWidth = widget.width ?? constraints.maxWidth;
-          final compact = effectiveWidth <= 190;
-          final merchantName = p.merchantName?.trim();
-          final distanceLabel = distance.isNotEmpty ? distance : null;
-          final hoursLeft = _timeLeft?.inHours ?? 0;
-          final showCountdownNow = _timeLeft != null && p.endDate != null && hoursLeft < 48;
-          final expired = _timeLeft == Duration.zero;
-          final expiryLabel = showCountdownNow
-              ? (expired ? 'Expired' : _formatCountdown(_timeLeft!))
-              : null;
-          final isVerified = (p.trustStatus ?? '').isNotEmpty && p.trustStatus != 'standard';
-          final currentPrice = p.discountedPrice ?? p.price ?? p.originalPrice;
-          final discountLabel = p.discountPercentage != null
-              ? '-${p.discountPercentage}%'
-              : (p.discount != null && p.discount!.isNotEmpty ? p.discount! : null);
-
-          return Container(
+    final scheme = Theme.of(context).colorScheme;
+    final p = widget.promotion;
+    final distance = _formatDistance(p.distance);
+    final currentPrice = p.discountedPrice ?? p.price ?? p.originalPrice;
+    final discount = p.discountPercentage != null
+        ? '${p.discountPercentage}% off'
+        : p.discount;
+    final expiry = _timeLeft != null && _timeLeft!.inHours < 48
+        ? (_timeLeft == Duration.zero
+            ? 'Expired'
+            : _formatCountdown(_timeLeft!))
+        : null;
+    final verified = p.trustStatus == 'verified';
+    return Semantics(
+      button: widget.onTap != null,
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: widget.onTap,
+          child: Container(
             width: widget.width,
             decoration: BoxDecoration(
-              color: cardColor,
-              borderRadius: _cardRadius,
-              border: Border.all(color: borderColor),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.charcoal.withValues(alpha: AppOpacity.light),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AspectRatio(
-                  // ~40% of card height, per the design system's card image cap.
-                  aspectRatio: compact ? 1.35 : 1.6,
-                  child: ClipRRect(
-                    borderRadius: _imageRadius,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        _buildImage(),
-                        if (discountLabel != null)
-                          Positioned(
-                            top: AppSpacing.md,
-                            left: AppSpacing.md,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AppColors.ceylonInk,
-                                borderRadius: BorderRadius.circular(AppRadius.pill),
-                              ),
-                              child: Text(
-                                discountLabel,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.turmeric,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(compact ? AppSpacing.md : AppSpacing.lg),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Merchant name + verified badge (inline, not a separate row).
-                      if (merchantName != null && merchantName.isNotEmpty)
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                merchantName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: AppTypeScale.title,
-                                  fontWeight: FontWeight.w600,
-                                  color: titleColor,
-                                ),
-                              ),
-                            ),
-                            if (isVerified) ...[
-                              const SizedBox(width: AppSpacing.xs),
-                              const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.betelGreen),
-                            ],
-                          ],
-                        ),
-                      if (distanceLabel != null) ...[
-                        SizedBox(height: compact ? AppSpacing.xxs : AppSpacing.xs),
-                        DistanceTravelChip(distanceLabel: distanceLabel, compact: compact),
-                      ],
-                      SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
-
-                      // Deal title.
-                      Text(
-                        p.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: compact ? AppTypeScale.body : AppTypeScale.title,
-                          fontWeight: FontWeight.w600,
-                          color: titleColor,
-                          height: 1.2,
-                        ),
-                      ),
-                      SizedBox(height: compact ? AppSpacing.sm : AppSpacing.md),
-
-                      if (currentPrice != null)
-                        PriceBlock(
-                          currentPriceLabel: _priceLabel(currentPrice, currencyCode: p.merchantCurrency),
-                          originalPriceLabel: (p.originalPrice != null && p.discountedPrice != null)
-                              ? _priceLabel(p.originalPrice!, currencyCode: p.merchantCurrency)
-                              : null,
-                          compact: compact,
-                        ),
-
-                      if (expiryLabel != null) ...[
-                        SizedBox(height: compact ? AppSpacing.xs : AppSpacing.sm),
-                        ExpiryChip(label: expiryLabel, expired: expired, compact: compact),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.6))),
+            child: LayoutBuilder(builder: (context, constraints) {
+              final compact = (widget.width ?? constraints.maxWidth) <= 210;
+              return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AspectRatio(
+                        aspectRatio: compact ? 1.55 : 1.8,
+                        child: Stack(fit: StackFit.expand, children: [
+                          _buildImage(),
+                          if (discount?.isNotEmpty ?? false)
+                            Positioned(
+                                top: 10,
+                                left: 10,
+                                child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                        color: AppColors.ceylonInk,
+                                        borderRadius:
+                                            BorderRadius.circular(10)),
+                                    child: Text(discount!,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white)))),
+                        ])),
+                    Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (p.merchantName?.isNotEmpty ?? false)
+                                Row(children: [
+                                  Expanded(
+                                      child: Text(p.merchantName!,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: scheme.onSurfaceVariant,
+                                              fontWeight: FontWeight.w500))),
+                                  if (verified)
+                                    Tooltip(
+                                        message: AppLocalizations.of(context)!
+                                            .verifiedDealLabel,
+                                        child: const Icon(Icons.verified_rounded,
+                                            size: 16,
+                                            color: AppColors.betelGreen)),
+                                ]),
+                              const SizedBox(height: 6),
+                              Text(p.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.25,
+                                      letterSpacing: -0.2,
+                                      color: scheme.onSurface)),
+                              if (currentPrice != null) ...[
+                                const SizedBox(height: 10),
+                                PriceBlock(
+                                    currentPriceLabel: _priceLabel(currentPrice,
+                                        currencyCode: p.merchantCurrency),
+                                    originalPriceLabel: p.originalPrice !=
+                                                null &&
+                                            p.discountedPrice != null
+                                        ? _priceLabel(p.originalPrice!,
+                                            currencyCode: p.merchantCurrency)
+                                        : null,
+                                    compact: compact),
+                              ],
+                              if (distance.isNotEmpty || expiry != null) ...[
+                                const SizedBox(height: 8),
+                                if (expiry != null)
+                                  ExpiryChip(
+                                      label: expiry,
+                                      expired: _timeLeft == Duration.zero,
+                                      compact: true)
+                                else
+                                  DistanceTravelChip(
+                                      distanceLabel: distance, compact: true),
+                              ],
+                            ])),
+                  ]);
+            }),
+          ),
+        ),
       ),
     );
   }

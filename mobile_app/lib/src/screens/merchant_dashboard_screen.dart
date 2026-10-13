@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -443,7 +444,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.store_outlined, size: 80, color: Colors.grey[400]),
+                Icon(Icons.store_outlined,
+                    size: 80, color: AppColors.border(context)),
                 const SizedBox(height: 20),
                 Text(
                   _t(
@@ -461,7 +463,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     'ජංගම පුවරුව වෙබ් වෙළෙන්දාගේ ගමනට ගැලපෙන ලෙස ඔබගේ වෙළඳසැල් පැතිකඩ පළමුව සකසන්න.',
                     'மொபைல் டாஷ்போர்டு இணைய வணிகர் அனுபவத்துடன் பொருந்த உங்கள் கடை சுயவிவரத்தை முதலில் அமைக்கவும்.',
                   ),
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(color: AppColors.muted(context)),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -539,113 +541,46 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
   }
 
   Widget _buildHeaderCard(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFF43F5E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child:
-                    const Icon(Icons.storefront, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      (_merchantData?['name'] ??
-                              _merchantName ??
-                              _t('My Store', 'මගේ වෙළඳසැල', 'என் கடை'))
-                          .toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$_activeCount ${_t('active deals', 'සක්‍රීය ඩීල්', 'செயலில் உள்ள சலுகைகள்')}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.84),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _openEditProfile,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side:
-                        BorderSide(color: Colors.white.withValues(alpha: 0.35)),
-                    backgroundColor: Colors.white.withValues(alpha: 0.12),
-                  ),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: Text(_t('Edit Profile', 'පැතිකඩ සංස්කරණය',
-                      'சுயவிவரத்தைத் திருத்து')),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _openCreatePromotion,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF4F46E5),
-                  ),
-                  icon: const Icon(Icons.add),
-                  label: Text(_t('Add Promotion', 'ප්‍රවර්ධනය එක් කරන්න',
-                      'சலுகையைச் சேர்')),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: theme.colorScheme.outlineVariant)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(Icons.storefront_outlined,
+              size: 30, color: theme.colorScheme.primary),
+          const SizedBox(height: 14),
+          Text(
+              (_merchantData?['name'] ??
+                      _merchantName ??
+                      _t('My Store', 'මගේ වෙළඳසැල', 'என் கடை'))
+                  .toString(),
+              style: theme.textTheme.displayMedium),
+          const SizedBox(height: 8),
+          Text(
+              '$_activeCount ${_t('active deals', 'සක්‍රීය ඩීල්', 'செயலில் உள்ள சலுகைகள்')}',
+              style: theme.textTheme.bodySmall),
+          const SizedBox(height: 20),
           SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _openRedemptionScanner,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10B981),
-                foregroundColor: Colors.white,
-              ),
-              icon: const Icon(Icons.qr_code_scanner_rounded),
-              label: Text(_t(
-                'Scan Redemption QR',
-                'Redemption QR scan කරන්න',
-                'Redemption QR scan செய்யவும்',
-              )),
-            ),
-          ),
-        ],
-      ),
-    );
+              width: double.infinity,
+              child: FilledButton.icon(
+                  onPressed: _openCreatePromotion,
+                  icon: const Icon(Icons.add_rounded),
+                  label: Text(_t('Add promotion', 'ප්‍රවර්ධනය එක් කරන්න',
+                      'சலுகையைச் சேர்')))),
+          const SizedBox(height: 10),
+          SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                  onPressed: _openRedemptionScanner,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: Text(_t(
+                      'Scan redemption QR',
+                      'Redemption QR scan කරන්න',
+                      'Redemption QR scan செய்யவும்')))),
+        ]));
   }
 
   Widget _buildStatsGrid(BuildContext context) {
@@ -691,7 +626,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
             Text(
               value,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: 4),
@@ -733,7 +668,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                             'සාදරයෙන් පිළිගනිමු! ඔබගේ වෙළඳසැල සකස් කරමු',
                             'வரவேற்கிறோம்! உங்கள் கடையை அமைப்போம்'),
                         style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 16),
+                            fontWeight: FontWeight.w700, fontSize: 16),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -805,8 +740,9 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         color: done ? Colors.green.withValues(alpha: 0.06) : Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color:
-              done ? Colors.green.withValues(alpha: 0.2) : Colors.grey.shade300,
+          color: done
+              ? Colors.green.withValues(alpha: 0.2)
+              : AppColors.border(context),
         ),
       ),
       child: Row(
@@ -814,7 +750,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
           CircleAvatar(
             backgroundColor: done
                 ? Colors.green.withValues(alpha: 0.12)
-                : Colors.grey.shade100,
+                : AppColors.canvas(context),
             foregroundColor:
                 done ? Colors.green : Theme.of(context).colorScheme.primary,
             child: Icon(done ? Icons.check : icon),
@@ -847,7 +783,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
           child: Text(
             _t('Promotions', 'ප්‍රවර්ධන', 'சலுகைகள்'),
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
           ),
         ),
@@ -890,7 +826,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
         padding: const EdgeInsets.all(28),
         child: Column(
           children: [
-            Icon(Icons.local_offer_outlined, size: 60, color: Colors.grey[400]),
+            Icon(Icons.local_offer_outlined,
+                size: 60, color: AppColors.border(context)),
             const SizedBox(height: 16),
             Text(
               _promotions.isEmpty
@@ -916,7 +853,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                       'වෙනත් පෙරහනක් උත්සාහ කරන්න හෝ පුවරුව නැවත පූරණය කරන්න.',
                       'வேறு வடிகட்டியை முயற்சிக்கவும் அல்லது டாஷ்போர்டை புதுப்பிக்கவும்.'),
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: AppColors.muted(context)),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -959,7 +896,7 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                     child: Container(
                       width: 64,
                       height: 64,
-                      color: Colors.grey.shade200,
+                      color: AppColors.border(context),
                       child: image != null && image.isNotEmpty
                           ? Image.network(
                               image,
@@ -1002,8 +939,8 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                             if ((promotion.code ?? '').isNotEmpty)
                               _buildMiniPill(
                                 promotion.code!,
-                                background: Colors.grey.shade100,
-                                foreground: Colors.grey.shade800,
+                                background: AppColors.canvas(context),
+                                foreground: AppColors.muted(context),
                               ),
                             _buildMiniPill(
                               _statusLabel(promotion.status),
@@ -1022,18 +959,19 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
                 promotion.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[700]),
+                style: TextStyle(color: AppColors.muted(context)),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Icon(Icons.category_outlined,
-                      size: 16, color: Colors.grey[600]),
+                      size: 16, color: AppColors.muted(context)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       _statusLabel(promotion.category),
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                      style: TextStyle(
+                          color: AppColors.muted(context), fontSize: 13),
                     ),
                   ),
                 ],
@@ -1041,12 +979,14 @@ class _MerchantDashboardScreenState extends State<MerchantDashboardScreen> {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(Icons.event_outlined, size: 16, color: Colors.grey[600]),
+                  Icon(Icons.event_outlined,
+                      size: 16, color: AppColors.muted(context)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       '${promotion.startDate != null ? _dateFormat.format(promotion.startDate!) : '—'} - ${promotion.endDate != null ? _dateFormat.format(promotion.endDate!) : '—'}',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                      style: TextStyle(
+                          color: AppColors.muted(context), fontSize: 13),
                     ),
                   ),
                 ],

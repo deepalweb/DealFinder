@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/promotion.dart';
@@ -8,13 +9,13 @@ import 'deal_detail_screen.dart'; // Import DealDetailScreen for navigation
 import 'advanced_search_screen.dart';
 import 'search_screen.dart'; // Import SearchScreen for navigation
 
-
 class DealsListScreen extends StatefulWidget {
   final Category? categoryFilter;
   final List<Promotion>? promotions;
   final String? title;
 
-  const DealsListScreen({super.key, this.categoryFilter, this.promotions, this.title});
+  const DealsListScreen(
+      {super.key, this.categoryFilter, this.promotions, this.title});
 
   @override
   State<DealsListScreen> createState() => _DealsListScreenState();
@@ -39,9 +40,10 @@ class _DealsListScreenState extends State<DealsListScreen> {
   @override
   Widget build(BuildContext context) {
     // Determine the AppBar title based on whether a category filter is active
-    final appBarTitle = widget.title ?? (widget.categoryFilter != null
-        ? 'Deals: ${widget.categoryFilter!.name}'
-        : 'All Deals & Promotions');
+    final appBarTitle = widget.title ??
+        (widget.categoryFilter != null
+            ? 'Deals: ${widget.categoryFilter!.name}'
+            : 'All Deals & Promotions');
 
     return Scaffold(
       appBar: AppBar(
@@ -52,7 +54,8 @@ class _DealsListScreenState extends State<DealsListScreen> {
             if (widget.promotions != null)
               Text(
                 '${widget.promotions!.length} deals',
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+                style: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.normal),
               ),
           ],
         ),
@@ -84,68 +87,77 @@ class _DealsListScreenState extends State<DealsListScreen> {
       body: widget.promotions != null
           ? _buildList(widget.promotions!)
           : RefreshIndicator(
-        onRefresh: _refreshPromotions,
-        child: FutureBuilder<List<Promotion>>(
-          future: _promotionsFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-              return _buildShimmer();
-            } else if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, color: Colors.red[400], size: 50),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Failed to load deals: ${snapshot.error}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.red[700]),
-                      ),
-                      const SizedBox(height: 20),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Try Again'),
-                        onPressed: _refreshPromotions,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context).colorScheme.primary,
-                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              onRefresh: _refreshPromotions,
+              child: FutureBuilder<List<Promotion>>(
+                future: _promotionsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return _buildShimmer();
+                  } else if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.error_outline,
+                                color: Colors.red[400], size: 50),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Failed to load deals: ${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.red[700]),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Try Again'),
+                              onPressed: _refreshPromotions,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    Theme.of(context).colorScheme.primary,
+                                foregroundColor:
+                                    Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                          ],
                         ),
-                      )
-                    ],
-                  ),
-                ),
-              );
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.sentiment_dissatisfied, color: Colors.grey[600], size: 50),
-                      const SizedBox(height: 10),
-                      Text(
-                        'No deals found at the moment.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Pull down to refresh or check back later!',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    );
+                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.sentiment_dissatisfied,
+                                color: AppColors.muted(context), size: 50),
+                            const SizedBox(height: 10),
+                            Text(
+                              'No deals found at the moment.',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  color: AppColors.muted(context)),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'Pull down to refresh or check back later!',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.muted(context)),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            } else {
-              return _buildList(snapshot.data!);
-            }
-          },
-        ),
-      ),
+                    );
+                  } else {
+                    return _buildList(snapshot.data!);
+                  }
+                },
+              ),
+            ),
     );
   }
 
@@ -155,20 +167,23 @@ class _DealsListScreenState extends State<DealsListScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.sentiment_dissatisfied, color: Colors.grey[600], size: 50),
+            Icon(Icons.sentiment_dissatisfied,
+                color: AppColors.muted(context), size: 50),
             const SizedBox(height: 10),
-            Text('No deals found.', style: TextStyle(fontSize: 16, color: Colors.grey[700])),
+            Text('No deals found.',
+                style:
+                    TextStyle(fontSize: 16, color: AppColors.muted(context))),
           ],
         ),
       );
     }
-    
+
     final sortedPromotions = [...promotions]..sort((a, b) {
-      final aDate = a.startDate ?? DateTime(1970);
-      final bDate = b.startDate ?? DateTime(1970);
-      return bDate.compareTo(aDate);
-    });
-    
+        final aDate = a.startDate ?? DateTime(1970);
+        final bDate = b.startDate ?? DateTime(1970);
+        return bDate.compareTo(aDate);
+      });
+
     return GridView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -183,7 +198,8 @@ class _DealsListScreenState extends State<DealsListScreen> {
         return GestureDetector(
           onTap: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => DealDetailScreen(promotion: promo)),
+            MaterialPageRoute(
+                builder: (_) => DealDetailScreen(promotion: promo)),
           ),
           child: DealCard(promotion: promo, compact: true),
         );
@@ -193,8 +209,9 @@ class _DealsListScreenState extends State<DealsListScreen> {
 
   Widget _buildShimmer() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      enabled: !MediaQuery.disableAnimationsOf(context),
+      baseColor: AppColors.border(context),
+      highlightColor: AppColors.canvas(context),
       child: GridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -207,7 +224,7 @@ class _DealsListScreenState extends State<DealsListScreen> {
         itemBuilder: (_, __) => Container(
           margin: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: AppColors.card(context),
             borderRadius: BorderRadius.circular(10),
           ),
         ),

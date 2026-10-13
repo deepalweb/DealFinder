@@ -1,9 +1,8 @@
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-
-import '../widgets/category_icon.dart';
 
 class MerchantCard extends StatelessWidget {
   final Map<String, dynamic> merchant;
@@ -127,550 +126,112 @@ class MerchantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name = (merchant['name'] ?? 'Unnamed Store').toString();
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final name = (merchant['name'] ?? 'Store').toString();
     final category = (merchant['category'] ?? 'other').toString();
-    final description =
-        (merchant['description'] ?? merchant['profile'] ?? '').toString();
-    final followers = (merchant['followers'] as num?)?.toInt() ?? 0;
-    final deals =
-        ((merchant['activeDeals'] ?? merchant['deals']) as num?)?.toInt() ?? 0;
-    final averageRating = (merchant['averageRating'] as num?)?.toDouble() ?? 0;
-    final ratingsCount = (merchant['ratingsCount'] as num?)?.toInt() ?? 0;
-    final currency = (merchant['currency'] ?? 'LKR').toString();
-    final logoUrl = merchant['logo']?.toString();
-    final bannerUrl = merchant['banner']?.toString();
     final location = (merchant['address'] ?? '').toString();
-
-    final hasLogo = logoUrl != null && logoUrl.isNotEmpty;
-    final hasBanner = bannerUrl != null && bannerUrl.isNotEmpty;
-    final colorSeed = name.hashCode;
-    final gradientColors = _getGradientColors(colorSeed);
-    final bannerHeight = compact ? 118.0 : 146.0;
-    final logoRadius = compact ? 26.0 : 32.0;
-    final openStatus = _openStatus(merchant);
-
+    final photo = (merchant['banner'] ?? merchant['logo'])?.toString();
+    final rating = (merchant['averageRating'] as num?)?.toDouble() ?? 0;
+    final count = (merchant['activeDeals'] as num?)?.toInt() ?? 0;
+    final open = _openStatus(merchant);
+    final fallback = Container(
+        color: scheme.primaryContainer,
+        child:
+            Icon(Icons.storefront_outlined, size: 48, color: scheme.primary));
     return Card(
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onVisit,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE6EBF2)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  SizedBox(
-                    height: bannerHeight,
-                    width: double.infinity,
-                    child: hasBanner
-                        ? _buildImageWidget(
-                            bannerUrl,
-                            _buildGradientBanner(name, gradientColors,
-                                height: bannerHeight),
-                            height: bannerHeight,
-                            width: double.infinity,
-                          )
-                        : _buildGradientBanner(name, gradientColors,
-                            height: bannerHeight),
-                  ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: 0.02),
-                            Colors.black.withValues(alpha: 0.28),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 12,
-                    left: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CategoryIcon(category: category, size: 14),
-                          const SizedBox(width: 6),
-                          Text(
-                            _prettyLabel(category),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF243447),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Row(
-                      children: [
-                        _buildTopAction(
-                          icon: isFollowing
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: isFollowing
-                              ? const Color(0xFFE53935)
-                              : const Color(0xFF54606E),
-                          isLoading: isFollowUpdating,
-                          semanticsLabel:
-                              isFollowing ? 'Unfollow store' : 'Follow store',
-                          onTap: onFollowToggle,
-                        ),
-                        const SizedBox(width: 8),
-                        _buildTopAction(
-                          icon: Icons.share_outlined,
-                          color: const Color(0xFF54606E),
-                          semanticsLabel: 'Share store',
-                          onTap: onShare,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 12,
-                    left: 16,
-                    right: 16,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 3),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: CircleAvatar(
-                            radius: logoRadius,
-                            backgroundColor: Colors.white,
-                            child: hasLogo
-                                ? ClipOval(
-                                    child: _buildImageWidget(
-                                      logoUrl,
-                                      _buildLogoPlaceholder(
-                                          name, gradientColors),
-                                      width: logoRadius * 2,
-                                      height: logoRadius * 2,
-                                    ),
-                                  )
-                                : _buildLogoPlaceholder(name, gradientColors),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 19,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  deals > 0
-                                      ? '$deals active deals right now'
-                                      : 'Explore this merchant profile',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.88),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+            onTap: onVisit,
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(
+                  height: compact ? 130 : 170,
+                  width: double.infinity,
+                  child: _buildImageWidget(photo, fallback,
+                      width: double.infinity)),
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (description.isNotEmpty) ...[
-                      Text(
-                        description,
-                        maxLines: compact ? 2 : 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF5C6B7A),
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    if (location.isNotEmpty) ...[
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.place_outlined,
-                            size: 16,
-                            color: Color(0xFF7C8896),
-                          ),
-                          const SizedBox(width: 6),
+                  padding: EdgeInsets.all(compact ? 16 : 18),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
                           Expanded(
-                            child: Text(
-                              location,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF7C8896),
-                              ),
-                            ),
-                          ),
+                              child: Text(name,
+                                  style: theme.textTheme.titleLarge)),
+                          IconButton(
+                              tooltip:
+                                  AppLocalizations.of(context)!.shareStoreLabel,
+                              onPressed: onShare,
+                              icon:
+                                  const Icon(Icons.ios_share_rounded, size: 20))
+                        ]),
+                        const SizedBox(height: 4),
+                        Wrap(spacing: 12, runSpacing: 8, children: [
+                          Text(category.replaceAll('_', ' '),
+                              style: theme.textTheme.bodySmall),
+                          if (rating > 0)
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.star_rounded,
+                                  size: 16, color: scheme.primary),
+                              const SizedBox(width: 4),
+                              Text(rating.toStringAsFixed(1),
+                                  style: theme.textTheme.bodySmall)
+                            ]),
+                          if (count > 0)
+                            Text('$count active deals',
+                                style: theme.textTheme.bodySmall),
+                          if (open.openNow != null)
+                            Text(open.label, style: theme.textTheme.bodySmall),
+                        ]),
+                        if (location.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 16, color: scheme.onSurfaceVariant),
+                            const SizedBox(width: 5),
+                            Expanded(
+                                child: Text(location,
+                                    maxLines: compact ? 1 : 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.bodySmall))
+                          ])
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildInfoPill(
-                          icon: Icons.people_outline,
-                          label: '$followers followers',
-                          background: const Color(0xFFF3F6FA),
-                          foreground: const Color(0xFF51606F),
-                          animated: true,
-                        ),
-                        _buildInfoPill(
-                          icon: Icons.local_offer_outlined,
-                          label: '$deals deals',
-                          background: const Color(0xFFE8F3FF),
-                          foreground: const Color(0xFF1E88E5),
-                        ),
-                        if (openStatus.openNow != null)
-                          _buildInfoPill(
-                            icon: openStatus.openNow == true
-                                ? Icons.check_circle_outline
-                                : Icons.schedule_outlined,
-                            label: openStatus.label,
-                            background: openStatus.openNow == true
-                                ? const Color(0xFFE8F8EF)
-                                : const Color(0xFFF3F6FA),
-                            foreground: openStatus.openNow == true
-                                ? const Color(0xFF15803D)
-                                : const Color(0xFF64748B),
-                          ),
-                        if (ratingsCount > 0)
-                          _buildInfoPill(
-                            icon: Icons.star_rate_rounded,
-                            label:
-                                '${averageRating.toStringAsFixed(1)} ($ratingsCount)',
-                            background: const Color(0xFFFFF8E1),
-                            foreground: const Color(0xFFB7791F),
-                          ),
-                        _buildInfoPill(
-                          icon: Icons.currency_exchange_rounded,
-                          label: currency,
-                          background: const Color(0xFFFFF4E8),
-                          foreground: const Color(0xFFEF6C00),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: onVisit,
-                            style: ElevatedButton.styleFrom(
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(vertical: 13),
-                              backgroundColor: const Color(0xFF14213D),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: const Text('View Store'),
-                          ),
-                        ),
-                        if (!compact) ...[
+                        const SizedBox(height: 16),
+                        Row(children: [
+                          Expanded(
+                              child: FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 12)),
+                                  onPressed: onVisit,
+                                  child: Text(AppLocalizations.of(context)!
+                                      .viewStoreLabel))),
                           const SizedBox(width: 10),
-                          Semantics(
-                            button: true,
-                            label:
-                                isFollowing ? 'Unfollow store' : 'Follow store',
-                            child: OutlinedButton(
-                              onPressed:
-                                  isFollowUpdating ? null : onFollowToggle,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 13),
-                                backgroundColor: isFollowing
-                                    ? const Color(0xFFFFEEF0)
-                                    : Colors.white,
-                                side: BorderSide(
-                                  color: isFollowing
-                                      ? const Color(0xFFE57373)
-                                      : const Color(0xFFD7DEE8),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 180),
-                                child: isFollowUpdating
-                                    ? const SizedBox(
-                                        key: ValueKey('loading'),
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.2,
-                                        ),
-                                      )
-                                    : Row(
-                                        key: ValueKey(isFollowing),
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Icon(
-                                            isFollowing
-                                                ? Icons.favorite_rounded
-                                                : Icons.favorite_border_rounded,
-                                            color: isFollowing
-                                                ? const Color(0xFFE53935)
-                                                : const Color(0xFF51606F),
-                                            size: 18,
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            isFollowing
-                                                ? 'Following store'
-                                                : 'Follow store',
-                                            style: TextStyle(
-                                              color: isFollowing
-                                                  ? const Color(0xFFE53935)
-                                                  : const Color(0xFF51606F),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopAction({
-    required IconData icon,
-    required Color color,
-    bool isLoading = false,
-    required String semanticsLabel,
-    required VoidCallback onTap,
-  }) {
-    return AnimatedScale(
-      scale: isLoading ? 0.94 : 1,
-      duration: const Duration(milliseconds: 180),
-      child: Semantics(
-        button: true,
-        label: semanticsLabel,
-        child: Material(
-          color: Colors.white.withValues(alpha: 0.9),
-          shape: const CircleBorder(),
-          child: InkWell(
-            onTap: isLoading ? null : onTap,
-            customBorder: const CircleBorder(),
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: isLoading
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.1,
-                        valueColor: AlwaysStoppedAnimation<Color>(color),
-                      ),
-                    )
-                  : Icon(icon, color: color, size: 18),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoPill({
-    required IconData icon,
-    required String label,
-    required Color background,
-    required Color foreground,
-    bool animated = false,
-  }) {
-    final pill = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: foreground),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: foreground,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (!animated) return pill;
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(scale: animation, child: child),
-      ),
-      child: KeyedSubtree(
-        key: ValueKey(label),
-        child: pill,
-      ),
-    );
-  }
-
-  Widget _buildGradientBanner(
-    String name,
-    List<Color> gradientColors, {
-    required double height,
-  }) {
-    return Container(
-      height: height,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Text(
-          _getInitials(name),
-          style: const TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: [
-              Shadow(
-                color: Colors.black26,
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogoPlaceholder(String name, List<Color> gradientColors) {
-    return Text(
-      _getInitials(name),
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: gradientColors[0],
-      ),
-    );
-  }
-
-  String _getInitials(String name) {
-    final words = name.trim().split(' ').where((part) => part.isNotEmpty);
-    final list = words.toList();
-    if (list.isEmpty) return 'S';
-    if (list.length == 1) return list[0][0].toUpperCase();
-    return '${list[0][0]}${list[1][0]}'.toUpperCase();
-  }
-
-  String _prettyLabel(String raw) {
-    return raw
-        .split('_')
-        .map((part) => part.isEmpty
-            ? part
-            : '${part[0].toUpperCase()}${part.substring(1)}')
-        .join(' ');
-  }
-
-  List<Color> _getGradientColors(int seed) {
-    final colorOptions = [
-      [const Color(0xFFFF6B6B), const Color(0xFFEE5A6F)],
-      [const Color(0xFF4ECDC4), const Color(0xFF44A08D)],
-      [const Color(0xFFFFBE0B), const Color(0xFFFB8500)],
-      [const Color(0xFF95E1D3), const Color(0xFF38A3A5)],
-      [const Color(0xFFFF8A65), const Color(0xFFFF7043)],
-      [const Color(0xFF2D9CDB), const Color(0xFF1B6CA8)],
-      [const Color(0xFF00B894), const Color(0xFF00897B)],
-      [const Color(0xFF5C6BC0), const Color(0xFF3949AB)],
-    ];
-    return colorOptions[seed.abs() % colorOptions.length];
+                          Expanded(
+                              child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 12)),
+                                  onPressed:
+                                      isFollowUpdating ? null : onFollowToggle,
+                                  icon: isFollowUpdating
+                                      ? const SizedBox.square(
+                                          dimension: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2))
+                                      : Icon(
+                                          isFollowing
+                                              ? Icons.check_rounded
+                                              : Icons.add_rounded,
+                                          size: 18),
+                                  label: Text(isFollowing
+                                      ? AppLocalizations.of(context)!.following
+                                      : AppLocalizations.of(context)!
+                                          .followStoreLabel)))
+                        ]),
+                      ])),
+            ])));
   }
 }

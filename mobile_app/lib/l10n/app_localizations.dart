@@ -1671,6 +1671,426 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Before paying, confirm the exact eligible bank, card type, discount cap, and whether the offer applies in-store, online, or on selected days only.'**
   String get cardOfferDetailsNote;
+
+  /// No description provided for @modernWelcomeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get modernWelcomeTitle;
+
+  /// No description provided for @modernWelcomeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your next great find is waiting.'**
+  String get modernWelcomeSubtitle;
+
+  /// No description provided for @modernRegisterTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'A little more local.'**
+  String get modernRegisterTitle;
+
+  /// No description provided for @modernRegisterSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover offers worth stepping out for.'**
+  String get modernRegisterSubtitle;
+
+  /// No description provided for @clearSearchLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear search'**
+  String get clearSearchLabel;
+
+  /// No description provided for @viewStoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'View store'**
+  String get viewStoreLabel;
+
+  /// No description provided for @followStoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow'**
+  String get followStoreLabel;
+
+  /// No description provided for @shareStoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Share store'**
+  String get shareStoreLabel;
+
+  /// No description provided for @verifiedDealLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Verified deal'**
+  String get verifiedDealLabel;
+
+  /// No description provided for @caughtUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You are all caught up'**
+  String get caughtUpTitle;
+
+  /// No description provided for @caughtUpMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates from your favorite stores and deals will appear here.'**
+  String get caughtUpMessage;
+
+  /// No description provided for @loadNotificationsFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load notifications'**
+  String get loadNotificationsFailed;
+
+  /// No description provided for @checkConnectionRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again.'**
+  String get checkConnectionRetry;
+
+  /// No description provided for @deleteNotificationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete notification'**
+  String get deleteNotificationLabel;
+
+  /// No description provided for @discoverTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get discoverTab;
+
+  /// No description provided for @nearbyTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby'**
+  String get nearbyTab;
+
+  /// No description provided for @bankOffersTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank Offers'**
+  String get bankOffersTab;
+
+  /// No description provided for @savedTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get savedTab;
+
+  /// No description provided for @accountTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get accountTab;
+
+  /// No description provided for @browseStores.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse stores'**
+  String get browseStores;
+
+  /// No description provided for @popularTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular'**
+  String get popularTitle;
+
+  /// No description provided for @discoverySignInTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to keep your discoveries'**
+  String get discoverySignInTitle;
+
+  /// No description provided for @discoverySignInBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Save offers, follow stores, and manage your account. You can keep browsing without signing in.'**
+  String get discoverySignInBody;
+
+  /// No description provided for @discoverySignIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get discoverySignIn;
+
+  /// No description provided for @useMyLocation.
+  ///
+  /// In en, this message translates to:
+  /// **'Use my location'**
+  String get useMyLocation;
+
+  /// No description provided for @popularOffersSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular offers worth exploring'**
+  String get popularOffersSubtitle;
+
+  /// No description provided for @chooseAreaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose area'**
+  String get chooseAreaLabel;
+
+  /// No description provided for @chooseAreaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an area or use your location to find offers within 5 km.'**
+  String get chooseAreaHint;
+
+  /// No description provided for @bankSpotlightLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Bank spotlight'**
+  String get bankSpotlightLabel;
+
+  /// No description provided for @bankSpotlightHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse offers by bank. Check each offer’s card eligibility and conditions.'**
+  String get bankSpotlightHint;
+
+  /// No description provided for @noBankOffersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'No bank offers are available yet.'**
+  String get noBankOffersLabel;
+
+  /// No description provided for @viewOfferLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'View offer'**
+  String get viewOfferLabel;
+
+  /// No description provided for @previousOfferLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous offer'**
+  String get previousOfferLabel;
+
+  /// No description provided for @nextOfferLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Next offer'**
+  String get nextOfferLabel;
+
+  /// No description provided for @savedOnDevice.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved on this device'**
+  String get savedOnDevice;
+
+  /// No description provided for @saveOfferFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save this change. Please try again.'**
+  String get saveOfferFailed;
+
+  /// No description provided for @creditCardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Credit cards'**
+  String get creditCardLabel;
+
+  /// No description provided for @debitCardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Debit cards'**
+  String get debitCardLabel;
+
+  /// No description provided for @prepaidCardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Prepaid cards'**
+  String get prepaidCardLabel;
+
+  /// No description provided for @inStoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'In store'**
+  String get inStoreLabel;
+
+  /// No description provided for @deliveryLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Delivery'**
+  String get deliveryLabel;
+
+  /// No description provided for @pickupLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pickup'**
+  String get pickupLabel;
+
+  /// No description provided for @minimumSpendLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimum spend {amount}'**
+  String minimumSpendLabel(String amount);
+
+  /// No description provided for @offerEndsOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends {date}'**
+  String offerEndsOn(String date);
+
+  /// No description provided for @featuredPageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured offer {page} of {count}'**
+  String featuredPageLabel(int page, int count);
+
+  /// No description provided for @searchThisAreaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search this area'**
+  String get searchThisAreaLabel;
+
+  /// No description provided for @refreshAreaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh this area'**
+  String get refreshAreaLabel;
+
+  /// No description provided for @selectedMapAreaLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected map area'**
+  String get selectedMapAreaLabel;
+
+  /// No description provided for @deviceLocationLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected device location'**
+  String get deviceLocationLabel;
+
+  /// No description provided for @locationUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is unavailable. Choose an area, or check location settings.'**
+  String get locationUnavailableHint;
+
+  /// No description provided for @searchAreasLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search nearby areas'**
+  String get searchAreasLabel;
+
+  /// No description provided for @chooseAreaMapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a listed area or move the map and tap Search this area.'**
+  String get chooseAreaMapHint;
+
+  /// No description provided for @filterOffersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter offers'**
+  String get filterOffersLabel;
+
+  /// No description provided for @openNowLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Open now'**
+  String get openNowLabel;
+
+  /// No description provided for @storeHoursHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Based on published store hours. Stores with unknown hours are excluded.'**
+  String get storeHoursHint;
+
+  /// No description provided for @expandResultsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show results'**
+  String get expandResultsLabel;
+
+  /// No description provided for @collapseResultsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Show map'**
+  String get collapseResultsLabel;
+
+  /// No description provided for @withinRadiusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Within {radius} km'**
+  String withinRadiusLabel(int radius);
+
+  /// No description provided for @searchRadiusLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search radius'**
+  String get searchRadiusLabel;
+
+  /// No description provided for @searchCenterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Search center'**
+  String get searchCenterLabel;
+
+  /// No description provided for @areaDistanceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Approximate distances from the area center.'**
+  String get areaDistanceHint;
+
+  /// No description provided for @approximateAreaHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Approximate or recent location used. Distances may vary.'**
+  String get approximateAreaHint;
+
+  /// No description provided for @mapUnavailableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Map tiles are unavailable. You can still browse the offer list.'**
+  String get mapUnavailableHint;
+
+  /// No description provided for @cachedAreaMismatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved results belong to another area. Connect to refresh this area.'**
+  String get cachedAreaMismatchHint;
+
+  /// No description provided for @noKnownOpenStoresHint.
+  ///
+  /// In en, this message translates to:
+  /// **'No stores with known opening hours are open in these results.'**
+  String get noKnownOpenStoresHint;
+
+  /// No description provided for @nearbyOfferCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No offers nearby} =1{1 offer nearby} other{{count} offers nearby}}'**
+  String nearbyOfferCount(int count);
+
+  /// No description provided for @closeDialogLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeDialogLabel;
+
+  /// No description provided for @cancelDialogLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancelDialogLabel;
+
+  /// No description provided for @applyFilterLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply filters'**
+  String get applyFilterLabel;
+
+  /// No description provided for @loadingNearbyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading nearby offers…'**
+  String get loadingNearbyLabel;
 }
 
 class _AppLocalizationsDelegate

@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -6,9 +7,10 @@ class MerchantCardShimmer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = Colors.grey[300]!;
-    final highlightColor = Colors.grey[100]!;
+    final baseColor = AppColors.border(context);
+    final highlightColor = AppColors.canvas(context);
     return Shimmer.fromColors(
+      enabled: !MediaQuery.disableAnimationsOf(context),
       baseColor: baseColor,
       highlightColor: highlightColor,
       child: Card(
@@ -22,7 +24,8 @@ class MerchantCardShimmer extends StatelessWidget {
               width: double.infinity,
               decoration: BoxDecoration(
                 color: baseColor,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(16)),
               ),
             ),
             Padding(
@@ -70,7 +73,8 @@ class MerchantCardShimmer extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Container(height: 36, width: double.infinity, color: baseColor),
+              child: Container(
+                  height: 36, width: double.infinity, color: baseColor),
             ),
             const SizedBox(height: 8),
           ],

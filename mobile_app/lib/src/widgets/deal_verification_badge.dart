@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class DealVerificationBadge extends StatelessWidget {
@@ -19,7 +20,7 @@ class DealVerificationBadge extends StatelessWidget {
     Color fg,
     String label,
     String tooltip
-  }) get _style {
+  }) _style(BuildContext context) {
     switch (status) {
       case 'reported':
         return (
@@ -44,7 +45,7 @@ class DealVerificationBadge extends StatelessWidget {
           icon: Icons.qr_code_2_rounded,
           bg: const Color(0xFFE3F2FD),
           border: const Color(0xFF90CAF9),
-          fg: const Color(0xFF0D47A1),
+          fg: AppColors.accent(context),
           label: label ?? 'QR redeemed',
           tooltip: 'This deal has been redeemed in store',
         );
@@ -69,7 +70,7 @@ class DealVerificationBadge extends StatelessWidget {
         ? const EdgeInsets.symmetric(horizontal: 6, vertical: 3)
         : const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
 
-    final style = _style;
+    final style = _style(context);
     return Tooltip(
       message: style.tooltip,
       child: Container(

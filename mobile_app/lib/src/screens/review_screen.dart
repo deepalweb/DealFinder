@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../services/review_service.dart';
@@ -35,9 +36,11 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
   Future<void> _loadReviews() async {
     final reviews = await ReviewService.getReviews(widget.promotion.id);
-    final averageRating = await ReviewService.getAverageRating(widget.promotion.id);
+    final averageRating =
+        await ReviewService.getAverageRating(widget.promotion.id);
     final reviewCount = await ReviewService.getReviewCount(widget.promotion.id);
-    final hasUserReviewed = await ReviewService.hasUserReviewed(widget.promotion.id);
+    final hasUserReviewed =
+        await ReviewService.hasUserReviewed(widget.promotion.id);
 
     setState(() {
       _reviews = reviews;
@@ -96,7 +99,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
           // Deal info header
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.grey[100],
+            color: AppColors.canvas(context),
             child: Row(
               children: [
                 ClipRRect(
@@ -104,7 +107,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                   child: Container(
                     width: 60,
                     height: 60,
-                    color: Colors.grey[300],
+                    color: AppColors.border(context),
                     child: const Icon(Icons.local_offer, size: 30),
                   ),
                 ),
@@ -151,7 +154,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
                       const Text('Rating: '),
                       InteractiveRatingWidget(
                         initialRating: _rating,
-                        onRatingChanged: (rating) => setState(() => _rating = rating),
+                        onRatingChanged: (rating) =>
+                            setState(() => _rating = rating),
                       ),
                       const SizedBox(width: 8),
                       Text('$_rating/5'),
@@ -200,7 +204,7 @@ class _ReviewScreenState extends State<ReviewScreen> {
                     itemBuilder: (context, index) {
                       final review = _reviews[index];
                       final date = DateTime.parse(review['date']);
-                      
+
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: Padding(
@@ -212,25 +216,31 @@ class _ReviewScreenState extends State<ReviewScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 16,
-                                    child: Text(review['userName'][0].toUpperCase()),
+                                    child: Text(
+                                        review['userName'][0].toUpperCase()),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           review['userName'],
-                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold),
                                         ),
                                         Text(
                                           '${date.day}/${date.month}/${date.year}',
-                                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                          style: const TextStyle(
+                                              color: Colors.grey, fontSize: 12),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  RatingWidget(rating: review['rating'].toDouble(), size: 16),
+                                  RatingWidget(
+                                      rating: review['rating'].toDouble(),
+                                      size: 16),
                                 ],
                               ),
                               const SizedBox(height: 8),

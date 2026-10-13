@@ -1,8 +1,7 @@
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
+import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
-import 'dart:convert';
 
 enum LocationFetchStatus {
   success,
@@ -184,75 +183,26 @@ class LocationService {
         }
       }
 
-      // Using OpenStreetMap Nominatim (free, no API key required)
-      final url = Uri.parse(
-          'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1');
-
-      final response = await http.get(
-        url,
-        headers: {'User-Agent': 'DealFinder-Mobile-App'},
-      ).timeout(const Duration(seconds: 5));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final address = data['address'] as Map<String, dynamic>?;
-        final locationName = _buildLocationLabel(address);
-
-        // Cache the result
-        if (locationName != null) {
-          await prefs.setString(cacheKey, locationName);
-          await prefs.setInt(
-              '${cacheKey}_time', DateTime.now().millisecondsSinceEpoch);
-        }
-
+      final places = await Geocoding()
+          .placemarkFromCoordinates(lat, lng)
+          .timeout(const Duration(seconds: 5));
+      if (places.isEmpty) return null;
+      final place = places.first;
+      final parts = <String>{
+        if ((place.subLocality ?? '').trim().isNotEmpty)
+          place.subLocality!.trim(),
+        if ((place.locality ?? '').trim().isNotEmpty) place.locality!.trim(),
+      };
+      final locationName =
+          parts.isNotEmpty ? parts.join(', ') : place.administrativeArea;
+      if (locationName != null && locationName.isNotEmpty) {
+        await prefs.setString(cacheKey, locationName);
+        await prefs.setInt(
+            '${cacheKey}_time', DateTime.now().millisecondsSinceEpoch);
         return locationName;
       }
     } catch (_) {}
     return null;
-  }
-
-  static String? _buildLocationLabel(Map<String, dynamic>? address) {
-    if (address == null) return null;
-
-    String? pick(List<String> keys) {
-      for (final key in keys) {
-        final value = address[key]?.toString().trim();
-        if (value != null && value.isNotEmpty) {
-          return value;
-        }
-      }
-      return null;
-    }
-
-    final road = pick([
-      'road',
-      'pedestrian',
-      'footway',
-      'residential',
-    ]);
-    final localArea = pick([
-      'neighbourhood',
-      'suburb',
-      'quarter',
-      'city_district',
-      'hamlet',
-    ]);
-    final city = pick([
-      'city',
-      'town',
-      'village',
-      'municipality',
-      'county',
-      'state_district',
-    ]);
-
-    if (road != null && localArea != null) {
-      return '$road, $localArea';
-    }
-    if (localArea != null && city != null && localArea != city) {
-      return '$localArea, $city';
-    }
-    return localArea ?? city ?? road;
   }
 
   static double calculateDistance(

@@ -87,15 +87,14 @@ void main() {
           userId: 'user-1',
           token: 'token-1',
           homeScreenBuilder: (_) => const _CounterTab(label: 'Home Counter'),
-          dealsScreenBuilder: (_) => const Scaffold(
+          nearbyScreenBuilder: (_) => const Scaffold(
             body: Center(child: Text('Deals Screen')),
           ),
-          storesScreenBuilder: (_) => const Scaffold(
+          bankOffersScreenBuilder: (_) => const Scaffold(
             body: Center(child: Text('Stores Screen')),
           ),
-          favoritesScreenBuilder: (_) => const Scaffold(
-            body: Center(child: Text('Favorites Screen')),
-          ),
+          favoritesScreenBuilder: (_) =>
+              const _CounterTab(label: 'Saved Counter'),
           profileScreenBuilder: (_) => const Scaffold(
             body: Center(child: Text('Profile Screen')),
           ),
@@ -110,13 +109,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Home Counter: 1'), findsOneWidget);
 
-    await tester.tap(find.text('Deals'));
+    await tester.tap(find.text('Nearby'));
     await tester.pumpAndSettle();
     expect(find.text('Deals Screen'), findsOneWidget);
 
-    await tester.tap(find.text('Home'));
+    await tester.tap(find.text('Discover'));
     await tester.pumpAndSettle();
     expect(find.text('Home Counter: 1'), findsOneWidget);
+
+    await tester.tap(find.text('Saved'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('increment-home-counter')));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved Counter: 1'), findsOneWidget);
+    await tester.tap(find.text('Discover'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Saved'));
+    await tester.pumpAndSettle();
+    expect(find.text('Saved Counter: 1'), findsOneWidget);
   });
 }
 

@@ -1,19 +1,17 @@
 import 'dart:convert'; // For base64Decode
 import 'dart:async';
-// For Uint8List
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../services/image_helper.dart';
 import 'package:flutter/services.dart'; // For Clipboard
 import 'package:intl/intl.dart'; // For date formatting
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:shimmer/shimmer.dart';
 import '../models/promotion.dart';
 import '../services/favorites_manager.dart';
+import '../services/saved_offer_service.dart';
 import '../services/api_service.dart';
 import '../services/recommendation_service.dart';
 import '../services/deal_history_service.dart';
@@ -25,6 +23,8 @@ import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_expiry_helper.dart';
 import '../widgets/deal_verification_badge.dart';
 import '../widgets/rating_widget.dart';
+import '../widgets/modern_deal_card.dart';
+import '../widgets/sign_in_gate.dart';
 
 String _localizedText(BuildContext context, String en, String si, String ta) {
   switch (Localizations.localeOf(context).languageCode) {
@@ -101,6 +101,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   @override
   void initState() {
     super.initState();
+    FavoritesManager.changes.addListener(_refreshFavoriteSnapshot);
     _loadUserAuth().then((_) {
       _loadFavoriteStatus();
       _loadDealAlertStatus();
@@ -119,6 +120,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   @override
   void dispose() {
+    FavoritesManager.changes.removeListener(_refreshFavoriteSnapshot);
     _countdownTimer?.cancel();
     _commentController.dispose();
     super.dispose();
@@ -192,6 +194,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Future<void> _loadUserAuth() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _userToken = prefs.getString('userToken');
       _userId = prefs.getString('userId');
@@ -231,20 +234,22 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     } catch (_) {}
   }
 
+  bool _openingSignIn = false;
+  Future<bool> _ensureSignedIn() async {
+    if (_openingSignIn) return false;
+    _openingSignIn = true;
+    try {
+      if (!await requireSignIn(context) || !mounted) return false;
+      await _loadUserAuth();
+      return mounted && _userToken != null && _userId != null;
+    } finally {
+      _openingSignIn = false;
+    }
+  }
+
   Future<void> _toggleDealAlert() async {
     if (_isPlatformBankOffer) return;
-    if (_userToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_t(
-            'Please log in to get deal alerts.',
-            'Deal alerts ලබා ගැනීමට කරුණාකර log in වෙන්න.',
-            'Deal alerts பெற log in செய்யவும்.',
-          )),
-        ),
-      );
-      return;
-    }
+    if (!await _ensureSignedIn() || !mounted) return;
 
     final nextEnabled = !_dealAlertEnabled;
     setState(() => _loadingDealAlert = true);
@@ -281,36 +286,33 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     }
   }
 
+  Future<void> _refreshFavoriteSnapshot() async {
+    final saved = await FavoritesManager.isFavorite(widget.promotion.id);
+    if (mounted) setState(() => _isFavorite = saved);
+  }
+
+  bool _savingFavorite = false;
   Future<void> _toggleFavorite() async {
-    final nextFavorite = !_isFavorite;
-    if (nextFavorite) {
-      await FavoritesManager.addFavoritePromotion(widget.promotion);
-    } else {
-      await FavoritesManager.removeFavorite(widget.promotion.id);
+    if (_savingFavorite) return;
+    _savingFavorite = true;
+    try {
+      if (!await _ensureSignedIn() || !mounted) return;
+      final next = !await FavoritesManager.isFavorite(widget.promotion.id);
+      await SavedOfferService.setSaved(widget.promotion, next);
+      if (!mounted) return;
+      setState(() => _isFavorite = next);
+      if (next && _isPlatformBankOffer) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.savedOnDevice)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.saveOfferFailed)));
+      }
+    } finally {
+      _savingFavorite = false;
     }
-    if (_userId != null && _userToken != null) {
-      try {
-        if (nextFavorite) {
-          await _apiService.addFavorite(
-            _userId!,
-            widget.promotion.id,
-            _userToken!,
-          );
-        } else {
-          await _apiService.removeFavorite(
-            _userId!,
-            widget.promotion.id,
-            _userToken!,
-          );
-        }
-      } catch (_) {}
-    }
-    setState(() {
-      _isFavorite = nextFavorite;
-      _favoriteCount = _isFavorite
-          ? _favoriteCount + 1
-          : (_favoriteCount > 0 ? _favoriteCount - 1 : 0);
-    });
   }
 
   Future<void> _fetchMerchantData() async {
@@ -776,13 +778,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     } catch (_) {}
   }
 
-  void _showAuthRequiredMessage(String action) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(AppLocalizations.of(context)!.pleaseLoginTo(action))),
-    );
-  }
-
   String _formatReviewDate(dynamic value) {
     if (value is! String || value.isEmpty) return '';
     try {
@@ -798,11 +793,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       debugPrint('DEBUG: Skipping - is platform bank offer');
       return;
     }
-    if (_userToken == null) {
-      debugPrint('DEBUG: No user token, showing auth required');
-      _showAuthRequiredMessage('rate this deal');
-      return;
-    }
+    if (!await _ensureSignedIn() || !mounted) return;
 
     setState(() => _submittingRating = true);
     try {
@@ -852,18 +843,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Future<void> _submitRedemptionFeedback(bool worked) async {
     if (_isPlatformBankOffer) return;
-    if (_userToken == null) {
-      _showAuthRequiredMessage(worked
-          ? _t(
-              'mark this deal as worked',
-              'මෙම deal එක worked ලෙස සලකුණු කිරීමට',
-              'இந்த deal worked என்று குறிக்க')
-          : _t(
-              'mark this deal as not working',
-              'මෙම deal එක not working ලෙස සලකුණු කිරීමට',
-              'இந்த deal not working என்று குறிக்க'));
-      return;
-    }
+    if (!await _ensureSignedIn() || !mounted) return;
 
     setState(() => _submittingRedemptionFeedback = true);
     try {
@@ -911,14 +891,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Future<void> _showReportDealDialog() async {
     if (_isPlatformBankOffer) return;
-    if (_userToken == null) {
-      _showAuthRequiredMessage(_t(
-        'report this deal',
-        'මෙම deal එක report කිරීමට',
-        'இந்த deal-ஐ report செய்ய',
-      ));
-      return;
-    }
+    if (!await _ensureSignedIn() || !mounted) return;
 
     var reason = 'expired_or_invalid';
     final detailsController = TextEditingController();
@@ -1017,14 +990,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Future<void> _showRedemptionQr() async {
     if (_isPlatformBankOffer) return;
-    if (_userToken == null) {
-      _showAuthRequiredMessage(_t(
-        'get a redemption QR',
-        'redemption QR ලබා ගැනීමට',
-        'redemption QR பெற',
-      ));
-      return;
-    }
+    if (!await _ensureSignedIn() || !mounted) return;
 
     setState(() => _creatingRedemptionQr = true);
     try {
@@ -1097,11 +1063,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
       debugPrint('DEBUG: Skipping - is platform bank offer');
       return;
     }
-    if (_userToken == null) {
-      debugPrint('DEBUG: No user token, showing auth required');
-      _showAuthRequiredMessage('comment on this deal');
-      return;
-    }
+    if (!await _ensureSignedIn() || !mounted) return;
 
     final text = _commentController.text.trim();
     if (text.isEmpty) {
@@ -1164,10 +1126,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final originalPriceLabel = _originalPriceText(promotion);
     final savingsLabel = _savingsText(promotion);
     final distanceLabel = _formatDistance(_displayDistanceMeters);
-    final isVerifiedDeal = (((_trustStatus ?? promotion.trustStatus) ?? '')
-                .isNotEmpty &&
-            (_trustStatus ?? promotion.trustStatus) != 'standard') ||
-        promotion.isVerifiedActiveDeal;
+    final isVerifiedDeal =
+        (_trustStatus ?? promotion.trustStatus) == 'verified' ||
+            promotion.adminVerified;
     final verifiedLabel = isVerifiedDeal
         ? (_trustLabel ??
             promotion.trustLabel ??
@@ -1176,8 +1137,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final whyVisitCard = _WhyVisitCard(
       savingsLabel: savingsLabel,
       distanceLabel: distanceLabel.isEmpty ? null : distanceLabel,
-      countdownText:
-          _countdownText == null ? null : _formatCountdownInline(_countdownText!),
+      countdownText: _countdownText == null
+          ? null
+          : _formatCountdownInline(_countdownText!),
       verifiedLabel: verifiedLabel,
     );
     final displayTitle = _displayTitle(promotion);
@@ -1245,7 +1207,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           status: (_trustStatus ?? promotion.trustStatus)!,
           label: _trustLabel ?? promotion.trustLabel,
         )
-      else if (promotion.isVerifiedActiveDeal)
+      else if (promotion.adminVerified)
         const DealVerificationBadge(compact: false),
       if ((promotion.category ?? '').trim().isNotEmpty)
         _buildInfoPill(
@@ -1466,23 +1428,24 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 : null;
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceLight,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(displayTitle, overflow: TextOverflow.ellipsis, maxLines: 1),
+        title: Text(_t('Deal details', 'දීමනාවේ විස්තර', 'சலுகை விவரங்கள்')),
         actions: [
-          Semantics(
-            button: true,
-            label: _isFavorite ? l10n.removeFavorite : l10n.saveFavorites,
-            child: IconButton(
-              icon: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: _isFavorite ? AppColors.turmeric : null,
+          if (stickyPrimaryAction == null)
+            Semantics(
+              button: true,
+              label: _isFavorite ? l10n.removeFavorite : l10n.saveFavorites,
+              child: IconButton(
+                icon: Icon(
+                  _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: _isFavorite ? theme.colorScheme.primary : null,
+                ),
+                tooltip: l10n.toggleFavoriteTooltip,
+                onPressed: _toggleFavorite,
               ),
-              tooltip: l10n.toggleFavoriteTooltip,
-              onPressed: _toggleFavorite,
             ),
-          ),
-          if (!_isPlatformBankOffer)
+          if (!_isPlatformBankOffer && stickyPrimaryAction == null)
             IconButton(
               icon: _loadingDealAlert
                   ? const SizedBox(
@@ -1494,7 +1457,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       _dealAlertEnabled
                           ? Icons.notifications_active
                           : Icons.notifications_none,
-                      color: _dealAlertEnabled ? AppColors.turmeric : null,
+                      color:
+                          _dealAlertEnabled ? theme.colorScheme.primary : null,
                     ),
               tooltip: _dealAlertEnabled
                   ? _t(
@@ -1657,116 +1621,49 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   Widget _buildRecommendationsSection(ThemeData theme) {
     final l10n = AppLocalizations.of(context)!;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.youMightAlsoLike,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12.0),
-            FutureBuilder<List<Promotion>>(
-              future: _recommendedDealsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(
-                    height: 180,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return SizedBox(
-                    height: 180,
-                    child: Center(
-                      child: Text(l10n.errorLoadingRecommendations),
-                    ),
-                  );
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return SizedBox(
-                    height: 180,
-                    child: Center(
-                      child: Text(l10n.noRecommendationsAvailable),
-                    ),
-                  );
-                }
-
-                final recommendedDeals = snapshot.data!;
-                return SizedBox(
-                  height: 180,
-                  child: ListView.separated(
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child:
+              Text(l10n.youMightAlsoLike, style: theme.textTheme.titleLarge)),
+      FutureBuilder<List<Promotion>>(
+          future: _recommendedDealsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                  height: 140,
+                  child: Center(child: CircularProgressIndicator()));
+            }
+            if (snapshot.hasError) {
+              return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l10n.errorLoadingRecommendations));
+            }
+            if (snapshot.data?.isEmpty ?? true) {
+              return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(l10n.noRecommendationsAvailable));
+            }
+            return SizedBox(
+                height:
+                    294 + (MediaQuery.textScalerOf(context).scale(16) - 16) * 6,
+                child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    itemCount: recommendedDeals.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 12),
+                    itemCount: snapshot.data!.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
                     itemBuilder: (context, index) {
-                      final deal = recommendedDeals[index];
-                      return Container(
-                        width: 140,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.outlineVariant),
-                        ),
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        DealDetailScreen(promotion: deal),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                height: 70,
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: _buildRecommendationImage(
-                                  deal.imageDataString,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              deal.title,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              deal.description,
-                              style: theme.textTheme.bodySmall,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+                      final deal = snapshot.data![index];
+                      return ModernDealCard(
+                          width: 184,
+                          promotion: deal,
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      DealDetailScreen(promotion: deal))));
+                    }));
+          }),
+    ]);
   }
 
   Widget _buildRedemptionFeedbackSection(ThemeData theme) {
@@ -1943,6 +1840,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                       color: theme.colorScheme.primary,
                     ),
                   ),
+                  TextButton(
+                      onPressed: _ensureSignedIn,
+                      child: Text(l10n.discoverySignIn)),
                 ],
                 const SizedBox(height: 16.0),
                 _buildRedemptionFeedbackSection(theme),
@@ -1980,7 +1880,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                       backgroundImage: NetworkImage(
                                         c['user']!['profilePicture'],
                                       ),
-                                      backgroundColor: Colors.grey[200],
+                                      backgroundColor:
+                                          AppColors.border(context),
                                     )
                                   : CircleAvatar(
                                       backgroundColor:
@@ -2146,115 +2047,35 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     );
   }
 
-  Widget _buildImageErrorPlaceholder(BuildContext context, {Object? error}) {
-    return Container(
-      height: 250,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(12.0),
-      ),
-      child:
-          Icon(Icons.broken_image_outlined, size: 60, color: Colors.grey[600]),
-    );
-  }
-
   Widget _buildImageWidget(BuildContext context, String? imageDataString) {
-    void showFullScreenImage(Widget imageWidget) {
-      showDialog(
-        context: context,
-        builder: (context) => Dialog(
-          backgroundColor: Colors.black,
-          insetPadding: EdgeInsets.zero,
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: InteractiveViewer(child: imageWidget),
-          ),
-        ),
-      );
-    }
-
-    if (imageDataString == null || imageDataString.isEmpty) {
-      return _buildImageErrorPlaceholder(context);
-    }
-    if (imageDataString.startsWith('data:image') &&
-        imageDataString.contains(';base64,')) {
-      try {
-        final String base64Data =
-            imageDataString.substring(imageDataString.indexOf(',') + 1);
-        final Uint8List decodedBytes = base64Decode(base64Data);
-        final image = Image.memory(
-          decodedBytes,
-          width: double.infinity,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) =>
-              _buildImageErrorPlaceholder(context, error: error),
-        );
-        return GestureDetector(
-          onTap: () => showFullScreenImage(image),
-          child: image,
-        );
-      } catch (e) {
-        return _buildImageErrorPlaceholder(context, error: e);
-      }
-    } else if (imageDataString.startsWith('http')) {
-      final image = Image.network(
-        imageDataString,
-        width: double.infinity,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) =>
-            _buildImageErrorPlaceholder(context, error: error),
-      );
-      return GestureDetector(
-        onTap: () => showFullScreenImage(image),
-        child: image,
-      );
-    }
-    return _buildImageErrorPlaceholder(context);
-  }
-
-  Widget _buildRecommendationImage(String? imageDataString) {
-    final shimmer = Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Container(color: Colors.white),
-    );
-
-    if (imageDataString == null || imageDataString.isEmpty) {
-      return Container(
-        decoration: const BoxDecoration(color: AppColors.ceylonInk),
-        child: const Center(
-          child: Icon(Icons.local_offer, size: 30, color: AppColors.turmeric),
-        ),
-      );
-    }
-
-    if (imageDataString.startsWith('data:image')) {
-      try {
-        final bytes = base64Decode(
-            imageDataString.substring(imageDataString.indexOf(',') + 1));
-        return Image.memory(
-          bytes,
-          fit: BoxFit.cover,
-          width: double.infinity,
-          errorBuilder: (_, __, ___) => shimmer,
-        );
-      } catch (e) {
-        return shimmer;
-      }
-    }
-
-    if (imageDataString.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: imageDataString,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        placeholder: (_, __) => shimmer,
-        errorWidget: (_, __, ___) => shimmer,
-      );
-    }
-
-    return shimmer;
+    return Semantics(
+        button: true,
+        label: _t('View image', 'රූපය බලන්න', 'படத்தைப் பார்க்கவும்'),
+        child: InkWell(
+            onTap: () => showDialog<void>(
+                context: context,
+                builder: (context) => Dialog(
+                      backgroundColor: Colors.black,
+                      insetPadding: EdgeInsets.zero,
+                      child: SafeArea(
+                          child: Stack(children: [
+                        Center(
+                            child: InteractiveViewer(
+                                child: ImageHelper.buildOptimizedImage(
+                                    imageDataString,
+                                    fit: BoxFit.contain))),
+                        Positioned(
+                            top: 8,
+                            right: 8,
+                            child: IconButton(
+                                tooltip: _t('Close', 'වසන්න', 'மூடு'),
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.close_rounded,
+                                    color: Colors.white))),
+                      ])),
+                    )),
+            child: ImageHelper.buildOptimizedImage(imageDataString,
+                fit: BoxFit.cover)));
   }
 
   Widget _buildStatChip(IconData icon, String label, int value) {
@@ -2280,7 +2101,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               Text(
                 '$value',
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.1,
                 ),
               ),
@@ -2302,27 +2123,24 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     const gap = 10.0;
 
     List<Widget> buildRows(List<Widget> actions, double fullWidth) {
+      if (fullWidth < 420 || MediaQuery.textScalerOf(context).scale(16) > 24) {
+        return actions
+            .map((action) =>
+                _buildActionButtonShell(width: fullWidth, child: action))
+            .toList();
+      }
       final halfWidth = (fullWidth - gap) / 2;
       final rows = <Widget>[];
       for (var i = 0; i < actions.length; i += 2) {
-        final remaining = actions.length - i;
-        if (remaining == 1) {
+        if (i + 1 == actions.length) {
           rows.add(
-            _buildActionButtonShell(width: fullWidth, child: actions[i]),
-          );
+              _buildActionButtonShell(width: fullWidth, child: actions[i]));
         } else {
-          rows.add(
-            Row(
-              children: [
-                _buildActionButtonShell(width: halfWidth, child: actions[i]),
-                const SizedBox(width: gap),
-                _buildActionButtonShell(
-                  width: halfWidth,
-                  child: actions[i + 1],
-                ),
-              ],
-            ),
-          );
+          rows.add(Row(children: [
+            _buildActionButtonShell(width: halfWidth, child: actions[i]),
+            const SizedBox(width: gap),
+            _buildActionButtonShell(width: halfWidth, child: actions[i + 1]),
+          ]));
         }
       }
       return rows;
@@ -2330,7 +2148,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final fullWidth = constraints.maxWidth - 32;
+        final fullWidth = constraints.maxWidth - 34;
         final primary = <Widget>[
           ...primaryActions,
           if (directionsButton != null) directionsButton,
@@ -2354,7 +2172,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
               Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.ceylonInk,
                 ),
               ),
@@ -2419,9 +2237,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     required Widget child,
     required double width,
   }) {
-    return SizedBox(
-      width: width,
-      height: 52,
+    return ConstrainedBox(
+      constraints:
+          BoxConstraints(minWidth: width, maxWidth: width, minHeight: 52),
       child: child,
     );
   }
@@ -2533,7 +2351,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     foregroundColor: _dealAlertEnabled
-                        ? AppColors.turmeric
+                        ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant,
                     padding: EdgeInsets.zero,
                     shape: RoundedRectangleBorder(
@@ -2564,7 +2382,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: theme.colorScheme.surfaceContainerHighest,
                   foregroundColor: _isFavorite
-                      ? AppColors.turmeric
+                      ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
                   padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
@@ -2693,7 +2511,7 @@ class _DealSummarySection extends StatelessWidget {
                             merchantInitial,
                             style: TextStyle(
                               color: theme.colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               fontSize: 18,
                             ),
                           ),
@@ -2703,7 +2521,7 @@ class _DealSummarySection extends StatelessWidget {
                     child: Text(
                       merchantName!,
                       style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         height: 1.2,
                       ),
                     ),
@@ -2744,7 +2562,7 @@ class _DealSummarySection extends StatelessWidget {
                 Text(
                   headlinePrice!,
                   style: theme.textTheme.displayMedium?.copyWith(
-                    color: AppColors.turmeric,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 if (originalPriceLabel != null)
@@ -2753,7 +2571,7 @@ class _DealSummarySection extends StatelessWidget {
                     child: Text(
                       originalPriceLabel!,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: AppColors.ash,
+                        color: theme.colorScheme.onSurfaceVariant,
                         decoration: TextDecoration.lineThrough,
                       ),
                     ),
@@ -2894,15 +2712,21 @@ class _WhyVisitCard extends StatelessWidget {
           Text(
             _localizedText(context, 'Why visit?', 'ඇයි Visit කරන්නේ?',
                 'ஏன் visit செய்ய வேண்டும்?'),
-            style: theme.textTheme.displayMedium?.copyWith(color: AppColors.sand),
+            style:
+                theme.textTheme.displayMedium?.copyWith(color: AppColors.sand),
           ),
           // Savings gets the Turmeric accent — the one thing on this card
           // that's about money, so it's the one thing that gets that color.
-          if (savingsLabel != null) row(Icons.savings_outlined, savingsLabel!, iconColor: AppColors.turmeric),
-          if (distanceLabel != null) row(Icons.near_me_outlined, distanceLabel!),
+          if (savingsLabel != null)
+            row(Icons.savings_outlined, savingsLabel!,
+                iconColor: AppColors.turmeric),
+          if (distanceLabel != null)
+            row(Icons.near_me_outlined, distanceLabel!),
           if (countdownText != null) row(Icons.timer_outlined, countdownText!),
           // Verified is a trust claim, so — and only here — Betel Green.
-          if (verifiedLabel != null) row(Icons.verified_outlined, verifiedLabel!, iconColor: AppColors.betelGreen),
+          if (verifiedLabel != null)
+            row(Icons.verified_outlined, verifiedLabel!,
+                iconColor: AppColors.betelGreen),
         ],
       ),
     );
@@ -2957,7 +2781,7 @@ class _DealDetailsSection extends StatelessWidget {
               ),
             ),
             AnimatedSize(
-              duration: const Duration(milliseconds: 200),
+              duration: AppMotion.duration(context, 200),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topLeft,
               child: !expanded
@@ -2969,13 +2793,14 @@ class _DealDetailsSection extends StatelessWidget {
                         children: [
                           Text(
                             description,
-                            style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                            style: theme.textTheme.bodyLarge
+                                ?.copyWith(height: 1.5),
                           ),
                           if (startDate != null || endDate != null) ...[
                             const Divider(height: 32),
                             Text(
-                              _localizedText(context, 'Validity:', 'වලංගු කාලය:',
-                                  'செல்லுபடியாகும் காலம்:'),
+                              _localizedText(context, 'Validity:',
+                                  'වලංගු කාලය:', 'செல்லுபடியாகும் காலம்:'),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.bold,
                               ),
@@ -3066,7 +2891,7 @@ class _BankCardOfferSection extends StatelessWidget {
                         _localizedText(context, 'Card Offer Details',
                             'Card Offer විස්තර', 'Card Offer விவரங்கள்'),
                         style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 2),

@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../models/promotion.dart';
 import '../models/category.dart';
@@ -21,7 +22,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   List<String> _searchHistory = [];
   bool _isLoading = false;
   bool _showSuggestions = false;
-  
+
   // Filter options
   RangeValues _priceRange = _defaultPriceRange;
   String? _selectedCategory;
@@ -29,21 +30,21 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
   String _sortBy = 'relevance';
   bool _hasDiscountOnly = false;
   DateTime? _expiresAfter;
-  
+
   @override
   void initState() {
     super.initState();
     _loadSearchHistory();
     _searchController.addListener(_onSearchChanged);
   }
-  
+
   @override
   void dispose() {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
-  
+
   Future<void> _loadSearchHistory() async {
     final history = await SearchService.getSearchHistory();
     if (!mounted) return;
@@ -51,7 +52,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
       _searchHistory = history;
     });
   }
-  
+
   void _onSearchChanged() {
     final query = _searchController.text;
     if (query.length >= 2) {
@@ -63,7 +64,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
       });
     }
   }
-  
+
   Future<void> _getSuggestions(String query) async {
     final suggestions = await SearchService.getSuggestions(query);
     if (!mounted) return;
@@ -75,26 +76,24 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
 
   Future<void> _performSearch() async {
     final query = _searchController.text.trim();
-    final hasCustomPriceRange =
-        _priceRange.start > _defaultPriceRange.start ||
+    final hasCustomPriceRange = _priceRange.start > _defaultPriceRange.start ||
         _priceRange.end < _defaultPriceRange.end;
-    final hasFilterOnlySearch =
-        (_selectedCategory?.isNotEmpty ?? false) ||
+    final hasFilterOnlySearch = (_selectedCategory?.isNotEmpty ?? false) ||
         (_selectedMerchant?.isNotEmpty ?? false) ||
         _hasDiscountOnly ||
         _expiresAfter != null ||
         _sortBy != 'relevance' ||
         hasCustomPriceRange;
     if (query.isEmpty && !hasFilterOnlySearch) return;
-    
+
     setState(() {
       _isLoading = true;
       _showSuggestions = false;
     });
-    
+
     try {
       await SearchService.addToSearchHistory(query);
-      
+
       final results = await SearchService.performAdvancedSearch(
         query: query,
         category: _selectedCategory,
@@ -131,7 +130,9 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Search History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Search History',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 TextButton(
                   onPressed: () async {
                     await SearchService.clearSearchHistory();
@@ -147,15 +148,18 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
             if (_searchHistory.isEmpty)
               const Text('No search history')
             else
-              ..._searchHistory.take(10).map((query) => ListTile(
-                leading: const Icon(Icons.history),
-                title: Text(query),
-                onTap: () {
-                  _searchController.text = query;
-                  Navigator.pop(context);
-                  _performSearch();
-                },
-              )).toList(),
+              ..._searchHistory
+                  .take(10)
+                  .map((query) => ListTile(
+                        leading: const Icon(Icons.history),
+                        title: Text(query),
+                        onTap: () {
+                          _searchController.text = query;
+                          Navigator.pop(context);
+                          _performSearch();
+                        },
+                      ))
+                  .toList(),
           ],
         ),
       ),
@@ -203,13 +207,13 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                   ),
                   onSubmitted: (_) => _performSearch(),
                 ),
-                
+
                 // Search suggestions
                 if (_showSuggestions && _searchSuggestions.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[300]!),
+                      border: Border.all(color: AppColors.border(context)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: ListView.builder(
@@ -233,7 +237,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
               ],
             ),
           ),
-          
+
           // Filters
           ExpansionTile(
             title: const Text('Filters'),
@@ -254,12 +258,13 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                       min: _defaultPriceRange.start,
                       max: _defaultPriceRange.end,
                       divisions: 100,
-                      onChanged: (values) => setState(() => _priceRange = values),
+                      onChanged: (values) =>
+                          setState(() => _priceRange = values),
                     ),
                   ],
                 ),
               ),
-              
+
               // Category filter
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -267,15 +272,16 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                   initialValue: _selectedCategory,
                   decoration: const InputDecoration(labelText: 'Category'),
                   items: [
-                    const DropdownMenuItem(value: null, child: Text('All Categories')),
-                    ...predefinedCategories.map((cat) => 
-                      DropdownMenuItem(value: cat.id, child: Text(cat.name))
-                    ),
+                    const DropdownMenuItem(
+                        value: null, child: Text('All Categories')),
+                    ...predefinedCategories.map((cat) =>
+                        DropdownMenuItem(value: cat.id, child: Text(cat.name))),
                   ],
-                  onChanged: (value) => setState(() => _selectedCategory = value),
+                  onChanged: (value) =>
+                      setState(() => _selectedCategory = value),
                 ),
               ),
-              
+
               // Merchant filter
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -284,26 +290,29 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                     labelText: 'Merchant Name',
                     prefixIcon: Icon(Icons.store),
                   ),
-                  onChanged: (value) => _selectedMerchant = value.isEmpty ? null : value,
+                  onChanged: (value) =>
+                      _selectedMerchant = value.isEmpty ? null : value,
                 ),
               ),
-              
+
               // Discount filter
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: CheckboxListTile(
                   title: const Text('Deals with discount only'),
                   value: _hasDiscountOnly,
-                  onChanged: (value) => setState(() => _hasDiscountOnly = value ?? false),
+                  onChanged: (value) =>
+                      setState(() => _hasDiscountOnly = value ?? false),
                 ),
               ),
-              
+
               // Expiry filter
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: ListTile(
                   title: const Text('Expires after'),
-                  subtitle: Text(_expiresAfter?.toString().split(' ')[0] ?? 'Any time'),
+                  subtitle: Text(
+                      _expiresAfter?.toString().split(' ')[0] ?? 'Any time'),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
                     final date = await showDatePicker(
@@ -318,7 +327,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                   },
                 ),
               ),
-              
+
               // Sort by
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -326,17 +335,23 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                   initialValue: _sortBy,
                   decoration: const InputDecoration(labelText: 'Sort By'),
                   items: const [
-                    DropdownMenuItem(value: 'relevance', child: Text('Relevance')),
-                    DropdownMenuItem(value: 'newest', child: Text('Newest First')),
-                    DropdownMenuItem(value: 'price_low', child: Text('Price: Low to High')),
-                    DropdownMenuItem(value: 'price_high', child: Text('Price: High to Low')),
-                    DropdownMenuItem(value: 'discount', child: Text('Best Discount')),
-                    DropdownMenuItem(value: 'expiry', child: Text('Expiring Soon')),
+                    DropdownMenuItem(
+                        value: 'relevance', child: Text('Relevance')),
+                    DropdownMenuItem(
+                        value: 'newest', child: Text('Newest First')),
+                    DropdownMenuItem(
+                        value: 'price_low', child: Text('Price: Low to High')),
+                    DropdownMenuItem(
+                        value: 'price_high', child: Text('Price: High to Low')),
+                    DropdownMenuItem(
+                        value: 'discount', child: Text('Best Discount')),
+                    DropdownMenuItem(
+                        value: 'expiry', child: Text('Expiring Soon')),
                   ],
                   onChanged: (value) => setState(() => _sortBy = value!),
                 ),
               ),
-              
+
               // Apply filters button
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -347,7 +362,7 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
               ),
             ],
           ),
-          
+
           // Results
           Expanded(
             child: _isLoading
@@ -357,7 +372,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.search_off, size: 64, color: Colors.grey),
+                            Icon(Icons.search_off,
+                                size: 64, color: Colors.grey),
                             SizedBox(height: 16),
                             Text('No results found'),
                             Text('Try different keywords or adjust filters'),
@@ -375,7 +391,8 @@ class _AdvancedSearchScreenState extends State<AdvancedSearchScreen> {
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => DealDetailScreen(promotion: deal),
+                                  builder: (context) =>
+                                      DealDetailScreen(promotion: deal),
                                 ),
                               ),
                               child: DealCard(promotion: deal),

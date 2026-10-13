@@ -870,4 +870,240 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get cardOfferDetailsNote =>
       'பணம் செலுத்தும் முன் சரியான bank, card type, discount cap மற்றும் offer in-store, online அல்லது குறிப்பிட்ட நாட்களில் மட்டுமே பொருந்துமா என்பதை உறுதிப்படுத்துங்கள்.';
+
+  @override
+  String get modernWelcomeTitle => 'மீண்டும் வரவேற்கிறோம்';
+
+  @override
+  String get modernWelcomeSubtitle =>
+      'உங்கள் அடுத்த சிறந்த சலுகை காத்திருக்கிறது.';
+
+  @override
+  String get modernRegisterTitle => 'உங்களுக்கு அருகில் இன்னும் பல.';
+
+  @override
+  String get modernRegisterSubtitle =>
+      'அனுபவிக்கத் தகுந்த சலுகைகளைக் கண்டறியுங்கள்.';
+
+  @override
+  String get clearSearchLabel => 'தேடலை அழிக்கவும்';
+
+  @override
+  String get viewStoreLabel => 'கடையைப் பார்க்கவும்';
+
+  @override
+  String get followStoreLabel => 'பின்தொடரவும்';
+
+  @override
+  String get shareStoreLabel => 'கடையைப் பகிரவும்';
+
+  @override
+  String get verifiedDealLabel => 'சரிபார்க்கப்பட்ட சலுகை';
+
+  @override
+  String get caughtUpTitle => 'எல்லா அறிவிப்புகளையும் பார்த்துவிட்டீர்கள்';
+
+  @override
+  String get caughtUpMessage =>
+      'உங்களுக்குப் பிடித்த கடைகள் மற்றும் சலுகைகளின் புதுப்பிப்புகள் இங்கே தோன்றும்.';
+
+  @override
+  String get loadNotificationsFailed => 'அறிவிப்புகளை ஏற்ற முடியவில்லை';
+
+  @override
+  String get checkConnectionRetry =>
+      'உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get deleteNotificationLabel => 'அறிவிப்பை நீக்கவும்';
+
+  @override
+  String get discoverTab => 'கண்டறிக';
+
+  @override
+  String get nearbyTab => 'அருகில்';
+
+  @override
+  String get bankOffersTab => 'வங்கி சலுகைகள்';
+
+  @override
+  String get savedTab => 'சேமித்தவை';
+
+  @override
+  String get accountTab => 'கணக்கு';
+
+  @override
+  String get browseStores => 'கடைகளைப் பார்க்க';
+
+  @override
+  String get popularTitle => 'பிரபலமானவை';
+
+  @override
+  String get discoverySignInTitle =>
+      'உங்கள் கண்டுபிடிப்புகளைச் சேமிக்க உள்நுழைக';
+
+  @override
+  String get discoverySignInBody =>
+      'சலுகைகளைச் சேமிக்கவும், கடைகளைப் பின்தொடரவும், கணக்கை நிர்வகிக்கவும். உள்நுழையாமலும் தொடர்ந்து பார்க்கலாம்.';
+
+  @override
+  String get discoverySignIn => 'உள்நுழைக';
+
+  @override
+  String get useMyLocation => 'என் இருப்பிடத்தைப் பயன்படுத்து';
+
+  @override
+  String get popularOffersSubtitle => 'ஆராயத் தகுந்த பிரபலமான சலுகைகள்';
+
+  @override
+  String get chooseAreaLabel => 'பகுதியைத் தேர்ந்தெடு';
+
+  @override
+  String get chooseAreaHint =>
+      '5 கி.மீ.க்குள் சலுகைகளைக் காண பகுதியைத் தேர்ந்தெடுக்கவும் அல்லது உங்கள் இருப்பிடத்தைப் பயன்படுத்தவும்.';
+
+  @override
+  String get bankSpotlightLabel => 'வங்கி சலுகைகள்';
+
+  @override
+  String get bankSpotlightHint =>
+      'வங்கிவாரியாக சலுகைகளைப் பார்க்கவும். ஒவ்வொரு சலுகையின் அட்டைத் தகுதி மற்றும் நிபந்தனைகளைச் சரிபார்க்கவும்.';
+
+  @override
+  String get noBankOffersLabel => 'இன்னும் வங்கி சலுகைகள் இல்லை.';
+
+  @override
+  String get viewOfferLabel => 'சலுகையைப் பார்';
+
+  @override
+  String get previousOfferLabel => 'முந்தைய சலுகை';
+
+  @override
+  String get nextOfferLabel => 'அடுத்த சலுகை';
+
+  @override
+  String get savedOnDevice => 'இந்தச் சாதனத்தில் சேமிக்கப்பட்டது';
+
+  @override
+  String get saveOfferFailed =>
+      'மாற்றத்தைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get creditCardLabel => 'கடன் அட்டைகள்';
+
+  @override
+  String get debitCardLabel => 'பற்று அட்டைகள்';
+
+  @override
+  String get prepaidCardLabel => 'முன்பணம் செலுத்திய அட்டைகள்';
+
+  @override
+  String get inStoreLabel => 'கடையில்';
+
+  @override
+  String get deliveryLabel => 'விநியோகம்';
+
+  @override
+  String get pickupLabel => 'நேரில் பெறுதல்';
+
+  @override
+  String minimumSpendLabel(String amount) {
+    return 'குறைந்தபட்ச செலவு $amount';
+  }
+
+  @override
+  String offerEndsOn(String date) {
+    return 'முடிவு $date';
+  }
+
+  @override
+  String featuredPageLabel(int page, int count) {
+    return 'சிறப்புச் சலுகை $page / $count';
+  }
+
+  @override
+  String get searchThisAreaLabel => 'இந்தப் பகுதியில் தேடு';
+
+  @override
+  String get refreshAreaLabel => 'இந்தப் பகுதியைப் புதுப்பி';
+
+  @override
+  String get selectedMapAreaLabel => 'தேர்ந்தெடுத்த வரைபடப் பகுதி';
+
+  @override
+  String get deviceLocationLabel => 'தேர்ந்தெடுத்த சாதன இருப்பிடம்';
+
+  @override
+  String get locationUnavailableHint =>
+      'இருப்பிடம் கிடைக்கவில்லை. பகுதியைத் தேர்ந்தெடுக்கவும் அல்லது இருப்பிட அமைப்புகளைச் சரிபார்க்கவும்.';
+
+  @override
+  String get searchAreasLabel => 'அருகிலுள்ள பகுதிகளைத் தேடு';
+
+  @override
+  String get chooseAreaMapHint =>
+      'பட்டியலிலிருந்து பகுதியைத் தேர்ந்தெடுக்கவும் அல்லது வரைபடத்தை நகர்த்தி இந்தப் பகுதியில் தேடு என்பதைத் தொடவும்.';
+
+  @override
+  String get filterOffersLabel => 'சலுகைகளை வடிகட்டு';
+
+  @override
+  String get openNowLabel => 'இப்போது திறந்துள்ளது';
+
+  @override
+  String get storeHoursHint =>
+      'வெளியிடப்பட்ட கடை நேரங்களின் அடிப்படையில். நேரம் தெரியாத கடைகள் சேர்க்கப்படாது.';
+
+  @override
+  String get expandResultsLabel => 'முடிவுகளைக் காட்டு';
+
+  @override
+  String get collapseResultsLabel => 'வரைபடத்தைக் காட்டு';
+
+  @override
+  String withinRadiusLabel(int radius) {
+    return '$radius கி.மீ.க்குள்';
+  }
+
+  @override
+  String get searchRadiusLabel => 'தேடல் சுற்றளவு';
+
+  @override
+  String get searchCenterLabel => 'தேடல் மையம்';
+
+  @override
+  String get areaDistanceHint => 'பகுதி மையத்திலிருந்து தோராயமான தூரங்கள்.';
+
+  @override
+  String get approximateAreaHint =>
+      'தோராயமான அல்லது சமீபத்திய இருப்பிடம் பயன்படுத்தப்பட்டது. தூரங்கள் மாறலாம்.';
+
+  @override
+  String get mapUnavailableHint =>
+      'வரைபடம் கிடைக்கவில்லை. சலுகைப் பட்டியலைத் தொடர்ந்து பார்க்கலாம்.';
+
+  @override
+  String get cachedAreaMismatchHint =>
+      'சேமித்த முடிவுகள் வேறு பகுதிக்குரியவை. இந்தப் பகுதியைப் புதுப்பிக்க இணையத்துடன் இணைக்கவும்.';
+
+  @override
+  String get noKnownOpenStoresHint =>
+      'இந்த முடிவுகளில் நேரம் தெரிந்த திறந்த கடைகள் இல்லை.';
+
+  @override
+  String nearbyOfferCount(int count) {
+    return 'அருகில் $count சலுகைகள்';
+  }
+
+  @override
+  String get closeDialogLabel => 'மூடு';
+
+  @override
+  String get cancelDialogLabel => 'ரத்து செய்';
+
+  @override
+  String get applyFilterLabel => 'வடிகட்டிகளைப் பயன்படுத்து';
+
+  @override
+  String get loadingNearbyLabel => 'அருகிலுள்ள சலுகைகள் ஏற்றப்படுகின்றன…';
 }

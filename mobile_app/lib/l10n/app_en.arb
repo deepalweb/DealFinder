@@ -1,192 +1,257 @@
 {
   "@@locale": "en",
-
   "appTitle": "Deal Finder",
-  "@appTitle": { "description": "App title" },
-
+  "@appTitle": {
+    "description": "App title"
+  },
   "welcomeBack": "Welcome back, {name}!",
   "@welcomeBack": {
     "description": "Welcome message on home screen",
-    "placeholders": { "name": { "type": "String" } }
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
-
   "findBestDeals": "Find the best deals for you",
-  "@findBestDeals": { "description": "Home screen subtitle" },
-
+  "@findBestDeals": {
+    "description": "Home screen subtitle"
+  },
   "searchHint": "Search deals, categories, merchants...",
-  "@searchHint": { "description": "Search bar hint text" },
-
+  "@searchHint": {
+    "description": "Search bar hint text"
+  },
   "featuredDeals": "Featured Deals",
-  "@featuredDeals": { "description": "Featured deals section title" },
-
+  "@featuredDeals": {
+    "description": "Featured deals section title"
+  },
   "nearbyDeals": "Nearby Deals",
-  "@nearbyDeals": { "description": "Nearby deals section title" },
-
+  "@nearbyDeals": {
+    "description": "Nearby deals section title"
+  },
   "trendingNow": "Trending Now",
-  "@trendingNow": { "description": "Trending section title" },
-
+  "@trendingNow": {
+    "description": "Trending section title"
+  },
   "viewAll": "View All",
-  "@viewAll": { "description": "View all button" },
-
+  "@viewAll": {
+    "description": "View all button"
+  },
   "nearby": "Nearby",
-  "@nearby": { "description": "Quick action nearby label" },
-
+  "@nearby": {
+    "description": "Quick action nearby label"
+  },
   "scanQR": "Scan QR",
-  "@scanQR": { "description": "Quick action scan QR label" },
-
+  "@scanQR": {
+    "description": "Quick action scan QR label"
+  },
   "favorites": "Favorites",
-  "@favorites": { "description": "Quick action favorites label" },
-
+  "@favorites": {
+    "description": "Quick action favorites label"
+  },
   "deals": "Deals",
-  "@deals": { "description": "Stats deals label" },
-
+  "@deals": {
+    "description": "Stats deals label"
+  },
   "merchants": "Merchants",
-  "@merchants": { "description": "Stats merchants label" },
-
+  "@merchants": {
+    "description": "Stats merchants label"
+  },
   "users": "Users",
-  "@users": { "description": "Stats users label" },
-
+  "@users": {
+    "description": "Stats users label"
+  },
   "privacyPolicy": "Privacy Policy",
-  "@privacyPolicy": { "description": "Footer privacy policy link" },
-
+  "@privacyPolicy": {
+    "description": "Footer privacy policy link"
+  },
   "about": "About",
-  "@about": { "description": "Footer about link" },
-
+  "@about": {
+    "description": "Footer about link"
+  },
   "contact": "Contact",
-  "@contact": { "description": "Footer contact link" },
-
+  "@contact": {
+    "description": "Footer contact link"
+  },
   "copyright": "© 2025 Deal Finder. All rights reserved.",
-  "@copyright": { "description": "Footer copyright text" },
-
+  "@copyright": {
+    "description": "Footer copyright text"
+  },
   "noFeaturedDeals": "No featured deals available.",
-  "@noFeaturedDeals": { "description": "Empty state for featured deals" },
-
+  "@noFeaturedDeals": {
+    "description": "Empty state for featured deals"
+  },
   "noNearbyDeals": "No other deals available currently.",
-  "@noNearbyDeals": { "description": "Empty state for nearby deals" },
-
+  "@noNearbyDeals": {
+    "description": "Empty state for nearby deals"
+  },
   "noTrendingDeals": "No trending deals available.",
-  "@noTrendingDeals": { "description": "Empty state for trending deals" },
-
+  "@noTrendingDeals": {
+    "description": "Empty state for trending deals"
+  },
   "apiConnectionFailed": "API Connection Failed",
-  "@apiConnectionFailed": { "description": "API error title" },
-
+  "@apiConnectionFailed": {
+    "description": "API error title"
+  },
   "retry": "Retry",
-  "@retry": { "description": "Retry button" },
-
+  "@retry": {
+    "description": "Retry button"
+  },
   "notifications": "Notifications",
-  "@notifications": { "description": "Notifications screen title" },
-
+  "@notifications": {
+    "description": "Notifications screen title"
+  },
   "daysLeft": "{days}d left",
   "@daysLeft": {
     "description": "Days left countdown",
-    "placeholders": { "days": { "type": "int" } }
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
   },
-
   "hoursLeft": "{hours}h left",
   "@hoursLeft": {
     "description": "Hours left countdown",
-    "placeholders": { "hours": { "type": "int" } }
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
   },
-
   "minutesLeft": "{minutes}m left",
   "@minutesLeft": {
     "description": "Minutes left countdown",
-    "placeholders": { "minutes": { "type": "int" } }
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
-
   "expired": "Expired",
-  "@expired": { "description": "Expired label" },
-
+  "@expired": {
+    "description": "Expired label"
+  },
   "hot": "Hot",
-  "@hot": { "description": "Trending hot label" },
-
+  "@hot": {
+    "description": "Trending hot label"
+  },
   "loginTitle": "Welcome Back",
-  "@loginTitle": { "description": "Login screen title" },
-
+  "@loginTitle": {
+    "description": "Login screen title"
+  },
   "loginSubtitle": "Sign in to continue",
-  "@loginSubtitle": { "description": "Login screen subtitle" },
-
+  "@loginSubtitle": {
+    "description": "Login screen subtitle"
+  },
   "email": "Email",
-  "@email": { "description": "Email field label" },
-
+  "@email": {
+    "description": "Email field label"
+  },
   "password": "Password",
-  "@password": { "description": "Password field label" },
-
+  "@password": {
+    "description": "Password field label"
+  },
   "forgotPassword": "Forgot Password?",
-  "@forgotPassword": { "description": "Forgot password link" },
-
+  "@forgotPassword": {
+    "description": "Forgot password link"
+  },
   "signIn": "Sign In",
-  "@signIn": { "description": "Sign in button" },
-
+  "@signIn": {
+    "description": "Sign in button"
+  },
   "orContinueWith": "Or continue with",
-  "@orContinueWith": { "description": "Social login divider text" },
-
+  "@orContinueWith": {
+    "description": "Social login divider text"
+  },
   "noAccount": "Don't have an account?",
-  "@noAccount": { "description": "No account prompt" },
-
+  "@noAccount": {
+    "description": "No account prompt"
+  },
   "signUp": "Sign Up",
-  "@signUp": { "description": "Sign up link" },
-
+  "@signUp": {
+    "description": "Sign up link"
+  },
   "registerTitle": "Create Account",
-  "@registerTitle": { "description": "Register screen title" },
-
+  "@registerTitle": {
+    "description": "Register screen title"
+  },
   "registerSubtitle": "Join Deal Finder today",
-  "@registerSubtitle": { "description": "Register screen subtitle" },
-
+  "@registerSubtitle": {
+    "description": "Register screen subtitle"
+  },
   "fullName": "Full Name",
-  "@fullName": { "description": "Full name field label" },
-
+  "@fullName": {
+    "description": "Full name field label"
+  },
   "confirmPassword": "Confirm Password",
-  "@confirmPassword": { "description": "Confirm password field label" },
-
+  "@confirmPassword": {
+    "description": "Confirm password field label"
+  },
   "alreadyHaveAccount": "Already have an account?",
-  "@alreadyHaveAccount": { "description": "Already have account prompt" },
-
+  "@alreadyHaveAccount": {
+    "description": "Already have account prompt"
+  },
   "getDirections": "Get Directions",
-  "@getDirections": { "description": "Get directions button" },
-
+  "@getDirections": {
+    "description": "Get directions button"
+  },
   "shareDeal": "Share Deal",
-  "@shareDeal": { "description": "Share deal button" },
-
+  "@shareDeal": {
+    "description": "Share deal button"
+  },
   "saveFavorites": "Save to Favorites",
-  "@saveFavorites": { "description": "Save to favorites button" },
-
+  "@saveFavorites": {
+    "description": "Save to favorites button"
+  },
   "removeFavorite": "Remove Favorite",
-  "@removeFavorite": { "description": "Remove favorite button" },
-
+  "@removeFavorite": {
+    "description": "Remove favorite button"
+  },
   "goToPromotion": "Go to Promotion",
-  "@goToPromotion": { "description": "Go to promotion button" },
-
+  "@goToPromotion": {
+    "description": "Go to promotion button"
+  },
   "visitWebsite": "Visit Website",
-  "@visitWebsite": { "description": "Visit website button" },
-
+  "@visitWebsite": {
+    "description": "Visit website button"
+  },
   "writeReview": "Write Review",
-  "@writeReview": { "description": "Write review button" },
-
+  "@writeReview": {
+    "description": "Write review button"
+  },
   "reportDeal": "Report Deal",
-  "@reportDeal": { "description": "Report deal button" },
-
+  "@reportDeal": {
+    "description": "Report deal button"
+  },
   "addToCalendar": "Add to Calendar",
-  "@addToCalendar": { "description": "Add to calendar button" },
-
+  "@addToCalendar": {
+    "description": "Add to calendar button"
+  },
   "noLocationAvailable": "No location available for this deal.",
-  "@noLocationAvailable": { "description": "No location snackbar" },
-
+  "@noLocationAvailable": {
+    "description": "No location snackbar"
+  },
   "couldNotOpenMaps": "Could not open Google Maps.",
-  "@couldNotOpenMaps": { "description": "Maps error snackbar" },
-
+  "@couldNotOpenMaps": {
+    "description": "Maps error snackbar"
+  },
   "allDeals": "All Deals",
-  "@allDeals": { "description": "All deals tab label" },
-
+  "@allDeals": {
+    "description": "All deals tab label"
+  },
   "stores": "Stores",
-  "@stores": { "description": "Stores tab label" },
-
+  "@stores": {
+    "description": "Stores tab label"
+  },
   "home": "Home",
-  "@home": { "description": "Home tab label" },
-
+  "@home": {
+    "description": "Home tab label"
+  },
   "profile": "Profile",
-  "@profile": { "description": "Profile tab label" },
-
+  "@profile": {
+    "description": "Profile tab label"
+  },
   "myProfile": "My Profile",
   "profileTab": "Profile",
   "securityTab": "Security",
@@ -224,8 +289,7 @@
   "nameCannotBeEmpty": "Name cannot be empty",
   "profileUpdatedSuccessfully": "Profile updated successfully!",
   "failedToUpdateProfile": "Failed to update profile",
-  "removedFromFavorites": "Removed from favorites"
-  ,
+  "removedFromFavorites": "Removed from favorites",
   "storesPageTitle": "Stores",
   "followingStores": "Following Stores",
   "followingStoresSubtitle": "Quick access to merchants you already care about",
@@ -243,21 +307,51 @@
   "storesSummary": "{visible} visible • {following} following • {total} total stores",
   "@storesSummary": {
     "placeholders": {
-      "visible": { "type": "int" },
-      "following": { "type": "int" },
-      "total": { "type": "int" }
+      "visible": {
+        "type": "int"
+      },
+      "following": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
     }
   },
   "searchStoresHint": "Search stores or try Sinhala like කෑම, ඉලෙක්ට්‍රොනික්",
   "activeFiltersLabel": "Active filters ({count})",
-  "@activeFiltersLabel": { "placeholders": { "count": { "type": "int" } } },
+  "@activeFiltersLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "clearAll": "Clear all",
   "searchFilterLabel": "Search: {query}",
-  "@searchFilterLabel": { "placeholders": { "query": { "type": "String" } } },
+  "@searchFilterLabel": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
   "categoryFilterLabel": "Category: {category}",
-  "@categoryFilterLabel": { "placeholders": { "category": { "type": "String" } } },
+  "@categoryFilterLabel": {
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
   "sortFilterLabel": "Sort: {sort}",
-  "@sortFilterLabel": { "placeholders": { "sort": { "type": "String" } } },
+  "@sortFilterLabel": {
+    "placeholders": {
+      "sort": {
+        "type": "String"
+      }
+    }
+  },
   "mostPopular": "Most Popular",
   "followingFirst": "Following First",
   "aToZ": "A to Z",
@@ -294,8 +388,12 @@
   "activeNearbyDealsCount": "{count} active nearby deal{pluralSuffix}",
   "@activeNearbyDealsCount": {
     "placeholders": {
-      "count": { "type": "int" },
-      "pluralSuffix": { "type": "String" }
+      "count": {
+        "type": "int"
+      },
+      "pluralSuffix": {
+        "type": "String"
+      }
     }
   },
   "closestFirst": "Closest first",
@@ -306,21 +404,44 @@
   "endingTodayNearby": "Ending today nearby",
   "nearbyDealsTitle": "Nearby deals",
   "resultsLabel": "{count} results",
-  "@resultsLabel": { "placeholders": { "count": { "type": "int" } } },
+  "@resultsLabel": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "locationRequired": "Location Required",
   "enableLocation": "Enable Location",
   "openSettings": "Open Settings",
   "noNearbyDealsFound": "No nearby deals found",
   "noNearbyDealsSubtitle": "Try increasing the radius or changing filters to widen the search.",
-  "endingSoonLabel": "Ending Soon"
-  ,
+  "endingSoonLabel": "Ending Soon",
   "liveNearbyOffersReady": "Live nearby offers are ready to explore.",
   "liveDealsAround": "Live deals around {locationName} are ready to explore.",
-  "@liveDealsAround": { "placeholders": { "locationName": { "type": "String" } } },
+  "@liveDealsAround": {
+    "placeholders": {
+      "locationName": {
+        "type": "String"
+      }
+    }
+  },
   "nearbyNowCount": "{count} nearby now",
-  "@nearbyNowCount": { "placeholders": { "count": { "type": "Object" } } },
+  "@nearbyNowCount": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
   "endingSoonCount": "{count} ending soon",
-  "@endingSoonCount": { "placeholders": { "count": { "type": "Object" } } },
+  "@endingSoonCount": {
+    "placeholders": {
+      "count": {
+        "type": "Object"
+      }
+    }
+  },
   "freshLocalDeals": "Fresh local deals",
   "openSearchDealsStores": "Open search for deals and stores",
   "searchDealsNearYou": "Search deals near you",
@@ -337,9 +458,21 @@
   "topDealsNearYou": "Top Deals Near You",
   "nearbyPicksReady": "Nearby picks ready right now",
   "nearbyPicksAround": "Nearby picks around {locationName}",
-  "@nearbyPicksAround": { "placeholders": { "locationName": { "type": "String" } } },
+  "@nearbyPicksAround": {
+    "placeholders": {
+      "locationName": {
+        "type": "String"
+      }
+    }
+  },
   "nearbyPicksCount": "{count} nearby picks",
-  "@nearbyPicksCount": { "placeholders": { "count": { "type": "int" } } },
+  "@nearbyPicksCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "openMap": "Open map",
   "enableLocationUnlockNearby": "Enable location to unlock nearby deals",
   "turnOnLocation": "Turn on location",
@@ -358,7 +491,13 @@
   "newDealsTitle": "New Deals",
   "newDealsSubtitle": "Fresh deals just added",
   "browseAllDealsCount": "Browse All {count} Deals",
-  "@browseAllDealsCount": { "placeholders": { "count": { "type": "int" } } },
+  "@browseAllDealsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "browseAllDeals": "Browse all deals",
   "viewsLabel": "Views",
   "likesLabel": "Likes",
@@ -398,15 +537,26 @@
   "postLabel": "Post",
   "locationTitle": "Location",
   "distanceFromHere": "{distance} from here",
-  "@distanceFromHere": { "placeholders": { "distance": { "type": "String" } } },
+  "@distanceFromHere": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
   "couldNotLaunchPrefix": "Could not launch",
   "noMerchantPhoneNumber": "No merchant phone number available.",
   "couldNotOpenWhatsApp": "Could not open WhatsApp.",
   "pleaseLoginTo": "Please log in to {action}.",
-  "@pleaseLoginTo": { "placeholders": { "action": { "type": "String" } } },
+  "@pleaseLoginTo": {
+    "placeholders": {
+      "action": {
+        "type": "String"
+      }
+    }
+  },
   "ratingSaved": "Rating saved!",
-  "commentPosted": "Comment posted!"
-  ,
+  "commentPosted": "Comment posted!",
   "couldNotStartPhoneCall": "Could not start the phone call.",
   "failedToSaveRating": "Failed to save rating",
   "failedToPostComment": "Failed to post comment",
@@ -419,5 +569,113 @@
   "termsAndConditionsTitle": "Terms & Conditions",
   "cardOfferDetailsTitle": "Card Offer Details",
   "cardOfferDetailsSubtitle": "Check eligible cards, offer type, and spend conditions.",
-  "cardOfferDetailsNote": "Before paying, confirm the exact eligible bank, card type, discount cap, and whether the offer applies in-store, online, or on selected days only."
+  "cardOfferDetailsNote": "Before paying, confirm the exact eligible bank, card type, discount cap, and whether the offer applies in-store, online, or on selected days only.",
+  "modernWelcomeTitle": "Welcome back",
+  "modernWelcomeSubtitle": "Your next great find is waiting.",
+  "modernRegisterTitle": "A little more local.",
+  "modernRegisterSubtitle": "Discover offers worth stepping out for.",
+  "clearSearchLabel": "Clear search",
+  "viewStoreLabel": "View store",
+  "followStoreLabel": "Follow",
+  "shareStoreLabel": "Share store",
+  "verifiedDealLabel": "Verified deal",
+  "caughtUpTitle": "You are all caught up",
+  "caughtUpMessage": "Updates from your favorite stores and deals will appear here.",
+  "loadNotificationsFailed": "Could not load notifications",
+  "checkConnectionRetry": "Check your connection and try again.",
+  "deleteNotificationLabel": "Delete notification",
+  "discoverTab": "Discover",
+  "nearbyTab": "Nearby",
+  "bankOffersTab": "Bank Offers",
+  "savedTab": "Saved",
+  "accountTab": "Account",
+  "browseStores": "Browse stores",
+  "popularTitle": "Popular",
+  "discoverySignInTitle": "Sign in to keep your discoveries",
+  "discoverySignInBody": "Save offers, follow stores, and manage your account. You can keep browsing without signing in.",
+  "discoverySignIn": "Sign in",
+  "useMyLocation": "Use my location",
+  "popularOffersSubtitle": "Popular offers worth exploring",
+  "chooseAreaLabel": "Choose area",
+  "chooseAreaHint": "Choose an area or use your location to find offers within 5 km.",
+  "bankSpotlightLabel": "Bank spotlight",
+  "bankSpotlightHint": "Browse offers by bank. Check each offer’s card eligibility and conditions.",
+  "noBankOffersLabel": "No bank offers are available yet.",
+  "viewOfferLabel": "View offer",
+  "previousOfferLabel": "Previous offer",
+  "nextOfferLabel": "Next offer",
+  "savedOnDevice": "Saved on this device",
+  "saveOfferFailed": "Could not save this change. Please try again.",
+  "creditCardLabel": "Credit cards",
+  "debitCardLabel": "Debit cards",
+  "prepaidCardLabel": "Prepaid cards",
+  "inStoreLabel": "In store",
+  "deliveryLabel": "Delivery",
+  "pickupLabel": "Pickup",
+  "minimumSpendLabel": "Minimum spend {amount}",
+  "offerEndsOn": "Ends {date}",
+  "featuredPageLabel": "Featured offer {page} of {count}",
+  "@minimumSpendLabel": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "@offerEndsOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "@featuredPageLabel": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchThisAreaLabel": "Search this area",
+  "refreshAreaLabel": "Refresh this area",
+  "selectedMapAreaLabel": "Selected map area",
+  "deviceLocationLabel": "Selected device location",
+  "locationUnavailableHint": "Location is unavailable. Choose an area, or check location settings.",
+  "searchAreasLabel": "Search nearby areas",
+  "chooseAreaMapHint": "Choose a listed area or move the map and tap Search this area.",
+  "filterOffersLabel": "Filter offers",
+  "openNowLabel": "Open now",
+  "storeHoursHint": "Based on published store hours. Stores with unknown hours are excluded.",
+  "expandResultsLabel": "Show results",
+  "collapseResultsLabel": "Show map",
+  "withinRadiusLabel": "Within {radius} km",
+  "searchRadiusLabel": "Search radius",
+  "searchCenterLabel": "Search center",
+  "areaDistanceHint": "Approximate distances from the area center.",
+  "approximateAreaHint": "Approximate or recent location used. Distances may vary.",
+  "mapUnavailableHint": "Map tiles are unavailable. You can still browse the offer list.",
+  "cachedAreaMismatchHint": "Saved results belong to another area. Connect to refresh this area.",
+  "noKnownOpenStoresHint": "No stores with known opening hours are open in these results.",
+  "nearbyOfferCount": "{count, plural, =0{No offers nearby} =1{1 offer nearby} other{{count} offers nearby}}",
+  "@withinRadiusLabel": {
+    "placeholders": {
+      "radius": {
+        "type": "int"
+      }
+    }
+  },
+  "@nearbyOfferCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "closeDialogLabel": "Close",
+  "cancelDialogLabel": "Cancel",
+  "applyFilterLabel": "Apply filters",
+  "loadingNearbyLabel": "Loading nearby offers…"
 }

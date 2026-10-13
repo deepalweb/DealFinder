@@ -4,7 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "create:demo-admin": "node scripts/createDemoAdmin.js"
+    "create:demo-admin": "node scripts/createDemoAdmin.js",
+    "seed:mobile-demo": "node scripts/seedMobileDemoDeals.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",

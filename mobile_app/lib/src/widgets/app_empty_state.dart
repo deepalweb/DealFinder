@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class AppEmptyState extends StatelessWidget {
@@ -44,8 +45,8 @@ class AppEmptyState extends StatelessWidget {
             Text(
               title,
               style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF14213D),
+                fontWeight: FontWeight.w700,
+                color: AppColors.text(context),
               ),
               textAlign: TextAlign.center,
             ),
@@ -53,7 +54,7 @@ class AppEmptyState extends StatelessWidget {
             Text(
               message,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF64748B),
+                color: AppColors.muted(context),
                 height: 1.45,
               ),
               textAlign: TextAlign.center,

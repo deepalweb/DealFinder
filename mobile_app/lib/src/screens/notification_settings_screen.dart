@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -510,7 +511,7 @@ class _NotificationSettingsScreenState
             _buildSectionHeader('Push Debug'),
             Card(
               elevation: 0,
-              color: Colors.grey.shade50,
+              color: AppColors.canvas(context),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(

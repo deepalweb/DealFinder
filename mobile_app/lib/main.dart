@@ -5,7 +5,7 @@ import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'src/screens/login_screen.dart';
+
 import 'src/screens/main_navigation_screen.dart';
 import 'src/screens/deal_detail_screen.dart';
 import 'src/screens/notifications_screen.dart';
@@ -126,12 +126,14 @@ class MyApp extends StatelessWidget {
               },
               theme: AppTheme.lightTheme(),
               darkTheme: AppTheme.darkTheme(),
+              highContrastTheme: AppTheme.highContrastLightTheme(),
+              highContrastDarkTheme: AppTheme.highContrastDarkTheme(),
               themeMode: ThemeMode.system,
               home: (userToken != null && userId != null)
                   ? (authenticatedHomeBuilder?.call(userId, userToken) ??
                       MainNavigationScreen(userId: userId, token: userToken))
                   : (unauthenticatedHomeBuilder?.call(context) ??
-                      const LoginScreen()),
+                      const MainNavigationScreen()),
             );
           },
         );

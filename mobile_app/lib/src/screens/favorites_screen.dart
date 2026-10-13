@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
 import '../services/favorites_manager.dart';
@@ -17,14 +18,24 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   late Future<List<Promotion>> _favoritesFuture;
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    FavoritesManager.changes.addListener(_loadFavorites);
     _loadFavorites();
   }
 
+  @override
+  void dispose() {
+    FavoritesManager.changes.removeListener(_loadFavorites);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   void _loadFavorites() {
+    if (!mounted) return;
     setState(() {
       _favoritesFuture = _fetchFavoritesWithFallback();
     });
@@ -136,7 +147,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favorites'),
+        title: Text(AppLocalizations.of(context)!.savedTab),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -181,6 +192,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           return RefreshIndicator(
             onRefresh: () async => _loadFavorites(),
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.all(8),
               itemCount: favorites.length,
               itemBuilder: (context, index) {
@@ -197,10 +209,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   onDismissed: (_) => _removeFavorite(promotion),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: SizedBox(
-                      height: 320,
-                      child: DealCard(promotion: promotion),
-                    ),
+                    child: DealCard(promotion: promotion),
                   ),
                 );
               },

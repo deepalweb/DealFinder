@@ -1,3 +1,5 @@
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
+import 'stores_screen.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -121,9 +123,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.cardDark : Colors.white;
     final textColor =
-        isDark ? AppColors.textPrimaryDark : const Color(0xFF14213D);
+        isDark ? AppColors.textPrimaryDark : AppColors.text(context);
     final mutedColor =
-        isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B);
+        isDark ? AppColors.textSecondaryDark : AppColors.muted(context);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -131,7 +133,7 @@ class _SearchScreenState extends State<SearchScreen> {
         color: cardColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+          color: isDark ? AppColors.borderDark : AppColors.border(context),
         ),
         boxShadow: [
           BoxShadow(
@@ -147,7 +149,7 @@ class _SearchScreenState extends State<SearchScreen> {
           Text(
             'Find deals faster',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   color: textColor,
                 ),
           ),
@@ -183,7 +185,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
               filled: true,
               fillColor:
-                  isDark ? const Color(0xFF1F2937) : const Color(0xFFF8FAFC),
+                  isDark ? const Color(0xFF1F2937) : AppColors.canvas(context),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(18),
                 borderSide: BorderSide.none,
@@ -200,7 +202,7 @@ class _SearchScreenState extends State<SearchScreen> {
             style: TextStyle(
               color: mutedColor,
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
@@ -278,7 +280,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ? 'Your last searches will appear here for quick reuse.'
           : 'Pick up where you left off.',
       trailing: _history.isEmpty
-          ? const Icon(Icons.history, color: Color(0xFF94A3B8))
+          ? Icon(Icons.history, color: AppColors.muted(context))
           : TextButton(
               onPressed: _clearHistory,
               child: const Text('Clear'),
@@ -293,12 +295,13 @@ class _SearchScreenState extends State<SearchScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: AppColors.canvas(context),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Searches for deals, stores, and categories will be saved here.',
-                    style: TextStyle(color: Color(0xFF64748B), height: 1.4),
+                    style:
+                        TextStyle(color: AppColors.muted(context), height: 1.4),
                   ),
                 )
               : Wrap(
@@ -481,13 +484,13 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                       'Filters',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Use quick presets or narrow by category.',
-                      style: TextStyle(color: Color(0xFF64748B)),
+                      style: TextStyle(color: AppColors.muted(context)),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -636,7 +639,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -657,17 +660,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   children: [
                     Text(
                       headline,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF14213D),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text(context),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       summaryParts.join(' • '),
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
+                      style: TextStyle(
+                        color: AppColors.muted(context),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -686,12 +689,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
+          Text(
             'Quick filters',
             style: TextStyle(
-              color: Color(0xFF475569),
+              color: AppColors.muted(context),
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
@@ -726,12 +729,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Sort by',
             style: TextStyle(
-              color: Color(0xFF475569),
+              color: AppColors.muted(context),
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
@@ -885,65 +888,80 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               : 'Browse Deals',
         ),
       ),
-      body: FutureBuilder<List<Promotion>>(
-        future: _futureResults,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              _results.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.storefront_outlined),
+            label: Text(AppLocalizations.of(context)!.browseStores),
+            onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => StoresScreen(initialQuery: widget.query))),
+          ),
+        ),
+        Expanded(
+            child: FutureBuilder<List<Promotion>>(
+          future: _futureResults,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                _results.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (snapshot.hasError) {
-            return _buildEmptyState(
-              title: 'Search is having trouble',
-              message: 'We could not load the latest results right now.',
-              actionLabel: 'Retry',
-              onAction: _refreshResults,
-            );
-          }
+            if (snapshot.hasError) {
+              return _buildEmptyState(
+                title: 'Search is having trouble',
+                message: 'We could not load the latest results right now.',
+                actionLabel: 'Retry',
+                onAction: _refreshResults,
+              );
+            }
 
-          if (!snapshot.hasData || _results.isEmpty) {
-            return _buildEmptyState(
-              title: widget.query.trim().isNotEmpty
-                  ? 'No results for "${widget.query}"'
-                  : 'No deals found',
-              message: widget.query.trim().isNotEmpty
-                  ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
-                  : 'Try a different quick preset or clear the active filters to see more deals.',
-            );
-          }
+            if (!snapshot.hasData || _results.isEmpty) {
+              return _buildEmptyState(
+                title: widget.query.trim().isNotEmpty
+                    ? 'No results for "${widget.query}"'
+                    : 'No deals found',
+                message: widget.query.trim().isNotEmpty
+                    ? 'Try a broader keyword, a store name, or one of the popular topics from the search page.'
+                    : 'Try a different quick preset or clear the active filters to see more deals.',
+              );
+            }
 
-          final visibleResults = _visibleResults;
+            final visibleResults = _visibleResults;
 
-          return RefreshIndicator(
-            onRefresh: _refreshResults,
-            child: Column(
-              children: [
-                _buildResultHeader(visibleResults.length),
-                Expanded(
-                  child: visibleResults.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.55,
-                              child: _buildEmptyState(
-                                title: 'No matches in this filter',
-                                message:
-                                    'Try another category or clear the active filter to see more deals.',
-                                actionLabel: 'Clear filters',
-                                onAction: _clearAllFilters,
+            return RefreshIndicator(
+              onRefresh: _refreshResults,
+              child: Column(
+                children: [
+                  _buildResultHeader(visibleResults.length),
+                  Expanded(
+                    child: visibleResults.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height:
+                                    MediaQuery.of(context).size.height * 0.55,
+                                child: _buildEmptyState(
+                                  title: 'No matches in this filter',
+                                  message:
+                                      'Try another category or clear the active filter to see more deals.',
+                                  actionLabel: 'Clear filters',
+                                  onAction: _clearAllFilters,
+                                ),
                               ),
-                            ),
-                          ],
-                        )
-                      : _buildResultsGrid(visibleResults),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+                            ],
+                          )
+                        : _buildResultsGrid(visibleResults),
+                  ),
+                ],
+              ),
+            );
+          },
+        )),
+      ]),
     );
   }
 }
@@ -967,9 +985,9 @@ class _SectionCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final cardColor = isDark ? AppColors.cardDark : Colors.white;
     final titleColor =
-        isDark ? AppColors.textPrimaryDark : const Color(0xFF14213D);
+        isDark ? AppColors.textPrimaryDark : AppColors.text(context);
     final subtitleColor =
-        isDark ? AppColors.textSecondaryDark : const Color(0xFF64748B);
+        isDark ? AppColors.textSecondaryDark : AppColors.muted(context);
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -977,7 +995,7 @@ class _SectionCard extends StatelessWidget {
         color: cardColor,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? AppColors.borderDark : const Color(0xFFE5E7EB),
+          color: isDark ? AppColors.borderDark : AppColors.border(context),
         ),
         boxShadow: [
           BoxShadow(
@@ -1000,7 +1018,7 @@ class _SectionCard extends StatelessWidget {
                       title,
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         color: titleColor,
                       ),
                     ),

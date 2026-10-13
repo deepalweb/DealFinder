@@ -1,3 +1,5 @@
+import '../widgets/sign_in_gate.dart';
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
@@ -13,7 +15,8 @@ import '../widgets/merchant_card_shimmer.dart';
 import 'merchant_profile_screen.dart';
 
 class StoresScreen extends StatefulWidget {
-  const StoresScreen({Key? key}) : super(key: key);
+  const StoresScreen({Key? key, this.initialQuery = ''}) : super(key: key);
+  final String initialQuery;
 
   @override
   State<StoresScreen> createState() => _StoresScreenState();
@@ -45,6 +48,8 @@ class _StoresScreenState extends State<StoresScreen> {
   @override
   void initState() {
     super.initState();
+    _searchTerm = widget.initialQuery;
+    _searchController.text = widget.initialQuery;
     _bootstrap();
   }
 
@@ -194,6 +199,7 @@ class _StoresScreenState extends State<StoresScreen> {
 
   Future<void> _toggleFollow(String merchantId) async {
     if (_followLoadingMerchants.contains(merchantId)) return;
+    if (!await requireSignIn(context) || !mounted) return;
     HapticFeedback.lightImpact();
     final isFollowing = _followingMerchants.contains(merchantId);
     final previousFollowerCount = _merchantFollowerCount(merchantId);
@@ -344,14 +350,14 @@ class _StoresScreenState extends State<StoresScreen> {
     final l10n = AppLocalizations.of(context)!;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FC),
+      backgroundColor: AppColors.canvas(context),
       appBar: AppBar(
         title: Text(
           l10n.storesPageTitle,
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.card(context),
         automaticallyImplyLeading: false,
       ),
       body: _loading
@@ -434,7 +440,7 @@ class _StoresScreenState extends State<StoresScreen> {
                       else
                         SliverPadding(
                           padding:
-                              EdgeInsets.fromLTRB(16, 0, 16, 112 + bottomInset),
+                              EdgeInsets.fromLTRB(16, 0, 16, 24 + bottomInset),
                           sliver: SliverList.builder(
                             itemCount: _filteredMerchants.length,
                             itemBuilder: (context, index) {
@@ -442,8 +448,7 @@ class _StoresScreenState extends State<StoresScreen> {
                               final merchantId = _merchantIdOf(merchant);
                               return TweenAnimationBuilder<double>(
                                 tween: Tween(begin: 0.0, end: 1.0),
-                                duration:
-                                    Duration(milliseconds: 260 + (index * 35)),
+                                duration: AppMotion.duration(context, 240),
                                 curve: Curves.easeOutCubic,
                                 builder: (context, value, child) {
                                   return Transform.translate(
@@ -479,116 +484,40 @@ class _StoresScreenState extends State<StoresScreen> {
 
   Widget _buildHeroPanel() {
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF0F4C81),
-            Color(0xFF1572A1),
-            Color(0xFF36A2B8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF1572A1).withValues(alpha: 0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.storefront_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.discoverStoresTitle,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.discoverStoresSubtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.86),
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _buildHeroShortcut(
+    final theme = Theme.of(context);
+    return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(l10n.discoverStoresTitle, style: theme.textTheme.displayMedium),
+          const SizedBox(height: 8),
+          Text(l10n.discoverStoresSubtitle,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 16),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            _buildHeroShortcut(
                 icon: Icons.favorite_outline,
                 label: l10n.following,
                 onTap: () {
                   setState(() => _sortMode = 'following');
                   _applyFilters();
-                },
-              ),
-              _buildHeroShortcut(
-                icon: Icons.local_offer_outlined,
-                label: l10n.popular,
-                onTap: () {
-                  setState(() => _sortMode = 'popular');
-                  _applyFilters();
-                },
-              ),
-              _buildHeroShortcut(
-                icon: Icons.restaurant_rounded,
-                label: l10n.foodStores,
-                onTap: () {
-                  setState(() => _selectedCategory = 'food_dining');
-                  _applyFilters();
-                },
-              ),
-              _buildHeroShortcut(
+                }),
+            _buildHeroShortcut(
                 icon: Icons.auto_awesome_outlined,
                 label: l10n.newest,
                 onTap: () {
                   setState(() => _sortMode = 'new');
                   _applyFilters();
-                },
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+                }),
+            _buildHeroShortcut(
+                icon: Icons.restaurant_outlined,
+                label: l10n.foodStores,
+                onTap: () {
+                  setState(() => _selectedCategory = 'food_dining');
+                  _applyFilters();
+                }),
+          ]),
+        ]));
   }
 
   Widget _buildHeroShortcut({
@@ -604,19 +533,20 @@ class _StoresScreenState extends State<StoresScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.14),
+            color: AppColors.card(context).withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            border:
+                Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: Colors.white, size: 16),
+              Icon(icon, color: AppColors.accent(context), size: 16),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.94),
+                  color: AppColors.text(context),
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -637,14 +567,14 @@ class _StoresScreenState extends State<StoresScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6EBF2)),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.insights_rounded,
-              color: Color(0xFF1E88E5), size: 18),
+          Icon(Icons.insights_rounded,
+              color: AppColors.accent(context), size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -662,7 +592,7 @@ class _StoresScreenState extends State<StoresScreen> {
                   (item) => item['id'] == _selectedCategory)['name']!,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: Color(0xFF00897B),
               ),
             ),
@@ -675,7 +605,7 @@ class _StoresScreenState extends State<StoresScreen> {
     final l10n = AppLocalizations.of(context)!;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -688,7 +618,7 @@ class _StoresScreenState extends State<StoresScreen> {
       child: TextField(
         decoration: InputDecoration(
           hintText: l10n.searchStoresHint,
-          hintStyle: TextStyle(color: Colors.grey[400]),
+          hintStyle: TextStyle(color: AppColors.muted(context)),
           prefixIcon: const Icon(Icons.search, color: Color(0xFF8B97A8)),
           suffixIcon: _searchTerm.isNotEmpty
               ? IconButton(
@@ -731,15 +661,17 @@ class _StoresScreenState extends State<StoresScreen> {
             },
             borderRadius: BorderRadius.circular(24),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: AppMotion.duration(context, 180),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: selected ? const Color(0xFF14213D) : Colors.white,
+                color: selected
+                    ? Theme.of(context).colorScheme.primary
+                    : AppColors.card(context),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                   color: selected
-                      ? const Color(0xFF14213D)
-                      : const Color(0xFFE6EBF2),
+                      ? AppColors.text(context)
+                      : AppColors.border(context),
                 ),
               ),
               child: Row(
@@ -748,7 +680,7 @@ class _StoresScreenState extends State<StoresScreen> {
                   CategoryIcon(
                     category: category['id']!,
                     size: 16,
-                    color: selected ? Colors.white : const Color(0xFF1E88E5),
+                    color: selected ? Colors.white : AppColors.accent(context),
                   ),
                   const SizedBox(width: 7),
                   Text(
@@ -756,7 +688,9 @@ class _StoresScreenState extends State<StoresScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: selected ? Colors.white : const Color(0xFF243447),
+                      color: selected
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : AppColors.text(context),
                     ),
                   ),
                 ],
@@ -782,18 +716,18 @@ class _StoresScreenState extends State<StoresScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF14213D),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text(context),
                 ),
               ),
               const SizedBox(height: 3),
               Text(
                 subtitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF6B7280),
+                  color: AppColors.muted(context),
                 ),
               ),
             ],
@@ -809,9 +743,9 @@ class _StoresScreenState extends State<StoresScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.card(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6EBF2)),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -826,10 +760,10 @@ class _StoresScreenState extends State<StoresScreen> {
               const SizedBox(width: 8),
               Text(
                 l10n.activeFiltersLabel(_activeFilterCount),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF14213D),
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text(context),
                 ),
               ),
               const Spacer(),
@@ -910,12 +844,12 @@ class _StoresScreenState extends State<StoresScreen> {
           InkWell(
             onTap: onRemoved,
             borderRadius: BorderRadius.circular(999),
-            child: const Padding(
-              padding: EdgeInsets.all(2),
+            child: Padding(
+              padding: const EdgeInsets.all(2),
               child: Icon(
                 Icons.close_rounded,
                 size: 16,
-                color: Color(0xFF6B7280),
+                color: AppColors.muted(context),
               ),
             ),
           ),
@@ -942,7 +876,7 @@ class _StoresScreenState extends State<StoresScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFFE5EAF1)),
         ),
@@ -982,7 +916,7 @@ class _StoresScreenState extends State<StoresScreen> {
 
   Widget _buildMerchantScroller(List<Map<String, dynamic>> merchants) {
     return SizedBox(
-      height: 268,
+      height: 380 + (MediaQuery.textScalerOf(context).scale(16) - 16) * 12,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: merchants.length,
@@ -1032,10 +966,10 @@ class _StoresScreenState extends State<StoresScreen> {
             const SizedBox(height: 18),
             Text(
               l10n.noStoresMatchView,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF14213D),
+                fontWeight: FontWeight.w700,
+                color: AppColors.text(context),
               ),
               textAlign: TextAlign.center,
             ),
@@ -1045,9 +979,9 @@ class _StoresScreenState extends State<StoresScreen> {
                   ? l10n.noStoresMatchSubtitle
                   : l10n.storesWillAppearSubtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF6B7280),
+                color: AppColors.muted(context),
                 height: 1.5,
               ),
             ),
@@ -1100,14 +1034,14 @@ class _StoresScreenState extends State<StoresScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Colors.grey[800],
+                color: AppColors.muted(context),
               ),
             ),
             const SizedBox(height: 8),
             Text(
               _error ?? l10n.unknownError,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600], height: 1.4),
+              style: TextStyle(color: AppColors.muted(context), height: 1.4),
             ),
             const SizedBox(height: 24),
             Wrap(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/promotion.dart';
 import 'modern_deal_card.dart';
+import '../screens/deal_detail_screen.dart';
 
 class DealCard extends StatelessWidget {
   final Promotion promotion;
@@ -20,6 +21,10 @@ class DealCard extends StatelessWidget {
     return ModernDealCard(
       promotion: promotion,
       width: width,
+      onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => DealDetailScreen(promotion: promotion))),
     );
   }
 }

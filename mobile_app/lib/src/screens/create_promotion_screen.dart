@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
@@ -91,7 +92,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       BankCardPromotionSupport.categoryId;
 
   List<Category> get _merchantPromotionCategories => predefinedCategories
-      .where((category) => category.id != 'other' && category.id != 'bank_cards')
+      .where(
+          (category) => category.id != 'other' && category.id != 'bank_cards')
       .toList();
 
   int get _totalImageCount => _existingImageUrls.length + _imageFiles.length;
@@ -516,8 +518,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
           'minimumSpend': double.parse(_minimumSpendController.text.trim()),
         if (_isBankCardCategory &&
             _maximumBenefitController.text.trim().isNotEmpty)
-          'maximumBenefit':
-              double.parse(_maximumBenefitController.text.trim()),
+          'maximumBenefit': double.parse(_maximumBenefitController.text.trim()),
       };
 
       if (_isEditing) {
@@ -600,7 +601,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -748,9 +749,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: AppColors.canvas(context),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppColors.border(context)),
             ),
             child: Column(
               children: [
@@ -1006,8 +1007,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.category),
             ),
-            items: _merchantPromotionCategories
-                .map((category) {
+            items: _merchantPromotionCategories.map((category) {
               return DropdownMenuItem(
                 value: category.id,
                 child: Text(category.name),
@@ -1056,22 +1056,22 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                         ),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Bank Card Offer Details',
                               style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
                               'Add the bank, eligible cards, and offer conditions clearly.',
                               style: TextStyle(
-                                color: Color(0xFF64748B),
+                                color: AppColors.muted(context),
                                 height: 1.4,
                               ),
                             ),
@@ -1294,7 +1294,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                                 width: double.infinity,
                                 height: double.infinity,
                                 errorBuilder: (_, __, ___) => Container(
-                                  color: Colors.grey[200],
+                                  color: AppColors.border(context),
                                   child: const Center(
                                     child: Icon(Icons.broken_image),
                                   ),
@@ -1323,7 +1323,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                             'MAIN',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -1362,7 +1362,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey, width: 2),
                   borderRadius: BorderRadius.circular(12),
-                  color: Colors.grey[100],
+                  color: AppColors.canvas(context),
                 ),
                 child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1459,7 +1459,8 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       _selectedCardTypes.isEmpty
                           ? '—'
                           : _selectedCardTypes
-                              .map((type) => type[0].toUpperCase() + type.substring(1))
+                              .map((type) =>
+                                  type[0].toUpperCase() + type.substring(1))
                               .join(', '),
                     ),
                   if (_isBankCardCategory)
@@ -1467,14 +1468,13 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
                       'Offer Type',
                       _selectedBankOfferType == null
                           ? '—'
-                          : _bankOfferTypes
-                                  .firstWhere(
-                                    (option) =>
-                                        option['value'] == _selectedBankOfferType,
-                                    orElse: () => {
-                                      'label': _selectedBankOfferType!,
-                                    },
-                                  )['label'] ??
+                          : _bankOfferTypes.firstWhere(
+                                (option) =>
+                                    option['value'] == _selectedBankOfferType,
+                                orElse: () => {
+                                  'label': _selectedBankOfferType!,
+                                },
+                              )['label'] ??
                               _selectedBankOfferType!,
                     ),
                   _buildSummaryRow(
@@ -1532,7 +1532,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
         color: selected ? Colors.white : const Color(0xFF0F4C81),
       ),
       labelStyle: TextStyle(
-        color: selected ? Colors.white : const Color(0xFF0F172A),
+        color: selected ? Colors.white : AppColors.text(context),
         fontWeight: FontWeight.w700,
       ),
       backgroundColor: const Color(0xFFF3F7FF),

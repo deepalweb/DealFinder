@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -7,8 +8,9 @@ class HomeShimmer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      enabled: !MediaQuery.disableAnimationsOf(context),
+      baseColor: AppColors.border(context),
+      highlightColor: AppColors.canvas(context),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -23,7 +25,7 @@ class HomeShimmer extends StatelessWidget {
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     height: 90,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -36,7 +38,7 @@ class HomeShimmer extends StatelessWidget {
               height: 20,
               width: 150,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -51,7 +53,7 @@ class HomeShimmer extends StatelessWidget {
                 itemBuilder: (_, __) => Container(
                   width: 180,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.card(context),
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
@@ -63,7 +65,7 @@ class HomeShimmer extends StatelessWidget {
               height: 20,
               width: 120,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.card(context),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -81,7 +83,7 @@ class HomeShimmer extends StatelessWidget {
               itemCount: 4,
               itemBuilder: (_, __) => Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card(context),
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
@@ -95,18 +97,19 @@ class HomeShimmer extends StatelessWidget {
 
 class DealCardShimmer extends StatelessWidget {
   final double? width;
-  
+
   const DealCardShimmer({super.key, this.width});
 
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      enabled: !MediaQuery.disableAnimationsOf(context),
+      baseColor: AppColors.border(context),
+      highlightColor: AppColors.canvas(context),
       child: Container(
         width: width,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -114,9 +117,9 @@ class DealCardShimmer extends StatelessWidget {
           children: [
             Container(
               height: 140,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              decoration: BoxDecoration(
+                color: AppColors.card(context),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               ),
             ),
             Padding(
@@ -128,7 +131,7 @@ class DealCardShimmer extends StatelessWidget {
                     height: 14,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -137,7 +140,7 @@ class DealCardShimmer extends StatelessWidget {
                     height: 12,
                     width: 100,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -146,7 +149,7 @@ class DealCardShimmer extends StatelessWidget {
                     height: 24,
                     width: 80,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),

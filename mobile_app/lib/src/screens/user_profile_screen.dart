@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +12,7 @@ import '../services/merchant_following_manager.dart';
 import '../models/promotion.dart';
 import '../widgets/deal_card.dart';
 import 'deal_detail_screen.dart';
-import 'login_screen.dart';
+import '../services/auth_service.dart';
 import 'merchant_profile_screen.dart';
 import 'merchant_dashboard_screen.dart';
 import 'notification_settings_screen.dart';
@@ -458,15 +459,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-        (Route<dynamic> route) => false,
-      );
-    }
+    await AuthService.signOut();
   }
 
   ImageProvider? _profileImageProvider() {
@@ -481,183 +474,63 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Widget _buildProfileHero() {
-    final profileImage = _profileImageProvider();
-    final followingCount = _followingMerchants.length;
-    final favoriteCount = _favoriteDeals.length;
-    final roleLabel = _role.capitalize();
-
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF0F4C81),
-            Color(0xFF2563EB),
-            Color(0xFF5EA6FF),
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _pickProfilePicture,
-                child: Stack(
-                  children: [
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: scheme.outlineVariant)),
+        child: Column(children: [
+          Semantics(
+              button: true,
+              label: l10n.profile,
+              child: InkWell(
+                  onTap: _pickProfilePicture,
+                  borderRadius: BorderRadius.circular(40),
+                  child: Stack(children: [
                     CircleAvatar(
-                      radius: 36,
-                      backgroundColor: Colors.white.withValues(alpha: 0.18),
-                      backgroundImage: profileImage,
-                      child: profileImage == null
-                          ? Icon(
-                              _role == 'merchant'
-                                  ? Icons.storefront_rounded
-                                  : Icons.person_rounded,
-                              size: 34,
-                              color: Colors.white,
-                            )
-                          : null,
-                    ),
+                        radius: 38,
+                        backgroundImage: _profileImageProvider(),
+                        backgroundColor: scheme.primaryContainer,
+                        child: _profileImageProvider() == null
+                            ? Icon(Icons.person_outline_rounded,
+                                color: scheme.primary, size: 34)
+                            : null),
                     Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.camera_alt_rounded,
-                          size: 15,
-                          color: Color(0xFF2563EB),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _email,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.88),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildProfileBadge(Icons.badge_outlined, roleLabel),
-                        if (_role == 'merchant' &&
-                            (_businessName?.isNotEmpty ?? false))
-                          _buildProfileBadge(
-                              Icons.business_outlined, _businessName!),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                                color: scheme.primary, shape: BoxShape.circle),
+                            child: Icon(Icons.camera_alt_outlined,
+                                size: 15, color: scheme.onPrimary))),
+                  ]))),
+          const SizedBox(height: 14),
+          Text(_name,
+              textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(_email,
+              textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _buildHeroStat('$favoriteCount', 'Saved deals'),
-              _buildHeroStat('$followingCount', 'Following'),
-              _buildHeroStat(
-                  _role == 'merchant' ? 'Merchant' : 'Account', 'Plan'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileBadge(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeroStat(String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.88),
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(
+                    label: Text('${_favoriteDeals.length} ${l10n.favorites}'),
+                    avatar:
+                        const Icon(Icons.favorite_border_rounded, size: 16)),
+                Chip(
+                    label:
+                        Text('${_followingMerchants.length} ${l10n.following}'),
+                    avatar: const Icon(Icons.storefront_outlined, size: 16)),
+              ]),
+        ]));
   }
 
   Widget _buildQuickActionCard({
@@ -672,9 +545,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.card(context),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE6EBF2)),
+          border: Border.all(color: AppColors.border(context)),
         ),
         child: Row(
           children: [
@@ -697,24 +570,24 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF14213D),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text(context),
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
+                    style: TextStyle(
+                      color: AppColors.muted(context),
                       fontSize: 12.5,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                size: 16, color: Color(0xFF94A3B8)),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 16, color: AppColors.muted(context)),
           ],
         ),
       ),
@@ -727,7 +600,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     return RefreshIndicator(
       onRefresh: _loadUserData,
       child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 112 + bottomInset),
+        padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + bottomInset),
         child: Column(
           children: [
             _buildProfileHero(),
@@ -754,10 +627,10 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   children: [
                     Text(
                       l10n.appLanguage,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF14213D),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text(context),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -772,7 +645,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                         labelText: l10n.language,
                         prefixIcon: const Icon(Icons.language),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -811,10 +684,10 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   children: [
                     Text(
                       l10n.accountDetails,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF14213D),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text(context),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -824,13 +697,14 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                         labelText: l10n.fullName,
                         prefixIcon: const Icon(Icons.person),
                         filled: true,
-                        fillColor: Colors.white,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide:
+                              BorderSide(color: AppColors.border(context)),
                         ),
                       ),
                     ),
@@ -843,13 +717,14 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                         prefixIcon: const Icon(Icons.email),
                         helperText: l10n.emailCannotBeChangedYet,
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: AppColors.canvas(context),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                         disabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide:
+                              BorderSide(color: AppColors.border(context)),
                         ),
                       ),
                     ),
@@ -861,13 +736,14 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                         labelText: l10n.role,
                         prefixIcon: const Icon(Icons.badge),
                         filled: true,
-                        fillColor: Colors.grey[100],
+                        fillColor: AppColors.canvas(context),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                         disabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: BorderSide(color: Colors.grey[300]!),
+                          borderSide:
+                              BorderSide(color: AppColors.border(context)),
                         ),
                       ),
                     ),
@@ -881,13 +757,14 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                             labelText: l10n.businessName,
                             prefixIcon: const Icon(Icons.business),
                             filled: true,
-                            fillColor: Colors.grey[100],
+                            fillColor: AppColors.canvas(context),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
                             disabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
+                              borderSide:
+                                  BorderSide(color: AppColors.border(context)),
                             ),
                           ),
                         ),
@@ -969,13 +846,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   labelText: 'Current Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: AppColors.border(context)),
                   ),
                 ),
               ),
@@ -987,13 +864,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   labelText: 'New Password',
                   prefixIcon: const Icon(Icons.lock),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: AppColors.border(context)),
                   ),
                 ),
               ),
@@ -1005,13 +882,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   labelText: 'Confirm New Password',
                   prefixIcon: const Icon(Icons.lock),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Theme.of(context).colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: AppColors.border(context)),
                   ),
                 ),
               ),
@@ -1088,7 +965,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     return Column(
       children: [
         Container(
-          color: Colors.white,
+          color: AppColors.card(context),
           child: TabBar(
             controller: _favoritesTabController,
             labelColor: Theme.of(context).colorScheme.primary,
@@ -1271,15 +1148,15 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               color: Theme.of(context).appBarTheme.backgroundColor ??
                   Theme.of(context).colorScheme.surface,
               border: Border(
-                top: BorderSide(color: Colors.grey.shade200),
-                bottom: BorderSide(color: Colors.grey.shade300),
+                top: BorderSide(color: AppColors.border(context)),
+                bottom: BorderSide(color: AppColors.border(context)),
               ),
             ),
             child: TabBar(
               controller: _tabController,
               isScrollable: true,
               labelColor: Theme.of(context).colorScheme.primary,
-              unselectedLabelColor: Colors.grey.shade600,
+              unselectedLabelColor: AppColors.muted(context),
               indicatorColor: Theme.of(context).colorScheme.primary,
               indicatorWeight: 3,
               tabs: [

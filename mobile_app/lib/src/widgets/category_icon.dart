@@ -1,3 +1,4 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../models/category.dart';
 
@@ -49,7 +50,7 @@ class CategoryIcon extends StatelessWidget {
       height: size + 12,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: AppColors.card(context),
         border: outlined
             ? Border.all(color: color ?? Colors.blueGrey, width: 1.5)
             : null,

@@ -856,4 +856,236 @@ class AppLocalizationsSi extends AppLocalizations {
   @override
   String get cardOfferDetailsNote =>
       'ගෙවීමට පෙර සුදුසු bank, card type, discount cap සහ offer එක in-store, online හෝ නිශ්චිත දිනවල පමණක් අදාළද යන්න තහවුරු කරන්න.';
+
+  @override
+  String get modernWelcomeTitle => 'නැවත සාදරයෙන් පිළිගනිමු';
+
+  @override
+  String get modernWelcomeSubtitle => 'ඔබේ ඊළඟ හොඳම දීමනාව සොයන්න.';
+
+  @override
+  String get modernRegisterTitle => 'ඔබ අවට හොඳම දේ.';
+
+  @override
+  String get modernRegisterSubtitle => 'අත්විඳීමට වටින දීමනා සොයන්න.';
+
+  @override
+  String get clearSearchLabel => 'සෙවුම හිස් කරන්න';
+
+  @override
+  String get viewStoreLabel => 'වෙළඳසැල බලන්න';
+
+  @override
+  String get followStoreLabel => 'අනුගමනය කරන්න';
+
+  @override
+  String get shareStoreLabel => 'වෙළඳසැල බෙදාගන්න';
+
+  @override
+  String get verifiedDealLabel => 'තහවුරු කළ දීමනාව';
+
+  @override
+  String get caughtUpTitle => 'සියලු දැනුම්දීම් බලා අවසන්';
+
+  @override
+  String get caughtUpMessage =>
+      'ඔබේ ප්‍රියතම වෙළඳසැල් සහ දීමනා පිළිබඳ යාවත්කාලීන මෙහි පෙන්වනු ඇත.';
+
+  @override
+  String get loadNotificationsFailed => 'දැනුම්දීම් ලබාගත නොහැකි විය';
+
+  @override
+  String get checkConnectionRetry =>
+      'ඔබේ සම්බන්ධතාව පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get deleteNotificationLabel => 'දැනුම්දීම මකන්න';
+
+  @override
+  String get discoverTab => 'සොයන්න';
+
+  @override
+  String get nearbyTab => 'අසල';
+
+  @override
+  String get bankOffersTab => 'බැංකු දීමනා';
+
+  @override
+  String get savedTab => 'සුරැකි';
+
+  @override
+  String get accountTab => 'ගිණුම';
+
+  @override
+  String get browseStores => 'වෙළඳසැල් බලන්න';
+
+  @override
+  String get popularTitle => 'ජනප්‍රිය';
+
+  @override
+  String get discoverySignInTitle => 'ඔබේ සොයාගැනීම් සුරැකීමට පිවිසෙන්න';
+
+  @override
+  String get discoverySignInBody =>
+      'දීමනා සුරකින්න, වෙළඳසැල් අනුගමනය කරන්න සහ ගිණුම කළමනාකරණය කරන්න. පිවිසීමකින් තොරව දිගටම බලන්න පුළුවන්.';
+
+  @override
+  String get discoverySignIn => 'පිවිසෙන්න';
+
+  @override
+  String get useMyLocation => 'මගේ ස්ථානය භාවිත කරන්න';
+
+  @override
+  String get popularOffersSubtitle => 'බැලීමට වටිනා ජනප්‍රිය දීමනා';
+
+  @override
+  String get chooseAreaLabel => 'ප්‍රදේශය තෝරන්න';
+
+  @override
+  String get chooseAreaHint =>
+      'කි.මී. 5ක් ඇතුළත දීමනා සොයා ගැනීමට ප්‍රදේශයක් හෝ ඔබේ ස්ථානය තෝරන්න.';
+
+  @override
+  String get bankSpotlightLabel => 'බැංකු දීමනා';
+
+  @override
+  String get bankSpotlightHint =>
+      'බැංකුව අනුව දීමනා බලන්න. එක් එක් දීමනාවේ කාඩ් සුදුසුකම් සහ කොන්දේසි පරීක්ෂා කරන්න.';
+
+  @override
+  String get noBankOffersLabel => 'තවම බැංකු දීමනා නැත.';
+
+  @override
+  String get viewOfferLabel => 'දීමනාව බලන්න';
+
+  @override
+  String get previousOfferLabel => 'පෙර දීමනාව';
+
+  @override
+  String get nextOfferLabel => 'ඊළඟ දීමනාව';
+
+  @override
+  String get savedOnDevice => 'මෙම උපාංගයේ සුරැකිණි';
+
+  @override
+  String get saveOfferFailed => 'මෙම වෙනස සුරැකිය නොහැක. නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get creditCardLabel => 'ණය කාඩ්පත්';
+
+  @override
+  String get debitCardLabel => 'හර කාඩ්පත්';
+
+  @override
+  String get prepaidCardLabel => 'පෙරගෙවුම් කාඩ්පත්';
+
+  @override
+  String get inStoreLabel => 'වෙළඳසැලේ';
+
+  @override
+  String get deliveryLabel => 'බෙදාහැරීම';
+
+  @override
+  String get pickupLabel => 'ලබා ගැනීම';
+
+  @override
+  String minimumSpendLabel(String amount) {
+    return 'අවම වියදම $amount';
+  }
+
+  @override
+  String offerEndsOn(String date) {
+    return 'අවසන් දිනය $date';
+  }
+
+  @override
+  String featuredPageLabel(int page, int count) {
+    return 'විශේෂ දීමනාව $page, මුළු $count';
+  }
+
+  @override
+  String get searchThisAreaLabel => 'මෙම ප්‍රදේශය සොයන්න';
+
+  @override
+  String get refreshAreaLabel => 'මෙම ප්‍රදේශය යාවත්කාලීන කරන්න';
+
+  @override
+  String get selectedMapAreaLabel => 'තෝරාගත් සිතියම් ප්‍රදේශය';
+
+  @override
+  String get deviceLocationLabel => 'තෝරාගත් උපාංග ස්ථානය';
+
+  @override
+  String get locationUnavailableHint =>
+      'ස්ථානය ලබාගත නොහැක. ප්‍රදේශයක් තෝරන්න හෝ ස්ථාන සැකසුම් පරීක්ෂා කරන්න.';
+
+  @override
+  String get searchAreasLabel => 'අසල ප්‍රදේශ සොයන්න';
+
+  @override
+  String get chooseAreaMapHint =>
+      'ලැයිස්තුවෙන් ප්‍රදේශයක් තෝරන්න හෝ සිතියම ගෙනයාමෙන් මෙම ප්‍රදේශය සොයන්න තෝරන්න.';
+
+  @override
+  String get filterOffersLabel => 'දීමනා පෙරන්න';
+
+  @override
+  String get openNowLabel => 'දැන් විවෘතයි';
+
+  @override
+  String get storeHoursHint =>
+      'ප්‍රකාශිත වෙළඳසැල් වේලාවන් අනුවයි. වේලාවන් නොදන්නා වෙළඳසැල් ඇතුළත් නොවේ.';
+
+  @override
+  String get expandResultsLabel => 'ප්‍රතිඵල පෙන්වන්න';
+
+  @override
+  String get collapseResultsLabel => 'සිතියම පෙන්වන්න';
+
+  @override
+  String withinRadiusLabel(int radius) {
+    return 'කි.මී. $radius ඇතුළත';
+  }
+
+  @override
+  String get searchRadiusLabel => 'සෙවුම් පරාසය';
+
+  @override
+  String get searchCenterLabel => 'සෙවුම් මධ්‍යස්ථානය';
+
+  @override
+  String get areaDistanceHint => 'ප්‍රදේශයේ මධ්‍යයේ සිට ආසන්න දුරයි.';
+
+  @override
+  String get approximateAreaHint =>
+      'ආසන්න හෝ මෑත ස්ථානය භාවිත කර ඇත. දුර වෙනස් විය හැක.';
+
+  @override
+  String get mapUnavailableHint =>
+      'සිතියම ලබාගත නොහැක. දීමනා ලැයිස්තුව තවමත් බලන්න පුළුවන්.';
+
+  @override
+  String get cachedAreaMismatchHint =>
+      'සුරැකි ප්‍රතිඵල වෙනත් ප්‍රදේශයකට අදාළයි. මෙම ප්‍රදේශය යාවත්කාලීන කිරීමට සම්බන්ධ වන්න.';
+
+  @override
+  String get noKnownOpenStoresHint =>
+      'මෙම ප්‍රතිඵලවල වේලාවන් දන්නා විවෘත වෙළඳසැල් නැත.';
+
+  @override
+  String nearbyOfferCount(int count) {
+    return 'අසල දීමනා $count';
+  }
+
+  @override
+  String get closeDialogLabel => 'වසන්න';
+
+  @override
+  String get cancelDialogLabel => 'අවලංගු කරන්න';
+
+  @override
+  String get applyFilterLabel => 'පෙරහන් යොදන්න';
+
+  @override
+  String get loadingNearbyLabel => 'අසල දීමනා ලබාගනිමින්…';
 }

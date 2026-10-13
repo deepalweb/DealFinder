@@ -2,30 +2,33 @@ import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import '../config/app_theme.dart';
 import 'home_screen.dart';
 import 'user_profile_screen.dart';
 import 'favorites_screen.dart';
 import 'all_deals_screen.dart';
-import 'stores_screen.dart';
+import 'nearby_deals_screen.dart';
+import '../services/app_session.dart';
+import '../widgets/sign_in_gate.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   final String userId;
   final String token;
   final WidgetBuilder? homeScreenBuilder;
-  final WidgetBuilder? dealsScreenBuilder;
-  final WidgetBuilder? storesScreenBuilder;
+  final WidgetBuilder? nearbyScreenBuilder;
+  final WidgetBuilder? bankOffersScreenBuilder;
   final WidgetBuilder? favoritesScreenBuilder;
   final WidgetBuilder? profileScreenBuilder;
 
   const MainNavigationScreen(
       {Key? key,
-      required this.userId,
-      required this.token,
+      this.userId = '',
+      this.token = '',
       this.homeScreenBuilder,
-      this.dealsScreenBuilder,
-      this.storesScreenBuilder,
+      this.nearbyScreenBuilder,
+      this.bankOffersScreenBuilder,
       this.favoritesScreenBuilder,
       this.profileScreenBuilder})
       : super(key: key);
@@ -36,8 +39,95 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
-  int _favoritesRefreshKey = 0;
-  List<Widget>? _screens;
+  late AppSession _session;
+  final _navigatorKeys = List.generate(5, (_) => GlobalKey<NavigatorState>());
+  final _visited = <int>{0};
+
+  @override
+  void initState() {
+    super.initState();
+    _session = AppSession(userId: widget.userId, token: widget.token);
+    AppSession.changes.addListener(_sessionChanged);
+  }
+
+  @override
+  void dispose() {
+    AppSession.changes.removeListener(_sessionChanged);
+    super.dispose();
+  }
+
+  void _sessionChanged() {
+    if (!mounted) return;
+    final next = AppSession.changes.value;
+    if (next.userId == _session.userId && next.token == _session.token) return;
+    setState(() {
+      _session = next;
+      // Private routes belong to one account. Public route stacks stay intact.
+      _navigatorKeys[3] = GlobalKey<NavigatorState>();
+      _navigatorKeys[4] = GlobalKey<NavigatorState>();
+    });
+  }
+
+  Widget _destination(int index, BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    switch (index) {
+      case 0:
+        return widget.homeScreenBuilder?.call(context) ??
+            HomeScreen(
+              onNavigateToFavorites: () => _selectTab(3),
+              onNavigateNearby: () => _selectTab(1),
+              onNavigateAccount: () => _selectTab(4),
+              onNavigateBankOffers: _openBankOffers,
+            );
+      case 1:
+        return widget.nearbyScreenBuilder?.call(context) ??
+            NearbyDealsScreen(onNavigateAccount: () => _selectTab(4));
+      case 2:
+        return widget.bankOffersScreenBuilder?.call(context) ??
+            AllDealsScreen(
+              bankOffersOnly: true,
+              initialContextTitle: l10n.bankOffersTab,
+            );
+      case 3:
+        return widget.favoritesScreenBuilder?.call(context) ??
+            (_session.isSignedIn
+                ? FavoritesScreen(
+                    userId: _session.userId, token: _session.token)
+                : SignInGate(title: l10n.savedTab));
+      default:
+        return widget.profileScreenBuilder?.call(context) ??
+            (_session.isSignedIn
+                ? const UserProfileScreen()
+                : SignInGate(title: l10n.accountTab));
+    }
+  }
+
+  void _openBankOffers(String? bank) {
+    _selectTab(2);
+    if (bank == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _navigatorKeys[2].currentState?.push(MaterialPageRoute(
+          builder: (_) =>
+              AllDealsScreen(bankOffersOnly: true, initialBankName: bank)));
+    });
+  }
+
+  Widget _tab(int index) {
+    if (!_visited.contains(index)) return const SizedBox.shrink();
+    return NavigatorPopHandler<Object?>(
+      enabled: index == _selectedIndex,
+      onPopWithResult: (result) =>
+          _navigatorKeys[index].currentState!.pop(result),
+      child: Navigator(
+        key: _navigatorKeys[index],
+        onGenerateRoute: (_) => MaterialPageRoute(
+          builder: (context) => _destination(index, context),
+        ),
+      ),
+    );
+  }
+
   static const _navItems = <({
     IconData activeIcon,
     Color accent,
@@ -46,24 +136,24 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     String Function(AppLocalizations) label,
   })>[
     (
-      activeIcon: CupertinoIcons.house_fill,
+      activeIcon: CupertinoIcons.compass_fill,
       accent: Color(0xFF2563EB),
       accentSoft: Color(0xFFE0EEFF),
-      icon: CupertinoIcons.house,
+      icon: CupertinoIcons.compass,
       label: _homeLabel,
     ),
     (
-      activeIcon: CupertinoIcons.compass_fill,
+      activeIcon: CupertinoIcons.location_fill,
       accent: Color(0xFF7C3AED),
       accentSoft: Color(0xFFF1E7FF),
-      icon: CupertinoIcons.compass,
+      icon: CupertinoIcons.location,
       label: _exploreLabel,
     ),
     (
-      activeIcon: Icons.storefront_rounded,
+      activeIcon: CupertinoIcons.creditcard_fill,
       accent: Color(0xFF059669),
       accentSoft: Color(0xFFE0F7EF),
-      icon: Icons.storefront_outlined,
+      icon: CupertinoIcons.creditcard,
       label: _storesLabel,
     ),
     (
@@ -82,208 +172,148 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ),
   ];
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _screens ??= [
-      widget.homeScreenBuilder?.call(context) ??
-          HomeScreen(
-            onNavigateToFavorites: () => _selectTab(3),
-          ),
-      widget.dealsScreenBuilder?.call(context) ?? const AllDealsScreen(),
-      widget.storesScreenBuilder?.call(context) ?? const StoresScreen(),
-      _buildFavoritesScreen(context),
-      widget.profileScreenBuilder?.call(context) ?? const UserProfileScreen(),
-    ];
-  }
-
-  void _onItemTapped(int index) {
-    _selectTab(index);
-  }
-
-  Widget _buildFavoritesScreen(BuildContext context) {
-    return widget.favoritesScreenBuilder?.call(context) ??
-        FavoritesScreen(
-          key: ValueKey(_favoritesRefreshKey),
-          userId: widget.userId,
-          token: widget.token,
-        );
-  }
+  void _onItemTapped(int index) => _selectTab(index);
 
   void _selectTab(int index) {
-    if (_selectedIndex == index && index != 3) return;
+    if (_selectedIndex == index) return;
+    HapticFeedback.selectionClick();
     setState(() {
-      if (index == 3) {
-        _favoritesRefreshKey += 1;
-        _screens?[3] = _buildFavoritesScreen(context);
-      }
+      _visited.add(index);
       _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final localizations = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      extendBody: true,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens!,
-      ),
-      bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-            child: Container(
-              margin: const EdgeInsets.only(top: 4),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.barBackgroundDark
-                    : AppColors.barBackgroundLight,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(
-                  color: isDark ? AppColors.borderDark : const Color(0xFFD9DDE6),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.32 : 0.07),
-                    blurRadius: 22,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: List.generate(_navItems.length, (index) {
-                  final item = _navItems[index];
-                  final selected = index == _selectedIndex;
-                  final label = item.label(localizations);
-
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 1),
-                      child: _NavigationBarItem(
-                        selected: selected,
-                        icon: item.icon,
-                        activeIcon: item.activeIcon,
-                        accent: item.accent,
-                        accentSoft: item.accentSoft,
-                        isDark: isDark,
-                        label: label,
-                        onTap: () => _onItemTapped(index),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
+    final wide = MediaQuery.sizeOf(context).width >= 700;
+    final screens =
+        IndexedStack(index: _selectedIndex, children: List.generate(5, _tab));
+    if (wide) {
+      return Scaffold(
+          body: SafeArea(
+              child: Row(children: [
+        NavigationRail(
+          selectedIndex: _selectedIndex,
+          onDestinationSelected: _selectTab,
+          labelType: NavigationRailLabelType.all,
+          backgroundColor: theme.colorScheme.surface,
+          destinations: _navItems
+              .map((item) => NavigationRailDestination(
+                    icon: Icon(item.icon),
+                    selectedIcon: Icon(item.activeIcon),
+                    label: Text(item.label(l10n)),
+                  ))
+              .toList(),
         ),
+        VerticalDivider(width: 1, color: theme.colorScheme.outlineVariant),
+        Expanded(child: screens),
+      ])));
+    }
+    final opaque = MediaQuery.highContrastOf(context) ||
+        MediaQuery.accessibleNavigationOf(context);
+    final bar = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface.withValues(alpha: opaque ? 1 : 0.94),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
+      ),
+      child: Row(
+          children: List.generate(_navItems.length, (index) {
+        final item = _navItems[index];
+        return Expanded(
+            child: _NavigationBarItem(
+          selected: index == _selectedIndex,
+          icon: item.icon,
+          activeIcon: item.activeIcon,
+          label: item.label(l10n),
+          onTap: () => _onItemTapped(index),
+        ));
+      })),
+    );
+    return Scaffold(
+      body: screens,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+        child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: opaque
+                ? bar
+                : BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: bar)),
       ),
     );
   }
 
-  static String _homeLabel(AppLocalizations l10n) => l10n.home;
-  static String _exploreLabel(AppLocalizations l10n) => l10n.deals;
-  static String _storesLabel(AppLocalizations l10n) => l10n.stores;
-  static String _favoritesLabel(AppLocalizations l10n) => l10n.favorites;
-  static String _profileLabel(AppLocalizations l10n) => l10n.profile;
+  static String _homeLabel(AppLocalizations l10n) => l10n.discoverTab;
+  static String _exploreLabel(AppLocalizations l10n) => l10n.nearbyTab;
+  static String _storesLabel(AppLocalizations l10n) => l10n.bankOffersTab;
+  static String _favoritesLabel(AppLocalizations l10n) => l10n.savedTab;
+  static String _profileLabel(AppLocalizations l10n) => l10n.accountTab;
 }
 
 class _NavigationBarItem extends StatelessWidget {
-  const _NavigationBarItem({
-    required this.selected,
-    required this.icon,
-    required this.activeIcon,
-    required this.accent,
-    required this.accentSoft,
-    required this.isDark,
-    required this.label,
-    required this.onTap,
-  });
-
+  const _NavigationBarItem(
+      {required this.selected,
+      required this.icon,
+      required this.activeIcon,
+      required this.label,
+      required this.onTap});
   final bool selected;
   final IconData icon;
   final IconData activeIcon;
-  final Color accent;
-  final Color accentSoft;
-  final bool isDark;
   final String label;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final inactiveColor =
-        isDark ? AppColors.textSecondaryDark : const Color(0xFF8E8E93);
-    final selectedBackground = isDark
-        ? accent.withValues(alpha: 0.18)
-        : accentSoft.withValues(alpha: 0.92);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.symmetric(
-            horizontal: selected ? 8 : 6,
-            vertical: 7,
-          ),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: selected ? selectedBackground : Colors.transparent,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                width: selected ? 18 : 0,
-                height: selected ? 3 : 0,
-                margin: EdgeInsets.only(bottom: selected ? 5 : 3),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? accent.withValues(alpha: 0.92)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              AnimatedScale(
-                scale: selected ? 1.02 : 1,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                child: Icon(
-                  selected ? activeIcon : icon,
-                  size: 19,
-                  color: selected ? accent : inactiveColor,
-                ),
-              ),
-              const SizedBox(height: 2),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? accent : inactiveColor,
-                  letterSpacing: 0,
-                ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+    final scheme = Theme.of(context).colorScheme;
+    final duration = AppMotion.duration(context, 180);
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(22),
+            child: AnimatedContainer(
+              duration: duration,
+              curve: Curves.easeOutCubic,
+              constraints: const BoxConstraints(minHeight: 60),
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(22),
+                  color:
+                      selected ? scheme.primaryContainer : Colors.transparent),
+              child: ExcludeSemantics(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(selected ? activeIcon : icon,
+                    size: 23,
+                    color: selected ? scheme.primary : scheme.onSurfaceVariant),
+                const SizedBox(height: 4),
+                Text(label,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                        color: selected
+                            ? scheme.primary
+                            : scheme.onSurfaceVariant)),
+              ])),
+            ),
           ),
         ),
       ),

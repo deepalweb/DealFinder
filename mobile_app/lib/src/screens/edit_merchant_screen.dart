@@ -1,6 +1,6 @@
+import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart' as latlng;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -456,7 +456,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           bottomNavigationBar: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.card(context),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.05),
@@ -472,7 +472,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                       onPressed: _handleCancel,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: Colors.grey[400]!),
+                        side: BorderSide(color: AppColors.border(context)),
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -523,13 +523,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Business Name *',
               hintText: 'Your Store Name',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.store),
             ),
@@ -546,13 +546,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
             decoration: InputDecoration(
               labelText: 'Category',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.category),
             ),
@@ -574,13 +574,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
             decoration: InputDecoration(
               labelText: 'Store Type',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.store_mall_directory),
             ),
@@ -610,13 +610,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Store Description',
               hintText: 'Tell customers about your store...',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Padding(
                 padding: EdgeInsets.only(bottom: 60),
@@ -634,7 +634,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               '${_profileController.text.length}/500 characters',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey[600],
+                color: AppColors.muted(context),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -646,13 +646,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Website',
               hintText: 'https://yourstore.com',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.language),
             ),
@@ -664,13 +664,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Order Link',
               hintText: 'Uber Eats / PickMe / website / WhatsApp',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.delivery_dining),
             ),
@@ -679,9 +679,9 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: AppColors.canvas(context),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: AppColors.border(context)),
             ),
             child: Column(
               children: [
@@ -747,13 +747,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Contact Email',
               hintText: 'contact@yourstore.com',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.email),
             ),
@@ -772,13 +772,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Phone Number',
               hintText: '+1 (555) 000-0000',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Icon(Icons.phone),
             ),
@@ -791,13 +791,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Store Address',
               hintText: '123 Main Street, City, Country',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
               prefixIcon: const Padding(
                 padding: EdgeInsets.only(bottom: 36),
@@ -835,7 +835,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                     labelText: 'Open',
                     hintText: '09:00',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -852,7 +852,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                     labelText: 'Close',
                     hintText: '18:00',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -944,13 +944,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
         labelText: label,
         hintText: hint,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          borderSide: BorderSide(color: AppColors.border(context)),
         ),
         prefixIcon: Container(
           margin: const EdgeInsets.all(8),
@@ -997,7 +997,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: AppColors.border(context)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -1058,13 +1058,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Or paste logo URL',
               hintText: 'https://...',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
             ),
           ),
@@ -1082,7 +1082,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
           Container(
             height: 150,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
+              border: Border.all(color: AppColors.border(context)),
               borderRadius: BorderRadius.circular(12),
               image: _bannerFile != null
                   ? DecorationImage(
@@ -1096,7 +1096,7 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                           fit: BoxFit.cover,
                         )
                       : null,
-              color: Colors.grey[200],
+              color: AppColors.border(context),
             ),
             child: Stack(
               children: [
@@ -1136,13 +1136,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
               labelText: 'Or paste banner URL',
               hintText: 'https://...',
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey[300]!),
+                borderSide: BorderSide(color: AppColors.border(context)),
               ),
             ),
           ),
@@ -1283,41 +1283,23 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
             borderRadius: BorderRadius.circular(16),
             child: SizedBox(
               height: 240,
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: latlng.LatLng(
-                    _latitude ?? 6.9271,
-                    _longitude ?? 79.8612,
-                  ),
-                  initialZoom: _latitude != null && _longitude != null ? 15 : 8,
-                  onTap: (_, point) {
-                    setState(() {
-                      _setLocation(point.latitude, point.longitude);
-                    });
-                  },
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.dealfinder.mobile',
-                  ),
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                    target: LatLng(_latitude ?? 6.9271, _longitude ?? 79.8612),
+                    zoom: _latitude != null && _longitude != null ? 15 : 8),
+                myLocationButtonEnabled: false,
+                mapToolbarEnabled: false,
+                onTap: (point) => setState(
+                    () => _setLocation(point.latitude, point.longitude)),
+                markers: {
                   if (_latitude != null && _longitude != null)
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: latlng.LatLng(_latitude!, _longitude!),
-                          width: 44,
-                          height: 44,
-                          child: Icon(
-                            Icons.location_on,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 36,
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
+                    Marker(
+                        markerId: const MarkerId('merchant'),
+                        position: LatLng(_latitude!, _longitude!),
+                        draggable: true,
+                        onDragEnd: (point) => setState(() =>
+                            _setLocation(point.latitude, point.longitude)))
+                },
               ),
             ),
           ),
@@ -1344,13 +1326,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                     labelText: 'Latitude',
                     hintText: '6.9271',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: AppColors.border(context)),
                     ),
                     prefixIcon: const Icon(Icons.location_on),
                   ),
@@ -1374,13 +1356,13 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                     labelText: 'Longitude',
                     hintText: '79.8612',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: Theme.of(context).colorScheme.surface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: Colors.grey[300]!),
+                      borderSide: BorderSide(color: AppColors.border(context)),
                     ),
                     prefixIcon: const Icon(Icons.location_on),
                   ),

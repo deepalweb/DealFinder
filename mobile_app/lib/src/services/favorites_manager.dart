@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -60,6 +61,7 @@ class FavoriteRecord {
 }
 
 class FavoritesManager {
+  static final changes = ValueNotifier<int>(0);
   static const String _recordsKey = 'favoriteRecords.v2';
   static const String _legacyIdsKey = 'favoriteDeals';
   static const String _legacySnapshotsKey = 'favoriteDealSnapshots';
@@ -106,8 +108,10 @@ class FavoritesManager {
   static Future<void> removeFavorite(String dealId) async {
     final prefs = await SharedPreferences.getInstance();
     final records = await getFavoriteRecords();
+    final previousCount = records.length;
     records.removeWhere((record) => record.id == dealId);
     await _saveRecords(prefs, records);
+    if (records.length != previousCount) changes.value++;
   }
 
   static Future<void> replaceAll(Iterable<Promotion> promotions) async {
@@ -147,6 +151,7 @@ class FavoritesManager {
     }
 
     await _saveRecords(prefs, records);
+    if (index == -1) changes.value++;
   }
 
   static List<FavoriteRecord> _decodeRecords(String? raw) {

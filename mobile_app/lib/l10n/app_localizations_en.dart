@@ -859,4 +859,243 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cardOfferDetailsNote =>
       'Before paying, confirm the exact eligible bank, card type, discount cap, and whether the offer applies in-store, online, or on selected days only.';
+
+  @override
+  String get modernWelcomeTitle => 'Welcome back';
+
+  @override
+  String get modernWelcomeSubtitle => 'Your next great find is waiting.';
+
+  @override
+  String get modernRegisterTitle => 'A little more local.';
+
+  @override
+  String get modernRegisterSubtitle =>
+      'Discover offers worth stepping out for.';
+
+  @override
+  String get clearSearchLabel => 'Clear search';
+
+  @override
+  String get viewStoreLabel => 'View store';
+
+  @override
+  String get followStoreLabel => 'Follow';
+
+  @override
+  String get shareStoreLabel => 'Share store';
+
+  @override
+  String get verifiedDealLabel => 'Verified deal';
+
+  @override
+  String get caughtUpTitle => 'You are all caught up';
+
+  @override
+  String get caughtUpMessage =>
+      'Updates from your favorite stores and deals will appear here.';
+
+  @override
+  String get loadNotificationsFailed => 'Could not load notifications';
+
+  @override
+  String get checkConnectionRetry => 'Check your connection and try again.';
+
+  @override
+  String get deleteNotificationLabel => 'Delete notification';
+
+  @override
+  String get discoverTab => 'Discover';
+
+  @override
+  String get nearbyTab => 'Nearby';
+
+  @override
+  String get bankOffersTab => 'Bank Offers';
+
+  @override
+  String get savedTab => 'Saved';
+
+  @override
+  String get accountTab => 'Account';
+
+  @override
+  String get browseStores => 'Browse stores';
+
+  @override
+  String get popularTitle => 'Popular';
+
+  @override
+  String get discoverySignInTitle => 'Sign in to keep your discoveries';
+
+  @override
+  String get discoverySignInBody =>
+      'Save offers, follow stores, and manage your account. You can keep browsing without signing in.';
+
+  @override
+  String get discoverySignIn => 'Sign in';
+
+  @override
+  String get useMyLocation => 'Use my location';
+
+  @override
+  String get popularOffersSubtitle => 'Popular offers worth exploring';
+
+  @override
+  String get chooseAreaLabel => 'Choose area';
+
+  @override
+  String get chooseAreaHint =>
+      'Choose an area or use your location to find offers within 5 km.';
+
+  @override
+  String get bankSpotlightLabel => 'Bank spotlight';
+
+  @override
+  String get bankSpotlightHint =>
+      'Browse offers by bank. Check each offer’s card eligibility and conditions.';
+
+  @override
+  String get noBankOffersLabel => 'No bank offers are available yet.';
+
+  @override
+  String get viewOfferLabel => 'View offer';
+
+  @override
+  String get previousOfferLabel => 'Previous offer';
+
+  @override
+  String get nextOfferLabel => 'Next offer';
+
+  @override
+  String get savedOnDevice => 'Saved on this device';
+
+  @override
+  String get saveOfferFailed => 'Could not save this change. Please try again.';
+
+  @override
+  String get creditCardLabel => 'Credit cards';
+
+  @override
+  String get debitCardLabel => 'Debit cards';
+
+  @override
+  String get prepaidCardLabel => 'Prepaid cards';
+
+  @override
+  String get inStoreLabel => 'In store';
+
+  @override
+  String get deliveryLabel => 'Delivery';
+
+  @override
+  String get pickupLabel => 'Pickup';
+
+  @override
+  String minimumSpendLabel(String amount) {
+    return 'Minimum spend $amount';
+  }
+
+  @override
+  String offerEndsOn(String date) {
+    return 'Ends $date';
+  }
+
+  @override
+  String featuredPageLabel(int page, int count) {
+    return 'Featured offer $page of $count';
+  }
+
+  @override
+  String get searchThisAreaLabel => 'Search this area';
+
+  @override
+  String get refreshAreaLabel => 'Refresh this area';
+
+  @override
+  String get selectedMapAreaLabel => 'Selected map area';
+
+  @override
+  String get deviceLocationLabel => 'Selected device location';
+
+  @override
+  String get locationUnavailableHint =>
+      'Location is unavailable. Choose an area, or check location settings.';
+
+  @override
+  String get searchAreasLabel => 'Search nearby areas';
+
+  @override
+  String get chooseAreaMapHint =>
+      'Choose a listed area or move the map and tap Search this area.';
+
+  @override
+  String get filterOffersLabel => 'Filter offers';
+
+  @override
+  String get openNowLabel => 'Open now';
+
+  @override
+  String get storeHoursHint =>
+      'Based on published store hours. Stores with unknown hours are excluded.';
+
+  @override
+  String get expandResultsLabel => 'Show results';
+
+  @override
+  String get collapseResultsLabel => 'Show map';
+
+  @override
+  String withinRadiusLabel(int radius) {
+    return 'Within $radius km';
+  }
+
+  @override
+  String get searchRadiusLabel => 'Search radius';
+
+  @override
+  String get searchCenterLabel => 'Search center';
+
+  @override
+  String get areaDistanceHint => 'Approximate distances from the area center.';
+
+  @override
+  String get approximateAreaHint =>
+      'Approximate or recent location used. Distances may vary.';
+
+  @override
+  String get mapUnavailableHint =>
+      'Map tiles are unavailable. You can still browse the offer list.';
+
+  @override
+  String get cachedAreaMismatchHint =>
+      'Saved results belong to another area. Connect to refresh this area.';
+
+  @override
+  String get noKnownOpenStoresHint =>
+      'No stores with known opening hours are open in these results.';
+
+  @override
+  String nearbyOfferCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count offers nearby',
+      one: '1 offer nearby',
+      zero: 'No offers nearby',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get closeDialogLabel => 'Close';
+
+  @override
+  String get cancelDialogLabel => 'Cancel';
+
+  @override
+  String get applyFilterLabel => 'Apply filters';
+
+  @override
+  String get loadingNearbyLabel => 'Loading nearby offers…';
 }

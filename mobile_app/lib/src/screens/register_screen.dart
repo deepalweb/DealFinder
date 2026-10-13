@@ -1,10 +1,14 @@
+import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import '../config/app_theme.dart';
+import '../widgets/dealfinder_mark.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'main_navigation_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.returnToAction = false});
+  final bool returnToAction;
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -27,92 +31,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _errorMessage;
 
   Widget _buildBrandHeader(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFFE0F4FF),
-                Color(0xFFBFE8FF),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF9FD2EE)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2A7DA8).withValues(alpha: 0.16),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Image.asset(
-                  'assets/app_icon.png',
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Deal Finder',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0B3B53),
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Smarter ways to save',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF2A627D),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(
-          'Join Deal Finder Today!',
+    final theme = Theme.of(context);
+    return Column(children: [
+      const DealFinderMark(size: 68),
+      const SizedBox(height: 20),
+      Text(AppLocalizations.of(context)!.modernRegisterTitle,
+          textAlign: TextAlign.center, style: theme.textTheme.displayMedium),
+      const SizedBox(height: 8),
+      Text(AppLocalizations.of(context)!.modernRegisterSubtitle,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF14213D),
-              ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Create an account to track offers, save favorites, and discover nearby deals faster.',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 15,
-            height: 1.45,
-            color: Color(0xFF64748B),
-          ),
-        ),
-      ],
-    );
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    ]);
   }
 
   Widget _buildErrorBanner(BuildContext context) {
@@ -184,6 +114,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
               content: Text('Registration Successful!'),
               backgroundColor: Colors.green),
         );
+        if (widget.returnToAction) {
+          Navigator.of(context).pop(true);
+          return;
+        }
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => MainNavigationScreen(userId: userId, token: token),
@@ -225,17 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Account'), centerTitle: true),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFDFF1FF),
-              Color(0xFFF4F8FF),
-              Color(0xFFFFFFFF),
-            ],
-          ),
-        ),
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
@@ -250,7 +174,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.card(context),
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
@@ -263,19 +187,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
+                        Text(
                           'Create your account',
                           style: TextStyle(
                             fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF14213D),
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text(context),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Choose the type of account you need and complete the details below.',
                           style: TextStyle(
-                            color: Color(0xFF64748B),
+                            color: AppColors.muted(context),
                             height: 1.4,
                           ),
                         ),
@@ -367,12 +291,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Account Type',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF14213D),
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text(context),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -381,7 +305,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8FBFF),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFD6E4FF)),
+                            border:
+                                Border.all(color: AppColors.border(context)),
                           ),
                           child: RadioGroup<AccountRole>(
                             groupValue: _selectedRole,
@@ -449,21 +374,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       vertical: 14,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: AppColors.card(context).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: AppColors.border(context)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text('Already have an account?'),
                         TextButton(
-                          onPressed: () =>
-                              Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
-                            ),
-                          ),
+                          onPressed: () {
+                            if (widget.returnToAction) {
+                              Navigator.of(context).pop();
+                              return;
+                            }
+                            Navigator.of(context).pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => const LoginScreen(),
+                              ),
+                            );
+                          },
                           child: const Text('Log In'),
                         ),
                       ],

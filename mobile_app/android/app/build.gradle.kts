@@ -7,6 +7,13 @@ plugins {
 
 import java.util.Properties
 
+val mapsProperties = Properties().apply {
+    val secretsFile = rootProject.file("secrets.properties")
+    if (secretsFile.exists()) secretsFile.inputStream().use { load(it) }
+}
+val mapsApiKey = System.getenv("GOOGLE_MAPS_ANDROID_API_KEY")
+    ?: mapsProperties.getProperty("GOOGLE_MAPS_API_KEY", "")
+
 val hasGoogleServicesFile =
     file("google-services.json").exists() ||
     file("src/debug/google-services.json").exists() ||
@@ -60,7 +67,8 @@ android {
         applicationId = "com.dealfinder.mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(24, flutter.minSdkVersion)
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = mapsApiKey
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
