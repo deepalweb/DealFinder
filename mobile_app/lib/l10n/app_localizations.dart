@@ -2091,6 +2091,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Loading nearby offers…'**
   String get loadingNearbyLabel;
+
+  /// No description provided for @profileOffersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Offers'**
+  String get profileOffersLabel;
+
+  /// No description provided for @profileReviewsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews'**
+  String get profileReviewsLabel;
+
+  /// No description provided for @profileActiveOffersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get profileActiveOffersLabel;
+
+  /// No description provided for @profileExpiredOffersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Expired'**
+  String get profileExpiredOffersLabel;
+
+  /// No description provided for @profileNoOffersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'No offers to show right now.'**
+  String get profileNoOffersLabel;
+
+  /// No description provided for @profileShareStoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Share store'**
+  String get profileShareStoreLabel;
+
+  /// No description provided for @profileCallStoreLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Call store'**
+  String get profileCallStoreLabel;
+
+  /// No description provided for @profileOrderLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Order online'**
+  String get profileOrderLabel;
+
+  /// No description provided for @profileVisitLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Visit store'**
+  String get profileVisitLabel;
+
+  /// No description provided for @profileHoursLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening hours'**
+  String get profileHoursLabel;
+
+  /// No description provided for @profileClosedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Closed now'**
+  String get profileClosedLabel;
+
+  /// No description provided for @profileFollowersLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'followers'**
+  String get profileFollowersLabel;
+
+  /// No description provided for @profileHoursUnknownLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours unavailable'**
+  String get profileHoursUnknownLabel;
+
+  /// No description provided for @merchantProfileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Store'**
+  String get merchantProfileTitle;
+
+  /// No description provided for @merchantProfileUnavailableLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Store details are unavailable. Please try again.'**
+  String get merchantProfileUnavailableLabel;
+
+  /// No description provided for @profileSavingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Saving…'**
+  String get profileSavingLabel;
+
+  /// No description provided for @profileEditLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get profileEditLabel;
+
+  /// No description provided for @profileSaveLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Save changes'**
+  String get profileSaveLabel;
+
+  /// No description provided for @profileCurrentPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current password'**
+  String get profileCurrentPasswordLabel;
+
+  /// No description provided for @profileNewPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'New password'**
+  String get profileNewPasswordLabel;
+
+  /// No description provided for @profileConfirmPasswordLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm new password'**
+  String get profileConfirmPasswordLabel;
 }
 
 class _AppLocalizationsDelegate

@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>DealFinder - Discover Feed</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#006446",
+          "primary-container": "#087F5B",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#cfffe5",
+          "secondary": "#006c4c",
+          "secondary-container": "#e1f8ed",
+          "on-secondary-container": "#005139",
+          "background": "#F2F2F7",
+          "surface": "#ffffff",
+          "surface-container": "#f4f4f6",
+          "surface-container-high": "#eaeaeScreen",
+          "surface-container-lowest": "#ffffff",
+          "on-surface": "#111827",
+          "on-surface-variant": "#4b5563",
+          "outline": "#9ca3af",
+          "outline-variant": "#e5e7eb",
+          "error": "#d92d20",
+          "error-container": "#fef3f2",
+          "on-error-container": "#b42318",
+          "tertiary": "#b54708",
+          "tertiary-container": "#fffaeb"
+        },
+        borderRadius: {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "2xl": "1.25rem",
+          "3xl": "1.5rem",
+          "full": "9999px"
+        },
+        fontFamily: {
+          sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"]
+        }
+      }
+    }
+  }
+</script>
+<style>
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    display: inline-block;
+    vertical-align: middle;
+  }
+  body {
+    min-height: 100dvh;
+    background-color: #e5e7eb;
+  }
+</style>
+</head>
+<body class="font-sans antialiased text-on-surface">
+<!-- Mobile Viewport Wrapper (iOS Shell) -->
+<div class="relative mx-auto flex min-h-screen w-full max-w-md flex-col bg-[#F2F2F7] shadow-2xl pb-28">
+<!-- TOP HEADER & STATUS BAR (iOS Standard) -->
+<header class="sticky top-0 z-40 bg-[#F2F2F7]/95 backdrop-blur-md pt-1 pb-3 px-4 border-b border-gray-200/70">
+<!-- iOS Status Bar Simulation -->
+<div class="flex items-center justify-between text-xs font-semibold text-gray-800 pb-2.5 pt-1 px-1">
+<span>9:41</span>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[16px]">battery_full</span>
+</div>
+</div>
+<!-- App Brand & Top Controls -->
+<div class="flex items-center justify-between mt-1 mb-2">
+<div class="flex items-center gap-2">
+<div class="flex h-8 w-8 items-center justify-center rounded-xl bg-[#087F5B] text-white shadow-sm font-bold text-base">
+          %
+        </div>
+<div>
+<span class="text-xs font-semibold uppercase tracking-wider text-[#087F5B]">DealFinder</span>
+<h1 class="text-2xl font-extrabold tracking-tight text-gray-900 leading-tight">Discover</h1>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<!-- Notification Bell with unread dot -->
+<button aria-label="Notifications" class="relative flex h-9 w-9 items-center justify-center rounded-full bg-white border border-gray-200/80 shadow-xs active:scale-95 transition">
+<span class="material-symbols-outlined text-[20px] text-gray-700">notifications</span>
+<span class="absolute top-2 right-2 h-2 w-2 rounded-full bg-[#087F5B] ring-2 ring-white"></span>
+</button>
+<!-- User Avatar -->
+<div class="h-9 w-9 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-xs font-bold text-[#087F5B]">
+          SK
+        </div>
+</div>
+</div>
+<!-- 1. Target Location Bar -->
+<div class="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-gray-200/80 shadow-xs mb-2.5">
+<div class="flex items-center gap-2 min-w-0">
+<span class="text-base leading-none">📍</span>
+<div class="truncate">
+<span class="text-[11px] font-medium text-gray-500 uppercase tracking-wide block leading-none">Browsing Location</span>
+<span class="text-xs font-bold text-gray-900 truncate">Offers around Nugegoda</span>
+</div>
+</div>
+<button class="inline-flex items-center gap-1 shrink-0 rounded-full bg-[#e1f8ed] px-2.5 py-1 text-xs font-semibold text-[#087F5B] hover:bg-[#d0f2e2] transition active:scale-95">
+<span>Change area</span>
+<span class="material-symbols-outlined text-[14px]">expand_more</span>
+</button>
+</div>
+<!-- 2. Prominent Search Bar -->
+<div class="relative flex items-center w-full">
+<div class="absolute left-3 flex items-center pointer-events-none text-gray-400">
+<span class="material-symbols-outlined text-[20px]">search</span>
+</div>
+<input class="w-full h-11 rounded-xl bg-white border border-gray-200/90 pl-10 pr-10 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#087F5B] shadow-xs" placeholder="Search offers, stores, or categories" type="text"/>
+<button aria-label="Clear search" class="absolute right-3 flex items-center justify-center text-gray-400 hover:text-gray-600 transition">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+</button>
+</div>
+<!-- 3. Category Chips (Horizontal Scroll) -->
+<div class="flex gap-1.5 overflow-x-auto no-scrollbar pt-2.5 pb-0.5 -mx-4 px-4">
+<button class="category-pill active flex h-8 shrink-0 items-center justify-center rounded-full bg-[#087F5B] px-3.5 text-xs font-bold text-white shadow-xs">
+        All
+      </button>
+<button class="category-pill flex h-8 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200/90 px-3.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+        Food &amp; Dining
+      </button>
+<button class="category-pill flex h-8 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200/90 px-3.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+        Shopping
+      </button>
+<button class="category-pill flex h-8 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200/90 px-3.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+        Supermarkets
+      </button>
+<button class="category-pill flex h-8 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200/90 px-3.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+        Electronics
+      </button>
+<button class="category-pill flex h-8 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200/90 px-3.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+        Travel &amp; Leisure
+      </button>
+<button class="category-pill flex h-8 shrink-0 items-center justify-center rounded-full bg-white border border-gray-200/90 px-3.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+        Wellness &amp; Spa
+      </button>
+</div>
+</header>
+<!-- MAIN SCROLL CONTENT -->
+<main class="flex flex-col gap-6 px-4 pt-4">
+<!-- 4. ONE FEATURED OFFER (Editorial Hero Card, no rotating carousel clutter) -->
+<section>
+<div class="overflow-hidden rounded-[20px] bg-white border border-gray-200/90 shadow-sm transition hover:shadow-md">
+<!-- Image & Badges -->
+<div class="relative h-56 w-full overflow-hidden bg-gray-100">
+<img alt="Signature Weekend High Tea setup" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8lKUOhoYZPIc6o8S6xIyoZSmCb-AiB9dbwNJ4tz-lkJR6DMeGM69GKQwQc4iLdMt8SIwvS5CllflnEgaGEGmc7oyXcIlbL99xOV3jQku7H1wxIfD36b7C_fZVE_POMTAbSsuvUqLA0WJjhdI7Pts3hRI_4ljYVAKjrGEaBn_grYtToiH_491KDqiHwHYOaj8eV6jK9AE09vDVbqTRhAvM1HbyJw3QGP0LPSeDYIU_tM6JhGg3Y3Df8Q"/>
+<div class="absolute inset-0 bg-gradient-to-t from-gray-950/85 via-gray-950/30 to-transparent"></div>
+<div class="absolute top-3 left-3 right-3 flex items-center justify-between">
+<span class="inline-flex items-center gap-1 rounded-full bg-[#087F5B] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">star</span>
+              Featured Deal
+            </span>
+<button aria-label="Save offer" class="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm text-gray-800 hover:bg-white shadow-xs active:scale-90 transition">
+<span class="material-symbols-outlined text-[18px]">bookmark_border</span>
+</button>
+</div>
+<div class="absolute bottom-3 left-3 right-3 text-white">
+<span class="text-xs font-semibold text-emerald-300">The Verandah Lounge · Galle Face Hotel</span>
+<h2 class="mt-0.5 text-lg font-bold leading-snug line-clamp-2">
+              35% off Signature Weekend High Tea &amp; Savoury Platters
+            </h2>
+</div>
+</div>
+<!-- Key Conditions & Price Row -->
+<div class="p-4 flex flex-col gap-3">
+<div class="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
+<span class="inline-flex items-center gap-1 font-medium">
+<span class="material-symbols-outlined text-[15px] text-[#087F5B]">credit_card</span>
+              Selected Credit Cards
+            </span>
+<span class="text-gray-300">•</span>
+<span class="text-red-600 font-semibold">Ends 24 Oct</span>
+<span class="text-gray-300">•</span>
+<span class="text-gray-600 font-medium">Valid Fri–Sun</span>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-gray-100">
+<div class="flex items-baseline gap-1.5">
+<span class="text-xl font-bold text-[#087F5B]">LKR 4,950</span>
+<span class="text-xs line-through text-gray-400">LKR 7,600</span>
+</div>
+<button class="inline-flex items-center gap-1.5 rounded-xl bg-[#087F5B] px-4 py-2 text-xs font-bold text-white hover:bg-[#006446] transition active:scale-95 shadow-xs">
+<span>Claim Offer</span>
+<span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- 5. NEAR YOU (Strongest emphasis - Systematically answers all 7 questions) -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-lg font-bold text-gray-900 leading-tight">Near You</h3>
+<p class="text-xs text-gray-500">Within walking distance &amp; quick drive from Nugegoda</p>
+</div>
+<a class="inline-flex items-center text-xs font-bold text-[#087F5B] hover:underline" href="#">
+          See all (18)
+          <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+</a>
+</div>
+<!-- Cards Grid / Stack answering the 7 Key Questions -->
+<div class="grid grid-cols-1 gap-3.5">
+<!-- Near You Card 1 (Zen Dining) -->
+<div class="rounded-[20px] bg-white border border-gray-200/90 p-3.5 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<!-- Image with Discount Badge -->
+<div class="relative h-24 w-24 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+<img alt="Japanese Bento Box" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRD6kCGljSxeHPaIjVC3ur6AB7IiU_h1iHd8im6WEUdZRZkevLnlYD6vUt6Z1tQFHcaEaLE969oxDu2InDos2ZGHNNZ6Mj101dZs8E_EOUmx98zar7W2ZUqAJU557KSTKkLqU9gzZHJrUoUvXw5dwTkfnP1viFVj-Krqrxniqth9xm0x9ufuyIRTH7j6gV6qfCjThoIuYTV0mu8hCTQKoeBN_1D5jhGuHq2kH3SttcxIcTG1-v6FXC-g"/>
+<span class="absolute top-1.5 left-1.5 rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                25% OFF
+              </span>
+</div>
+<!-- Content answering What, Who, Cost -->
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<span class="text-[11px] font-medium text-gray-500 truncate">Zen Dining · High Level Rd, Nugegoda</span>
+<!-- Accessible Save Bookmark -->
+<button aria-label="Bookmark Zen Dining offer" class="shrink-0 text-gray-400 hover:text-gray-700 transition">
+<span class="material-symbols-outlined text-[18px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="text-sm font-bold text-gray-900 leading-snug truncate mt-0.5">
+                Express Bento &amp; Matcha Set
+              </h4>
+<div class="flex items-baseline gap-1.5 mt-1">
+<span class="text-sm font-bold text-gray-900">LKR 2,400</span>
+<span class="text-xs line-through text-gray-400">LKR 3,200</span>
+</div>
+<!-- Can I use it? Key restriction -->
+<div class="mt-1 flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md w-fit">
+<span class="material-symbols-outlined text-[13px] text-[#087F5B]">info</span>
+<span>Dine-in only · Selected cards</span>
+</div>
+</div>
+</div>
+<!-- Where & When Co-existing Footnote -->
+<div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+<span class="flex items-center gap-1 font-semibold text-gray-700">
+<span class="material-symbols-outlined text-[15px] text-[#087F5B]">near_me</span>
+              650m away
+            </span>
+<span class="flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+<span class="material-symbols-outlined text-[14px]">timer</span>
+              Ends in 2 days
+            </span>
+</div>
+</div>
+<!-- Near You Card 2 (Crumb & Co) -->
+<div class="rounded-[20px] bg-white border border-gray-200/90 p-3.5 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<!-- Image with Discount Badge -->
+<div class="relative h-24 w-24 shrink-0 rounded-xl overflow-hidden bg-gray-100">
+<img alt="Artisan Pastry" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDY4kwi2impHyEBnNY3VBj7BZoWDw__rtVqlVQ5_2NTwZSXYrvwixCJt-UIU-6MGz-uaRsIW_w-IYqJeGtUfdKDxVugT-j0p1upDeULz1HX0MXWYv_zvwZ7v47VK968jkt21za_0uzh7gt_iri0f7of07HSBFBcXyXVVtUf7Y--78iAwRXa1An3GmdSLeH3z5ND_yDMDSV6EJbZ1D65kTK5YBlE-euGFHtEXQ2THXJG9Bvu22D3EnS0mQ"/>
+<span class="absolute top-1.5 left-1.5 rounded-md bg-[#087F5B] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
+                Buy 1 Get 1
+              </span>
+</div>
+<!-- Content answering What, Who, Cost -->
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<span class="text-[11px] font-medium text-gray-500 truncate">Crumb &amp; Co · Stanley Tilakaratne Mw</span>
+<!-- Accessible Save Bookmark -->
+<button aria-label="Bookmark Crumb &amp; Co offer" class="shrink-0 text-gray-400 hover:text-gray-700 transition">
+<span class="material-symbols-outlined text-[18px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="text-sm font-bold text-gray-900 leading-snug truncate mt-0.5">
+                Artisan Pastry &amp; Pour Over
+              </h4>
+<div class="flex items-baseline gap-1.5 mt-1">
+<span class="text-sm font-bold text-gray-900">LKR 1,850</span>
+<span class="text-xs font-semibold text-[#087F5B]">2nd Item Free</span>
+</div>
+<!-- Can I use it? Key restriction -->
+<div class="mt-1 flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md w-fit">
+<span class="material-symbols-outlined text-[13px] text-[#087F5B]">takeout_dining</span>
+<span>Takeaway &amp; Dine-in · All payments</span>
+</div>
+</div>
+</div>
+<!-- Where & When Co-existing Footnote -->
+<div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+<span class="flex items-center gap-1 font-semibold text-gray-700">
+<span class="material-symbols-outlined text-[15px] text-[#087F5B]">near_me</span>
+              920m away
+            </span>
+<span class="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+<span class="material-symbols-outlined text-[14px]">event_available</span>
+              Valid Today
+            </span>
+</div>
+</div>
+</div>
+</section>
+<!-- 6. ENDING SOON (Genuine Deadlines Urgency Card) -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[20px] text-red-600">schedule</span>
+<h3 class="text-lg font-bold text-gray-900">Ending Soon</h3>
+</div>
+<span class="text-[11px] font-bold text-red-700 bg-red-100/80 px-2.5 py-0.5 rounded-full">
+          Genuine Deadlines
+        </span>
+</div>
+<div class="overflow-hidden rounded-[20px] bg-white border border-red-200/80 shadow-sm flex flex-col"><div class="relative h-40 w-full overflow-hidden bg-gray-100"><img alt="Singer Mega electronics showroom" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_dUvWXbFQnDmG8HQFo1EydammP_iFKMKbzQOStbrSFHMiIL2_XDLLGLkr6twzP6XDRDLJ9jbGaLymFVeqX-Ly_j4jUJLwwFHcXSclcwYSc9oEgs8khxDoYScPYsKjZGElIKwb29p9CISQkRdefRth8BUJ57ZS2tGcKCglUY26MyJIiTpCLj7fLtn83LXS7WwTAX__S8zrBngofUf-DfvhFNS4_9LqGQNpnMWFE2nRIQNzMGd_F0vsZA"/><div class="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-gray-950/20 to-transparent"></div><div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between"><span class="flex items-center gap-1 font-bold text-[10px] text-white bg-red-600 px-2.5 py-1 rounded-full shadow-xs"><span class="material-symbols-outlined text-[13px]">alarm</span>Expires Midnight</span><button aria-label="Bookmark Singer Mega offer" class="h-8 w-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center text-gray-700 shadow-xs"><span class="material-symbols-outlined text-[18px]">bookmark_border</span></button></div><div class="absolute bottom-2.5 left-3 right-3 text-white"><span class="text-[11px] font-medium text-emerald-300">Singer Mega · Nugegoda</span><h4 class="text-base font-bold leading-tight line-clamp-1">LKR 1,500 OFF with HNB Cards</h4></div></div><div class="p-3.5 flex flex-col gap-2.5"><div class="flex items-center justify-between text-xs"><span class="text-gray-500 font-medium">Min spend: <strong class="text-gray-900">LKR 10,000</strong></span><span class="text-gray-500 flex items-center gap-0.5"><span class="material-symbols-outlined text-[14px] text-[#087F5B]">near_me</span>1.1 km away</span></div><div class="flex items-center justify-between pt-1 border-t border-gray-100"><div class="flex items-center gap-1.5 text-xs font-semibold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-lg"><span>Code:</span><span class="text-[#087F5B] font-bold tracking-wide">HNB1500</span></div><button class="rounded-xl bg-gray-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-gray-800 transition active:scale-95 shadow-xs flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">content_copy</span><span>Copy Code</span></button></div></div></div>
+</section>
+<!-- 7. BANK OFFERS WITH ELIGIBILITY SUMMARIES -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-lg font-bold text-gray-900">Bank Offers</h3>
+<p class="text-xs text-gray-500">Cardholder Perks &amp; Eligibility</p>
+</div>
+<a class="text-xs font-bold text-[#087F5B] hover:underline flex items-center" href="#">
+          Explore 14 Partner Banks
+          <span class="material-symbols-outlined text-[15px]">chevron_right</span>
+</a>
+</div>
+<div class="grid grid-cols-3 gap-2.5"><div class="overflow-hidden rounded-2xl bg-white border border-gray-200/90 shadow-xs flex flex-col"><div class="relative h-20 w-full overflow-hidden bg-gray-100"><img alt="ComBank Dining &amp; Travel Deals" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAYF_k0Kq9p8fKz4x3oWf_21v-g1d3Q_a_h0L9PZ0JbYF8_1P9wT1nZz0E8_5F1b8JdE2nS=w600"/><div class="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent"></div><span class="absolute top-1.5 left-1.5 rounded-md bg-emerald-700 text-white px-1.5 py-0.5 text-[9px] font-extrabold shadow-xs">CBC</span><div class="absolute bottom-1.5 left-2 text-white font-bold text-[11px] leading-tight">Up to 40% OFF</div></div><div class="p-2 flex flex-col gap-0.5 bg-white"><span class="text-xs font-bold text-gray-900 truncate">ComBank</span><span class="text-[10px] text-gray-500 truncate">Visa Signature</span></div></div><div class="overflow-hidden rounded-2xl bg-white border border-gray-200/90 shadow-xs flex flex-col"><div class="relative h-20 w-full overflow-hidden bg-gray-100"><img alt="HSBC Fine Dining Promo" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRD6kCGljSxeHPaIjVC3ur6AB7IiU_h1iHd8im6WEUdZRZkevLnlYD6vUt6Z1tQFHcaEaLE969oxDu2InDos2ZGHNNZ6Mj101dZs8E_EOUmx98zar7W2ZUqAJU557KSTKkLqU9gzZHJrUoUvXw5dwTkfnP1viFVj-Krqrxniqth9xm0x9ufuyIRTH7j6gV6qfCjThoIuYTV0mu8hCTQKoeBN_1D5jhGuHq2kH3SttcxIcTG1-v6FXC-g"/><div class="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent"></div><span class="absolute top-1.5 left-1.5 rounded-md bg-red-600 text-white px-1.5 py-0.5 text-[9px] font-extrabold shadow-xs">HSBC</span><div class="absolute bottom-1.5 left-2 text-white font-bold text-[11px] leading-tight">1-for-1 Dining</div></div><div class="p-2 flex flex-col gap-0.5 bg-white"><span class="text-xs font-bold text-gray-900 truncate">HSBC Bank</span><span class="text-[10px] text-gray-500 truncate">Premier Club</span></div></div><div class="overflow-hidden rounded-2xl bg-white border border-gray-200/90 shadow-xs flex flex-col"><div class="relative h-20 w-full overflow-hidden bg-gray-100"><img alt="Sampath Weekend Supermarket Perks" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDY4kwi2impHyEBnNY3VBj7BZoWDw__rtVqlVQ5_2NTwZSXYrvwixCJt-UIU-6MGz-uaRsIW_w-IYqJeGtUfdKDxVugT-j0p1upDeULz1HX0MXWYv_zvwZ7v47VK968jkt21za_0uzh7gt_iri0f7of07HSBFBcXyXVVtUf7Y--78iAwRXa1An3GmdSLeH3z5ND_yDMDSV6EJbZ1D65kTK5YBlE-euGFHtEXQ2THXJG9Bvu22D3EnS0mQ"/><div class="absolute inset-0 bg-gradient-to-t from-gray-950/80 to-transparent"></div><span class="absolute top-1.5 left-1.5 rounded-md bg-amber-600 text-white px-1.5 py-0.5 text-[9px] font-extrabold shadow-xs">SAMP</span><div class="absolute bottom-1.5 left-2 text-white font-bold text-[11px] leading-tight">Extra 15% OFF</div></div><div class="p-2 flex flex-col gap-0.5 bg-white"><span class="text-xs font-bold text-gray-900 truncate">Sampath</span><span class="text-[10px] text-gray-500 truncate">Mastercard</span></div></div></div>
+</section>
+<!-- 8. NEW THIS WEEK (Answering all 7 questions) -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div>
+<h3 class="text-lg font-bold text-gray-900">New This Week</h3>
+<p class="text-xs text-gray-500">Freshly added promotions</p>
+</div>
+<span class="inline-flex items-center text-xs font-semibold text-gray-500">
+          Just in
+        </span>
+</div>
+<div class="flex flex-col gap-3">
+<!-- New Deal 1: Spa Ceylon -->
+<div class="rounded-[20px] bg-white border border-gray-200/90 p-3.5 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<div class="relative h-24 w-24 shrink-0 rounded-xl overflow-hidden bg-gray-100"><img alt="Ayurvedic Spa &amp; Wellness Essentials" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFJkwlwZjR_rTRs9-8k9eidQ9YpdUgzcH1EAHBW2LcHouTmHNoiHlg_1QOj4hNNbuvRVE0P_ytz7T9IYgfWPwmXD_ITmIHz64gbUlnOE3uYX4gCn0sz0mw62LXQ16zDNT1khaMieY8wgT7jeT-DZbRrCrz5BDcdMjV3tTO3lc6kT7jn7SgKgnv-e8BXjnM5tD2l_ZZLKL85hhqAKzved2FaXfFnGI-5tJgk-R_dSXHC60tcqxpeXZxoA"/><span class="absolute top-1.5 left-1.5 rounded-md bg-[#087F5B] px-1.5 py-0.5 text-[9px] font-extrabold text-white shadow-xs">30% OFF</span></div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<span class="text-[11px] font-medium text-gray-500 truncate">Spa Ceylon · Jubilee Post, Nugegoda</span>
+<button aria-label="Bookmark Spa Ceylon offer" class="shrink-0 text-gray-400 hover:text-gray-700 transition">
+<span class="material-symbols-outlined text-[18px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="text-sm font-bold text-gray-900 truncate mt-0.5">
+                Ayurvedic Wellness Ritual &amp; Body Mist
+              </h4>
+<div class="flex items-baseline gap-1.5 mt-1">
+<span class="text-sm font-bold text-gray-900">LKR 5,200</span>
+<span class="text-xs line-through text-gray-400">LKR 7,450</span>
+</div>
+<div class="mt-1 text-[11px] font-medium text-gray-600">
+                Restriction: Pre-booking required · Mon–Thu
+              </div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+<span class="flex items-center gap-1 font-semibold text-gray-700">
+<span class="material-symbols-outlined text-[14px] text-[#087F5B]">near_me</span>
+              1.4 km away
+            </span>
+<span class="font-medium text-gray-500">Added yesterday · Ends 31 Oct</span>
+</div>
+</div>
+<!-- New Deal 2: Keells Supermarket -->
+<div class="rounded-[20px] bg-white border border-gray-200/90 p-3.5 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<div class="relative h-24 w-24 shrink-0 rounded-xl overflow-hidden bg-gray-100"><img alt="Fresh Organic Produce Supermarket Aisle" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpXBG1UVVtRd9JbtTQ9vFjhdi7FH6DSXwHNWrEGajr8X5YgtidXtJkqdl8SF0moGgXACNF9PlbY5qIoKKzKUfhZ64Yzq64SWvDLYKrnA_oSmot7ASHRJcHZG0lnWDNEM6QZwf4A46_ZNTwLU7wSdPm4Du_SKVokz7I9hgKpuxlkq_FHjiLXqySFq6IGJ2kv1HxXEpqxFXXkaQiDdyrOlIlFf3s63HaNebTNaNv2iwU0jQDQQ2shEhWiw"/><span class="absolute top-1.5 left-1.5 rounded-md bg-red-600 px-1.5 py-0.5 text-[9px] font-extrabold text-white shadow-xs">20% OFF</span></div>
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between gap-1">
+<span class="text-[11px] font-medium text-gray-500 truncate">Keells Super · Nawala Rd, Nugegoda</span>
+<button aria-label="Bookmark Keells offer" class="shrink-0 text-gray-400 hover:text-gray-700 transition">
+<span class="material-symbols-outlined text-[18px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="text-sm font-bold text-gray-900 truncate mt-0.5">
+                Fresh Produce &amp; Dairy Weekend Basket
+              </h4>
+<div class="flex items-baseline gap-1.5 mt-1">
+<span class="text-sm font-bold text-gray-900">LKR 3,800</span>
+<span class="text-xs line-through text-gray-400">LKR 4,750</span>
+</div>
+<div class="mt-1 text-[11px] font-medium text-gray-600">
+                Restriction: Nexus Members · In-store checkout
+              </div>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs">
+<span class="flex items-center gap-1 font-semibold text-gray-700">
+<span class="material-symbols-outlined text-[14px] text-[#087F5B]">near_me</span>
+              750m away
+            </span>
+<span class="font-medium text-gray-500">Added 2 hrs ago · Ends Sunday</span>
+</div>
+</div>
+</div>
+</section>
+<!-- 9. FROM STORES YOU FOLLOW & COMPACT BROWSE STORES ENTRY -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold text-gray-900">From Stores You Follow</h3>
+<span class="text-xs text-[#087F5B] font-semibold">4 Following</span>
+</div>
+<!-- Circular Brand Avatars with deal counters -->
+<div class="grid grid-cols-4 gap-2 bg-white rounded-[20px] p-3.5 border border-gray-200/90 shadow-xs"><div class="flex flex-col items-center text-center"><div class="relative h-14 w-14 rounded-full overflow-hidden shadow-xs border-2 border-emerald-500"><img alt="Keells Supermarket Store" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpXBG1UVVtRd9JbtTQ9vFjhdi7FH6DSXwHNWrEGajr8X5YgtidXtJkqdl8SF0moGgXACNF9PlbY5qIoKKzKUfhZ64Yzq64SWvDLYKrnA_oSmot7ASHRJcHZG0lnWDNEM6QZwf4A46_ZNTwLU7wSdPm4Du_SKVokz7I9hgKpuxlkq_FHjiLXqySFq6IGJ2kv1HxXEpqxFXXkaQiDdyrOlIlFf3s63HaNebTNaNv2iwU0jQDQQ2shEhWiw"/><span class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-xs">3</span></div><span class="text-xs font-semibold text-gray-900 mt-1.5 truncate w-full">Keells</span><span class="text-[10px] text-gray-500">3 deals</span></div><div class="flex flex-col items-center text-center"><div class="relative h-14 w-14 rounded-full overflow-hidden shadow-xs border-2 border-amber-600"><img alt="Sugar Bistro Pastry Cafe" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDY4kwi2impHyEBnNY3VBj7BZoWDw__rtVqlVQ5_2NTwZSXYrvwixCJt-UIU-6MGz-uaRsIW_w-IYqJeGtUfdKDxVugT-j0p1upDeULz1HX0MXWYv_zvwZ7v47VK968jkt21za_0uzh7gt_iri0f7of07HSBFBcXyXVVtUf7Y--78iAwRXa1An3GmdSLeH3z5ND_yDMDSV6EJbZ1D65kTK5YBlE-euGFHtEXQ2THXJG9Bvu22D3EnS0mQ"/><span class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-xs">1</span></div><span class="text-xs font-semibold text-gray-900 mt-1.5 truncate w-full">Sugar Bistro</span><span class="text-[10px] text-gray-500">1 deal</span></div><div class="flex flex-col items-center text-center"><div class="relative h-14 w-14 rounded-full overflow-hidden shadow-xs border-2 border-[#087F5B]"><img alt="Spa Ceylon Wellness" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFJkwlwZjR_rTRs9-8k9eidQ9YpdUgzcH1EAHBW2LcHouTmHNoiHlg_1QOj4hNNbuvRVE0P_ytz7T9IYgfWPwmXD_ITmIHz64gbUlnOE3uYX4gCn0sz0mw62LXQ16zDNT1khaMieY8wgT7jeT-DZbRrCrz5BDcdMjV3tTO3lc6kT7jn7SgKgnv-e8BXjnM5tD2l_ZZLKL85hhqAKzved2FaXfFnGI-5tJgk-R_dSXHC60tcqxpeXZxoA"/><span class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-xs">2</span></div><span class="text-xs font-semibold text-gray-900 mt-1.5 truncate w-full">Spa Ceylon</span><span class="text-[10px] text-gray-500">2 deals</span></div><div class="flex flex-col items-center text-center"><div class="relative h-14 w-14 rounded-full overflow-hidden shadow-xs border-2 border-gray-700"><img alt="Singer Mega Showroom" class="h-full w-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_dUvWXbFQnDmG8HQFo1EydammP_iFKMKbzQOStbrSFHMiIL2_XDLLGLkr6twzP6XDRDLJ9jbGaLymFVeqX-Ly_j4jUJLwwFHcXSclcwYSc9oEgs8khxDoYScPYsKjZGElIKwb29p9CISQkRdefRth8BUJ57ZS2tGcKCglUY26MyJIiTpCLj7fLtn83LXS7WwTAX__S8zrBngofUf-DfvhFNS4_9LqGQNpnMWFE2nRIQNzMGd_F0vsZA"/><span class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white shadow-xs">4</span></div><span class="text-xs font-semibold text-gray-900 mt-1.5 truncate w-full">Singer Mega</span><span class="text-[10px] text-gray-500">4 deals</span></div></div>
+<!-- Compact button: Browse All Partner Stores -->
+<button class="w-full rounded-xl bg-white border border-gray-200/90 py-2.5 px-3 text-xs font-bold text-gray-800 hover:bg-gray-50 transition flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.99]">
+<span>Browse All Partner Stores (42)</span>
+<span class="material-symbols-outlined text-[16px] text-[#087F5B]">arrow_forward</span>
+</button>
+</section>
+</main>
+<!-- 10. BOTTOM CHROME: 5 STABLE CUPERTINO TABS -->
+<nav class="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-md bg-white/95 backdrop-blur-md border-t border-gray-200">
+<div class="grid grid-cols-5 items-center px-2 pt-2 pb-5">
+<!-- Tab 1: Discover (Active) -->
+<a class="flex flex-col items-center justify-center gap-1 text-[#087F5B]" href="#">
+<div class="flex h-6 items-center justify-center">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">explore</span>
+</div>
+<span class="text-[10px] font-bold tracking-tight">Discover</span>
+</a>
+<!-- Tab 2: Nearby -->
+<a class="flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-gray-900 transition" href="#">
+<div class="flex h-6 items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">near_me</span>
+</div>
+<span class="text-[10px] font-semibold tracking-tight">Nearby</span>
+</a>
+<!-- Tab 3: Bank Offers -->
+<a class="flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-gray-900 transition" href="#">
+<div class="flex h-6 items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">credit_card</span>
+</div>
+<span class="text-[10px] font-semibold tracking-tight">Bank Offers</span>
+</a>
+<!-- Tab 4: Saved -->
+<a class="flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-gray-900 transition" href="#">
+<div class="flex h-6 items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">bookmark</span>
+</div>
+<span class="text-[10px] font-semibold tracking-tight">Saved</span>
+</a>
+<!-- Tab 5: Account -->
+<a class="flex flex-col items-center justify-center gap-1 text-gray-500 hover:text-gray-900 transition" href="#">
+<div class="flex h-6 items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">person</span>
+</div>
+<span class="text-[10px] font-semibold tracking-tight">Account</span>
+</a>
+</div>
+</nav>
+</div>
+<!-- Micro-interaction JS for category pills -->
+<script>
+  document.querySelectorAll('.category-pill').forEach(button => {
+    button.addEventListener('click', function() {
+      document.querySelectorAll('.category-pill').forEach(btn => {
+        btn.classList.remove('bg-[#087F5B]', 'text-white', 'font-bold', 'active');
+        btn.classList.add('bg-white', 'text-gray-700', 'font-medium', 'border', 'border-gray-200/90');
+      });
+      this.classList.remove('bg-white', 'text-gray-700', 'font-medium', 'border', 'border-gray-200/90');
+      this.classList.add('bg-[#087F5B]', 'text-white', 'font-bold', 'active');
+    });
+  });
+</script>
+</body></html>

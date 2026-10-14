@@ -30,6 +30,12 @@ class OfferConditions extends StatelessWidget {
             .join(' · '),
       if (offer.minimumSpend != null)
         l10n.minimumSpendLabel(offerMoney(offer, offer.minimumSpend!)),
+      if (offer.maximumBenefit != null)
+        '${switch (Localizations.localeOf(context).languageCode) {
+          'si' => 'උපරිම ප්‍රතිලාභය',
+          'ta' => 'அதிகபட்ச பலன்',
+          _ => 'Maximum benefit',
+        }} ${offerMoney(offer, offer.maximumBenefit!)}',
       if (offer.endDate != null)
         l10n.offerEndsOn(
             DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag())

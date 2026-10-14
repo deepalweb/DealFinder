@@ -1106,4 +1106,69 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get loadingNearbyLabel => 'அருகிலுள்ள சலுகைகள் ஏற்றப்படுகின்றன…';
+
+  @override
+  String get profileOffersLabel => 'சலுகைகள்';
+
+  @override
+  String get profileReviewsLabel => 'மதிப்புரைகள்';
+
+  @override
+  String get profileActiveOffersLabel => 'செயலில்';
+
+  @override
+  String get profileExpiredOffersLabel => 'காலாவதியானவை';
+
+  @override
+  String get profileNoOffersLabel => 'தற்போது காட்ட சலுகைகள் இல்லை.';
+
+  @override
+  String get profileShareStoreLabel => 'கடையைப் பகிரவும்';
+
+  @override
+  String get profileCallStoreLabel => 'கடையை அழைக்கவும்';
+
+  @override
+  String get profileOrderLabel => 'இணையத்தில் ஆர்டர் செய்யவும்';
+
+  @override
+  String get profileVisitLabel => 'கடைக்கு வருகை';
+
+  @override
+  String get profileHoursLabel => 'திறக்கும் நேரம்';
+
+  @override
+  String get profileClosedLabel => 'தற்போது மூடப்பட்டுள்ளது';
+
+  @override
+  String get profileFollowersLabel => 'பின்தொடர்பவர்கள்';
+
+  @override
+  String get profileHoursUnknownLabel => 'நேரம் கிடைக்கவில்லை';
+
+  @override
+  String get merchantProfileTitle => 'கடை';
+
+  @override
+  String get merchantProfileUnavailableLabel =>
+      'கடை விவரங்கள் கிடைக்கவில்லை. மீண்டும் முயற்சிக்கவும்.';
+
+  @override
+  String get profileSavingLabel => 'சேமிக்கிறது…';
+
+  @override
+  String get profileEditLabel => 'சுயவிவரத்தைத் திருத்தவும்';
+
+  @override
+  String get profileSaveLabel => 'மாற்றங்களைச் சேமிக்கவும்';
+
+  @override
+  String get profileCurrentPasswordLabel => 'தற்போதைய கடவுச்சொல்';
+
+  @override
+  String get profileNewPasswordLabel => 'புதிய கடவுச்சொல்';
+
+  @override
+  String get profileConfirmPasswordLabel =>
+      'புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்';
 }

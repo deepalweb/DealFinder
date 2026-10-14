@@ -16,6 +16,7 @@ import 'search_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AllDealsScreen extends StatefulWidget {
+  final String? initialCapabilityPresetId;
   final String? initialSortBy;
   final String? initialCategoryId;
   final String? initialSectionPreset;
@@ -27,6 +28,7 @@ class AllDealsScreen extends StatefulWidget {
 
   const AllDealsScreen({
     super.key,
+    this.initialCapabilityPresetId,
     this.initialSortBy,
     this.initialCategoryId,
     this.initialSectionPreset,
@@ -75,6 +77,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     super.initState();
     _sortBy = widget.initialSortBy ?? _sortBy;
     _selectedCategory = widget.initialCategoryId;
+    _selectedCapabilityPresetId = widget.initialCapabilityPresetId;
     _activeSectionPreset = widget.initialSectionPreset;
     _activePrimaryFilter = widget.initialPrimaryFilter;
     _minDiscount = widget.initialMinDiscount ?? _minDiscount;

@@ -8,12 +8,10 @@ import '../services/api_service.dart';
 import '../services/cache_service.dart';
 import '../services/location_service.dart';
 import '../services/browsing_area.dart';
-import '../services/image_helper.dart';
 import '../services/app_session.dart';
 import '../utils/bank_card_promotion_support.dart';
-import '../widgets/dealfinder_mark.dart';
-import '../widgets/discovery_offer_card.dart';
-import '../widgets/offer_save_button.dart';
+import '../widgets/discover_offer_surface.dart';
+import '../widgets/discover_offer_tile.dart';
 import '../widgets/sign_in_gate.dart';
 import 'all_deals_screen.dart';
 import 'nearby_deals_screen.dart';
@@ -21,15 +19,16 @@ import 'notifications_screen.dart';
 import 'stores_screen.dart';
 import 'search_screen.dart';
 import 'deal_detail_screen.dart';
-import 'user_profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen(
       {super.key,
+      this.api,
       this.onNavigateToFavorites,
       this.onNavigateNearby,
       this.onNavigateAccount,
       this.onNavigateBankOffers});
+  final ApiService? api;
   final VoidCallback? onNavigateToFavorites;
   final VoidCallback? onNavigateNearby;
   final VoidCallback? onNavigateAccount;
@@ -39,17 +38,18 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _api = ApiService();
+  late final _api = widget.api ?? ApiService();
   List<Promotion> _offers = [];
   List<Promotion> _curated = [];
   List<Promotion> _recommended = [];
   Position? _position;
   String? _area;
   String? _category;
+  String? _fulfillment;
+  bool _bankOnly = false;
   bool _loading = true;
   bool _offline = false;
   bool _bannerManaged = false;
-  int _featuredIndex = 0;
   int _unread = 0;
   String _recommendationUserId = '';
   Timer? _ticker;
@@ -207,16 +207,27 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
+  bool _matchesFilters(Promotion p) =>
+      (_fulfillment == null ||
+          switch (_fulfillment) {
+            'delivery' => p.supportsDelivery,
+            'pickup' => p.supportsPickup,
+            _ => p.supportsVisit,
+          }) &&
+      (!_bankOnly || BankCardPromotionSupport.isBankCardPromotion(p));
+
   List<Promotion> get _visible => _offers
       .where((p) =>
           (p.hasStarted && !p.isExpired) &&
-          (_category == null || p.category == _category))
+          (_category == null || p.category == _category) &&
+          _matchesFilters(p))
       .toList();
   List<Promotion> get _featured {
     final curated = _curated
         .where((p) =>
             (p.hasStarted && !p.isExpired) &&
-            (_category == null || p.category == _category))
+            (_category == null || p.category == _category) &&
+            _matchesFilters(p))
         .toList();
     return ((_bannerManaged || curated.isNotEmpty)
             ? curated
@@ -234,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
             distance: LocationService.calculateDistance(_position!.latitude,
                     _position!.longitude, p.latitude!, p.longitude!) *
                 1000))
-        .where((p) => p.distance! <= 5000)
+        .where((p) => p.distance! <= 3000)
         .toList();
     nearby.sort((a, b) => a.distance!.compareTo(b.distance!));
     return nearby;
@@ -286,26 +297,64 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadNotifications();
   }
 
-  Future<void> _account() async {
-    if (widget.onNavigateAccount != null) {
-      widget.onNavigateAccount!();
-      return;
-    }
-    if (!await requireSignIn(context) || !mounted) return;
-    Navigator.push(
-        context, MaterialPageRoute(builder: (_) => const UserProfileScreen()));
+  String _t(String en, String si, String ta) {
+    return switch (Localizations.localeOf(context).languageCode) {
+      'si' => si,
+      'ta' => ta,
+      _ => en,
+    };
   }
 
-  Widget _section(String title, {VoidCallback? onAll}) => Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
-      child: Row(children: [
-        Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleLarge)),
-        if (onAll != null)
-          TextButton(
-              onPressed: onAll,
-              child: Text(AppLocalizations.of(context)!.viewAll))
-      ]));
+  void _all({bool endingSoon = false}) => Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (_) => AllDealsScreen(
+                initialCategoryId: _category,
+                initialCapabilityPresetId: _fulfillment,
+                bankOffersOnly: _bankOnly,
+                initialPrimaryFilter: endingSoon ? 'ending_soon' : null,
+                initialSortBy: endingSoon ? 'ending_soon' : null,
+              )));
+
+  void _stores() => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => const StoresScreen()));
+
+  Widget _section(String title, {String? subtitle, VoidCallback? onAll}) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+        child: Row(children: [
+          Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(title,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleLarge
+                        ?.copyWith(fontSize: 16)),
+                if (subtitle != null)
+                  Text(subtitle,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(fontSize: 11)),
+              ])),
+          if (onAll != null)
+            TextButton(
+                onPressed: onAll,
+                child: Text(AppLocalizations.of(context)!.viewAll)),
+        ]),
+      );
+
+  Widget _card(Promotion offer, {bool editorial = false}) => Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: DiscoverOfferSurface(
+          offer: offer,
+          layout: editorial
+              ? DiscoverSurfaceLayout.editorial
+              : DiscoverSurfaceLayout.detail,
+          onOpen: () => _open(offer)));
+
   Widget _rail(List<Promotion> offers) => SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -313,195 +362,418 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: offers
               .take(6)
-              .map((p) => Padding(
+              .map((offer) => Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: SizedBox(
-                      width: 290,
-                      child: DiscoveryOfferCard(
-                          offer: p, onOpen: () => _open(p)))))
+                      width: 240,
+                      child: DiscoverOfferTile(
+                          offer: offer, onOpen: () => _open(offer)))))
               .toList()));
+
+  Widget _fulfillmentControls() {
+    final l10n = AppLocalizations.of(context)!;
+    return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 0, 0, 0),
+        child: Row(children: [
+          for (final mode in [
+            ('delivery', l10n.deliveryLabel, Icons.delivery_dining),
+            ('visit_store', l10n.inStoreLabel, Icons.restaurant_outlined),
+            ('pickup', l10n.pickupLabel, Icons.shopping_bag_outlined),
+          ])
+            Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: FilterChip(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    labelPadding: EdgeInsets.zero,
+                    shape: const StadiumBorder(),
+                    label: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(mode.$3, size: 12),
+                      const SizedBox(width: 4),
+                      Text(mode.$2, style: const TextStyle(fontSize: 11)),
+                    ]),
+                    selected: _fulfillment == mode.$1,
+                    onSelected: (selected) => setState(
+                        () => _fulfillment = selected ? mode.$1 : null))),
+        ]));
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final visible = _visible;
     final featured = _featured;
     final nearby = _nearby;
-    final banks = _offers
-        .where((p) => p.hasStarted && !p.isExpired)
+    final ending = _ending;
+    final bankOffers = visible
         .where(BankCardPromotionSupport.isBankCardPromotion)
         .where((p) => p.bankName?.isNotEmpty == true)
-        .map((p) => p.bankName!)
-        .toSet()
-        .toList()
-      ..sort();
-    final popular = (_recommended.isNotEmpty ? _recommended : _visible)
-        .where((p) =>
-            (p.hasStarted && !p.isExpired) &&
-            (_category == null || p.category == _category))
-        .take(6)
         .toList();
+    final nearbyBankOffers =
+        nearby.where(BankCardPromotionSupport.isBankCardPromotion).toList();
+    final bankGrid =
+        nearbyBankOffers.isNotEmpty ? nearbyBankOffers : bankOffers;
+    final topDeals = nearby.isNotEmpty ? nearby : visible;
+    final shown = <String>{
+      if (featured.isNotEmpty) featured.first.id,
+      ...topDeals.take(4).map((p) => p.id),
+      ...bankGrid.take(4).map((p) => p.id),
+      if (ending.isNotEmpty) ending.first.id,
+    };
+    final explore = <Promotion>[];
+    final explored = <String>{};
+    for (final offer in [..._recommended, ...visible]) {
+      if (offer.hasStarted &&
+          !offer.isExpired &&
+          (_category == null || offer.category == _category) &&
+          _matchesFilters(offer) &&
+          !shown.contains(offer.id) &&
+          explored.add(offer.id)) {
+        explore.add(offer);
+      }
+    }
     final personalized = _recommendationUserId.isNotEmpty &&
-        popular.any((p) => const {
+        explore.take(4).any((p) => const {
               'Based on categories you view',
               'From stores you like',
               'Saved in your favorites',
               'From a store you follow'
             }.contains(p.recommendationReason));
     return Scaffold(
-        body: SafeArea(
-            child: RefreshIndicator(
-      onRefresh: _load,
-      child: CustomScrollView(slivers: [
-        SliverToBoxAdapter(
-            child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
-                child: Row(children: [
-                  const DealFinderMark(size: 34),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: TextButton.icon(
-                          onPressed: _nearbyTab,
-                          icon: const Icon(Icons.expand_more),
-                          iconAlignment: IconAlignment.end,
-                          label: Text(_area ?? l10n.chooseAreaLabel,
-                              maxLines: 1, overflow: TextOverflow.ellipsis))),
-                  IconButton(
-                      tooltip: l10n.notifications,
-                      onPressed: _notifications,
-                      icon: Badge(
-                          isLabelVisible: _unread > 0,
-                          label: Text('$_unread'),
-                          child: const Icon(Icons.notifications_none))),
-                  IconButton(
-                      tooltip: l10n.accountTab,
-                      onPressed: _account,
-                      icon: const Icon(Icons.account_circle_outlined)),
-                ])),
-            Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: Text(l10n.discoverTab,
-                    style: theme.textTheme.headlineLarge)),
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+        floatingActionButton: nearby.isEmpty
+            ? null
+            : ConstrainedBox(
+                constraints: BoxConstraints(
+                    maxWidth: MediaQuery.sizeOf(context).width - 32),
                 child: Material(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(14),
+                    color: theme.colorScheme.inverseSurface,
+                    borderRadius: BorderRadius.circular(28),
+                    elevation: 4,
                     child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const SearchScreen())),
+                        onTap: _nearbyTab,
+                        borderRadius: BorderRadius.circular(28),
                         child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Row(children: [
-                              const Icon(Icons.search),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                  child: Text(l10n.searchHint,
-                                      style: theme.textTheme.bodyMedium))
-                            ]))))),
-            const SizedBox(height: 12),
-            SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(children: [
-                  Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                          label: Text(
-                              '${l10n.allLabel} (${_offers.where((p) => (p.hasStarted && !p.isExpired)).length})'),
-                          selected: _category == null,
-                          onSelected: (_) => setState(() {
-                                _category = null;
-                                _featuredIndex = 0;
-                              }))),
-                  ...predefinedCategories
-                      .where((c) => _offers.any((p) =>
-                          (p.hasStarted && !p.isExpired) && p.category == c.id))
-                      .map((c) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                              label: Text(getCategoryLabel(c.id)),
-                              selected: _category == c.id,
-                              onSelected: (_) => setState(() {
-                                    _category = c.id;
-                                    _featuredIndex = 0;
-                                  })))),
-                ])),
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextButton.icon(
-                    onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const StoresScreen())),
-                    icon: const Icon(Icons.storefront_outlined),
-                    label: Text(l10n.browseStores))),
-            if (_offline)
-              Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(l10n.offlineShowingCachedDeals)),
-            if (_loading)
-              const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Center(child: CircularProgressIndicator())),
-            if (featured.isNotEmpty) ...[
-              Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: DiscoveryOfferCard(
-                      offer: featured[_featuredIndex % featured.length],
-                      featured: true,
-                      onOpen: () =>
-                          _open(featured[_featuredIndex % featured.length]))),
-              if (featured.length > 1)
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  IconButton(
-                      tooltip: l10n.previousOfferLabel,
-                      onPressed: () => setState(() => _featuredIndex =
-                          (_featuredIndex - 1) % featured.length),
-                      icon: const Icon(Icons.chevron_left)),
-                  ...List.generate(
-                      featured.length,
-                      (i) => IconButton(
-                          tooltip:
-                              l10n.featuredPageLabel(i + 1, featured.length),
-                          onPressed: () => setState(() => _featuredIndex = i),
-                          icon: Icon(
-                              i == _featuredIndex % featured.length
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_unchecked,
-                              size: 12,
-                              color: theme.colorScheme.primary))),
-                  IconButton(
-                      tooltip: l10n.nextOfferLabel,
-                      onPressed: () => setState(() => _featuredIndex =
-                          (_featuredIndex + 1) % featured.length),
-                      icon: const Icon(Icons.chevron_right)),
-                ]),
-            ],
-            _section(l10n.nearbyTab, onAll: _nearbyTab),
-            if (nearby.isNotEmpty)
-              _rail(nearby)
-            else
-              Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Card(
-                      child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_position == null
-                                    ? l10n.chooseAreaHint
-                                    : l10n.noNearbyDealsFound),
-                                const SizedBox(height: 8),
-                                Wrap(spacing: 8, children: [
-                                  OutlinedButton(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            child: Wrap(
+                                spacing: 8,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                      _t(
+                                          '${nearby.length} ${nearby.length == 1 ? 'offer' : 'offers'} within 3 km',
+                                          'කි.මී. 3 තුළ දීමනා ${nearby.length}',
+                                          '3 கி.மீ. தூரத்தில் ${nearby.length} சலுகைகள்'),
+                                      style: TextStyle(
+                                          color: theme
+                                              .colorScheme.onInverseSurface,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600)),
+                                  Text(_t('Map', 'සිතියම', 'வரைபடம்'),
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: theme
+                                              .colorScheme.onInverseSurface)),
+                                  Icon(Icons.map_outlined,
+                                      size: 16,
+                                      color:
+                                          theme.colorScheme.onInverseSurface),
+                                ]))))),
+        body: SafeArea(
+            child: Padding(
+                padding: EdgeInsets.only(
+                    bottom: nearby.isEmpty
+                        ? 0
+                        : MediaQuery.textScalerOf(context).scale(12) * 4 + 32),
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: CustomScrollView(
+                    key: const PageStorageKey('discover-visual-feed'),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      PinnedHeaderSliver(
+                          child: Material(
+                              color: theme.scaffoldBackgroundColor,
+                              child: Column(children: [
+                                Padding(
+                                    padding:
+                                        const EdgeInsets.only(top: 4, right: 8),
+                                    child: Row(children: [
+                                      Expanded(child: _fulfillmentControls()),
+                                      IconButton(
+                                          tooltip: l10n.bankOffersTab,
+                                          onPressed: () => _bank(null),
+                                          icon: const Icon(
+                                              Icons.credit_card_outlined,
+                                              size: 20)),
+                                      IconButton(
+                                          tooltip: l10n.notifications,
+                                          onPressed: _notifications,
+                                          icon: Badge(
+                                              isLabelVisible: _unread > 0,
+                                              label: Text('$_unread'),
+                                              child: const Icon(
+                                                  Icons.notifications_none,
+                                                  size: 20))),
+                                    ])),
+                                Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
+                                    child: Row(children: [
+                                      Expanded(
+                                          child: InkWell(
+                                              onTap: _nearbyTab,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(vertical: 12),
+                                                  child: Row(children: [
+                                                    Icon(
+                                                        Icons
+                                                            .location_on_outlined,
+                                                        size: 17,
+                                                        color: theme.colorScheme
+                                                            .primary),
+                                                    const SizedBox(width: 6),
+                                                    Expanded(
+                                                        child: Text(
+                                                            _area ??
+                                                                l10n
+                                                                    .chooseAreaLabel,
+                                                            style: theme
+                                                                .textTheme
+                                                                .labelLarge
+                                                                ?.copyWith(
+                                                                    fontSize:
+                                                                        12,
+                                                                    color: theme
+                                                                        .colorScheme
+                                                                        .onSurface),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis)),
+                                                    const Icon(
+                                                        Icons.expand_more,
+                                                        size: 16),
+                                                  ])))),
+                                      TextButton(
+                                          onPressed: () => _bank(null),
+                                          style: TextButton.styleFrom(
+                                              textStyle: theme
+                                                  .textTheme.labelLarge
+                                                  ?.copyWith(fontSize: 11)),
+                                          child: Text(l10n.bankOffersTab)),
+                                    ])),
+                                Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 4),
+                                    child: Material(
+                                        color: theme.colorScheme
+                                            .surfaceContainerHighest,
+                                        borderRadius: BorderRadius.circular(24),
+                                        child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(24),
+                                            onTap: () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        const SearchScreen())),
+                                            child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 12),
+                                                child: Row(children: [
+                                                  const Icon(Icons.search,
+                                                      size: 18),
+                                                  const SizedBox(width: 10),
+                                                  Expanded(
+                                                      child: Text(
+                                                          l10n.searchHint,
+                                                          style: theme.textTheme
+                                                              .bodySmall
+                                                              ?.copyWith(
+                                                                  fontSize:
+                                                                      12))),
+                                                  const Icon(Icons.tune,
+                                                      size: 18)
+                                                ]))))),
+                                SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 8, 16, 12),
+                                    child: Row(children: [
+                                      Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 8),
+                                          child: ChoiceChip(
+                                              visualDensity:
+                                                  const VisualDensity(
+                                                      horizontal: -2,
+                                                      vertical: -2),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6),
+                                              shape: const StadiumBorder(),
+                                              labelStyle:
+                                                  const TextStyle(fontSize: 12),
+                                              label: Text(
+                                                  '${l10n.allLabel} (${_offers.where((p) => p.hasStarted && !p.isExpired).length})'),
+                                              selected: _category == null &&
+                                                  !_bankOnly,
+                                              onSelected: (_) => setState(() {
+                                                    _category = null;
+                                                    _bankOnly = false;
+                                                    _fulfillment = null;
+                                                  }))),
+                                      Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 8),
+                                          child: FilterChip(
+                                              visualDensity:
+                                                  const VisualDensity(
+                                                      horizontal: -2,
+                                                      vertical: -2),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 6),
+                                              shape: const StadiumBorder(),
+                                              labelStyle:
+                                                  const TextStyle(fontSize: 12),
+                                              avatar: const Icon(
+                                                  Icons.credit_card,
+                                                  size: 18),
+                                              label: Text(l10n.bankOffersTab),
+                                              selected: _bankOnly,
+                                              onSelected: (value) => setState(
+                                                  () => _bankOnly = value))),
+                                      ...predefinedCategories
+                                          .where((c) => _offers.any((p) =>
+                                              p.hasStarted &&
+                                              !p.isExpired &&
+                                              p.category == c.id))
+                                          .map((c) => Padding(
+                                              padding: const EdgeInsets.only(
+                                                  right: 8),
+                                              child: ChoiceChip(
+                                                  visualDensity:
+                                                      const VisualDensity(
+                                                          horizontal: -2,
+                                                          vertical: -2),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                          horizontal: 6),
+                                                  shape: const StadiumBorder(),
+                                                  labelStyle: const TextStyle(
+                                                      fontSize: 12),
+                                                  label:
+                                                      Text(getCategoryLabel(c.id)),
+                                                  selected: _category == c.id,
+                                                  onSelected: (_) => setState(() => _category = c.id)))),
+                                    ])),
+                              ]))),
+                      if (_offline)
+                        SliverToBoxAdapter(
+                            child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(_offers.isEmpty
+                                          ? _t(
+                                              'Could not load offers.',
+                                              'දීමනා පූරණය කළ නොහැකි විය.',
+                                              'சலுகைகளை ஏற்ற முடியவில்லை.')
+                                          : l10n.offlineShowingCachedDeals),
+                                      TextButton.icon(
+                                          onPressed: _load,
+                                          icon: const Icon(Icons.refresh),
+                                          label: Text(l10n.retry)),
+                                    ]))),
+                      if (_loading)
+                        const SliverToBoxAdapter(
+                            child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: Center(
+                                    child: CircularProgressIndicator()))),
+                      if (featured.isNotEmpty)
+                        SliverToBoxAdapter(
+                            child: _card(featured.first, editorial: true)),
+                      if (bankOffers.isNotEmpty)
+                        SliverToBoxAdapter(
+                            child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                                child: Material(
+                                    color: theme.colorScheme.surface,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        side: BorderSide(
+                                            color: theme
+                                                .colorScheme.outlineVariant)),
+                                    child: InkWell(
+                                        onTap: () => _bank(null),
+                                        child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
+                                            child: Row(children: [
+                                              Icon(Icons.verified_user_outlined,
+                                                  size: 24,
+                                                  color: theme
+                                                      .colorScheme.primary),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                  child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                    Text(l10n.bankOffersTab,
+                                                        style: const TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w700)),
+                                                    Text(
+                                                        _t(
+                                                            'Check card requirements for each offer.',
+                                                            'එක් එක් දීමනාවේ කාඩ්පත් අවශ්‍යතා බලන්න.',
+                                                            'ஒவ்வொரு சலுகையின் அட்டை நிபந்தனைகளைப் பார்க்கவும்.'),
+                                                        style: theme
+                                                            .textTheme.bodySmall
+                                                            ?.copyWith(
+                                                                fontSize: 11)),
+                                                  ])),
+                                              IconButton(
+                                                  tooltip: l10n.viewAll,
+                                                  onPressed: () => _bank(null),
+                                                  icon: const Icon(
+                                                      Icons.chevron_right,
+                                                      size: 18)),
+                                            ])))))),
+                      SliverToBoxAdapter(
+                          child: _section(
+                              _t("Today's offers", 'අද දීමනා',
+                                  'இன்றைய சலுகைகள்'),
+                              subtitle: nearby.isEmpty
+                                  ? null
+                                  : '${_area ?? l10n.nearbyTab} · 3 km',
+                              onAll: _all)),
+                      if (topDeals.isNotEmpty)
+                        SliverToBoxAdapter(child: _rail(topDeals)),
+                      if (_position == null)
+                        SliverToBoxAdapter(
+                            child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Wrap(spacing: 8, children: [
+                                  TextButton(
                                       onPressed: _nearbyTab,
                                       child: Text(l10n.chooseAreaLabel)),
                                   TextButton.icon(
@@ -509,117 +781,112 @@ class _HomeScreenState extends State<HomeScreen> {
                                           requestPermission: true),
                                       icon: const Icon(Icons.my_location),
                                       label: Text(l10n.useMyLocation)),
-                                ]),
-                              ])))),
-            _section(l10n.bankSpotlightLabel, onAll: () => _bank(null)),
-            Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Card(
-                    child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(l10n.bankSpotlightHint,
-                                  style: theme.textTheme.bodyMedium),
-                              const SizedBox(height: 12),
-                              if (banks.isEmpty)
-                                Text(l10n.noBankOffersLabel)
-                              else
-                                Wrap(
-                                    spacing: 8,
-                                    runSpacing: 8,
-                                    children: banks
-                                        .take(6)
-                                        .map((bank) => OutlinedButton.icon(
-                                            onPressed: () => _bank(bank),
-                                            icon: const Icon(Icons.credit_card),
-                                            label: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(bank),
-                                                  Text(
-                                                      _offers
-                                                              .firstWhere((p) =>
-                                                                  p.bankName ==
-                                                                      bank &&
-                                                                  BankCardPromotionSupport
-                                                                      .isBankCardPromotion(
-                                                                          p))
-                                                              .discount ??
-                                                          l10n.viewOfferLabel,
-                                                      style: theme.textTheme
-                                                          .labelMedium),
-                                                ])))
-                                        .toList()),
-                            ])))),
-            if (_ending.isNotEmpty) ...[
-              _section(l10n.endingSoonLabel),
-              ..._ending.map((p) => Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Card(
-                      child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(children: [
-                                  Expanded(
-                                      child: Text(p.merchantName ?? '',
-                                          style: theme.textTheme.bodySmall)),
-                                  OfferSaveButton(offer: p)
-                                ]),
-                                Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          child: SizedBox(
-                                              width: 88,
-                                              height: 88,
-                                              child: ImageHelper
-                                                  .buildOptimizedImage(
-                                                      p.imageDataString,
-                                                      fit: BoxFit.cover))),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                          child: Text(p.title,
-                                              style:
-                                                  theme.textTheme.titleMedium)),
-                                    ]),
-                                const SizedBox(height: 10),
-                                OfferConditions(offer: p),
-                                const SizedBox(height: 10),
-                                Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton(
-                                        onPressed: () => _open(p),
-                                        child: Text(l10n.viewOfferLabel))),
-                              ]))))),
-            ],
-            if (popular.isNotEmpty) ...[
-              _section(
-                  personalized
-                      ? l10n.recommendedForYouTitle
-                      : l10n.popularTitle,
-                  onAll: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const AllDealsScreen()))),
-              _rail(popular),
-            ],
-            if (!_loading && _visible.isEmpty)
-              Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(l10n.noDealsAvailable)),
-            const SizedBox(height: 32),
-          ],
-        ))
-      ]),
-    )));
+                                ]))),
+                      if (bankGrid.isNotEmpty) ...[
+                        SliverToBoxAdapter(
+                            child: _section(
+                                nearbyBankOffers.isNotEmpty
+                                    ? _t(
+                                        'Bank offers near you',
+                                        'ඔබ අසල බැංකු දීමනා',
+                                        'அருகிலுள்ள வங்கிச் சலுகைகள்')
+                                    : l10n.bankOffersTab,
+                                subtitle: nearbyBankOffers.isNotEmpty
+                                    ? '${_area ?? l10n.nearbyTab} · 3 km'
+                                    : null,
+                                onAll: () => _bank(null))),
+                        SliverToBoxAdapter(
+                            child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: DiscoverOfferGrid(
+                                    offers: bankGrid.take(4).toList(),
+                                    onOpen: _open))),
+                      ],
+                      if (ending.isNotEmpty)
+                        SliverToBoxAdapter(
+                            child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                                child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                        color: theme.colorScheme.error,
+                                        borderRadius:
+                                            BorderRadius.circular(20)),
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(children: [
+                                            Icon(Icons.timer_outlined,
+                                                color:
+                                                    theme.colorScheme.onError),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                                child: Text(
+                                                    l10n.endingSoonLabel,
+                                                    style: theme
+                                                        .textTheme.titleMedium
+                                                        ?.copyWith(
+                                                            fontSize: 13,
+                                                            color: theme
+                                                                .colorScheme
+                                                                .onError))),
+                                            IconButton(
+                                                tooltip: l10n.viewAll,
+                                                onPressed: () =>
+                                                    _all(endingSoon: true),
+                                                icon: Icon(Icons.arrow_forward,
+                                                    color: theme
+                                                        .colorScheme.onError)),
+                                          ]),
+                                          DiscoverOfferSurface(
+                                              layout:
+                                                  DiscoverSurfaceLayout.expiry,
+                                              offer: ending.first,
+                                              onOpen: () =>
+                                                  _open(ending.first)),
+                                        ])))),
+                      if (explore.isNotEmpty) ...[
+                        SliverToBoxAdapter(
+                            child: _section(
+                                personalized
+                                    ? l10n.recommendedForYouTitle
+                                    : _t('More offers', 'තවත් දීමනා',
+                                        'மேலும் சலுகைகள்'),
+                                onAll: _all)),
+                        SliverList.list(
+                            children:
+                                explore.take(4).map((p) => _card(p)).toList()),
+                      ],
+                      SliverToBoxAdapter(
+                          child: Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                              child: OutlinedButton.icon(
+                                  onPressed: _all,
+                                  icon: const Icon(Icons.grid_view_outlined),
+                                  label: Text(_t(
+                                      'Browse all offers',
+                                      'සියලු දීමනා බලන්න',
+                                      'அனைத்து சலுகைகளையும் காண்க'))))),
+                      SliverToBoxAdapter(
+                          child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: TextButton.icon(
+                                  onPressed: _stores,
+                                  icon: const Icon(Icons.storefront_outlined,
+                                      size: 18),
+                                  label: Text(l10n.browseStores)))),
+                      if (!_loading && !_offline && visible.isEmpty)
+                        SliverToBoxAdapter(
+                            child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Text(l10n.noDealsAvailable))),
+                      const SliverToBoxAdapter(child: SizedBox(height: 88)),
+                    ],
+                  ),
+                ))));
   }
 }

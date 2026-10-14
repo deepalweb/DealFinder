@@ -1098,4 +1098,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loadingNearbyLabel => 'Loading nearby offers…';
+
+  @override
+  String get profileOffersLabel => 'Offers';
+
+  @override
+  String get profileReviewsLabel => 'Reviews';
+
+  @override
+  String get profileActiveOffersLabel => 'Active';
+
+  @override
+  String get profileExpiredOffersLabel => 'Expired';
+
+  @override
+  String get profileNoOffersLabel => 'No offers to show right now.';
+
+  @override
+  String get profileShareStoreLabel => 'Share store';
+
+  @override
+  String get profileCallStoreLabel => 'Call store';
+
+  @override
+  String get profileOrderLabel => 'Order online';
+
+  @override
+  String get profileVisitLabel => 'Visit store';
+
+  @override
+  String get profileHoursLabel => 'Opening hours';
+
+  @override
+  String get profileClosedLabel => 'Closed now';
+
+  @override
+  String get profileFollowersLabel => 'followers';
+
+  @override
+  String get profileHoursUnknownLabel => 'Hours unavailable';
+
+  @override
+  String get merchantProfileTitle => 'Store';
+
+  @override
+  String get merchantProfileUnavailableLabel =>
+      'Store details are unavailable. Please try again.';
+
+  @override
+  String get profileSavingLabel => 'Saving…';
+
+  @override
+  String get profileEditLabel => 'Edit profile';
+
+  @override
+  String get profileSaveLabel => 'Save changes';
+
+  @override
+  String get profileCurrentPasswordLabel => 'Current password';
+
+  @override
+  String get profileNewPasswordLabel => 'New password';
+
+  @override
+  String get profileConfirmPasswordLabel => 'Confirm new password';
 }

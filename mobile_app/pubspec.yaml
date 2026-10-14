@@ -52,6 +52,7 @@ flutter:
   generate: true
   assets:
     - assets/app_icon.png
+    - assets/discover/
     - .env
 
 flutter_icons:

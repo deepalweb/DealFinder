@@ -118,7 +118,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return NavigatorPopHandler<Object?>(
       enabled: index == _selectedIndex,
       onPopWithResult: (result) =>
-          _navigatorKeys[index].currentState!.pop(result),
+          _navigatorKeys[index].currentState!.maybePop(result),
       child: Navigator(
         key: _navigatorKeys[index],
         onGenerateRoute: (_) => MaterialPageRoute(

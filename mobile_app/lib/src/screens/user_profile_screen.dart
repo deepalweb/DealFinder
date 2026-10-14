@@ -1,4 +1,5 @@
 import '../config/app_theme.dart';
+import '../widgets/profile_section.dart';
 import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +19,8 @@ import 'merchant_dashboard_screen.dart';
 import 'notification_settings_screen.dart';
 
 class UserProfileScreen extends StatefulWidget {
-  const UserProfileScreen({super.key});
+  const UserProfileScreen({super.key, this.api});
+  final ApiService? api;
 
   @override
   State<UserProfileScreen> createState() => _UserProfileScreenState();
@@ -33,6 +35,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   String? _userId;
   String? _token;
   bool _isLoading = true;
+  bool _saving = false;
+  bool _uploadingPhoto = false;
+  ApiService get _api => widget.api ?? ApiService();
   late TabController _tabController;
   late TabController _favoritesTabController;
   List<Promotion> _favoriteDeals = [];
@@ -54,13 +59,22 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _favoritesTabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_sectionChanged);
     _loadUserData();
+  }
+
+  void _openSection(int index) => _tabController.animateTo(index,
+      duration: AppMotion.duration(context, 220));
+
+  void _sectionChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_sectionChanged);
     _tabController.dispose();
     _favoritesTabController.dispose();
     _currentPasswordController.dispose();
@@ -109,7 +123,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Future<void> _refreshUserProfileFromServer(
       String userId, String token) async {
     try {
-      final profile = await ApiService().fetchUserProfile(userId, token);
+      final profile = await _api.fetchUserProfile(userId, token);
       await _persistUserProfile(profile);
       if (!mounted) return;
       setState(() {
@@ -119,7 +133,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         _businessName = profile['businessName'] as String? ?? _businessName;
         _profilePicture =
             profile['profilePicture'] as String? ?? _profilePicture;
-        _nameController.text = _name;
+        if (_tabController.index != 4) _nameController.text = _name;
         _emailController.text = _email;
         _roleController.text = _role.capitalize();
         if (_role == 'merchant') {
@@ -149,6 +163,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Future<void> _pickProfilePicture() async {
+    if (_uploadingPhoto) return;
     final l10n = AppLocalizations.of(context)!;
     try {
       // Show dialog to choose between camera and gallery
@@ -189,12 +204,10 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         final bytes = await File(image.path).readAsBytes();
         final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
         if (!mounted) return;
-        setState(() {
-          _profilePicture = base64Image;
-        });
+        setState(() => _uploadingPhoto = true);
 
         if (_userId != null && _token != null) {
-          final profile = await ApiService().updateUserProfile(
+          final profile = await _api.updateUserProfile(
             _userId!,
             _token!,
             profilePicture: base64Image,
@@ -205,6 +218,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
           await prefs.setString('userProfilePicture', base64Image);
         }
         if (!mounted) return;
+        setState(() => _profilePicture = base64Image);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.profilePictureUpdated)),
         );
@@ -214,10 +228,13 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${l10n.failedToUpdatePicture}: $e')),
       );
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
     }
   }
 
   Future<void> _updateProfile() async {
+    if (_saving) return;
     final l10n = AppLocalizations.of(context)!;
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -226,12 +243,12 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _saving = true);
 
     try {
       final name = _nameController.text.trim();
       final profile = _userId != null && _token != null
-          ? await ApiService().updateUserProfile(
+          ? await _api.updateUserProfile(
               _userId!,
               _token!,
               name: name,
@@ -257,7 +274,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       );
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _saving = false);
       }
     }
   }
@@ -331,7 +348,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   Future<void> _removeFavorite(String dealId) async {
     if (_userId != null && _token != null) {
       try {
-        await ApiService().removeFavorite(_userId!, dealId, _token!);
+        await _api.removeFavorite(_userId!, dealId, _token!);
       } catch (_) {}
     }
     await FavoritesManager.removeFavorite(dealId);
@@ -350,6 +367,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
 
     try {
       if (_userId == null || _userId!.isEmpty) {
+        if (!mounted) return;
         setState(() {
           _followingMerchants = [];
           _loadingFollowing = false;
@@ -357,13 +375,15 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         return;
       }
 
-      final following = await ApiService().fetchFollowingMerchants(_userId!);
+      final following = await _api.fetchFollowingMerchants(_userId!);
 
+      if (!mounted) return;
       setState(() {
         _followingMerchants = following;
         _loadingFollowing = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _followingMerchants = [];
         _loadingFollowing = false;
@@ -401,6 +421,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Future<void> _changePassword() async {
+    if (_saving) return;
     if (_userId == null ||
         _token == null ||
         _userId!.isEmpty ||
@@ -429,9 +450,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
       );
       return;
     }
-    setState(() => _isLoading = true);
+    setState(() => _saving = true);
     try {
-      await ApiService().changePassword(
+      await _api.changePassword(
         userId: _userId!,
         token: _token!,
         currentPassword: _currentPasswordController.text,
@@ -454,7 +475,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -466,6 +487,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     final raw = _profilePicture;
     if (raw == null || raw.isEmpty) return null;
     try {
+      if (raw.startsWith('https://') || raw.startsWith('http://')) {
+        return NetworkImage(raw);
+      }
       if (!raw.contains(',')) return null;
       return MemoryImage(base64Decode(raw.split(',')[1]));
     } catch (_) {
@@ -486,9 +510,9 @@ class _UserProfileScreenState extends State<UserProfileScreen>
         child: Column(children: [
           Semantics(
               button: true,
-              label: l10n.profile,
+              label: l10n.chooseImageSource,
               child: InkWell(
-                  onTap: _pickProfilePicture,
+                  onTap: _uploadingPhoto ? null : _pickProfilePicture,
                   borderRadius: BorderRadius.circular(40),
                   child: Stack(children: [
                     CircleAvatar(
@@ -522,306 +546,223 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               runSpacing: 8,
               children: [
                 Chip(
-                    label: Text('${_favoriteDeals.length} ${l10n.favorites}'),
+                    label: Text(
+                        '${_loadingFavorites ? '…' : _favoriteDeals.length} ${l10n.savedTab}'),
                     avatar:
                         const Icon(Icons.favorite_border_rounded, size: 16)),
                 Chip(
-                    label:
-                        Text('${_followingMerchants.length} ${l10n.following}'),
+                    label: Text(
+                        '${_loadingFollowing ? '…' : _followingMerchants.length} ${l10n.following}'),
                     avatar: const Icon(Icons.storefront_outlined, size: 16)),
               ]),
         ]));
   }
 
-  Widget _buildQuickActionCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border(context)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text(context),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: AppColors.muted(context),
-                      fontSize: 12.5,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                size: 16, color: AppColors.muted(context)),
-          ],
-        ),
-      ),
-    );
+  Future<void> _chooseLanguage() async {
+    final l10n = AppLocalizations.of(context)!;
+    final code = await showDialog<String>(
+        context: context,
+        builder: (context) =>
+            SimpleDialog(title: Text(l10n.selectLanguage), children: [
+              for (final entry in {
+                'en': l10n.languageEnglish,
+                'si': l10n.languageSinhala,
+                'ta': l10n.languageTamil
+              }.entries)
+                SimpleDialogOption(
+                    onPressed: () => Navigator.pop(context, entry.key),
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(children: [
+                          Expanded(child: Text(entry.value)),
+                          if (appLanguageController.languageCode == entry.key)
+                            const Icon(Icons.check),
+                        ]))),
+            ]));
+    if (code != null) await appLanguageController.setLanguageCode(code);
+    if (mounted) setState(() {});
   }
 
   Widget _buildProfileTab() {
     final l10n = AppLocalizations.of(context)!;
-    final bottomInset = MediaQuery.of(context).padding.bottom;
     return RefreshIndicator(
-      onRefresh: _loadUserData,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + bottomInset),
-        child: Column(
-          children: [
-            _buildProfileHero(),
-            const SizedBox(height: 16),
-            _buildQuickActionCard(
-              icon: Icons.favorite_outline_rounded,
-              title: l10n.savedDealsAndStores,
-              subtitle: l10n.savedDealsStoresSubtitle,
-              onTap: () => _tabController.animateTo(3),
-            ),
-            const SizedBox(height: 12),
-            _buildQuickActionCard(
-              icon: Icons.notifications_active_outlined,
-              title: l10n.notificationSettingsTitle,
-              subtitle: l10n.notificationSettingsSubtitle,
-              onTap: () => _tabController.animateTo(2),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.appLanguage,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text(context),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      l10n.selectLanguage,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      initialValue: appLanguageController.languageCode,
-                      decoration: InputDecoration(
-                        labelText: l10n.language,
-                        prefixIcon: const Icon(Icons.language),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'en',
-                          child: Text(l10n.languageEnglish),
-                        ),
-                        DropdownMenuItem(
-                          value: 'si',
-                          child: Text(l10n.languageSinhala),
-                        ),
-                        DropdownMenuItem(
-                          value: 'ta',
-                          child: Text(l10n.languageTamil),
-                        ),
-                      ],
-                      onChanged: (value) async {
-                        if (value == null) return;
-                        await appLanguageController.setLanguageCode(value);
-                        if (!mounted) return;
-                        setState(() {});
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.accountDetails,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text(context),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: l10n.fullName,
-                        prefixIcon: const Icon(Icons.person),
-                        filled: true,
-                        fillColor: Theme.of(context).colorScheme.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: AppColors.border(context)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _emailController,
-                      enabled: false,
-                      decoration: InputDecoration(
-                        labelText: l10n.email,
-                        prefixIcon: const Icon(Icons.email),
-                        helperText: l10n.emailCannotBeChangedYet,
-                        filled: true,
-                        fillColor: AppColors.canvas(context),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        disabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: AppColors.border(context)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _roleController,
-                      enabled: false,
-                      decoration: InputDecoration(
-                        labelText: l10n.role,
-                        prefixIcon: const Icon(Icons.badge),
-                        filled: true,
-                        fillColor: AppColors.canvas(context),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        disabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide:
-                              BorderSide(color: AppColors.border(context)),
-                        ),
-                      ),
-                    ),
-                    if (_role == 'merchant' && _businessName != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: TextField(
-                          controller: _businessController,
-                          enabled: false,
-                          decoration: InputDecoration(
-                            labelText: l10n.businessName,
-                            prefixIcon: const Icon(Icons.business),
-                            filled: true,
-                            fillColor: AppColors.canvas(context),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            disabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide:
-                                  BorderSide(color: AppColors.border(context)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _updateProfile,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                        child: Text(l10n.saveLocalChanges),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_role == 'merchant')
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MerchantDashboardScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.dashboard),
-                  label: Text(l10n.merchantDashboard),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
+        onRefresh: _loadUserData,
+        child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              _buildProfileHero(),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                  onPressed: () => _openSection(4),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: Text(l10n.profileEditLabel)),
+              if (_role == 'merchant') ...[
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                    onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const MerchantDashboardScreen())),
+                    icon: const Icon(Icons.storefront),
+                    label: Text(l10n.merchantDashboard)),
+              ],
+              ProfileSection(title: l10n.savedTab, children: [
+                ProfileActionTile(
+                    icon: Icons.bookmark_border,
+                    title: l10n.savedDealsAndStores,
+                    subtitle: l10n.savedDealsStoresSubtitle,
+                    onTap: () => _openSection(3)),
+                ProfileActionTile(
+                    icon: Icons.storefront_outlined,
+                    title: l10n.followingStores,
+                    onTap: () {
+                      _favoritesTabController.index = 1;
+                      _openSection(3);
+                    }),
+              ]),
+              ProfileSection(title: l10n.accountTab, children: [
+                ProfileActionTile(
+                    icon: Icons.notifications_none,
+                    title: l10n.notificationSettingsTitle,
+                    subtitle: l10n.notificationSettingsSubtitle,
+                    onTap: () => _openSection(2)),
+                ProfileActionTile(
+                    icon: Icons.lock_outline,
+                    title: l10n.securityTab,
+                    subtitle: l10n.changePassword,
+                    onTap: () => _openSection(1)),
+                ProfileActionTile(
+                    icon: Icons.language,
+                    title: l10n.appLanguage,
+                    subtitle: {
+                      'en': l10n.languageEnglish,
+                      'si': l10n.languageSinhala,
+                      'ta': l10n.languageTamil
+                    }[appLanguageController.languageCode],
+                    onTap: _chooseLanguage),
+              ]),
+              const SizedBox(height: 24),
+              TextButton.icon(
+                  onPressed: _logout,
+                  icon: const Icon(Icons.logout),
+                  label: Text(l10n.logout),
+                  style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error)),
+            ]));
+  }
+
+  Widget _buildAccountEditor() {
+    final l10n = AppLocalizations.of(context)!;
+    return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.accountDetails,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text(context),
                   ),
                 ),
-              ),
-            if (_role == 'merchant') const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _logout,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: l10n.fullName,
+                    prefixIcon: const Icon(Icons.person),
+                    filled: true,
+                    fillColor: Theme.of(context).colorScheme.surface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.border(context)),
+                    ),
+                  ),
                 ),
-                child: Text(l10n.logout),
-              ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _emailController,
+                  enabled: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.email,
+                    prefixIcon: const Icon(Icons.email),
+                    helperText: l10n.emailCannotBeChangedYet,
+                    filled: true,
+                    fillColor: AppColors.canvas(context),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    disabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.border(context)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _roleController,
+                  enabled: false,
+                  decoration: InputDecoration(
+                    labelText: l10n.role,
+                    prefixIcon: const Icon(Icons.badge),
+                    filled: true,
+                    fillColor: AppColors.canvas(context),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    disabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.border(context)),
+                    ),
+                  ),
+                ),
+                if (_role == 'merchant' && _businessName != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: TextField(
+                      controller: _businessController,
+                      enabled: false,
+                      decoration: InputDecoration(
+                        labelText: l10n.businessName,
+                        prefixIcon: const Icon(Icons.business),
+                        filled: true,
+                        fillColor: AppColors.canvas(context),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              BorderSide(color: AppColors.border(context)),
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _updateProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(_saving
+                        ? l10n.profileSavingLabel
+                        : l10n.profileSaveLabel),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
+          ),
+        ));
   }
 
   Widget _buildSecurityTab() {
@@ -843,7 +784,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                 controller: _currentPasswordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Current Password',
+                  labelText: l10n.profileCurrentPasswordLabel,
                   prefixIcon: const Icon(Icons.lock_outline),
                   filled: true,
                   fillColor: Theme.of(context).colorScheme.surface,
@@ -861,7 +802,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                 controller: _newPasswordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'New Password',
+                  labelText: l10n.profileNewPasswordLabel,
                   prefixIcon: const Icon(Icons.lock),
                   filled: true,
                   fillColor: Theme.of(context).colorScheme.surface,
@@ -879,7 +820,7 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                 controller: _confirmPasswordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Confirm New Password',
+                  labelText: l10n.profileConfirmPasswordLabel,
                   prefixIcon: const Icon(Icons.lock),
                   filled: true,
                   fillColor: Theme.of(context).colorScheme.surface,
@@ -896,11 +837,12 @@ class _UserProfileScreenState extends State<UserProfileScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _changePassword,
+                  onPressed: _saving ? null : _changePassword,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text('Change Password'),
+                  child: Text(
+                      _saving ? l10n.profileSavingLabel : l10n.changePassword),
                 ),
               ),
             ],
@@ -1137,49 +1079,36 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 0,
-        title: Text(l10n.myProfile),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).appBarTheme.backgroundColor ??
-                  Theme.of(context).colorScheme.surface,
-              border: Border(
-                top: BorderSide(color: AppColors.border(context)),
-                bottom: BorderSide(color: AppColors.border(context)),
-              ),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              labelColor: Theme.of(context).colorScheme.primary,
-              unselectedLabelColor: AppColors.muted(context),
-              indicatorColor: Theme.of(context).colorScheme.primary,
-              indicatorWeight: 3,
-              tabs: [
-                Tab(text: l10n.profileTab),
-                Tab(text: l10n.securityTab),
-                Tab(text: l10n.notifications),
-                Tab(text: l10n.favorites),
-              ],
-            ),
-          ),
-        ),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildProfileTab(),
-                _buildSecurityTab(),
-                _buildNotificationsTab(),
-                _buildFavoritesTab(),
-              ],
-            ),
+    final titles = [
+      l10n.accountTab,
+      l10n.securityTab,
+      l10n.notifications,
+      l10n.savedDealsAndStores,
+      l10n.accountDetails
+    ];
+    return PopScope(
+      canPop: _tabController.index == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _openSection(0);
+      },
+      child: Scaffold(
+          appBar: AppBar(
+              title: Text(titles[_tabController.index]),
+              leading: _tabController.index == 0
+                  ? null
+                  : BackButton(onPressed: () => _openSection(0))),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : TabBarView(
+                  controller: _tabController,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+                      _buildProfileTab(),
+                      _buildSecurityTab(),
+                      _buildNotificationsTab(),
+                      _buildFavoritesTab(),
+                      _buildAccountEditor()
+                    ])),
     );
   }
 }

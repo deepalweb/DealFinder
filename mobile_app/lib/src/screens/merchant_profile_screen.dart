@@ -1,4 +1,11 @@
 import '../widgets/sign_in_gate.dart';
+import '../widgets/profile_section.dart';
+import '../widgets/discovery_offer_card.dart';
+import '../models/promotion.dart';
+import '../utils/merchant_hours.dart';
+import '../utils/map_marker_icon.dart';
+import '../config/app_config.dart';
+import 'deal_detail_screen.dart';
 import '../config/app_theme.dart';
 import 'dart:convert';
 
@@ -11,7 +18,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
 import '../services/merchant_following_manager.dart';
-import '../utils/deal_expiry_helper.dart';
 import '../widgets/rating_widget.dart';
 
 String _merchantLocalizedText(
@@ -28,10 +34,14 @@ String _merchantLocalizedText(
 
 class MerchantProfileScreen extends StatefulWidget {
   final String merchantId;
+  final ApiService? api;
+  final Widget Function(GoogleMap map)? mapBuilder;
 
   const MerchantProfileScreen({
     super.key,
     required this.merchantId,
+    this.api,
+    this.mapBuilder,
   });
 
   @override
@@ -50,7 +60,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   bool _submittingReview = false;
   String? _error;
   String _activeTab = 'active';
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService = widget.api ?? ApiService();
+  String _profileSection = 'offers';
   final TextEditingController _reviewController = TextEditingController();
   List<Map<String, dynamic>> _ratings = [];
   List<Map<String, dynamic>> _reviews = [];
@@ -589,7 +600,10 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       _normalizeWebsite(_merchant?['orderLink'] ?? _merchant?['website']);
 
   String get _todayKey {
-    switch (DateTime.now().weekday) {
+    switch (DateTime.now()
+        .toUtc()
+        .add(const Duration(hours: 5, minutes: 30))
+        .weekday) {
       case DateTime.monday:
         return 'monday';
       case DateTime.tuesday:
@@ -616,29 +630,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         : (today is Map ? Map<String, dynamic>.from(today) : null);
   }
 
-  bool? get _isOpenNow {
-    final today = _todayOpeningHours;
-    if (today == null || today['closed'] == true) return false;
-    final open = _parseClock(today['open']);
-    final close = _parseClock(today['close']);
-    if (open == null || close == null) return null;
-    final now = DateTime.now();
-    final current = now.hour * 60 + now.minute;
-    if (close < open) return current >= open || current <= close;
-    return current >= open && current <= close;
-  }
-
-  int? _parseClock(dynamic value) {
-    final text = value?.toString().trim() ?? '';
-    final parts = text.split(':');
-    if (parts.length != 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null || hour > 23 || minute > 59) {
-      return null;
-    }
-    return hour * 60 + minute;
-  }
+  bool? get _isOpenNow => MerchantHours.isOpen(_merchant?['openingHours']);
 
   String get _hoursLabel {
     final today = _todayOpeningHours;
@@ -752,58 +744,18 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
-  List<Map<String, dynamic>> get _filteredDeals {
-    final now = DateTime.now();
-    if (_activeTab == 'active') {
-      return _deals.where((deal) {
-        final end = _parseDealDate(deal['endDate']);
-        return end == null || !end.isBefore(now);
-      }).toList();
-    }
-    return _deals.where((deal) {
-      final end = _parseDealDate(deal['endDate']);
-      return end != null && end.isBefore(now);
-    }).toList();
-  }
-
-  int get _activeDealsCount {
-    final now = DateTime.now();
-    return _deals.where((deal) {
-      final end = _parseDealDate(deal['endDate']);
-      return end == null || !end.isBefore(now);
-    }).length;
-  }
-
-  int get _expiredDealsCount {
-    final now = DateTime.now();
-    return _deals.where((deal) {
-      final end = _parseDealDate(deal['endDate']);
-      return end != null && end.isBefore(now);
-    }).length;
-  }
-
-  String? _countdownText(Map<String, dynamic> deal) {
-    final end = _parseDealDate(deal['endDate']);
-    return DealExpiryHelper.formatCompact(end);
-  }
-
-  DateTime? _parseDealDate(dynamic value) {
-    final raw = (value ?? '').toString();
-    if (raw.isEmpty) return null;
-    final parsed = DateTime.tryParse(raw);
-    if (parsed == null) return null;
-    return parsed.isUtc ? parsed.toLocal() : parsed;
-  }
-
-  String _dateRange(Map<String, dynamic> deal) {
-    final start = (deal['startDate'] ?? '').toString();
-    final end = (deal['endDate'] ?? '').toString();
-    if (start.isEmpty && end.isEmpty) {
-      return _merchantLocalizedText(context, 'Dates unavailable',
-          'දින ලබා නොමැත', 'தேதிகள் கிடைக்கவில்லை');
-    }
-    return '$start - $end';
-  }
+  List<Promotion> get _profileOffers => _deals
+      .map((deal) => Promotion.fromJson({...deal, 'merchant': _merchant}))
+      .toList();
+  List<Promotion> get _activeOffers => _profileOffers
+      .where((offer) =>
+          offer.hasStarted &&
+          !offer.isExpired &&
+          ['active', 'approved', 'scheduled']
+              .contains(offer.status?.toLowerCase()))
+      .toList();
+  List<Promotion> get _expiredOffers =>
+      _profileOffers.where((offer) => offer.isExpired).toList();
 
   String _formatReviewDate(dynamic value) {
     final raw = (value ?? '').toString();
@@ -871,9 +823,10 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
         icon = Icons.link;
     }
 
-    return InkWell(
-      onTap: () => _openExternalUrl(url),
-      child: CircleAvatar(
+    return IconButton(
+      tooltip: type,
+      onPressed: () => _openExternalUrl(url),
+      icon: CircleAvatar(
         backgroundColor: color,
         radius: 16,
         child: Icon(icon, color: Colors.white, size: 18),
@@ -881,65 +834,14 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
-  Widget _buildStatChip({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F7FB),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppColors.accent(context)),
-          const SizedBox(width: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: AppColors.text(context),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: const TextStyle(color: Color(0xFF607080)),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildStatChip(
+          {required IconData icon,
+          required String label,
+          required String value}) =>
+      Chip(avatar: Icon(icon, size: 18), label: Text('$value $label'));
 
-  Widget _buildModeChip({
-    required IconData icon,
-    required String label,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF4F7FB),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: AppColors.accent(context)),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.text(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildModeChip({required IconData icon, required String label}) =>
+      Chip(avatar: Icon(icon, size: 18), label: Text(label));
 
   Widget _buildStoreRatingCard() {
     final theme = Theme.of(context);
@@ -948,9 +850,9 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF0),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFE3A3)),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1003,7 +905,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 Text(
                   '($_ratingsCount ${_ratingsCount == 1 ? 'rating' : 'ratings'})',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF607080),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -1017,7 +919,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 'இன்னும் store ratings இல்லை.',
               ),
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF607080),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           const SizedBox(height: 14),
@@ -1179,7 +1081,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                 'இன்னும் store reviews இல்லை.',
               ),
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF607080),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             )
           else
@@ -1191,7 +1093,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7F9FC),
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -1222,7 +1125,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                       Text(
                         (review['text'] ?? '').toString(),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF425466),
+                          color: Theme.of(context).colorScheme.onSurface,
                           height: 1.35,
                         ),
                       ),
@@ -1236,778 +1139,273 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     );
   }
 
+  void _directions() => _openExternalUrl(
+      'https://www.google.com/maps/dir/?api=1&destination=$_merchantLatitude,$_merchantLongitude');
+
+  Widget _merchantHero() {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final banner = _merchantText('banner');
+    final logo = _merchantText('logo');
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (banner.isNotEmpty) ...[
+        ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: _buildImageWidget(banner, height: 160)),
+        const SizedBox(height: 20),
+      ],
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: _buildImageWidget(logo.isEmpty ? null : logo,
+                width: 72, height: 72)),
+        const SizedBox(width: 14),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Semantics(
+              header: true,
+              child: Text(_merchantText('name'),
+                  style: theme.textTheme.headlineSmall)),
+          if (_merchantText('address').isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(_merchantText('address'), style: theme.textTheme.bodyMedium),
+          ],
+        ])),
+      ]),
+      const SizedBox(height: 16),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        _buildModeChip(
+            icon: _merchantType == 'online'
+                ? Icons.language
+                : Icons.storefront_outlined,
+            label: _merchantTypeLabel(_merchantType)),
+        if (_merchantDeliveryAvailable)
+          _buildModeChip(
+              icon: Icons.delivery_dining, label: l10n.deliveryLabel),
+        if (_merchantPickupAvailable)
+          _buildModeChip(
+              icon: Icons.shopping_bag_outlined, label: l10n.pickupLabel),
+        if (_isOpenNow != null && _merchantType != 'online')
+          _buildModeChip(
+              icon: Icons.schedule,
+              label: _isOpenNow! ? l10n.openNowLabel : l10n.profileClosedLabel),
+      ]),
+      const SizedBox(height: 14),
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        _buildStatChip(
+            icon: Icons.local_offer_outlined,
+            label: l10n.profileOffersLabel,
+            value: '${_activeOffers.length}'),
+        if (_ratingsCount > 0)
+          _buildStatChip(
+              icon: Icons.star_outline,
+              label: '($_ratingsCount)',
+              value: _averageRating.toStringAsFixed(1)),
+        if (_merchant!['followers'] is num)
+          _buildStatChip(
+              icon: Icons.people_outline,
+              label: l10n.profileFollowersLabel,
+              value: '${_merchant!['followers']}'),
+      ]),
+      const SizedBox(height: 18),
+      Wrap(spacing: 10, runSpacing: 10, children: [
+        FilledButton.icon(
+            onPressed: _followBusy ? null : _toggleFollow,
+            icon: _followBusy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Icon(_isFollowing ? Icons.check : Icons.add),
+            label: Text(_isFollowing ? l10n.following : l10n.followStoreLabel)),
+        if (_merchantType != 'online' &&
+            _merchantLatitude != null &&
+            _merchantLongitude != null)
+          OutlinedButton.icon(
+              onPressed: _directions,
+              icon: const Icon(Icons.near_me_outlined),
+              label: Text(l10n.getDirections)),
+        if (_merchantType != 'offline' && _merchantOrderLink.isNotEmpty)
+          OutlinedButton.icon(
+              onPressed: () => _openExternalUrl(_merchantOrderLink),
+              icon: const Icon(Icons.shopping_bag_outlined),
+              label: Text(l10n.profileOrderLabel)),
+      ]),
+    ]);
+  }
+
+  Widget _merchantAbout() {
+    final l10n = AppLocalizations.of(context)!;
+    final description = _merchantText('description', fallbackKey: 'profile');
+    final phone = _merchantText('phone', fallbackKey: 'contactNumber');
+    final website = _normalizeWebsite(_merchant?['website']);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (description.isNotEmpty)
+        Text(description, style: Theme.of(context).textTheme.bodyLarge),
+      ProfileSection(title: l10n.contact, children: [
+        if (_merchantText('address').isNotEmpty)
+          ProfileActionTile(
+              icon: Icons.location_on_outlined,
+              title: _merchantText('address'),
+              subtitle: l10n.profileVisitLabel,
+              onTap: _merchantLatitude != null && _merchantLongitude != null
+                  ? _directions
+                  : null),
+        if (phone.isNotEmpty)
+          ProfileActionTile(
+              icon: Icons.call_outlined,
+              title: l10n.profileCallStoreLabel,
+              subtitle: phone,
+              onTap: () => _openExternalUrl('tel:$phone')),
+        if (website.isNotEmpty)
+          ProfileActionTile(
+              icon: Icons.language,
+              title: l10n.visitWebsite,
+              subtitle: website,
+              onTap: () => _openExternalUrl(website)),
+        if (phone.isEmpty &&
+            website.isEmpty &&
+            _merchantText('address').isEmpty)
+          ProfileActionTile(
+              icon: Icons.info_outline, title: l10n.noContactInfo),
+      ]),
+      ProfileSection(title: l10n.profileHoursLabel, children: [
+        ProfileActionTile(
+            icon: Icons.schedule,
+            title: _hoursLabel,
+            subtitle: _isOpenNow == null
+                ? l10n.profileHoursUnknownLabel
+                : _isOpenNow!
+                    ? l10n.openNowLabel
+                    : l10n.profileClosedLabel),
+      ]),
+      if (_merchantLatitude != null && _merchantLongitude != null) ...[
+        const SizedBox(height: 20),
+        ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: SizedBox(height: 200, child: _locationMap())),
+      ],
+      if (_merchant?['socialMedia'] is Map) ...[
+        const SizedBox(height: 16),
+        _buildSocialLinks(_merchant!['socialMedia'] as Map)
+      ],
+    ]);
+  }
+
+  Widget _locationMap() {
+    final map = GoogleMap(
+        initialCameraPosition: CameraPosition(
+            target: LatLng(_merchantLatitude!, _merchantLongitude!), zoom: 15),
+        style: Theme.of(context).brightness == Brightness.dark
+            ? googleMapDarkStyle
+            : null,
+        myLocationButtonEnabled: false,
+        mapToolbarEnabled: false,
+        markers: {
+          Marker(
+              markerId: const MarkerId('merchant'),
+              position: LatLng(_merchantLatitude!, _merchantLongitude!))
+        });
+    return widget.mapBuilder?.call(map) ?? map;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final merchantDescription = _merchantText(
-      'description',
-      fallbackKey: 'profile',
-    );
-    final merchantPhone = _merchantText(
-      'phone',
-      fallbackKey: 'contactNumber',
-    );
-    final merchantWebsite = _normalizeWebsite(_merchant?['website']);
-    final merchantOrderLink = _merchantOrderLink;
-    final merchantType = _merchantType;
-    final latitude = _merchantLatitude;
-    final longitude = _merchantLongitude;
-    final followerCount = (_merchant?['followers'] as num?)?.toInt() ?? 0;
-    final activeDeals =
-        (_merchant?['activeDeals'] as num?)?.toInt() ?? _activeDealsCount;
-
+    final offers = _activeTab == 'active' ? _activeOffers : _expiredOffers;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_merchantLocalizedText(
-            context, 'Store Profile', 'Store පැතිකඩ', 'Store சுயவிவரம்')),
-        actions: [
-          if (_merchant != null)
-            IconButton(
-              icon: const Icon(Icons.share),
-              onPressed: () {
-                final url = _merchant!['website'] ?? '';
-                Share.share(
-                  '${_merchantLocalizedText(context, 'Check out', 'බලන්න', 'பாருங்கள்')} ${_merchant!['name']} ${_merchantLocalizedText(context, 'on Deal Finder!', 'Deal Finder හි!', 'Deal Finder இல்!')}'
-                  '${url.toString().isNotEmpty ? '\n$url' : ''}',
-                );
-              },
-            ),
+      appBar: AppBar(title: Text(l10n.merchantProfileTitle), actions: [
+        if (_merchant != null)
           IconButton(
+              tooltip: l10n.profileShareStoreLabel,
+              icon: const Icon(Icons.ios_share),
+              onPressed: () => Share.share(
+                  '${_merchantText('name')}\n${AppConfig.publicBaseUrl}/merchants/${widget.merchantId}')),
+        IconButton(
+            tooltip: _merchantLocalizedText(context, 'Report store',
+                'ගබඩාව වාර්තා කරන්න', 'கடையைப் புகாரளிக்கவும்'),
             icon: const Icon(Icons.flag_outlined),
-            tooltip: _merchantLocalizedText(
-              context,
-              'Report store',
-              'Store report කරන්න',
-              'Store report செய்யவும்',
-            ),
-            onPressed: _showReportStoreDialog,
-          ),
-        ],
-      ),
+            onPressed: _showReportStoreDialog),
+      ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _error != null
+          : _error != null || _merchant == null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : _merchant == null
-                  ? Center(
-                      child: Text(_merchantLocalizedText(
-                          context,
-                          'Merchant not found',
-                          'Merchant හමු නොවීය',
-                          'Merchant கிடைக்கவில்லை')))
-                  : RefreshIndicator(
-                      onRefresh: () async {
-                        await Future.wait([
-                          _fetchMerchant(),
-                          _fetchMerchantRatings(),
-                          _fetchMerchantReviews(),
-                        ]);
-                      },
-                      child: ListView(
-                        padding: EdgeInsets.zero,
-                        children: [
-                          SizedBox(
-                            height: 220,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                _buildImageWidget(
-                                  _merchant!['banner']?.toString().isNotEmpty ==
-                                          true
-                                      ? _merchant!['banner'] as String
-                                      : null,
-                                  height: 220,
-                                ),
-                                Container(
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Color(0xAA14213D),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Transform.translate(
-                            offset: const Offset(0, -34),
-                            child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16),
-                              child: Container(
-                                padding: const EdgeInsets.all(18),
-                                decoration: BoxDecoration(
-                                  color: AppColors.card(context),
-                                  borderRadius: BorderRadius.circular(24),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.08),
-                                      blurRadius: 18,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        ClipOval(
-                                          child: _buildImageWidget(
-                                            _merchant!['logo'] as String?,
-                                            width: 78,
-                                            height: 78,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                (_merchant!['name'] ?? '')
-                                                    .toString(),
-                                                style: Theme.of(context)
-                                                    .textTheme
-                                                    .titleLarge
-                                                    ?.copyWith(
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
-                                              ),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                (_merchant!['category'] ??
-                                                        'Other')
-                                                    .toString(),
-                                                style: const TextStyle(
-                                                  color: Color(0xFF6D7B8A),
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 8),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
-                                                  _buildModeChip(
-                                                    icon: merchantType ==
-                                                            'online'
-                                                        ? Icons.public
-                                                        : Icons
-                                                            .storefront_outlined,
-                                                    label: _merchantTypeLabel(
-                                                        merchantType),
-                                                  ),
-                                                  _buildModeChip(
-                                                    icon: _isOpenNow == true
-                                                        ? Icons
-                                                            .check_circle_outline
-                                                        : Icons
-                                                            .schedule_outlined,
-                                                    label: _isOpenNow == true
-                                                        ? _merchantLocalizedText(
-                                                            context,
-                                                            'Open now • $_hoursLabel',
-                                                            'දැන් විවෘතයි • $_hoursLabel',
-                                                            'இப்போது திறந்திருக்கும் • $_hoursLabel')
-                                                        : _hoursLabel,
-                                                  ),
-                                                  if (_merchantDeliveryAvailable)
-                                                    _buildModeChip(
-                                                      icon:
-                                                          Icons.delivery_dining,
-                                                      label:
-                                                          _merchantLocalizedText(
-                                                              context,
-                                                              'delivery',
-                                                              'delivery',
-                                                              'delivery'),
-                                                    ),
-                                                  if (_merchantPickupAvailable)
-                                                    _buildModeChip(
-                                                      icon: Icons
-                                                          .shopping_bag_outlined,
-                                                      label:
-                                                          _merchantLocalizedText(
-                                                              context,
-                                                              'pickup',
-                                                              'pickup',
-                                                              'pickup'),
-                                                    ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 10),
-                                              AnimatedSwitcher(
-                                                duration: const Duration(
-                                                  milliseconds: 220,
-                                                ),
-                                                child: Wrap(
-                                                  key: ValueKey(
-                                                    '$followerCount-$activeDeals-$_ratingsCount-$_isFollowing',
-                                                  ),
-                                                  spacing: 8,
-                                                  runSpacing: 8,
-                                                  children: [
-                                                    _buildStatChip(
-                                                      icon: Icons
-                                                          .people_alt_outlined,
-                                                      label: _isFollowing
-                                                          ? _merchantLocalizedText(
-                                                              context,
-                                                              'followers • you follow',
-                                                              'followers • ඔබ follow කරයි',
-                                                              'followers • நீங்கள் follow செய்கிறீர்கள்')
-                                                          : _merchantLocalizedText(
-                                                              context,
-                                                              'followers',
-                                                              'followers',
-                                                              'followers'),
-                                                      value: '$followerCount',
-                                                    ),
-                                                    _buildStatChip(
-                                                      icon: Icons
-                                                          .local_offer_outlined,
-                                                      label:
-                                                          _merchantLocalizedText(
-                                                              context,
-                                                              'active deals',
-                                                              'සක්‍රිය deals',
-                                                              'active deals'),
-                                                      value: '$activeDeals',
-                                                    ),
-                                                    if (_ratingsCount > 0)
-                                                      _buildStatChip(
-                                                        icon: Icons
-                                                            .star_rate_rounded,
-                                                        label:
-                                                            _merchantLocalizedText(
-                                                                context,
-                                                                'rating',
-                                                                'rating',
-                                                                'rating'),
-                                                        value: _averageRating
-                                                            .toStringAsFixed(1),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    if (merchantDescription.isNotEmpty) ...[
-                                      const SizedBox(height: 16),
-                                      Text(
-                                        merchantDescription,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(
-                                              color: const Color(0xFF425466),
-                                              height: 1.45,
-                                            ),
-                                      ),
-                                    ],
-                                    const SizedBox(height: 16),
-                                    _buildStoreRatingCard(),
-                                    const SizedBox(height: 16),
-                                    _buildStoreReviewsCard(),
-                                    const SizedBox(height: 16),
-                                    Wrap(
-                                      spacing: 10,
-                                      runSpacing: 10,
-                                      children: [
-                                        AnimatedSwitcher(
-                                          duration: const Duration(
-                                            milliseconds: 220,
-                                          ),
-                                          child: ElevatedButton.icon(
-                                            key: ValueKey(
-                                              'follow-${_isFollowing ? 'on' : 'off'}-${_followBusy ? 'busy' : 'idle'}',
-                                            ),
-                                            onPressed: _followBusy
-                                                ? null
-                                                : _toggleFollow,
-                                            icon: _followBusy
-                                                ? const SizedBox(
-                                                    width: 16,
-                                                    height: 16,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: Colors.white,
-                                                    ),
-                                                  )
-                                                : Icon(
-                                                    _isFollowing
-                                                        ? Icons.check_circle
-                                                        : Icons
-                                                            .person_add_alt_1,
-                                                  ),
-                                            label: Text(
-                                              _followBusy
-                                                  ? (_isFollowing
-                                                      ? _merchantLocalizedText(
-                                                          context,
-                                                          'Updating...',
-                                                          'යාවත්කාලීන වෙමින්...',
-                                                          'புதுப்பிக்கப்படுகிறது...')
-                                                      : _merchantLocalizedText(
-                                                          context,
-                                                          'Saving...',
-                                                          'සුරකිමින්...',
-                                                          'சேமிக்கப்படுகிறது...'))
-                                                  : (_isFollowing
-                                                      ? _merchantLocalizedText(
-                                                          context,
-                                                          'Following store',
-                                                          'Follow කරන store',
-                                                          'Following store')
-                                                      : _merchantLocalizedText(
-                                                          context,
-                                                          'Follow store',
-                                                          'Store follow කරන්න',
-                                                          'Store follow செய்யவும்')),
-                                            ),
-                                          ),
-                                        ),
-                                        if (merchantWebsite.isNotEmpty)
-                                          OutlinedButton.icon(
-                                            onPressed: () => _openExternalUrl(
-                                                merchantWebsite),
-                                            icon: const Icon(Icons.language),
-                                            label: Text(l10n.websiteLabel),
-                                          ),
-                                        if ((_merchantDeliveryAvailable ||
-                                                _merchantPickupAvailable ||
-                                                merchantType == 'online' ||
-                                                merchantType == 'hybrid') &&
-                                            merchantOrderLink.isNotEmpty)
-                                          ElevatedButton.icon(
-                                            onPressed: () => _openExternalUrl(
-                                                merchantOrderLink),
-                                            icon: const Icon(
-                                                Icons.delivery_dining),
-                                            label: Text(
-                                              _merchantDeliveryAvailable
-                                                  ? _merchantLocalizedText(
-                                                      context,
-                                                      'Order Now',
-                                                      'දැන් Order කරන්න',
-                                                      'இப்போது Order செய்யவும்')
-                                                  : _merchantLocalizedText(
-                                                      context,
-                                                      'Order',
-                                                      'Order',
-                                                      'Order'),
-                                            ),
-                                          ),
-                                        if (merchantPhone.isNotEmpty)
-                                          OutlinedButton.icon(
-                                            onPressed: () => _openExternalUrl(
-                                                'tel:$merchantPhone'),
-                                            icon:
-                                                const Icon(Icons.call_outlined),
-                                            label: Text(_merchantLocalizedText(
-                                                context,
-                                                'Contact',
-                                                'සම්බන්ධ වන්න',
-                                                'தொடர்பு')),
-                                          ),
-                                      ],
-                                    ),
-                                    if ((_merchant!['address'] ?? '')
-                                        .toString()
-                                        .trim()
-                                        .isNotEmpty) ...[
-                                      const SizedBox(height: 16),
-                                      Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF7F9FC),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Icon(
-                                                  Icons.location_on_outlined,
-                                                  color:
-                                                      AppColors.accent(context),
-                                                  size: 18,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Expanded(
-                                                  child: Text(
-                                                    _merchant!['address']
-                                                        .toString(),
-                                                    style: const TextStyle(
-                                                      color: Color(0xFF425466),
-                                                      height: 1.4,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (latitude != null &&
-                                                longitude != null) ...[
-                                              const SizedBox(height: 10),
-                                              TextButton.icon(
-                                                onPressed: () =>
-                                                    _openExternalUrl(
-                                                  'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude',
-                                                ),
-                                                icon: const Icon(
-                                                    Icons.directions),
-                                                label: Text(l10n.getDirections),
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                    if (_merchant!['socialMedia'] != null) ...[
-                                      const SizedBox(height: 16),
-                                      _buildSocialLinks(
-                                        _merchant!['socialMedia'] as Map?,
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (latitude != null && longitude != null)
+                      padding: const EdgeInsets.all(24),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.storefront_outlined, size: 48),
+                        const SizedBox(height: 16),
+                        Text(l10n.merchantProfileUnavailableLabel,
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                            onPressed: _bootstrap,
+                            icon: const Icon(Icons.refresh),
+                            label: Text(l10n.retry)),
+                      ])))
+              : RefreshIndicator(
+                  onRefresh: _bootstrap,
+                  child: ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        _merchantHero(),
+                        const SizedBox(height: 24),
+                        Wrap(spacing: 8, runSpacing: 8, children: [
+                          for (final entry in {
+                            'offers': l10n.profileOffersLabel,
+                            'about': l10n.about,
+                            'reviews': l10n.profileReviewsLabel
+                          }.entries)
+                            ChoiceChip(
+                                label: Text(entry.value),
+                                selected: _profileSection == entry.key,
+                                onSelected: (_) => setState(
+                                    () => _profileSection = entry.key)),
+                        ]),
+                        const SizedBox(height: 20),
+                        if (_profileSection == 'offers') ...[
+                          Wrap(spacing: 8, runSpacing: 8, children: [
+                            ChoiceChip(
+                                label: Text(
+                                    '${l10n.profileActiveOffersLabel} (${_activeOffers.length})'),
+                                selected: _activeTab == 'active',
+                                onSelected: (_) =>
+                                    setState(() => _activeTab = 'active')),
+                            ChoiceChip(
+                                label: Text(
+                                    '${l10n.profileExpiredOffersLabel} (${_expiredOffers.length})'),
+                                selected: _activeTab == 'expired',
+                                onSelected: (_) =>
+                                    setState(() => _activeTab = 'expired')),
+                          ]),
+                          const SizedBox(height: 16),
+                          if (offers.isEmpty)
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                              child: SizedBox(
-                                height: 190,
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(20),
-                                  child: GoogleMap(
-                                    initialCameraPosition: CameraPosition(
-                                        target: LatLng(latitude, longitude),
-                                        zoom: 15),
-                                    myLocationButtonEnabled: false,
-                                    mapToolbarEnabled: false,
-                                    markers: {
-                                      Marker(
-                                          markerId: const MarkerId('merchant'),
-                                          position: LatLng(latitude, longitude))
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Row(
-                              children: [
-                                _buildTabButton(
-                                  'active',
-                                  _merchantLocalizedText(
-                                      context,
-                                      'Active Deals',
-                                      'සක්‍රිය Deals',
-                                      'Active Deals'),
-                                  _activeDealsCount,
-                                ),
-                                const SizedBox(width: 8),
-                                _buildTabButton(
-                                  'expired',
-                                  _merchantLocalizedText(
-                                      context,
-                                      'Expired Deals',
-                                      'කල් ඉකුත් Deals',
-                                      'Expired Deals'),
-                                  _expiredDealsCount,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: _filteredDeals.isEmpty
-                                ? Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 32),
-                                    child: Center(
-                                      child: Text(
-                                        _activeTab == 'active'
-                                            ? _merchantLocalizedText(
-                                                context,
-                                                'No active deals available.',
-                                                'සක්‍රිය deals නොමැත.',
-                                                'Active deals எதுவும் இல்லை.')
-                                            : _merchantLocalizedText(
-                                                context,
-                                                'No expired deals available.',
-                                                'කල් ඉකුත් deals නොමැත.',
-                                                'Expired deals எதுவும் இல்லை.'),
-                                      ),
-                                    ),
-                                  )
-                                : Column(
-                                    children: _filteredDeals.map((deal) {
-                                      final countdown = _countdownText(deal);
-                                      return Card(
-                                        margin:
-                                            const EdgeInsets.only(bottom: 12),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(14),
-                                          child: Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              ClipRRect(
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                                child: _buildImageWidget(
-                                                  (deal['image'] ??
-                                                          deal['imageUrl'])
-                                                      ?.toString(),
-                                                  width: 84,
-                                                  height: 84,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 12),
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      (deal['title'] ?? '')
-                                                          .toString(),
-                                                      style: const TextStyle(
-                                                        fontWeight:
-                                                            FontWeight.bold,
-                                                        fontSize: 15,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 6),
-                                                    if ((deal['description'] ??
-                                                            '')
-                                                        .toString()
-                                                        .isNotEmpty)
-                                                      Text(
-                                                        deal['description']
-                                                            .toString(),
-                                                        maxLines: 2,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                    const SizedBox(height: 8),
-                                                    Text(
-                                                      _dateRange(deal),
-                                                      style: const TextStyle(
-                                                        fontSize: 12,
-                                                        color:
-                                                            Color(0xFF6D7B8A),
-                                                      ),
-                                                    ),
-                                                    if (DealExpiryHelper
-                                                        .isEndingToday(
-                                                      _parseDealDate(
-                                                          deal['endDate']),
-                                                    )) ...[
-                                                      const SizedBox(height: 8),
-                                                      Container(
-                                                        padding:
-                                                            const EdgeInsets
-                                                                .symmetric(
-                                                          horizontal: 10,
-                                                          vertical: 6,
-                                                        ),
-                                                        decoration:
-                                                            BoxDecoration(
-                                                          color: const Color(
-                                                              0xFFFFF4ED),
-                                                          borderRadius:
-                                                              BorderRadius
-                                                                  .circular(
-                                                                      999),
-                                                          border: Border.all(
-                                                            color: const Color(
-                                                              0xFFF9B189,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        child: Text(
-                                                          _merchantLocalizedText(
-                                                              context,
-                                                              'Ending today',
-                                                              'අද අවසන්',
-                                                              'இன்று முடியும்'),
-                                                          style:
-                                                              const TextStyle(
-                                                            fontSize: 12,
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                            color: Color(
-                                                                0xFF9A3412),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                    if (countdown != null) ...[
-                                                      const SizedBox(height: 8),
-                                                      Builder(
-                                                        builder: (context) {
-                                                          final urgencyDate =
-                                                              countdown ==
-                                                                      'Expired'
-                                                                  ? DateTime
-                                                                          .now()
-                                                                      .subtract(
-                                                                      const Duration(
-                                                                        minutes:
-                                                                            1,
-                                                                      ),
-                                                                    )
-                                                                  : _parseDealDate(
-                                                                      deal[
-                                                                          'endDate'],
-                                                                    );
-                                                          final foreground =
-                                                              DealExpiryHelper
-                                                                  .urgencyColor(
-                                                            context,
-                                                            urgencyDate,
-                                                          );
-                                                          return Container(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                              horizontal: 10,
-                                                              vertical: 6,
-                                                            ),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              color: DealExpiryHelper
-                                                                  .urgencyBackgroundColor(
-                                                                urgencyDate,
-                                                              ),
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                999,
-                                                              ),
-                                                              border:
-                                                                  Border.all(
-                                                                color: DealExpiryHelper
-                                                                    .urgencyBorderColor(
-                                                                  urgencyDate,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                            child: Text(
-                                                              countdown ==
-                                                                      'Expired'
-                                                                  ? countdown
-                                                                  : '${_merchantLocalizedText(context, 'Ends in', 'අවසන් වීමට', 'முடிவதற்கு')} $countdown',
-                                                              style: TextStyle(
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                                color:
-                                                                    foreground,
-                                                              ),
-                                                            ),
-                                                          );
-                                                        },
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                          ),
-                          const SizedBox(height: 24),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 28),
+                                child: Text(l10n.profileNoOffersLabel,
+                                    textAlign: TextAlign.center)),
+                          for (final offer in offers)
+                            Padding(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                child: DiscoveryOfferCard(
+                                    offer: offer,
+                                    onOpen: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => DealDetailScreen(
+                                                promotion: offer))))),
                         ],
-                      ),
-                    ),
-    );
-  }
-
-  Widget _buildTabButton(String value, String label, int count) {
-    final selected = _activeTab == value;
-    return Expanded(
-      child: OutlinedButton(
-        onPressed: () => setState(() => _activeTab = value),
-        style: OutlinedButton.styleFrom(
-          backgroundColor:
-              selected ? Theme.of(context).colorScheme.primary : Colors.white,
-          foregroundColor: selected ? Colors.white : const Color(0xFF425466),
-          side: BorderSide(
-            color: selected
-                ? Theme.of(context).colorScheme.primary
-                : const Color(0xFFD7E0EA),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: selected
-                    ? Colors.white.withValues(alpha: 0.18)
-                    : const Color(0xFFF3F6FA),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : const Color(0xFF425466),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+                        if (_profileSection == 'about') _merchantAbout(),
+                        if (_profileSection == 'reviews') ...[
+                          _buildStoreRatingCard(),
+                          const SizedBox(height: 16),
+                          _buildStoreReviewsCard()
+                        ],
+                      ])),
     );
   }
 }

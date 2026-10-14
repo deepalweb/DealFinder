@@ -1088,4 +1088,68 @@ class AppLocalizationsSi extends AppLocalizations {
 
   @override
   String get loadingNearbyLabel => 'අසල දීමනා ලබාගනිමින්…';
+
+  @override
+  String get profileOffersLabel => 'දීමනා';
+
+  @override
+  String get profileReviewsLabel => 'සමාලෝචන';
+
+  @override
+  String get profileActiveOffersLabel => 'සක්‍රිය';
+
+  @override
+  String get profileExpiredOffersLabel => 'කල් ඉකුත් වූ';
+
+  @override
+  String get profileNoOffersLabel => 'දැනට පෙන්වීමට දීමනා නැත.';
+
+  @override
+  String get profileShareStoreLabel => 'ගබඩාව බෙදා ගන්න';
+
+  @override
+  String get profileCallStoreLabel => 'ගබඩාව අමතන්න';
+
+  @override
+  String get profileOrderLabel => 'මාර්ගගතව ඇණවුම් කරන්න';
+
+  @override
+  String get profileVisitLabel => 'ගබඩාවට පැමිණෙන්න';
+
+  @override
+  String get profileHoursLabel => 'විවෘත වේලාවන්';
+
+  @override
+  String get profileClosedLabel => 'දැනට වසා ඇත';
+
+  @override
+  String get profileFollowersLabel => 'අනුගාමිකයන්';
+
+  @override
+  String get profileHoursUnknownLabel => 'වේලාවන් ලබා ගත නොහැක';
+
+  @override
+  String get merchantProfileTitle => 'ගබඩාව';
+
+  @override
+  String get merchantProfileUnavailableLabel =>
+      'ගබඩා තොරතුරු ලබා ගත නොහැක. නැවත උත්සාහ කරන්න.';
+
+  @override
+  String get profileSavingLabel => 'සුරකිමින්…';
+
+  @override
+  String get profileEditLabel => 'පැතිකඩ සංස්කරණය';
+
+  @override
+  String get profileSaveLabel => 'වෙනස්කම් සුරකින්න';
+
+  @override
+  String get profileCurrentPasswordLabel => 'වත්මන් මුරපදය';
+
+  @override
+  String get profileNewPasswordLabel => 'නව මුරපදය';
+
+  @override
+  String get profileConfirmPasswordLabel => 'නව මුරපදය තහවුරු කරන්න';
 }
