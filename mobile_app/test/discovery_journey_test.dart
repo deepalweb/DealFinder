@@ -1,3 +1,5 @@
+import 'package:deal_finder_mobile/src/screens/home_screen.dart';
+import 'package:deal_finder_mobile/src/screens/all_deals_screen.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'package:deal_finder_mobile/src/config/app_theme.dart';
 import 'package:deal_finder_mobile/src/screens/main_navigation_screen.dart';
@@ -92,7 +94,7 @@ void main() {
         child: const Text('Open offer'),
       )),
       nearbyScreenBuilder: (_) => const Text('Nearby results'),
-      bankOffersScreenBuilder: (_) => const Text('Bank results'),
+      storesScreenBuilder: (_) => const Text('Store results'),
     )));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open offer'));
@@ -109,11 +111,46 @@ void main() {
     await tester.tap(find.text('Saved'));
     await tester.pumpAndSettle();
     expect(find.byType(SignInGate), findsOneWidget);
-    await tester.tap(find.text('Bank Offers'));
+    await tester.tap(find.text('Stores'));
     await tester.pumpAndSettle();
-    expect(find.text('Bank results'), findsOneWidget);
+    expect(find.text('Store results'), findsOneWidget);
     await tester.tap(find.text('Account'));
     await tester.pumpAndSettle();
     expect(find.byType(SignInGate), findsOneWidget);
+  });
+  testWidgets('bank shortcuts open within Discover without replacing Stores',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(host(MainNavigationScreen(
+      storesScreenBuilder: (_) => const Text('Merchant directory'),
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text('Stores'), findsOneWidget);
+    expect(
+        tester
+            .widgetList<NavigationDestination>(
+                find.byType(NavigationDestination))
+            .map((item) => item.label),
+        ['Discover', 'Nearby', 'Stores', 'Saved', 'Account']);
+    tester
+        .widget<HomeScreen>(find.byType(HomeScreen))
+        .onNavigateBankOffers!('Fixture Bank');
+    await tester.pumpAndSettle();
+    final results = tester.widget<AllDealsScreen>(find.byType(AllDealsScreen));
+    expect(results.bankOffersOnly, isTrue);
+    expect(results.initialBankName, 'Fixture Bank');
+    await tester.tap(find.text('Stores'));
+    await tester.pumpAndSettle();
+    expect(find.text('Merchant directory'), findsOneWidget);
+    await tester.tap(find.text('Discover'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AllDealsScreen), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(HomeScreen), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

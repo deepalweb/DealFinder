@@ -5,6 +5,7 @@ import '../models/promotion.dart';
 import 'discover_offer_image.dart';
 import 'discovery_offer_card.dart';
 import 'offer_save_button.dart';
+import 'discover_offer_rating.dart';
 
 enum DiscoverSurfaceLayout { editorial, detail, expiry }
 
@@ -36,6 +37,12 @@ class DiscoverOfferSurface extends StatelessWidget {
       if (offer.minimumSpend != null)
         l10n.minimumSpendLabel(offerMoney(offer, offer.minimumSpend!)),
       if (end != null) end,
+      if (offer.distance != null)
+        '${offer.distance! < 1000 ? '${offer.distance!.round()} m' : '${(offer.distance! / 1000).toStringAsFixed(1)} km'} · ${switch (Localizations.localeOf(context).languageCode) {
+          'si' => 'ආසන්න දුර',
+          'ta' => 'தோராயமான தூரம்',
+          _ => 'approx.'
+        }}',
       if (offer.bankName?.isNotEmpty == true) offer.bankName!,
       ...offer.cardTypes.map((type) => type == 'credit'
           ? l10n.creditCardLabel
@@ -57,16 +64,15 @@ class DiscoverOfferSurface extends StatelessWidget {
       if (offer.merchantName?.isNotEmpty == true)
         Text(offer.merchantName!,
             style: theme.textTheme.titleSmall
-                ?.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+                ?.copyWith(fontSize: 16, fontWeight: FontWeight.w700)),
       const SizedBox(height: 3),
       Text(offer.title,
-          style: theme.textTheme.bodySmall?.copyWith(fontSize: 12),
+          style: theme.textTheme.bodySmall
+              ?.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
           maxLines: large ? null : 2,
           overflow: large ? null : TextOverflow.ellipsis),
       if (offer.averageRating != null && offer.ratingsCount > 0)
-        Text(
-            '★ ${offer.averageRating!.toStringAsFixed(1)} (${offer.ratingsCount})',
-            style: theme.textTheme.bodySmall?.copyWith(fontSize: 11)),
+        DiscoverOfferRating(offer: offer),
     ]);
     return Material(
       color: theme.colorScheme.surface,
@@ -124,6 +130,13 @@ class DiscoverOfferSurface extends StatelessWidget {
                                     color: Colors.white, fontSize: 12),
                                 maxLines: large ? null : 2,
                                 overflow: large ? null : TextOverflow.ellipsis),
+                          TextButton.icon(
+                              onPressed: onOpen,
+                              style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(48, 44)),
+                              icon: const Icon(Icons.arrow_forward, size: 16),
+                              label: Text(l10n.viewOfferLabel)),
                           if (end != null)
                             Padding(
                                 padding: const EdgeInsets.only(top: 6),
@@ -135,7 +148,7 @@ class DiscoverOfferSurface extends StatelessWidget {
             else if (layout == DiscoverSurfaceLayout.detail) ...[
               Stack(children: [
                 SizedBox(
-                    height: large ? 160 : 140,
+                    height: large ? 180 : 160,
                     width: double.infinity,
                     child: DiscoverOfferImage(offer: offer)),
                 Positioned(
@@ -164,7 +177,7 @@ class DiscoverOfferSurface extends StatelessWidget {
                             children: meta
                                 .map((label) => Text(label,
                                     style: theme.textTheme.bodySmall
-                                        ?.copyWith(fontSize: 11)))
+                                        ?.copyWith(fontSize: 13)))
                                 .toList()),
                         if (offer.maximumBenefit != null)
                           Padding(
@@ -187,16 +200,23 @@ class DiscoverOfferSurface extends StatelessWidget {
                               if (price != null)
                                 Text(offerMoney(offer, price),
                                     style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 17,
                                         fontWeight: FontWeight.w700,
                                         color: theme.colorScheme.primary)),
+                              if (offer.originalPrice != null &&
+                                  price != null &&
+                                  offer.originalPrice! > price)
+                                Text(offerMoney(offer, offer.originalPrice!),
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                        decoration:
+                                            TextDecoration.lineThrough)),
                               ...[
                                 if (offer.supportsVisit) l10n.inStoreLabel,
                                 if (offer.supportsDelivery) l10n.deliveryLabel,
                                 if (offer.supportsPickup) l10n.pickupLabel
                               ].map((s) => Text(s,
                                   style: theme.textTheme.bodySmall
-                                      ?.copyWith(fontSize: 11))),
+                                      ?.copyWith(fontSize: 13))),
                               button,
                             ]),
                       ])),
@@ -246,5 +266,5 @@ class DiscoverOfferSurface extends StatelessWidget {
           borderRadius: BorderRadius.circular(8)),
       child: Text(label,
           style:
-              Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 11)));
+              Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 13)));
 }

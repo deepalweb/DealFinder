@@ -117,6 +117,10 @@ function getAiSessionId(): string | null {
   }
 }
 
+export class ApiError extends Error {
+ constructor(message:string, public status:number, public details:unknown){super(message);this.name='ApiError';}
+}
+
 async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalidate?: number, hasRetried = false): Promise<T> {
   const isGet = !options.method || options.method === 'GET';
   const cacheKey = `${endpoint}`;
@@ -153,7 +157,7 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalida
         return fetchAPI<T>(endpoint, options, revalidate, true);
       }
     }
-    throw new Error(err.message || `API Error: ${res.status}`);
+    throw new ApiError(err.message || `API Error: ${res.status}`,res.status,err.errors);
   }
   const data = await res.json();
 
@@ -202,7 +206,7 @@ export const PromotionAPI = {
 export const BankOfferAPI = {
   getAll: (params?: { limit?: number }) => {
     const q = params ? new URLSearchParams(params as any).toString() : '';
-    return fetchAPI<any[]>(`bank-offers${q ? `?${q}` : ''}`, { cache: 'no-store' });
+    return fetchAPI<any[]>(`bank-offers${q ? `?${q}` : ''}`, { cache: 'no-store' }).then(rows => rows.map(row => ({ ...row, _offerKind: 'bank' })));
   },
   getAdminAll: () => fetchAPI<any[]>('bank-offers/admin', { cache: 'no-store' }),
   getById: (id: string) => fetchAPI<any>(`bank-offers/${id}`, { cache: 'no-store' }),
@@ -426,4 +430,12 @@ export const ImageAPI = {
       body: JSON.stringify({ imageUrl }),
     });
   },
+};
+
+// Private merchant workspace bypasses the public GET cache.
+export const MerchantWorkspaceAPI = {
+ get: () => fetchAPI<any>('merchant-workspace', {cache:'no-store'}),
+ draft: (id:string) => fetchAPI<any>(`merchant-workspace/drafts/${id}`, {cache:'no-store'}),
+ save: (key:string,data:unknown) => fetchAPI<any>(`merchant-workspace/drafts/${key}`, {method:'PUT',body:JSON.stringify({data})}),
+ submit: (id:string) => fetchAPI<any>(`merchant-workspace/drafts/${id}/submit`, {method:'POST'}).then(r=>{invalidateCache('promotions');return r;}),
 };

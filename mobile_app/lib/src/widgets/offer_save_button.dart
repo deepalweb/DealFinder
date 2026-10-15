@@ -8,8 +8,13 @@ import '../services/saved_offer_service.dart';
 import 'sign_in_gate.dart';
 
 class OfferSaveButton extends StatefulWidget {
-  const OfferSaveButton({super.key, required this.offer});
+  const OfferSaveButton(
+      {super.key,
+      required this.offer,
+      this.compact = false,
+      this.heart = false});
   final Promotion offer;
+  final bool compact, heart;
   @override
   State<OfferSaveButton> createState() => _OfferSaveButtonState();
 }
@@ -71,21 +76,51 @@ class _OfferSaveButtonState extends State<OfferSaveButton> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final unsupported = widget.offer.merchantId == null &&
+        BankCardPromotionSupport.isBankCardPromotion(widget.offer);
+    final button = IconButton(
+        iconSize: widget.compact ? 18 : 24,
+        style: widget.compact
+            ? IconButton.styleFrom(
+                minimumSize: const Size(48, 48),
+                foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant)
+            : null,
+        tooltip: unsupported
+            ? l10n.bankOffersTab
+            : _saved
+                ? l10n.removeFavorite
+                : l10n.saveFavorites,
+        onPressed: _busy || unsupported ? null : _toggle,
+        isSelected: _saved,
+        selectedIcon:
+            Icon(widget.heart ? Icons.favorite : Icons.bookmark_rounded),
+        icon: _busy
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : Icon(widget.heart
+                ? Icons.favorite_border
+                : Icons.bookmark_border_rounded));
+    if (widget.compact) {
+      return SizedBox(
+          width: 48,
+          height: 48,
+          child: Stack(alignment: Alignment.center, children: [
+            Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerLowest)),
+            button,
+          ]));
+    }
     return Material(
       color: Theme.of(context).colorScheme.surface,
       shape: const CircleBorder(),
-      child: IconButton(
-        tooltip: _saved ? l10n.removeFavorite : l10n.saveFavorites,
-        onPressed: _busy ? null : _toggle,
-        isSelected: _saved,
-        selectedIcon: const Icon(Icons.bookmark_rounded),
-        icon: _busy
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            : const Icon(Icons.bookmark_border_rounded),
-      ),
+      child: button,
     );
   }
 }

@@ -78,11 +78,15 @@ class AuthService {
       await PushNotificationService.clearAppIconBadge();
     } catch (_) {}
     try {
+      await _apiService.revokeSession();
+    } catch (_) {}
+    try {
       await _auth.signOut();
     } catch (_) {}
     // Local sign-out must still work when remote services are unavailable.
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userToken');
+    await prefs.remove('refreshToken');
     await prefs.remove('userId');
     await prefs.remove('userName');
     await prefs.remove('userEmail');
@@ -104,6 +108,9 @@ class AuthService {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('userToken', token);
+    if (response['refreshToken'] is String) {
+      await prefs.setString('refreshToken', response['refreshToken']);
+    }
     await prefs.setString('userId', userId);
     await prefs.setString('userName', response['name'] as String? ?? '');
     await prefs.setString('userEmail', response['email'] as String? ?? '');

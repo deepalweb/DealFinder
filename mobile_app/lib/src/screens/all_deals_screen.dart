@@ -2,17 +2,16 @@ import '../config/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../models/promotion.dart';
 import '../models/category.dart';
 import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_filter_support.dart';
-import '../widgets/modern_deal_card.dart';
-import 'deals_list_screen.dart';
+import '../widgets/discover_marketplace_card.dart';
+import '../utils/offer_presentation.dart';
+import '../services/browsing_area.dart';
 import 'deal_detail_screen.dart';
-import 'search_screen.dart';
 import 'package:shimmer/shimmer.dart';
 
 class AllDealsScreen extends StatefulWidget {
@@ -25,6 +24,7 @@ class AllDealsScreen extends StatefulWidget {
   final double? initialMinDiscount;
   final bool bankOffersOnly;
   final String? initialBankName;
+  final ApiService? api;
 
   const AllDealsScreen({
     super.key,
@@ -37,6 +37,7 @@ class AllDealsScreen extends StatefulWidget {
     this.initialMinDiscount,
     this.bankOffersOnly = false,
     this.initialBankName,
+    this.api,
   });
 
   @override
@@ -52,7 +53,55 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   static const double _defaultMaxPrice = double.infinity;
 
   late Future<List<Promotion>> _promotionsFuture;
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService = widget.api ?? ApiService();
+  List<Promotion> _loaded = [];
+  bool _hasMore = false, _paging = false, _pageError = false;
+  int _offset = 50, _bankOffset = 50;
+  bool _morePromotions = false, _moreBanks = false;
+  String? _bank, _card;
+  int _request = 0;
+  Future<void> _nextPage() async {
+    if (_paging) return;
+    final request = _request;
+    setState(() => _paging = true);
+    try {
+      final promotionRows = _morePromotions
+          ? await _apiService.fetchPromotionPage(skip: _offset)
+          : <Promotion>[];
+      final bankRows = _moreBanks
+          ? await _apiService.fetchBankOfferPage(skip: _bankOffset)
+          : <Promotion>[];
+      final rows = [...promotionRows, ...bankRows];
+      if (!mounted || request != _request) return;
+      final known = _loaded.map((p) => OfferPresentation(p).identity).toSet();
+      final area = await BrowsingArea.read();
+      if (!mounted || request != _request) return;
+      setState(() {
+        _loaded.addAll(rows
+            .where((p) => known.add(OfferPresentation(p).identity))
+            .map((p) => area == null ||
+                    p.latitude == null ||
+                    p.longitude == null ||
+                    OfferPresentation(p).onlineOnly
+                ? p
+                : p.copyWith(
+                    distance: LocationService.calculateDistance(area.latitude,
+                            area.longitude, p.latitude!, p.longitude!) *
+                        1000)));
+        _offset += promotionRows.length;
+        _bankOffset += bankRows.length;
+        _morePromotions = _morePromotions && promotionRows.length == 50;
+        _moreBanks = _moreBanks && bankRows.length == 50;
+        _hasMore = _morePromotions || _moreBanks;
+        _pageError = false;
+        _promotionsFuture = Future.value(List.of(_loaded));
+      });
+    } catch (_) {
+      if (mounted && request == _request) setState(() => _pageError = true);
+    } finally {
+      if (mounted && request == _request) setState(() => _paging = false);
+    }
+  }
 
   // Sort and Filter state
   String _sortBy =
@@ -77,6 +126,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     super.initState();
     _sortBy = widget.initialSortBy ?? _sortBy;
     _selectedCategory = widget.initialCategoryId;
+    _bank = widget.initialBankName;
     _selectedCapabilityPresetId = widget.initialCapabilityPresetId;
     _activeSectionPreset = widget.initialSectionPreset;
     _activePrimaryFilter = widget.initialPrimaryFilter;
@@ -85,63 +135,51 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
   }
 
   void _loadPromotions() {
-    setState(() {
-      _promotionsFuture =
-          _fetchPromotionsWithDistance(forceRefresh: false).then((promotions) {
-        // Show cached data immediately, then refresh in background
-        _fetchPromotionsWithDistance(forceRefresh: true).then((fresh) {
-          if (mounted) {
-            setState(() {
-              _promotionsFuture = Future.value(fresh);
-            });
-          }
-        }).catchError((_) {});
-        return promotions;
-      });
-    });
+    _promotionsFuture = _fetchPromotionsWithDistance(forceRefresh: false);
   }
 
   Future<void> _refreshPromotions() async {
-    setState(() {
-      _promotionsFuture = _fetchPromotionsWithDistance(forceRefresh: true);
-    });
+    final future = _fetchPromotionsWithDistance(forceRefresh: true);
+    setState(() => _promotionsFuture = future);
+    await future;
   }
 
   Future<List<Promotion>> _fetchPromotionsWithDistance({
     required bool forceRefresh,
   }) async {
+    final request = ++_request;
     final fetched =
         await _apiService.fetchPromotions(forceRefresh: forceRefresh);
-    final promotions = widget.bankOffersOnly
-        ? fetched
-            .where(BankCardPromotionSupport.isBankCardPromotion)
-            .where((p) =>
-                widget.initialBankName == null ||
-                p.bankName == widget.initialBankName)
-            .toList()
-        : fetched;
-    final locationResult = await LocationService.resolveCurrentLocation(
-      requestPermission: false,
-      allowLastKnownFallback: true,
-    );
-    final position = locationResult.position;
-    if (position == null) return promotions;
+    if (request == _request) {
+      _loaded = List.of(fetched);
+      _offset = 50;
+      _morePromotions = _apiService.lastPromotionPageHasMore ??
+          (fetched.where((p) => !OfferPresentation(p).standaloneBank).length >=
+              50);
+      _moreBanks = _apiService.lastBankOfferPageHasMore ??
+          (fetched.where((p) => OfferPresentation(p).standaloneBank).length >=
+              50);
+      _bankOffset = 50;
+      _hasMore = _morePromotions || _moreBanks;
+      _paging = false;
+    }
 
-    return promotions.map((promotion) {
-      if (promotion.distance != null) return promotion;
-      if (promotion.latitude == null || promotion.longitude == null) {
+    final promotions = fetched;
+    final area = await BrowsingArea.read();
+    final result = promotions.map((promotion) {
+      if (area == null ||
+          promotion.latitude == null ||
+          promotion.longitude == null ||
+          OfferPresentation(promotion).onlineOnly) {
         return promotion;
       }
-
-      final distanceKm = LocationService.calculateDistance(
-        position.latitude,
-        position.longitude,
-        promotion.latitude!,
-        promotion.longitude!,
-      );
-
-      return promotion.copyWith(distance: distanceKm * 1000);
+      return promotion.copyWith(
+          distance: LocationService.calculateDistance(area.latitude,
+                  area.longitude, promotion.latitude!, promotion.longitude!) *
+              1000);
     }).toList();
+    if (request == _request) _loaded = List.of(result);
+    return result;
   }
 
   String _effectiveCategory(Promotion promotion) {
@@ -152,9 +190,22 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   List<Promotion> _filteredPromotions(List<Promotion> promotions) {
     final filtered = promotions.where((promo) {
-      final normalizedCategory = _effectiveCategory(promo);
+      if (!OfferPresentation(promo).public) return false;
+      if (widget.bankOffersOnly &&
+          !BankCardPromotionSupport.isBankCardPromotion(promo)) {
+        return false;
+      }
+      if (widget.bankOffersOnly && _bank != null && promo.bankName != _bank) {
+        return false;
+      }
+      if (widget.bankOffersOnly &&
+          _card != null &&
+          !promo.cardTypes.contains(_card)) {
+        return false;
+      }
       if (_selectedCategory != null &&
-          normalizedCategory != _selectedCategory) {
+          !BankCardPromotionSupport.matchesCategory(
+              promo, _selectedCategory!)) {
         return false;
       }
 
@@ -163,23 +214,13 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         return false;
       }
 
-      final price =
-          promo.discountedPrice ?? promo.price ?? promo.originalPrice ?? 0;
-      if (price < _minPrice || price > _maxPrice) {
+      final price = OfferPresentation(promo).price;
+      if ((_minPrice > 0 || _hasMaxPriceFilter) &&
+          (price == null || price < _minPrice || price > _maxPrice)) {
         return false;
       }
 
-      if (promo.discount != null) {
-        final discountMatch = RegExp(r'(\d+)').firstMatch(promo.discount!);
-        if (discountMatch != null) {
-          final discountValue = double.parse(discountMatch.group(1)!);
-          if (discountValue < _minDiscount) {
-            return false;
-          }
-        }
-      } else if (_minDiscount > 0) {
-        return false;
-      }
+      if (OfferPresentation(promo).percentage < _minDiscount) return false;
 
       if (!_matchesEntryPreset(promo)) {
         return false;
@@ -200,28 +241,20 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         case 'recent':
           return b.latestActivityAt.compareTo(a.latestActivityAt);
         case 'discount':
-          return _extractDiscount(b.discount).compareTo(
-            _extractDiscount(a.discount),
-          );
+          return OfferPresentation(b)
+              .percentage
+              .compareTo(OfferPresentation(a).percentage);
         case 'highest_rated':
           final ratingCompare =
               (b.averageRating ?? 0).compareTo(a.averageRating ?? 0);
           if (ratingCompare != 0) return ratingCompare;
           return b.ratingsCount.compareTo(a.ratingsCount);
         case 'price_low':
-          final aPrice = a.discountedPrice ??
-              a.price ??
-              a.originalPrice ??
-              double.infinity;
-          final bPrice = b.discountedPrice ??
-              b.price ??
-              b.originalPrice ??
-              double.infinity;
-          return aPrice.compareTo(bPrice);
+          return (OfferPresentation(a).price ?? double.infinity)
+              .compareTo(OfferPresentation(b).price ?? double.infinity);
         case 'price_high':
-          final aPrice = a.discountedPrice ?? a.price ?? a.originalPrice ?? 0;
-          final bPrice = b.discountedPrice ?? b.price ?? b.originalPrice ?? 0;
-          return bPrice.compareTo(aPrice);
+          return (OfferPresentation(b).price ?? -1)
+              .compareTo(OfferPresentation(a).price ?? -1);
         case 'ending_soon':
           if (a.endDate == null && b.endDate == null) return 0;
           if (a.endDate == null) return 1;
@@ -340,7 +373,9 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
 
   double _extractDiscount(String? discount) {
     if (discount == null) return 0;
-    final match = RegExp(r'(\d+)').firstMatch(discount);
+    final match =
+        RegExp(r'^(?:up to\s+)?(\d+(?:\.\d+)?)\s*%', caseSensitive: false)
+            .firstMatch(discount.trim());
     return match != null ? double.parse(match.group(1)!) : 0;
   }
 
@@ -350,81 +385,12 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     return _extractDiscount(promo.discount);
   }
 
-  bool _hasDirections(Promotion promotion) {
-    return (promotion.latitude != null && promotion.longitude != null) ||
-        (promotion.location?.trim().isNotEmpty ?? false);
-  }
-
-  Future<void> _openDirectionsFor(Promotion promotion) async {
-    String? url;
-    if (promotion.latitude != null && promotion.longitude != null) {
-      url =
-          'https://www.google.com/maps/dir/?api=1&destination=${promotion.latitude},${promotion.longitude}';
-    } else if (promotion.location != null &&
-        promotion.location!.trim().isNotEmpty) {
-      final query = Uri.encodeComponent(promotion.location!.trim());
-      url = 'https://www.google.com/maps/dir/?api=1&destination=$query';
-    }
-
-    if (url == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No location available for this deal.')),
-      );
-      return;
-    }
-
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Google Maps.')),
-      );
-    }
-  }
-
   String _getCategoryName(String categoryId) {
     final category = predefinedCategories.firstWhere(
       (cat) => cat.id == categoryId,
       orElse: () => Category(id: 'other', name: 'Other'),
     );
     return category.name;
-  }
-
-  IconData _getCategoryIcon(String categoryId) {
-    const iconMap = {
-      'food_dining': Icons.restaurant,
-      'beauty_salon': Icons.content_cut,
-      'repairs_services': Icons.build,
-      'electronics': Icons.devices_rounded,
-      'bank_cards': Icons.credit_card_rounded,
-      'shopping_retail': Icons.shopping_bag,
-      'health_wellness': Icons.favorite,
-      'daily_essentials': Icons.local_grocery_store,
-      'auto_services': Icons.directions_car,
-      'education_courses': Icons.school,
-      'entertainment_activities': Icons.movie,
-      'other': Icons.category,
-    };
-    return iconMap[categoryId] ?? Icons.category;
-  }
-
-  Color _getCategoryColor(String categoryId) {
-    const colorMap = {
-      'food_dining': Color(0xFFFF6B6B),
-      'beauty_salon': Color(0xFFFF6B9D),
-      'repairs_services': Color(0xFF3498DB),
-      'electronics': Color(0xFF06B6D4),
-      'bank_cards': Color(0xFF0F4C81),
-      'shopping_retail': Color(0xFFFFBE0B),
-      'health_wellness': Color(0xFF10B981),
-      'daily_essentials': Color(0xFF38A3A5),
-      'auto_services': Color(0xFF6366F1),
-      'education_courses': Color(0xFF8B5CF6),
-      'entertainment_activities': Color(0xFF9B59B6),
-      'other': Color(0xFF95A5A6),
-    };
-    return colorMap[categoryId] ?? const Color(0xFF95A5A6);
   }
 
   String get _screenTitle {
@@ -474,6 +440,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     setState(() {
       _selectedCategory = clearEntryContext ? null : widget.initialCategoryId;
       _selectedCapabilityPresetId = null;
+      _bank = null;
+      _card = null;
       _activePrimaryFilter = null;
       _minPrice = 0;
       _maxPrice = _defaultMaxPrice;
@@ -993,7 +961,8 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                     return _buildShimmer();
                   } else if (snapshot.hasError) {
                     return _buildError();
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  } else if ((!snapshot.hasData || snapshot.data!.isEmpty) &&
+                      !_hasMore) {
                     return _buildEmpty();
                   }
 
@@ -1002,7 +971,20 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
                       .fold<int>(0, (sum, list) => sum + list.length);
 
                   if (totalDeals == 0) {
-                    return _buildNoMatchesState();
+                    return ListView(children: [
+                      _buildNoMatchesState(),
+                      if (_hasMore || _pageError)
+                        Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: OutlinedButton(
+                                onPressed: _paging ? null : _nextPage,
+                                child: Text(_paging
+                                    ? '…'
+                                    : _pageError
+                                        ? AppLocalizations.of(context)!.retry
+                                        : AppLocalizations.of(context)!
+                                            .allDeals)))
+                    ]);
                   }
 
                   return _buildCategoryList(groupedDeals, totalDeals);
@@ -1185,469 +1167,115 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     );
   }
 
-  Widget _buildCategoryList(
-      Map<String, List<Promotion>> groupedDeals, int totalDeals) {
-    final sortedCategories = groupedDeals.keys.toList()
-      ..sort(
-          (a, b) => groupedDeals[b]!.length.compareTo(groupedDeals[a]!.length));
-    final curatedSections = _buildCuratedSections(groupedDeals);
-    final bottomInset = MediaQuery.of(context).padding.bottom;
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Column(
-            children: [
-              _buildExploreHero(totalDeals, sortedCategories.length),
-              if (curatedSections.isNotEmpty)
-                ...curatedSections
-                    .map(
-                      (section) => _buildCuratedSection(
-                        title: section.title,
-                        subtitle: section.subtitle,
-                        icon: section.icon,
-                        promotions: section.promotions,
-                      ),
-                    )
-                    .toList(),
-              _buildCompactSummary(totalDeals, sortedCategories.length),
-            ],
-          ),
-        ),
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 112 + bottomInset),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final categoryId = sortedCategories[index];
-                final deals = groupedDeals[categoryId]!;
-                final categoryName = _getCategoryName(categoryId);
-                return _buildCategorySection(
-                    categoryId, categoryName, deals, index);
-              },
-              childCount: sortedCategories.length,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExploreHero(int totalDeals, int totalCategories) {
-    final theme = Theme.of(context);
+  Widget _bankFilters() {
+    final l10n = AppLocalizations.of(context)!;
+    final banks = _loaded
+        .map((p) => p.bankName)
+        .whereType<String>()
+        .where((b) => b.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final cards = _loaded.expand((p) => p.cardTypes).toSet().toList()..sort();
     return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(
-              _t('Find your next great deal.', 'ඔබේ ඊළඟ හොඳම දීමනාව සොයන්න.',
-                  'உங்கள் அடுத்த சிறந்த சலுகையைக் கண்டறியுங்கள்.'),
-              style: theme.textTheme.displayMedium),
+        padding: const EdgeInsets.all(16),
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(_t(
+              'Filter loaded offers by bank and card type',
+              'බැංකුව සහ කාඩ් වර්ගය අනුව පූරණය කළ දීමනා පෙරන්න',
+              'வங்கி மற்றும் அட்டை வகைப்படி ஏற்றப்பட்ட சலுகைகளை வடிகட்டு')),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+              key: ValueKey(_bank),
+              initialValue: banks.contains(_bank) ? _bank : null,
+              isExpanded: true,
+              decoration: InputDecoration(labelText: l10n.bankOffersTab),
+              items: [
+                DropdownMenuItem(value: null, child: Text(l10n.allLabel)),
+                ...banks.map((b) => DropdownMenuItem(value: b, child: Text(b)))
+              ],
+              onChanged: (bank) => setState(() => _bank = bank)),
           const SizedBox(height: 8),
-          Text(
-              '$totalDeals ${_t('deals to explore', 'සොයා බැලීමට දීමනා', 'சலுகைகள் ஆராய')}',
-              style: theme.textTheme.bodySmall),
-          const SizedBox(height: 16),
-          Material(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-              child: InkWell(
-                  onTap: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const SearchScreen())),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(children: [
-                        Icon(Icons.search_rounded,
-                            color: theme.colorScheme.onSurfaceVariant),
-                        const SizedBox(width: 10),
-                        Expanded(
-                            child: Text(
-                                AppLocalizations.of(context)!.searchHint,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                    color:
-                                        theme.colorScheme.onSurfaceVariant))),
-                      ])))),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ChoiceChip(
+                label: Text(l10n.allLabel),
+                selected: _card == null,
+                onSelected: (_) => setState(() => _card = null)),
+            for (final card in cards)
+              ChoiceChip(
+                  label: Text(switch (card) {
+                    'credit' => l10n.creditCardLabel,
+                    'debit' => l10n.debitCardLabel,
+                    'prepaid' => l10n.prepaidCardLabel,
+                    _ => card
+                  }),
+                  selected: _card == card,
+                  onSelected: (_) => setState(() => _card = card))
+          ])
         ]));
   }
 
-  Widget _buildCompactSummary(int totalDeals, int totalCategories) {
-    final topLabel = _selectedCategory != null
-        ? _getCategoryName(_selectedCategory!)
-        : _t('All categories', 'සියලු ප්‍රවර්ග', 'அனைத்து வகைகள்');
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.card(context),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.insights_rounded,
-            color: AppColors.accent(context),
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              '$totalDeals ${_t('deals across', 'ඩීල්', 'சலுகைகள்')} $totalCategories ${_t('categories', 'ප්‍රවර්ග', 'வகைகள்')} • $topLabel',
-              style: TextStyle(
-                color: AppColors.text(context),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          if (!_hasActiveUserFilters)
-            Text(
-              _t('Live', 'සජීවී', 'நேரலை'),
-              style: const TextStyle(
-                color: Color(0xFF0F766E),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<_CuratedSectionData> _buildCuratedSections(
-      Map<String, List<Promotion>> groupedDeals) {
-    final allDeals = groupedDeals.values.expand((deals) => deals).toList();
-    final sections = <_CuratedSectionData>[];
-
-    final now = DateTime.now();
-    final endingSoon = List<Promotion>.from(allDeals)
-      ..retainWhere((p) {
-        final cutoff = now.add(const Duration(hours: 48));
-        return p.endDate != null &&
-            p.endDate!.isAfter(now) &&
-            p.endDate!.isBefore(cutoff);
-      })
-      ..sort((a, b) =>
-          (a.endDate ?? DateTime(9999)).compareTo(b.endDate ?? DateTime(9999)));
-
-    final nearby = List<Promotion>.from(allDeals)
-      ..retainWhere((p) => p.distance != null)
-      ..sort((a, b) => (a.distance ?? double.infinity)
-          .compareTo(b.distance ?? double.infinity));
-
-    final bigDiscounts = List<Promotion>.from(allDeals)
-      ..retainWhere((p) => _discountSignal(p) >= 40)
-      ..sort((a, b) => _discountSignal(b).compareTo(_discountSignal(a)));
-
-    void addSection(
-      String title,
-      String subtitle,
-      IconData icon,
-      List<Promotion> promotions,
-    ) {
-      final top = promotions.take(6).toList();
-      if (top.length >= 2) {
-        sections.add(
-          _CuratedSectionData(
-            title: title,
-            subtitle: subtitle,
-            icon: icon,
-            promotions: top,
-          ),
-        );
-      }
-    }
-
-    addSection(
-      _t('Ending Soon', 'ඉක්මනින් අවසන්', 'விரைவில் முடியும்'),
-      _t(
-          'Catch expiring deals before they disappear.',
-          'අතුරුදහන් වීමට පෙර කල් ඉකුත් වන ඩීල් ලබාගන්න.',
-          'மறையும் முன் காலாவதியாகும் சலுகைகளைப் பிடிக்கவும்.'),
-      Icons.schedule_rounded,
-      endingSoon,
-    );
-    addSection(
-      _t('Near You', 'ඔබ අසල', 'உங்கள் அருகில்'),
-      _t(
-          'Closest deals first when distance is available.',
-          'දුර ලබා ගත හැකි විට සමීපතම ඩීල් පළමුව පෙන්වයි.',
-          'தூரத் தகவல் இருக்கும் போது மிக அருகிலுள்ள சலுகைகள் முதலில் காட்டப்படும்.'),
-      Icons.near_me_rounded,
-      nearby,
-    );
-    addSection(
-      _t('Big Savings', 'විශාල ඉතිරිකිරීම්', 'பெரிய சேமிப்பு'),
-      _t('The strongest discounts right now.', 'දැනට ඇති හොඳම වට්ටම්.',
-          'இப்போது கிடைக்கும் சிறந்த தள்ளுபடிகள்.'),
-      Icons.local_fire_department_outlined,
-      bigDiscounts,
-    );
-
-    return sections.take(2).toList();
-  }
-
-  Widget _buildCuratedSection({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required List<Promotion> promotions,
-  }) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F1FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, size: 18, color: AppColors.accent(context)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text(context),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: AppColors.muted(context),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 314 + (MediaQuery.textScalerOf(context).scale(16) - 16) * 6,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: promotions.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (context, index) {
-                final promotion = promotions[index];
-                return SizedBox(
-                  width: 184,
-                  child: ModernDealCard(
-                    promotion: promotion,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              DealDetailScreen(promotion: promotion),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategorySection(String categoryId, String categoryName,
-      List<Promotion> deals, int index) {
-    final displayDeals = deals.take(4).toList();
-    final categoryColor = _getCategoryColor(categoryId);
-    final categoryIcon = _getCategoryIcon(categoryId);
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: Duration(milliseconds: 300 + (index * 100)),
-      curve: Curves.easeOutCubic,
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
-        );
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: AppColors.card(context),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.045),
-              blurRadius: 12,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Category Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    categoryColor.withValues(alpha: 0.1),
-                    categoryColor.withValues(alpha: 0.05),
-                  ],
-                ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: categoryColor.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(categoryIcon, color: categoryColor, size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          categoryName,
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${deals.length} ${_t('deals available', 'ඩීල් ඇත', 'சலுகைகள் உள்ளன')}',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: AppColors.muted(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (deals.length > 2)
-                    Material(
-                      color: categoryColor,
-                      borderRadius: BorderRadius.circular(20),
-                      child: InkWell(
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          final category = predefinedCategories.firstWhere(
-                            (cat) => cat.id == categoryId,
-                            orElse: () =>
-                                Category(id: categoryId, name: categoryName),
-                          );
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DealsListScreen(
-                                categoryFilter: category,
-                                promotions: deals,
-                                title: categoryName,
-                              ),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _t('View More', 'තවත් බලන්න', 'மேலும் காண்க'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.arrow_forward,
-                                  color: Colors.white, size: 16),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Deals List
-            SizedBox(
-              height:
-                  314 + (MediaQuery.textScalerOf(context).scale(16) - 16) * 6,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(16),
-                itemCount: displayDeals.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    width: 184,
-                    margin: EdgeInsets.only(
-                      right: index < displayDeals.length - 1 ? 12 : 0,
-                    ),
-                    child: ModernDealCard(
-                      promotion: displayDeals[index],
-                      onPrimaryAction: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DealDetailScreen(
-                                promotion: displayDeals[index]),
-                          ),
-                        );
-                      },
-                      onSecondaryAction: _hasDirections(displayDeals[index])
-                          ? () => _openDirectionsFor(displayDeals[index])
-                          : null,
-                      secondaryActionLabel: _hasDirections(displayDeals[index])
-                          ? 'Directions'
-                          : null,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DealDetailScreen(
-                                promotion: displayDeals[index]),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Widget _buildCategoryList(
+      Map<String, List<Promotion>> groupedDeals, int totalDeals) {
+    final offers =
+        _filteredPromotions(groupedDeals.values.expand((p) => p).toList());
+    final l10n = AppLocalizations.of(context)!;
+    return CustomScrollView(
+        key: const PageStorageKey('marketplace-results'),
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          if (widget.bankOffersOnly) SliverToBoxAdapter(child: _bankFilters()),
+          if (_apiService.lastPromotionsFromCache)
+            SliverToBoxAdapter(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(l10n.offlineShowingCachedDeals))),
+          if (_apiService.lastBankOffersFailed)
+            SliverToBoxAdapter(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextButton(
+                        onPressed: _refreshPromotions,
+                        child: Text(_t(
+                            'Bank offers could not be refreshed. Retry',
+                            'බැංකු දීමනා යාවත්කාලීන කළ නොහැකි විය. නැවත උත්සාහ කරන්න',
+                            'வங்கிச் சலுகைகளைப் புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்'))))),
+          SliverToBoxAdapter(
+              child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  child: Text(
+                      '$totalDeals ${_t('loaded offers', 'පූරණය කළ දීමනා', 'ஏற்றப்பட்ட சலுகைகள்')}',
+                      style: Theme.of(context).textTheme.bodyLarge))),
+          SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.builder(
+                  itemCount: offers.length,
+                  itemBuilder: (context, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: DiscoverMarketplaceCard(
+                          offer: offers[i],
+                          onOpen: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => DealDetailScreen(
+                                      promotion: offers[i]))))))),
+          if (_hasMore || _pageError)
+            SliverToBoxAdapter(
+                child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: OutlinedButton(
+                        onPressed: _paging ? null : _nextPage,
+                        child: Text(_paging
+                            ? '…'
+                            : _pageError
+                                ? l10n.retry
+                                : _t(
+                                    'Load more offers',
+                                    'තවත් දීමනා පූරණය කරන්න',
+                                    'மேலும் சலுகைகளை ஏற்று'))))),
+          const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        ]);
   }
 
   Widget _buildShimmer() {
@@ -1760,6 +1388,7 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            if (widget.bankOffersOnly) _bankFilters(),
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -1814,18 +1443,4 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
       ),
     );
   }
-}
-
-class _CuratedSectionData {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final List<Promotion> promotions;
-
-  const _CuratedSectionData({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.promotions,
-  });
 }

@@ -498,64 +498,42 @@ class _UserProfileScreenState extends State<UserProfileScreen>
   }
 
   Widget _buildProfileHero() {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+    final colors = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
-    return Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: scheme.outlineVariant)),
-        child: Column(children: [
-          Semantics(
-              button: true,
-              label: l10n.chooseImageSource,
-              child: InkWell(
-                  onTap: _uploadingPhoto ? null : _pickProfilePicture,
-                  borderRadius: BorderRadius.circular(40),
-                  child: Stack(children: [
-                    CircleAvatar(
-                        radius: 38,
-                        backgroundImage: _profileImageProvider(),
-                        backgroundColor: scheme.primaryContainer,
-                        child: _profileImageProvider() == null
-                            ? Icon(Icons.person_outline_rounded,
-                                color: scheme.primary, size: 34)
-                            : null),
-                    Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                                color: scheme.primary, shape: BoxShape.circle),
-                            child: Icon(Icons.camera_alt_outlined,
-                                size: 15, color: scheme.onPrimary))),
-                  ]))),
-          const SizedBox(height: 14),
-          Text(_name,
-              textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
-          const SizedBox(height: 4),
-          Text(_email,
-              textAlign: TextAlign.center, style: theme.textTheme.bodySmall),
-          const SizedBox(height: 16),
-          Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                Chip(
-                    label: Text(
-                        '${_loadingFavorites ? '…' : _favoriteDeals.length} ${l10n.savedTab}'),
-                    avatar:
-                        const Icon(Icons.favorite_border_rounded, size: 16)),
-                Chip(
-                    label: Text(
-                        '${_loadingFollowing ? '…' : _followingMerchants.length} ${l10n.following}'),
-                    avatar: const Icon(Icons.storefront_outlined, size: 16)),
-              ]),
-        ]));
+    return Material(
+        color: colors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: colors.outlineVariant)),
+        child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Semantics(
+                  button: true,
+                  label: l10n.chooseImageSource,
+                  child: InkWell(
+                      onTap: _uploadingPhoto ? null : _pickProfilePicture,
+                      borderRadius: BorderRadius.circular(32),
+                      child: CircleAvatar(
+                          radius: 30,
+                          backgroundColor: colors.primaryContainer,
+                          backgroundImage: _profileImageProvider(),
+                          child: _profileImageProvider() == null
+                              ? const Icon(Icons.person_outline)
+                              : null))),
+              const SizedBox(width: 16),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(_name, style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 4),
+                    Text(_email, style: Theme.of(context).textTheme.bodyMedium),
+                    TextButton(
+                        onPressed: () => _tabController.animateTo(0),
+                        child: Text(l10n.accountDetails))
+                  ]))
+            ])));
   }
 
   Future<void> _chooseLanguage() async {

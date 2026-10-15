@@ -37,7 +37,7 @@ class _DealComparisonScreenState extends State<DealComparisonScreen> {
   }
 
   String _price(Promotion deal) {
-    final amount = deal.discountedPrice ?? deal.price ?? deal.originalPrice;
+    final amount = deal.discountedPrice ?? deal.price;
     return amount == null
         ? 'Unavailable'
         : '${deal.merchantCurrency ?? 'LKR'} ${amount.toStringAsFixed(2)}';

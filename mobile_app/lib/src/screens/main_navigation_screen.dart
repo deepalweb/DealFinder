@@ -1,24 +1,23 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
-import '../config/app_theme.dart';
 import 'home_screen.dart';
 import 'user_profile_screen.dart';
 import 'favorites_screen.dart';
 import 'all_deals_screen.dart';
+import 'stores_screen.dart';
 import 'nearby_deals_screen.dart';
 import '../services/app_session.dart';
 import '../widgets/sign_in_gate.dart';
+import '../widgets/stitch_discover_components.dart' show stitchDiscoverTheme;
 
 class MainNavigationScreen extends StatefulWidget {
   final String userId;
   final String token;
   final WidgetBuilder? homeScreenBuilder;
   final WidgetBuilder? nearbyScreenBuilder;
-  final WidgetBuilder? bankOffersScreenBuilder;
+  final WidgetBuilder? storesScreenBuilder;
   final WidgetBuilder? favoritesScreenBuilder;
   final WidgetBuilder? profileScreenBuilder;
 
@@ -28,7 +27,7 @@ class MainNavigationScreen extends StatefulWidget {
       this.token = '',
       this.homeScreenBuilder,
       this.nearbyScreenBuilder,
-      this.bankOffersScreenBuilder,
+      this.storesScreenBuilder,
       this.favoritesScreenBuilder,
       this.profileScreenBuilder})
       : super(key: key);
@@ -83,11 +82,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         return widget.nearbyScreenBuilder?.call(context) ??
             NearbyDealsScreen(onNavigateAccount: () => _selectTab(4));
       case 2:
-        return widget.bankOffersScreenBuilder?.call(context) ??
-            AllDealsScreen(
-              bankOffersOnly: true,
-              initialContextTitle: l10n.bankOffersTab,
-            );
+        return widget.storesScreenBuilder?.call(context) ??
+            const StoresScreen();
       case 3:
         return widget.favoritesScreenBuilder?.call(context) ??
             (_session.isSignedIn
@@ -103,14 +99,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 
   void _openBankOffers(String? bank) {
-    _selectTab(2);
-    if (bank == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _navigatorKeys[2].currentState?.push(MaterialPageRoute(
-          builder: (_) =>
-              AllDealsScreen(bankOffersOnly: true, initialBankName: bank)));
-    });
+    _navigatorKeys[0].currentState?.push(MaterialPageRoute(
+        settings: const RouteSettings(name: '/bank-offers'),
+        builder: (_) => AllDealsScreen(
+            bankOffersOnly: true,
+            initialBankName: bank,
+            initialContextTitle: AppLocalizations.of(context)!.bankOffersTab)));
   }
 
   Widget _tab(int index) {
@@ -150,17 +144,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       label: _exploreLabel,
     ),
     (
-      activeIcon: CupertinoIcons.creditcard_fill,
+      activeIcon: Icons.storefront,
       accent: Color(0xFF059669),
       accentSoft: Color(0xFFE0F7EF),
-      icon: CupertinoIcons.creditcard,
+      icon: Icons.storefront_outlined,
       label: _storesLabel,
     ),
     (
-      activeIcon: CupertinoIcons.heart_fill,
+      activeIcon: CupertinoIcons.bookmark_fill,
       accent: Color(0xFFE11D48),
       accentSoft: Color(0xFFFFE3EB),
-      icon: CupertinoIcons.heart,
+      icon: CupertinoIcons.bookmark,
       label: _favoritesLabel,
     ),
     (
@@ -211,112 +205,58 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         Expanded(child: screens),
       ])));
     }
-    final opaque = MediaQuery.highContrastOf(context) ||
-        MediaQuery.accessibleNavigationOf(context);
-    final bar = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface.withValues(alpha: opaque ? 1 : 0.94),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.7)),
-      ),
-      child: Row(
-          children: List.generate(_navItems.length, (index) {
-        final item = _navItems[index];
-        return Expanded(
-            child: _NavigationBarItem(
-          selected: index == _selectedIndex,
-          icon: item.icon,
-          activeIcon: item.activeIcon,
-          label: item.label(l10n),
-          onTap: () => _onItemTapped(index),
-        ));
-      })),
+    final navigation = NavigationBar(
+      height: _selectedIndex <= 1
+          ? (MediaQuery.textScalerOf(context).scale(16) > 24 ? 104 : 68)
+          : null,
+      selectedIndex: _selectedIndex,
+      onDestinationSelected: _onItemTapped,
+      destinations: _navItems
+          .map((item) => NavigationDestination(
+              icon: Icon(item.icon),
+              selectedIcon: Icon(item.activeIcon),
+              label: item.label(l10n)))
+          .toList(),
     );
+    final discoverTheme = stitchDiscoverTheme(theme);
     return Scaffold(
       body: screens,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-        child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: opaque
-                ? bar
-                : BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                    child: bar)),
-      ),
+      bottomNavigationBar: _selectedIndex > 1
+          ? navigation
+          : Theme(
+              data: discoverTheme.copyWith(
+                  navigationBarTheme: discoverTheme.navigationBarTheme.copyWith(
+                backgroundColor: discoverTheme.colorScheme.surfaceContainerLow,
+                indicatorColor: Colors.transparent,
+                iconTheme: WidgetStateProperty.resolveWith((states) =>
+                    IconThemeData(
+                        size: 22,
+                        color: states.contains(WidgetState.selected)
+                            ? discoverTheme.colorScheme.primary
+                            : discoverTheme.colorScheme.onSurfaceVariant)),
+                labelTextStyle: WidgetStateProperty.resolveWith((states) =>
+                    theme.textTheme.labelSmall?.copyWith(
+                        fontSize: 11,
+                        fontWeight: states.contains(WidgetState.selected)
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: states.contains(WidgetState.selected)
+                            ? discoverTheme.colorScheme.primary
+                            : discoverTheme.colorScheme.onSurfaceVariant)),
+              )),
+              child: DecoratedBox(
+                  decoration: BoxDecoration(
+                      border: Border(
+                          top: BorderSide(
+                              color:
+                                  discoverTheme.colorScheme.outlineVariant))),
+                  child: navigation)),
     );
   }
 
   static String _homeLabel(AppLocalizations l10n) => l10n.discoverTab;
   static String _exploreLabel(AppLocalizations l10n) => l10n.nearbyTab;
-  static String _storesLabel(AppLocalizations l10n) => l10n.bankOffersTab;
+  static String _storesLabel(AppLocalizations l10n) => l10n.stores;
   static String _favoritesLabel(AppLocalizations l10n) => l10n.savedTab;
   static String _profileLabel(AppLocalizations l10n) => l10n.accountTab;
-}
-
-class _NavigationBarItem extends StatelessWidget {
-  const _NavigationBarItem(
-      {required this.selected,
-      required this.icon,
-      required this.activeIcon,
-      required this.label,
-      required this.onTap});
-  final bool selected;
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final duration = AppMotion.duration(context, 180);
-    return Semantics(
-      selected: selected,
-      button: true,
-      label: label,
-      child: Tooltip(
-        message: label,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(22),
-            child: AnimatedContainer(
-              duration: duration,
-              curve: Curves.easeOutCubic,
-              constraints: const BoxConstraints(minHeight: 60),
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  color:
-                      selected ? scheme.primaryContainer : Colors.transparent),
-              child: ExcludeSemantics(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(selected ? activeIcon : icon,
-                    size: 23,
-                    color: selected ? scheme.primary : scheme.onSurfaceVariant),
-                const SizedBox(height: 4),
-                Text(label,
-                    maxLines: 2,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500,
-                        color: selected
-                            ? scheme.primary
-                            : scheme.onSurfaceVariant)),
-              ])),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

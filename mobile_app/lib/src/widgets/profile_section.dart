@@ -17,7 +17,7 @@ class ProfileSection extends StatelessWidget {
       Material(
         color: theme.colorScheme.surface,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(16),
             side: BorderSide(color: theme.colorScheme.outlineVariant)),
         clipBehavior: Clip.antiAlias,
         child: Column(children: [

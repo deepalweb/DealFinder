@@ -1,9 +1,9 @@
+import 'package:deal_finder_mobile/src/widgets/stitch_discover_components.dart';
 import 'dart:async';
 import 'package:deal_finder_mobile/src/models/promotion.dart';
 import 'package:deal_finder_mobile/src/screens/user_profile_screen.dart';
 import 'package:deal_finder_mobile/src/screens/merchant_profile_screen.dart';
 import 'package:deal_finder_mobile/src/services/api_service.dart';
-import 'package:deal_finder_mobile/src/widgets/discovery_offer_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -131,7 +131,7 @@ void main() {
     await tester.pumpWidget(
         host(MerchantProfileScreen(merchantId: 'store', api: ProfileApi())));
     await tester.pumpAndSettle();
-    expect(find.byType(DiscoveryOfferCard), findsOneWidget);
+    expect(find.byType(StitchFullWidthOfferCard), findsOneWidget);
     expect(find.text('Coffee offer'), findsOneWidget);
     expect(find.text('Future offer'), findsNothing);
     expect(find.text('Closed now'), findsNothing); // No published hours.
@@ -153,7 +153,7 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(find.text('Ceylon Coffee'), findsWidgets);
-    expect(find.byType(DiscoveryOfferCard), findsOneWidget);
+    expect(find.byType(StitchFullWidthOfferCard), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets('profiles fit narrow dark screens at double text size',

@@ -1,527 +1,395 @@
-'use client';
-
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { AiAPI, BankOfferAPI, PromotionAPI } from '@/lib/api';
-import { DEALFINDER_CATEGORIES, normalizeCategoryId } from '@/lib/categories';
-import PromotionCard from '@/components/ui/PromotionCard';
-import SkeletonCard from '@/components/ui/SkeletonCard';
-import HeroSection from '@/components/ui/HeroSection';
-import { useLanguage } from '@/contexts/LanguageContext';
-
-const SORT_OPTIONS = [
-  { id: 'newest', label: 'Newest' },
-  { id: 'ending-soon', label: 'Ending Soon' },
-  { id: 'highest-discount', label: 'Biggest Discount' },
-  { id: 'merchant', label: 'Merchant A-Z' },
-];
-
-type Promotion = {
-  _id?: string;
-  id?: string;
-  title?: string;
-  description?: string;
-  category?: string;
-  endDate?: string;
-  createdAt?: string;
-  discount?: string | number;
-  featured?: boolean;
-  recommendationReasons?: string[];
-  aiMeta?: {
-    score?: number;
-    distanceKm?: number | null;
-  };
-  merchant?: string | { name?: string; _id?: string; location?: { coordinates?: [number, number] } };
-};
-
-function getMerchantName(promotion: Promotion) {
-  return typeof promotion.merchant === 'object' ? promotion.merchant?.name || 'Unknown Merchant' : promotion.merchant || 'Unknown Merchant';
-}
-
-function getDateValue(value?: string) {
-  if (!value) return 0;
-  const time = new Date(value).getTime();
-  return Number.isFinite(time) ? time : 0;
-}
-
+"use client";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { SlidersHorizontal, X } from "lucide-react";
+import { AiAPI } from "@/lib/api";
+import { DEALFINDER_CATEGORIES, normalizeCategoryId } from "@/lib/categories";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useArea } from "@/contexts/AreaContext";
+import { marketplaceCopy, categoryName } from "@/lib/marketplace-copy";
+import {
+  isPublicOffer,
+  offerKind,
+  offerId,
+  displayOffer,
+  dateValue,
+  percentage,
+  distanceKm,
+  supports,
+  type OfferRecord,
+} from "@/lib/offer-display";
+import { useOfferFeed } from "@/components/marketplace/useOfferFeed";
+import { DealGrid } from "@/components/marketplace/DealSection";
+import AreaSelector from "@/components/marketplace/AreaSelector";
+import SkeletonCard from "@/components/ui/SkeletonCard";
 export default function CategoryPageClient() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const router = useRouter();
+  const params = useSearchParams();
   const { language } = useLanguage();
-  const searchParams = useSearchParams();
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') || '');
-  const [sortBy, setSortBy] = useState('newest');
-  const [activeOnly, setActiveOnly] = useState(true);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number; radiusKm?: number } | null>(null);
-  const [searchMeta, setSearchMeta] = useState<{
-    aiUsed?: boolean;
-    source?: string;
-    latencyMs?: number;
-    resultCount?: number;
-  } | null>(null);
-  const [currentTimestamp] = useState(() => Date.now());
-  const copy = {
-    allDeals: language === 'en' ? 'All Deals' : language === 'si' ? 'සියලු Deals' : 'அனைத்து Deals',
-    loadingDeals: language === 'en' ? 'Loading deals...' : language === 'si' ? 'Deals load වෙමින්...' : 'Deals load ஆகிறது...',
-    heroAll:
-      language === 'en'
-        ? 'Browse the full marketplace with better sorting, quicker scanning, and fewer dead ends.'
-        : language === 'si'
-          ? 'වඩා හොඳ sorting සහ ඉක්මන් scanning සමඟ සියලු deals බලන්න.'
-          : 'சிறந்த sorting மற்றும் வேகமான scanning உடன் அனைத்து deals ஐ பாருங்கள்.',
-    heroCategory:
-      language === 'en'
-        ? 'Explore offers with local urgency, smarter filtering, and faster comparison.'
-        : language === 'si'
-          ? 'Local urgency, smart filtering, සහ ඉක්මන් comparison සමඟ offers බලන්න.'
-          : 'Local urgency, smart filtering, மற்றும் வேகமான comparison உடன் offers ஐ பாருங்கள்.',
-    searchPlaceholder:
-      language === 'en'
-        ? 'Search deals, descriptions, or merchants'
-        : language === 'si'
-          ? 'Deals, descriptions, හෝ merchants සොයන්න'
-          : 'Deals, descriptions, அல்லது merchants தேடுங்கள்',
-    liveOnly: language === 'en' ? 'Live Only' : language === 'si' ? 'Live පමණයි' : 'Live மட்டும்',
-    includeExpired: language === 'en' ? 'Include Expired' : language === 'si' ? 'Expired ඇතුළත්' : 'Expired சேர்க்கவும்',
-    reset: language === 'en' ? 'Reset' : language === 'si' ? 'Reset' : 'Reset',
-    noMatches: language === 'en' ? 'No deals match this view' : language === 'si' ? 'මෙම view එකට ගැළපෙන deals නොමැත' : 'இந்த view க்கு பொருந்தும் deals இல்லை',
-    resetFilters: language === 'en' ? 'Reset Filters' : language === 'si' ? 'Filters reset කරන්න' : 'Filters reset செய்யுங்கள்',
-    showExpired: language === 'en' ? 'Show Expired Deals' : language === 'si' ? 'Expired deals පෙන්වන්න' : 'Expired deals ஐ காண்பிக்கவும்',
-  };
-
-  const rawCategoryId = typeof categoryId === 'string' ? categoryId : 'all';
-  const currentCategoryId = normalizeCategoryId(rawCategoryId);
-  const currentCat = DEALFINDER_CATEGORIES.find((c) => c.id === currentCategoryId) || { id: currentCategoryId, name: copy.allDeals, icon: 'fa-tag' };
-  const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-
-    for (const promotion of promotions) {
-      const key = normalizeCategoryId(promotion.category);
-      counts.set(key, (counts.get(key) || 0) + 1);
-    }
-
-    return counts;
-  }, [promotions]);
-
-  useEffect(() => {
-    setSearchTerm(searchParams.get('q') || '');
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setLocation({
-          latitude: coords.latitude,
-          longitude: coords.longitude,
-          radiusKm: 10,
-        });
-      },
-      () => {},
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
+  const { area } = useArea();
+  const c = marketplaceCopy[language];
+  const feed = useOfferFeed();
+  const [searchRows, setSearchRows] = useState<OfferRecord[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [count, setCount] = useState(12);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const q = params.get("q") || "";
+  const sort = params.get("sort") || "newest";
+  const bank = params.get("bank") || "";
+  const card = params.get("card") || "";
+  const mode = params.get("mode") || "";
+  const availability = params.get("availability") || "active";
+  const category = normalizeCategoryId(categoryId);
+  const banks = Array.from(
+    new Set(feed.offers.map((o) => o.bankName).filter((b): b is string => !!b)),
+  ).sort();
+  function change(updates: Record<string, string>) {
+    const next = new URLSearchParams(params.toString());
+    Object.entries(updates).forEach(([key, value]) =>
+      value ? next.set(key, value) : next.delete(key),
     );
-  }, []);
-
+    setCount(12);
+    router.push(`/categories/${categoryId}${next.size ? "?" + next : ""}`);
+  }
   useEffect(() => {
+    if (!q) {
+      setSearchRows([]);
+      setSearchError(false);
+      setSearchLoading(false);
+      return;
+    }
     let cancelled = false;
-
-    const fetchResults = async () => {
-      setLoading(true);
-      try {
-        const filters: Record<string, unknown> = {};
-        if (currentCategoryId !== 'all') {
-          filters.categories = [currentCategoryId];
-        }
-        if (sortBy === 'newest') filters.sortBy = 'newest';
-        else if (sortBy === 'ending-soon') filters.sortBy = 'ending_soon';
-        else if (sortBy === 'highest-discount') filters.sortBy = 'highest_discount';
-
-        // Use AI search if there's a search term, otherwise get all promotions
-        let results: any[] = [];
-        let meta: any = null;
-
-        if (searchTerm.trim()) {
-          const response = await AiAPI.search({
-            query: searchTerm.trim(),
-            filters,
-            location,
-            limit: 80,
-          });
-          results = response.results || [];
-          meta = {
-            aiUsed: response.meta?.aiUsed,
-            source: response.meta?.source,
-            latencyMs: response.meta?.latencyMs,
-            resultCount: response.meta?.resultCount,
-          };
-        } else {
-          // Fallback to regular API when no search term
-          const [allPromotions, bankOffers] = await Promise.all([
-            PromotionAPI.getAll({ limit: 200 }),
-            BankOfferAPI.getAll({ limit: 100 }).catch(() => []),
-          ]);
-          results = [...(allPromotions || []), ...(bankOffers || [])];
-          meta = {
-            aiUsed: false,
-            source: 'database',
-            resultCount: results.length,
-          };
-        }
-
-        if (cancelled) return;
-
-        setPromotions(results);
-        setSearchMeta(meta);
-      } catch (error) {
-        console.error('Failed to load results:', error);
-        if (!cancelled) {
-          setPromotions([]);
-          setSearchMeta(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    void fetchResults();
+    setSearchLoading(true);
+    setSearchError(false);
+    const timer = setTimeout(() => {
+      AiAPI.search({
+        query: q,
+        filters:
+          category === "all" || category === "bank_cards"
+            ? {}
+            : { categories: [category] },
+        location: area,
+        limit: 80,
+      })
+        .then((response) => {
+          if (!cancelled) setSearchRows(response.results || []);
+        })
+        .catch(() => {
+          if (!cancelled) setSearchError(true);
+        })
+        .finally(() => {
+          if (!cancelled) setSearchLoading(false);
+        });
+    }, 300);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [currentCategoryId, location, searchTerm, sortBy]);
-
-  const liveDeals = promotions.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
-  const visibleDeals = currentCategoryId === 'all'
-    ? liveDeals
-    : liveDeals.filter((promotion) => normalizeCategoryId(promotion.category) === currentCategoryId);
-  const quickStats = [
-    { label: 'Live deals', value: visibleDeals.length },
-    { label: 'Merchants', value: new Set(visibleDeals.map((promotion) => getMerchantName(promotion))).size },
-    { label: 'Featured', value: visibleDeals.filter((promotion) => promotion.featured).length },
-    {
-      label: 'Ending soon',
-      value: visibleDeals.filter((promotion) => {
-        const timeLeft = getDateValue(promotion.endDate) - currentTimestamp;
-        return timeLeft >= 0 && timeLeft <= 3 * 24 * 60 * 60 * 1000;
-      }).length,
-    },
-  ];
-
-  let filtered = [...promotions];
-  if (currentCategoryId !== 'all') filtered = filtered.filter((promotion) => normalizeCategoryId(promotion.category) === currentCategoryId);
-  if (activeOnly) filtered = filtered.filter((promotion) => getDateValue(promotion.endDate) >= currentTimestamp);
-  if (sortBy === 'merchant') filtered.sort((a, b) => getMerchantName(a).localeCompare(getMerchantName(b)));
-
-  const showingLabel = loading
-    ? copy.loadingDeals
-    : `${filtered.length} result${filtered.length === 1 ? '' : 's'}${searchTerm ? ` for "${searchTerm}"` : ''}`;
-
-  return (
-    <div>
-      <HeroSection
-        icon={currentCat.icon}
-        title={currentCategoryId === 'all' ? copy.allDeals : currentCat.name}
-        subtitle={currentCategoryId === 'all'
-          ? copy.heroAll
-          : `${currentCat.name} ${copy.heroCategory}`}
-        gradient="linear-gradient(135deg, rgba(36,20,95,0.96) 0%, rgba(79,42,232,0.92) 48%, rgba(59,130,246,0.82) 100%)"
-        bgImage="https://images.unsplash.com/photo-1481437156560-3205f6a55735?auto=format&fit=crop&w=1600&q=80"
-        minHeight="320px"
+  }, [q, category, area, retry]);
+  const offers = useMemo(() => {
+    const bankMatches = feed.offers.filter(
+      (o) =>
+        offerKind(o) === "bank" &&
+        `${o.title} ${o.description} ${o.bankName}`
+          .toLowerCase()
+          .includes(q.toLowerCase()),
+    );
+    const rows = q ? [...searchRows, ...bankMatches] : feed.offers;
+    const seen = new Set<string>();
+    return rows
+      .filter((o) => {
+        const key = `${offerKind(o)}:${offerId(o)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        if (!isPublicOffer(o, feed.now, availability === "all")) return false;
+        if (category === "bank_cards" && !displayOffer(o).bank) return false;
+        if (
+          category !== "all" &&
+          category !== "bank_cards" &&
+          normalizeCategoryId(o.category) !== category
+        )
+          return false;
+        if (bank && o.bankName !== bank) return false;
+        if (card && !o.cardTypes?.includes(card)) return false;
+        if (!supports(o, mode)) return false;
+        const end = dateValue(o.endDate, true);
+        if (
+          availability === "ending" &&
+          (end === null || end < feed.now || end > feed.now + 3 * 86400000)
+        )
+          return false;
+        if (
+          area &&
+          offerKind(o) !== "bank" &&
+          (distanceKm(o, area) === null || distanceKm(o, area)! > area.radiusKm)
+        )
+          return false;
+        return true;
+      })
+      .sort((a, b) =>
+        sort === "discount"
+          ? (percentage(b) ?? -1) - (percentage(a) ?? -1)
+          : sort === "ending"
+            ? (dateValue(a.endDate, true) ?? Infinity) -
+              (dateValue(b.endDate, true) ?? Infinity)
+            : sort === "distance"
+              ? (distanceKm(a, area) ?? Infinity) -
+                (distanceKm(b, area) ?? Infinity)
+              : (dateValue(b.createdAt) ?? 0) - (dateValue(a.createdAt) ?? 0),
+      );
+  }, [
+    q,
+    searchRows,
+    feed.offers,
+    feed.now,
+    availability,
+    category,
+    bank,
+    card,
+    mode,
+    area,
+    sort,
+  ]);
+  const filterControls = (prefix: string) => (
+    <div className="mp-filters">
+      <h2>{c.filters}</h2>
+      <AreaSelector />
+      <label className="mp-field" htmlFor={`${prefix}-category`}>
+        {c.category}
+        <select
+          aria-label={c.category}
+          id={`${prefix}-category`}
+          value={category}
+          onChange={(e) =>
+            router.push(`/categories/${e.target.value}?${params}`)
+          }
+        >
+          {DEALFINDER_CATEGORIES.map((cat) => (
+            <option key={cat.id} value={cat.id}>
+              {categoryName(cat.id, language, cat.name)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mp-field">
+        {c.bankFilter}
+        <select
+          aria-label={c.bankFilter}
+          value={bank}
+          onChange={(e) => change({ bank: e.target.value })}
+        >
+          <option value="">{c.all}</option>
+          {banks.map((b) => (
+            <option key={b}>{b}</option>
+          ))}
+        </select>
+      </label>
+      <label className="mp-field">
+        {c.cardType}
+        <select
+          aria-label={c.cardType}
+          value={card}
+          onChange={(e) => change({ card: e.target.value })}
+        >
+          <option value="">{c.all}</option>
+          {["credit", "debit", "prepaid"].map((type) => (
+            <option value={type} key={type}>
+              {c[type as "credit" | "debit" | "prepaid"]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="mp-field">
+        {c.fulfillment}
+        <select
+          aria-label={c.fulfillment}
+          value={mode}
+          onChange={(e) => change({ mode: e.target.value })}
+        >
+          <option value="">{c.all}</option>
+          <option value="visit">{c.visit}</option>
+          <option value="delivery">{c.delivery}</option>
+          <option value="pickup">{c.pickup}</option>
+        </select>
+      </label>
+      <label className="mp-field">
+        {c.available}
+        <select
+          aria-label={c.available}
+          value={availability}
+          onChange={(e) => change({ availability: e.target.value })}
+        >
+          <option value="active">{c.available}</option>
+          <option value="ending">{c.ending}</option>
+        </select>
+      </label>
+      <button
+        className="mp-button"
+        onClick={() => router.push(`/categories/${categoryId}`)}
       >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: '0.85rem',
-            maxWidth: '54rem',
-            margin: '0 auto',
-          }}
-        >
-          {quickStats.map((stat) => (
-            <div
-              key={stat.label}
-              style={{
-                padding: '0.9rem 1rem',
-                borderRadius: '1rem',
-                background: 'rgba(255,255,255,0.12)',
-                border: '1px solid rgba(255,255,255,0.16)',
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <div style={{ fontSize: '1.4rem', fontWeight: 800 }}>{loading ? '--' : stat.value}</div>
-              <div style={{ fontSize: '0.82rem', opacity: 0.82 }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </HeroSection>
-
-      <div className="max-w-7xl mx-auto px-4" style={{ marginTop: '-2rem', position: 'relative', zIndex: 2 }}>
-        <div
-          className="surface-panel panel-pad"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1rem',
-          }}
-        >
+        {c.clear}
+      </button>
+    </div>
+  );
+  const loading = q ? searchLoading : feed.loading;
+  const failed = searchError || feed.errors.length > 0;
+  const title =
+    category === "all"
+      ? c.all
+      : categoryName(
+          category,
+          language,
+          DEALFINDER_CATEGORIES.find((cat) => cat.id === category)?.name ||
+            category,
+        );
+  return (
+    <div className="mp-shell mp-results">
+      {filterControls("desktop")}
+      <section>
+        <div className="mp-result-toolbar">
           <div>
-            <div className="page-eyebrow">
-              <i className="fas fa-compass"></i>
-              Browse smarter
-            </div>
-            <div style={{ marginTop: '0.9rem', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              {showingLabel}
-            </div>
-            <p style={{ margin: '0.45rem 0 0', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Search is now ranked by the backend AI layer, then shaped by your current category and sort controls.
+            <h1>{title}</h1>
+            <p className="mp-muted" aria-live="polite">
+              {loading ? c.loading : `${offers.length} ${c.loaded}`}
+              {q && ` · “${q}”`}
             </p>
           </div>
-          <div className="stat-tile" style={{ padding: '1rem 1.1rem' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--primary-color)' }}>
-              Visible now
-            </div>
-            <div style={{ marginTop: '0.35rem', fontSize: '1.6rem', fontWeight: 800 }}>
-              {loading ? '--' : filtered.length}
-            </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              {activeOnly ? 'Active offers only' : 'Active and expired offers'}
-            </div>
-          </div>
-          <div className="stat-tile" style={{ padding: '1rem 1.1rem' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--highlight-color)' }}>
-              Ending soon
-            </div>
-            <div style={{ marginTop: '0.35rem', fontSize: '1.6rem', fontWeight: 800 }}>
-              {loading ? '--' : quickStats.find((stat) => stat.label === 'Ending soon')?.value}
-            </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Deals that need quick action
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-6" style={{ scrollbarWidth: 'none' }}>
-          {DEALFINDER_CATEGORIES.filter((cat) => cat.id !== 'other').map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => router.push(`/categories/${cat.id}`)}
-              className={`category-item ${currentCategoryId === cat.id ? 'active' : ''}`}
-              style={{ flexShrink: 0 }}
-            >
-              <i className={`fas ${cat.icon}`}></i>
-              {cat.name}
-              <span
-                style={{
-                  marginLeft: '0.2rem',
-                  padding: '0.15rem 0.45rem',
-                  borderRadius: '999px',
-                  background: currentCategoryId === cat.id ? 'rgba(255,255,255,0.2)' : 'rgba(108,59,255,0.08)',
-                  color: currentCategoryId === cat.id ? '#fff' : 'var(--primary-color)',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                }}
-              >
-                {cat.id === 'all' ? promotions.length : categoryCounts.get(cat.id) || 0}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="surface-panel panel-pad" style={{ marginBottom: '1.5rem' }}>
-          <div className="glass-toolbar">
-            <div className="toolbar-grow input-with-icon" style={{ minWidth: 0 }}>
-              <i className="fas fa-search"></i>
-              <input
-                type="text"
-                placeholder={copy.searchPlaceholder}
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="modern-input"
-              />
-              {searchTerm ? (
-                <button
-                  onClick={() => setSearchTerm('')}
-                  aria-label="Clear search"
-                  style={{
-                    position: 'absolute',
-                    right: '0.9rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '2rem',
-                    height: '2rem',
-                    borderRadius: '999px',
-                    border: '1px solid rgba(148,163,184,0.2)',
-                    background: 'rgba(255,255,255,0.9)',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <i className="fas fa-times"></i>
-                </button>
-              ) : null}
-            </div>
-            <div style={{ minWidth: '180px', flex: '0 1 220px' }}>
-              <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="modern-select">
-                {SORT_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={() => setActiveOnly(!activeOnly)}
-              className="btn"
-              style={{
-                background: activeOnly ? 'var(--primary-gradient)' : 'var(--card-bg)',
-                color: activeOnly ? '#fff' : 'var(--text-primary)',
-                border: activeOnly ? 'none' : '1px solid var(--border-color)',
-                padding: '0.8rem 1rem',
-              }}
-            >
-              <i className={`fas ${activeOnly ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
-              {activeOnly ? copy.liveOnly : copy.includeExpired}
-            </button>
-            <button
-              onClick={() => {
-                setSearchTerm('');
-                setSortBy('newest');
-                setActiveOnly(true);
-              }}
-              className="btn"
-              style={{
-                background: 'transparent',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-color)',
-                padding: '0.8rem 1rem',
-              }}
-            >
-              <i className="fas fa-rotate-left"></i>
-              {copy.reset}
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '0.6rem',
-              marginTop: '1rem',
-              alignItems: 'center',
-            }}
+          <button
+            className="mp-button mp-mobile-filter"
+            onClick={() => dialog.current?.showModal()}
           >
-            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Active filters
-            </span>
-            <span className="status-chip" style={{ background: 'rgba(37,99,235,0.08)', color: 'var(--primary-color)' }}>
-              <i className="fas fa-layer-group"></i>
-              {currentCat.name}
-            </span>
-            <span className="status-chip" style={{ background: 'rgba(245,158,11,0.1)', color: 'var(--warning-color)' }}>
-              <i className="fas fa-arrow-down-wide-short"></i>
-              {SORT_OPTIONS.find((option) => option.id === sortBy)?.label}
-            </span>
-            <span className="status-chip" style={{ background: activeOnly ? 'rgba(22,163,74,0.12)' : 'rgba(107,114,128,0.12)', color: activeOnly ? 'var(--success-color)' : 'var(--text-secondary)' }}>
-              <i className={`fas ${activeOnly ? 'fa-bolt' : 'fa-clock-rotate-left'}`}></i>
-              {activeOnly ? 'Live deals only' : 'Expired included'}
-            </span>
-            {searchTerm ? (
-              <span className="status-chip" style={{ background: 'rgba(37,99,235,0.08)', color: 'var(--primary-color)' }}>
-                <i className="fas fa-search"></i>
-                {searchTerm}
-              </span>
-            ) : null}
-            {searchMeta?.aiUsed ? (
-              <span className="status-chip" style={{ background: 'rgba(37,99,235,0.08)', color: 'var(--primary-color)' }}>
-                <i className="fas fa-wand-magic-sparkles"></i>
-                AI ranked
-              </span>
-            ) : null}
-            {searchMeta?.latencyMs ? (
-              <span className="status-chip" style={{ background: 'rgba(15,23,42,0.06)', color: 'var(--text-secondary)' }}>
-                <i className="fas fa-gauge-high"></i>
-                {searchMeta.latencyMs} ms
-              </span>
-            ) : null}
-          </div>
+            <SlidersHorizontal size={18} />
+            {c.filters}
+          </button>
+          <label className="mp-field">
+            {c.sort}
+            <select
+              aria-label={c.sort}
+              value={sort}
+              onChange={(e) => change({ sort: e.target.value })}
+            >
+              <option value="newest">{c.newest}</option>
+              <option value="discount">{c.discount}</option>
+              <option value="ending">{c.ending}</option>
+              {area && <option value="distance">{c.nearest}</option>}
+            </select>
+          </label>
         </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : filtered.length > 0 ? (
-          <>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'end',
-                gap: '1rem',
-                flexWrap: 'wrap',
-                marginBottom: '1.25rem',
+        <form action={`/categories/${categoryId}`} className="mp-search">
+          <label className="sr-only" htmlFor="results-query">
+            {c.search}
+          </label>
+          <input
+            id="results-query"
+            key={q}
+            name="q"
+            defaultValue={q}
+            placeholder={c.search}
+          />
+          {Array.from(params.entries())
+            .filter(([k]) => k !== "q")
+            .map(([k, v]) => (
+              <input key={k} type="hidden" name={k} value={v} />
+            ))}
+          <button
+            type="submit"
+            className="mp-search-submit"
+            aria-label={c.searchAction}
+          >
+            →
+          </button>
+        </form>
+        <div className="mp-chips">
+          {Array.from(params.entries())
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <button
+                className="mp-chip"
+                key={k}
+                onClick={() => change({ [k]: "" })}
+              >
+                {k}: {v}
+                <X size={14} />
+              </button>
+            ))}
+        </div>
+        {failed && (
+          <div className="mp-state" role="alert">
+            <p>{c.failed}</p>
+            <button
+              className="mp-button"
+              onClick={() => {
+                setRetry(retry + 1);
+                void feed.reload();
               }}
             >
-              <div>
-                <div style={{ color: 'var(--primary-color)', fontSize: '0.82rem', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Results
-                </div>
-                <h2 className="section-title" style={{ marginBottom: 0 }}>
-                  <i className="fas fa-table-cells-large"></i>
-                  {showingLabel}
-                </h2>
-              </div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-                {sortBy === 'merchant'
-                  ? 'Merchant sorted after AI search'
-                  : `Sorted by ${SORT_OPTIONS.find((option) => option.id === sortBy)?.label?.toLowerCase()}`}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filtered.map(p => <PromotionCard key={p._id || p.id} promotion={p} />)}
-            </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <i className="fas fa-search"></i>
-            </div>
-            <h2 style={{ fontWeight: 800, marginBottom: '0.5rem' }}>{copy.noMatches}</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.25rem', maxWidth: '34rem', marginInline: 'auto', lineHeight: 1.7 }}>
-              {searchTerm
-                ? `Nothing matched "${searchTerm}" in ${currentCat.name}. Try a broader keyword or switch the sort and status filters.`
-                : activeOnly
-                  ? `There are no live deals to show in ${currentCat.name} right now.`
-                  : `There are no deals to show in ${currentCat.name} right now.`}
-            </p>
-            <div className="flex justify-center gap-3 flex-wrap">
-              <button
-                className="btn"
-                onClick={() => {
-                  setSearchTerm('');
-                  setSortBy('newest');
-                }}
-                style={{
-                  background: 'var(--card-bg)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                {copy.resetFilters}
-              </button>
-              {activeOnly && (
-                <button className="btn btn-primary" onClick={() => setActiveOnly(false)}>
-                  {copy.showExpired}
-                </button>
-              )}
-            </div>
+              {c.retry}
+            </button>
           </div>
         )}
-      </div>
+        {loading && !offers.length ? (
+          <div className="mp-grid">
+            {[0, 1, 2].map((n) => (
+              <SkeletonCard key={n} />
+            ))}
+          </div>
+        ) : (
+          <DealGrid offers={offers.slice(0, count)} />
+        )}
+        {!loading && !failed && !offers.length && (
+          <div className="mp-state">
+            <p>{c.noMatches}</p>
+            <button
+              className="mp-button"
+              onClick={() => router.push(`/categories/${categoryId}`)}
+            >
+              {c.clear}
+            </button>
+            {area && <AreaSelector />}
+          </div>
+        )}
+        <div className="mp-pagination">
+          {count < offers.length ? (
+            <button className="mp-button" onClick={() => setCount(count + 12)}>
+              {c.loadMore}
+            </button>
+          ) : !q && feed.hasMore ? (
+            <button
+              disabled={feed.loadingMore}
+              className="mp-button"
+              onClick={() => void feed.loadMore()}
+            >
+              {c.loadMore}
+            </button>
+          ) : (
+            !loading && offers.length > 0 && <p className="mp-muted">{c.end}</p>
+          )}
+          <Link href="/merchants">{c.stores}</Link>
+        </div>
+      </section>
+      <dialog ref={dialog} className="mp-dialog" aria-label={c.filters}>
+        <div className="mp-dialog-heading">
+          <h2>{c.filters}</h2>
+          <button
+            className="mp-icon"
+            aria-label={c.close}
+            onClick={() => dialog.current?.close()}
+          >
+            <X />
+          </button>
+        </div>
+        {filterControls("mobile")}
+        <button
+          className="mp-button mp-primary"
+          onClick={() => dialog.current?.close()}
+        >
+          {c.close}
+        </button>
+      </dialog>
     </div>
   );
 }

@@ -33,7 +33,7 @@ MainNavigationScreen navigation() => MainNavigationScreen(
       token: 'demo',
       homeScreenBuilder: (_) => const Text('Home content'),
       nearbyScreenBuilder: (_) => const Text('Deals content'),
-      bankOffersScreenBuilder: (_) => const Text('Stores content'),
+      storesScreenBuilder: (_) => const Text('Stores content'),
       favoritesScreenBuilder: (_) => const Text('Favorites content'),
       profileScreenBuilder: (_) => const Text('Profile content'),
     );
@@ -120,7 +120,7 @@ void main() {
     await tester.pumpWidget(host(navigation()));
     await tester.pumpAndSettle();
     expect(find.byType(NavigationRail), findsOneWidget);
-    await tester.tap(find.text('Bank Offers'));
+    await tester.tap(find.text('Stores'));
     await tester.pumpAndSettle();
     expect(find.text('Stores content'), findsOneWidget);
     expect(tester.takeException(), isNull);

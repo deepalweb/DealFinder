@@ -11,6 +11,7 @@ class Promotion {
   final String? merchantName; // Assuming it might be nullable
   final String?
       imageDataString; // Changed from imageUrl to hold Base64 string or a regular URL
+  final List<String> images;
   final String? code;
   final String? discount; // Could be "10% off", "$5", etc.
   final DateTime? startDate;
@@ -65,6 +66,7 @@ class Promotion {
     this.merchantId,
     this.merchantName,
     this.imageDataString,
+    this.images = const [],
     this.code,
     this.discount,
     this.startDate,
@@ -164,7 +166,7 @@ class Promotion {
       updatedAt ?? createdAt ?? startDate ?? DateTime(1970);
 
   bool get supportsVisit {
-    if (fulfillmentType == 'order') return visitAvailable;
+    if (fulfillmentType == 'order' || merchantType == 'online') return false;
     if (fulfillmentType == 'hybrid') return visitAvailable;
     return visitAvailable;
   }
@@ -192,11 +194,15 @@ class Promotion {
 
   factory Promotion.fromJson(Map<String, dynamic> json) {
     // Helper to safely parse dates
-    DateTime? parseDate(String? dateString) {
+    DateTime? parseDate(String? dateString, {bool endOfDay = false}) {
       if (dateString == null || dateString.isEmpty) {
         return null;
       }
       try {
+        if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(dateString)) {
+          final boundary = endOfDay ? 'T23:59:59.999+05:30' : 'T00:00:00+05:30';
+          return DateTime.parse('$dateString$boundary').toLocal();
+        }
         final parsed = DateTime.parse(dateString);
         return parsed.isUtc ? parsed.toLocal() : parsed;
       } catch (e) {
@@ -270,6 +276,9 @@ class Promotion {
           (json['merchant'] is Map
               ? json['merchant']['currency'] as String?
               : null),
+      images: (json['images'] is List
+          ? (json['images'] as List).whereType<String>().toList()
+          : <String>[]),
       imageDataString: _resizeUnsplash(json['sectionImage'] as String? ??
           json['imageUrl'] as String? ??
           json['image'] as String? ??
@@ -277,7 +286,7 @@ class Promotion {
       code: json['code'] as String?,
       discount: json['discount'] as String?,
       startDate: parseDate(json['startDate'] as String?),
-      endDate: parseDate(json['endDate'] as String?),
+      endDate: parseDate(json['endDate'] as String?, endOfDay: true),
       category: json['category'] as String?,
       featured: json['featured'] as bool?,
       url: json['url'] as String?,
@@ -353,6 +362,7 @@ class Promotion {
       'merchantId': merchantId,
       'merchantName': merchantName,
       'merchantLogoUrl': merchantLogoUrl,
+      'images': images,
       'imageUrl': imageDataString,
       'imageDataString': imageDataString,
       'code': code,
@@ -411,6 +421,7 @@ class Promotion {
     String? merchantId,
     String? merchantName,
     String? imageDataString,
+    List<String>? images,
     String? code,
     String? discount,
     DateTime? startDate,
@@ -426,6 +437,7 @@ class Promotion {
     double? discountedPrice,
     String? location,
     double? distance,
+    bool clearDistance = false,
     double? latitude,
     double? longitude,
     String? merchantLogoUrl,
@@ -465,6 +477,7 @@ class Promotion {
       merchantId: merchantId ?? this.merchantId,
       merchantName: merchantName ?? this.merchantName,
       imageDataString: imageDataString ?? this.imageDataString,
+      images: images ?? this.images,
       code: code ?? this.code,
       discount: discount ?? this.discount,
       startDate: startDate ?? this.startDate,
@@ -479,7 +492,7 @@ class Promotion {
       originalPrice: originalPrice ?? this.originalPrice,
       discountedPrice: discountedPrice ?? this.discountedPrice,
       location: location ?? this.location,
-      distance: distance ?? this.distance,
+      distance: clearDistance ? null : distance ?? this.distance,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       merchantLogoUrl: merchantLogoUrl ?? this.merchantLogoUrl,

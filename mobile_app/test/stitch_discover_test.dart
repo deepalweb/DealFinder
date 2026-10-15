@@ -1,94 +1,167 @@
-import 'package:deal_finder_mobile/src/models/promotion.dart';
-import 'package:deal_finder_mobile/src/services/api_service.dart';
-import 'package:deal_finder_mobile/src/services/favorites_manager.dart';
-import 'package:deal_finder_mobile/src/services/saved_offer_service.dart';
-import 'package:deal_finder_mobile/src/widgets/discovery_offer_card.dart';
-import 'package:deal_finder_mobile/src/widgets/offer_save_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:deal_finder_mobile/src/screens/home_screen.dart';
+import 'package:deal_finder_mobile/src/services/api_service.dart';
+import 'package:deal_finder_mobile/src/models/promotion.dart';
+import 'package:deal_finder_mobile/src/services/browsing_area.dart';
+import 'package:deal_finder_mobile/src/widgets/stitch_discover_components.dart';
 import 'design_system_test.dart' show host;
+import '../tool/stitch_discover_preview_test.dart'
+    show StitchFixtureApi, fixtureNow;
 
-class FavoriteApi extends ApiService {
-  FavoriteApi({this.fail = false});
-  final bool fail;
-  int writes = 0;
+class FailedSectionsApi extends StitchFixtureApi {
   @override
-  Future<void> addFavorite(
-      String userId, String promotionId, String token) async {
-    writes++;
-    if (fail) throw Exception('Rejected by server');
-  }
-
-  @override
-  Future<void> removeFavorite(
-      String userId, String promotionId, String token) async {
-    writes++;
-    if (fail) throw Exception('Rejected by server');
-  }
+  Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async =>
+      throw StateError('Unavailable');
 }
 
-Promotion offer() => Promotion(
-    id: 'test-offer',
-    merchantId: 'merchant',
-    merchantName: 'Test store',
-    title: 'Weekend lunch with selected credit cards',
-    description: 'Test',
-    discount: '25% OFF',
-    category: 'food_dining',
-    bankName: 'Test Bank',
-    cardTypes: ['credit'],
-    minimumSpend: 2500,
-    discountedPrice: 2400,
-    originalPrice: 3200,
-    distance: 800,
-    endDate: DateTime.now().add(const Duration(days: 2)),
-    deliveryAvailable: true);
+class NearbyPreviewApi extends StitchFixtureApi {
+  @override
+  Future<List<Promotion>> fetchPromotions({bool forceRefresh = false}) async =>
+      [
+        for (final point in [
+          ('second', 6.921, 79.854, false),
+          ('close', 6.912, 79.854, false),
+          ('far', 7.29, 80.63, false),
+          ('online', 6.911, 79.854, true),
+        ])
+          Promotion(
+              id: point.$1,
+              title: point.$1,
+              description: '',
+              latitude: point.$2,
+              longitude: point.$3,
+              merchantId: 'store',
+              merchantType: point.$4 ? 'online' : 'offline'),
+        Promotion(id: 'unknown', title: 'Unknown coordinates', description: ''),
+      ];
+  @override
+  Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async =>
+      const CuratedHomeSectionsResponse(
+          banner: [],
+          hotDeals: [],
+          newThisWeek: [],
+          flashSales: [],
+          bannerManaged: false,
+          hotDealsManaged: false,
+          newThisWeekManaged: false,
+          flashSalesManaged: false);
+}
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({
-        'userId': 'test-user',
-        'userToken': 'test-token',
-      }));
-  test('rejected API writes leave Saved state unchanged', () async {
-    final api = FavoriteApi(fail: true);
-    await expectLater(
-        SavedOfferService.setSaved(offer(), true, api: api), throwsException);
-    expect(await FavoritesManager.isFavorite('test-offer'), false);
-    await FavoritesManager.addFavoritePromotion(offer());
-    await expectLater(
-        SavedOfferService.setSaved(offer(), false, api: api), throwsException);
-    expect(await FavoritesManager.isFavorite('test-offer'), true);
-    expect(api.writes, 2);
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    await BrowsingArea.select(BrowsingArea.initial);
   });
-  test('accepted save and removal update persistent snapshots', () async {
-    final api = FavoriteApi();
-    await SavedOfferService.setSaved(offer(), true, api: api);
-    expect((await FavoritesManager.getFavoritePromotions()).single.title,
-        offer().title);
-    await SavedOfferService.setSaved(offer(), false, api: api);
-    expect(await FavoritesManager.isFavorite('test-offer'), false);
-    expect(api.writes, 2);
-  });
+
   testWidgets(
-      'featured card keeps conditions readable at double text size in dark mode',
+      'Nearby preview uses selected area, excludes online and unknown locations, and opens Nearby',
       (tester) async {
-    tester.view.physicalSize = const Size(375, 812);
+    tester.view.physicalSize = const Size(390, 2200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(host(
-        Scaffold(
-            body: SingleChildScrollView(
-                child: DiscoveryOfferCard(
-                    offer: offer(), featured: true, onOpen: () {}))),
-        dark: true,
-        scale: 2));
+    var openedNearby = false;
+    await tester.pumpWidget(host(HomeScreen(
+        api: NearbyPreviewApi(), onNavigateNearby: () => openedNearby = true)));
     await tester.pumpAndSettle();
-    expect(find.text('800 m'), findsOneWidget);
-    expect(find.textContaining('Ends '), findsOneWidget);
-    expect(find.text('Delivery'), findsOneWidget);
-    expect(find.byType(OfferSaveButton), findsOneWidget);
+    List<String> ids() => tester
+        .widgetList<StitchNearbyOfferCard>(find.byType(StitchNearbyOfferCard))
+        .map((w) => w.offer.id)
+        .toList();
+    expect(ids(), ['close', 'second']);
+    expect(tester.getSize(find.byType(StitchNearbyOfferCard).first).width, 173);
+    final title = find.text('Nearby Deals');
+    final section =
+        find.ancestor(of: title, matching: find.byType(Padding)).first;
+    await tester
+        .tap(find.descendant(of: section, matching: find.byType(TextButton)));
+    await tester.pumpAndSettle();
+    expect(openedNearby, isTrue);
+    await BrowsingArea.select(
+        const BrowsingArea(latitude: 7.29, longitude: 80.63, label: 'Kandy'));
+    await tester.pumpAndSettle();
+    expect(ids(), ['far']);
     expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets(
+      'curated banner, expiry, rail, bank grid and feed stay ordered and deduplicated',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 4000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+        host(HomeScreen(api: StitchFixtureApi(), now: () => fixtureNow)));
+    await tester.pumpAndSettle();
+    expect(find.byType(StitchFeaturedBanner), findsOneWidget);
+    expect(find.byType(StitchExpiringOfferStrip), findsOneWidget);
+    expect(find.byType(StitchHorizontalOfferCard), findsNWidgets(2));
+    expect(find.byType(StitchBankGridCard), findsNWidgets(4));
+    expect(find.byType(StitchFullWidthOfferCard), findsNWidgets(3));
+    final ordered = [
+      find.byType(StitchFeaturedBanner),
+      find.byType(StitchExpiringOfferStrip),
+      find.byType(StitchHorizontalOfferCard).first,
+      find.byType(StitchBankGridCard).first,
+      find.byType(StitchFullWidthOfferCard).first
+    ];
+    for (var i = 1; i < ordered.length; i++) {
+      expect(tester.getTopLeft(ordered[i]).dy,
+          greaterThan(tester.getTopLeft(ordered[i - 1]).dy));
+    }
+    final ids = [
+      tester
+          .widget<StitchFeaturedBanner>(find.byType(StitchFeaturedBanner))
+          .offer
+          .id,
+      tester
+          .widget<StitchExpiringOfferStrip>(
+              find.byType(StitchExpiringOfferStrip))
+          .offer
+          .id,
+      ...tester
+          .widgetList<StitchHorizontalOfferCard>(
+              find.byType(StitchHorizontalOfferCard))
+          .map((w) => w.offer.id),
+      ...tester
+          .widgetList<StitchBankGridCard>(find.byType(StitchBankGridCard))
+          .map((w) => w.offer.id),
+      ...tester
+          .widgetList<StitchFullWidthOfferCard>(
+              find.byType(StitchFullWidthOfferCard))
+          .map((w) => w.offer.id),
+    ];
+    expect(ids.toSet().length, 11);
+    expect(find.textContaining('claimed'), findsNothing);
+    expect(find.textContaining('registered cards'), findsNothing);
+    expect(find.textContaining('Ends in 1 h 42 m'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets(
+      'failed bank and curated requests expose retries rather than empty inventory claims',
+      (tester) async {
+    final api = FailedSectionsApi()..lastBankOffersFailed = true;
+    await tester.pumpWidget(host(HomeScreen(api: api, now: () => fixtureNow)));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Featured offers could not be refreshed.'),
+        findsOneWidget);
+    final scroll = find
+        .descendant(
+            of: find.byType(CustomScrollView),
+            matching: find.byType(Scrollable))
+        .first;
+    await tester.scrollUntilVisible(
+        find.textContaining('Bank offers could not be refreshed.'), 200,
+        scrollable: scroll);
+    expect(find.textContaining('Bank offers could not be refreshed.'),
+        findsOneWidget);
+    expect(find.text('No offers returned by the service.'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 }

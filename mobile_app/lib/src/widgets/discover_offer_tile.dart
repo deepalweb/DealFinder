@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import '../models/promotion.dart';
 import 'discover_offer_image.dart';
 import 'discovery_offer_card.dart';
 import 'offer_save_button.dart';
+import 'discover_offer_rating.dart';
 
 /// Reusable photo tile for the horizontal highlight rail and adaptive grid.
 class DiscoverOfferTile extends StatelessWidget {
@@ -63,47 +65,78 @@ class DiscoverOfferTile extends StatelessWidget {
                       Text(offer.title,
                           style:
                               theme.textTheme.bodySmall?.copyWith(fontSize: 11),
-                          maxLines: large ? null : 2,
+                          maxLines: large ? null : 1,
                           overflow: large ? null : TextOverflow.ellipsis),
-                      if (offer.averageRating != null && offer.ratingsCount > 0)
+                      if ((offer.averageRating != null &&
+                              offer.ratingsCount > 0) ||
+                          offer.distance != null)
                         Padding(
-                            padding: const EdgeInsets.only(top: 3),
+                            padding: const EdgeInsets.only(top: 4),
                             child: Wrap(
-                                spacing: 4,
+                                spacing: 8,
+                                runSpacing: 3,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  const Icon(Icons.star_rounded, size: 14),
-                                  Text(
-                                      '${offer.averageRating!.toStringAsFixed(1)} (${offer.ratingsCount})',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(fontSize: 11))
+                                  if (offer.averageRating != null &&
+                                      offer.ratingsCount > 0)
+                                    DiscoverOfferRating(offer: offer),
+                                  if (offer.distance != null)
+                                    Text(
+                                        offer.distance! < 1000
+                                            ? '${offer.distance!.round()} m'
+                                            : '${(offer.distance! / 1000).toStringAsFixed(1)} km',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(fontSize: 11)),
                                 ])),
-                      if (offer.distance != null)
-                        Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(
-                                '${(offer.distance! / 1000).toStringAsFixed(1)} km',
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(fontSize: 11))),
                       const Divider(height: 12),
                       if (offer.bankName?.isNotEmpty == true)
                         Text(offer.bankName!,
                             style: theme.textTheme.labelLarge?.copyWith(
-                                fontSize: 12,
-                                color: theme.colorScheme.primary)),
-                      if (offer.minimumSpend != null)
+                                fontSize: 11, color: theme.colorScheme.primary),
+                            maxLines: large ? null : 1,
+                            overflow: large ? null : TextOverflow.ellipsis),
+                      if (offer.cardTypes.isNotEmpty)
                         Text(
-                            l10n.minimumSpendLabel(
-                                offerMoney(offer, offer.minimumSpend!)),
+                            offer.cardTypes
+                                .map((type) => type == 'credit'
+                                    ? l10n.creditCardLabel
+                                    : type == 'debit'
+                                        ? l10n.debitCardLabel
+                                        : type)
+                                .join(' · '),
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(fontSize: 11)),
-                      if (offer.discountedPrice ?? offer.price
-                          case final price?)
+                      const SizedBox(height: 3),
+                      Wrap(
+                          spacing: 8,
+                          runSpacing: 3,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            if (offer.minimumSpend != null)
+                              Text(
+                                  l10n.minimumSpendLabel(
+                                      offerMoney(offer, offer.minimumSpend!)),
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(fontSize: 11)),
+                            if (offer.discountedPrice ?? offer.price
+                                case final price?)
+                              Text(offerMoney(offer, price),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                      fontSize: 12,
+                                      color: theme.colorScheme.primary)),
+                          ]),
+                      if (offer.endDate != null)
                         Padding(
-                            padding: const EdgeInsets.only(top: 3),
-                            child: Text(offerMoney(offer, price),
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                    color: theme.colorScheme.primary))),
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                                l10n.offerEndsOn(DateFormat.MMMd(
+                                        Localizations.localeOf(context)
+                                            .toLanguageTag())
+                                    .format(offer.endDate!.toUtc().add(
+                                        const Duration(
+                                            hours: 5, minutes: 30)))),
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(fontSize: 11))),
                     ])),
           ])),
     );

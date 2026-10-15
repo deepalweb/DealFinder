@@ -5,9 +5,12 @@ import '../utils/merchant_hours.dart';
 import 'api_service.dart';
 import 'browsing_area.dart';
 import 'location_service.dart';
+import '../utils/offer_presentation.dart';
 
 class NearbyDiscoveryController extends ChangeNotifier {
-  NearbyDiscoveryController({ApiService? api}) : _api = api ?? ApiService();
+  NearbyDiscoveryController({ApiService? api}) : _api = api ?? ApiService() {
+    BrowsingArea.changes.addListener(_sharedAreaChanged);
+  }
   final ApiService _api;
   BrowsingArea area = BrowsingArea.initial;
   double radius = 3;
@@ -26,14 +29,32 @@ class NearbyDiscoveryController extends ChangeNotifier {
   bool _disposed = false;
   DateTime? cachedAt;
 
+  void _sharedAreaChanged() {
+    final next = BrowsingArea.changes.value;
+    if (_disposed || next == null) return;
+    if (next.latitude == area.latitude && next.longitude == area.longitude) {
+      if (next.label != area.label ||
+          next.source != area.source ||
+          next.approximate != area.approximate) {
+        area = next;
+        notifyListeners();
+      }
+      return;
+    }
+    search(next, persist: false);
+  }
+
   List<Promotion> get offers {
     final offers = _offers
         .where((p) =>
-            p.hasStarted &&
-            !p.isExpired &&
+            OfferPresentation(p).public &&
             p.supportsVisit &&
             p.latitude != null &&
             p.longitude != null &&
+            p.latitude!.isFinite &&
+            p.longitude!.isFinite &&
+            p.latitude!.abs() <= 90 &&
+            p.longitude!.abs() <= 180 &&
             (category == null || p.category == category) &&
             (query.isEmpty ||
                 '${p.title} ${p.merchantName ?? ''}'
@@ -59,8 +80,15 @@ class NearbyDiscoveryController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    area = await BrowsingArea.read() ?? BrowsingArea.initial;
+    final generation = _generation;
     final prefs = await SharedPreferences.getInstance();
+    final restored = await BrowsingArea.read();
+    if (_disposed) return;
+    if (_generation != generation) {
+      await loadMerchants();
+      return;
+    }
+    area = restored ?? BrowsingArea.initial;
     final savedRadius = prefs.getDouble('nearby_radius');
     if ([1.0, 3.0, 5.0, 10.0].contains(savedRadius)) radius = savedRadius!;
     if (_disposed) return;
@@ -141,6 +169,7 @@ class NearbyDiscoveryController extends ChangeNotifier {
 
   @override
   void dispose() {
+    BrowsingArea.changes.removeListener(_sharedAreaChanged);
     _disposed = true;
     _generation++;
     super.dispose();

@@ -1,6 +1,9 @@
+import '../widgets/storefront_theme.dart';
+import '../widgets/stitch_discover_components.dart'
+    show StitchFullWidthOfferCard;
+import '../utils/offer_presentation.dart';
 import '../widgets/sign_in_gate.dart';
 import '../widgets/profile_section.dart';
-import '../widgets/discovery_offer_card.dart';
 import '../models/promotion.dart';
 import '../utils/merchant_hours.dart';
 import '../utils/map_marker_icon.dart';
@@ -32,26 +35,35 @@ String _merchantLocalizedText(
   }
 }
 
-class MerchantProfileScreen extends StatefulWidget {
+class MerchantProfileScreen extends StatelessWidget {
+  const MerchantProfileScreen(
+      {super.key, required this.merchantId, this.api, this.mapBuilder});
   final String merchantId;
   final ApiService? api;
   final Widget Function(GoogleMap map)? mapBuilder;
-
-  const MerchantProfileScreen({
-    super.key,
-    required this.merchantId,
-    this.api,
-    this.mapBuilder,
-  });
-
   @override
-  State<MerchantProfileScreen> createState() => _MerchantProfileScreenState();
+  Widget build(BuildContext context) => Theme(
+      data: storefrontTheme(Theme.of(context)),
+      child: _MerchantProfilePage(
+          merchantId: merchantId, api: api, mapBuilder: mapBuilder));
 }
 
-class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
+class _MerchantProfilePage extends StatefulWidget {
+  const _MerchantProfilePage(
+      {required this.merchantId, this.api, this.mapBuilder});
+  final String merchantId;
+  final ApiService? api;
+  final Widget Function(GoogleMap map)? mapBuilder;
+  @override
+  State<_MerchantProfilePage> createState() => _MerchantProfileScreenState();
+}
+
+class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
   Map<String, dynamic>? _merchant;
   List<Map<String, dynamic>> _deals = [];
   bool _loading = true;
+  bool _loadingOffers = false;
+  bool _offersFailed = false;
   bool _followBusy = false;
   bool _isFollowing = false;
   bool _loadingRatings = true;
@@ -113,26 +125,43 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
     try {
       final merchant = await _apiService.fetchMerchantById(widget.merchantId);
-      final deals = await _apiService.fetchPromotionsByMerchant(
-        widget.merchantId,
-      );
-
       if (!mounted) return;
       setState(() {
         _merchant = merchant;
-        _deals = deals;
         _averageRating =
             (merchant['averageRating'] as num?)?.toDouble() ?? _averageRating;
         _ratingsCount =
             (merchant['ratingsCount'] as num?)?.toInt() ?? _ratingsCount;
         _loading = false;
       });
+      await _fetchOffers();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = e is MerchantRequestException && e.statusCode == 404
+            ? 'not_found'
+            : 'request_failed';
         _loading = false;
       });
+    }
+  }
+
+  Future<void> _fetchOffers() async {
+    if (!mounted) return;
+    setState(() {
+      _loadingOffers = true;
+      _offersFailed = false;
+    });
+    try {
+      final deals =
+          await _apiService.fetchPromotionsByMerchant(widget.merchantId);
+      if (!mounted) return;
+      setState(() => _deals = deals);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _offersFailed = true);
+    } finally {
+      if (mounted) setState(() => _loadingOffers = false);
     }
   }
 
@@ -686,6 +715,16 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
       );
     }
 
+    if (imageUrl.startsWith('assets/')) {
+      return Image.asset(imageUrl,
+          width: width,
+          height: height,
+          fit: fit,
+          errorBuilder: (_, __, ___) => SizedBox(
+              width: width,
+              height: height,
+              child: const Icon(Icons.storefront_outlined)));
+    }
     if (imageUrl.startsWith('data:image')) {
       try {
         final bytes =
@@ -747,15 +786,14 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   List<Promotion> get _profileOffers => _deals
       .map((deal) => Promotion.fromJson({...deal, 'merchant': _merchant}))
       .toList();
-  List<Promotion> get _activeOffers => _profileOffers
+  List<Promotion> get _activeOffers =>
+      _profileOffers.where((offer) => OfferPresentation(offer).public).toList();
+  List<Promotion> get _expiredOffers => _profileOffers
       .where((offer) =>
-          offer.hasStarted &&
-          !offer.isExpired &&
-          ['active', 'approved', 'scheduled']
-              .contains(offer.status?.toLowerCase()))
+          offer.isExpired &&
+          (offer.status == null ||
+              ['active', 'approved', 'scheduled'].contains(offer.status)))
       .toList();
-  List<Promotion> get _expiredOffers =>
-      _profileOffers.where((offer) => offer.isExpired).toList();
 
   String _formatReviewDate(dynamic value) {
     final raw = (value ?? '').toString();
@@ -1150,15 +1188,17 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (banner.isNotEmpty) ...[
         ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: _buildImageWidget(banner, height: 160)),
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+                aspectRatio: 2.6,
+                child: _buildImageWidget(banner, width: double.infinity))),
         const SizedBox(height: 20),
       ],
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: _buildImageWidget(logo.isEmpty ? null : logo,
-                width: 72, height: 72)),
+                width: 56, height: 56)),
         const SizedBox(width: 14),
         Expanded(
             child:
@@ -1190,13 +1230,11 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           _buildModeChip(
               icon: Icons.schedule,
               label: _isOpenNow! ? l10n.openNowLabel : l10n.profileClosedLabel),
-      ]),
-      const SizedBox(height: 14),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        _buildStatChip(
-            icon: Icons.local_offer_outlined,
-            label: l10n.profileOffersLabel,
-            value: '${_activeOffers.length}'),
+        if (!_loadingOffers && !_offersFailed)
+          _buildStatChip(
+              icon: Icons.local_offer_outlined,
+              label: l10n.profileOffersLabel,
+              value: '${_activeOffers.length}'),
         if (_ratingsCount > 0)
           _buildStatChip(
               icon: Icons.star_outline,
@@ -1230,7 +1268,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           OutlinedButton.icon(
               onPressed: () => _openExternalUrl(_merchantOrderLink),
               icon: const Icon(Icons.shopping_bag_outlined),
-              label: Text(l10n.profileOrderLabel)),
+              label: Text(l10n.visitWebsite)),
       ]),
     ]);
   }
@@ -1315,97 +1353,152 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
     final l10n = AppLocalizations.of(context)!;
     final offers = _activeTab == 'active' ? _activeOffers : _expiredOffers;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.merchantProfileTitle), actions: [
-        if (_merchant != null)
-          IconButton(
-              tooltip: l10n.profileShareStoreLabel,
-              icon: const Icon(Icons.ios_share),
-              onPressed: () => Share.share(
-                  '${_merchantText('name')}\n${AppConfig.publicBaseUrl}/merchants/${widget.merchantId}')),
-        IconButton(
-            tooltip: _merchantLocalizedText(context, 'Report store',
-                'ගබඩාව වාර්තා කරන්න', 'கடையைப் புகாரளிக்கவும்'),
-            icon: const Icon(Icons.flag_outlined),
-            onPressed: _showReportStoreDialog),
-      ]),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null || _merchant == null
-              ? Center(
-                  child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.storefront_outlined, size: 48),
-                        const SizedBox(height: 16),
-                        Text(l10n.merchantProfileUnavailableLabel,
-                            textAlign: TextAlign.center),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                            onPressed: _bootstrap,
-                            icon: const Icon(Icons.refresh),
-                            label: Text(l10n.retry)),
-                      ])))
-              : RefreshIndicator(
-                  onRefresh: _bootstrap,
-                  child: ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        _merchantHero(),
-                        const SizedBox(height: 24),
-                        Wrap(spacing: 8, runSpacing: 8, children: [
-                          for (final entry in {
-                            'offers': l10n.profileOffersLabel,
-                            'about': l10n.about,
-                            'reviews': l10n.profileReviewsLabel
-                          }.entries)
-                            ChoiceChip(
-                                label: Text(entry.value),
-                                selected: _profileSection == entry.key,
-                                onSelected: (_) => setState(
-                                    () => _profileSection = entry.key)),
-                        ]),
-                        const SizedBox(height: 20),
-                        if (_profileSection == 'offers') ...[
-                          Wrap(spacing: 8, runSpacing: 8, children: [
-                            ChoiceChip(
-                                label: Text(
-                                    '${l10n.profileActiveOffersLabel} (${_activeOffers.length})'),
-                                selected: _activeTab == 'active',
-                                onSelected: (_) =>
-                                    setState(() => _activeTab = 'active')),
-                            ChoiceChip(
-                                label: Text(
-                                    '${l10n.profileExpiredOffersLabel} (${_expiredOffers.length})'),
-                                selected: _activeTab == 'expired',
-                                onSelected: (_) =>
-                                    setState(() => _activeTab = 'expired')),
-                          ]),
-                          const SizedBox(height: 16),
-                          if (offers.isEmpty)
-                            Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 28),
-                                child: Text(l10n.profileNoOffersLabel,
-                                    textAlign: TextAlign.center)),
-                          for (final offer in offers)
-                            Padding(
-                                padding: const EdgeInsets.only(bottom: 16),
-                                child: DiscoveryOfferCard(
-                                    offer: offer,
-                                    onOpen: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => DealDetailScreen(
-                                                promotion: offer))))),
-                        ],
-                        if (_profileSection == 'about') _merchantAbout(),
-                        if (_profileSection == 'reviews') ...[
-                          _buildStoreRatingCard(),
-                          const SizedBox(height: 16),
-                          _buildStoreReviewsCard()
-                        ],
-                      ])),
+      appBar: AppBar(
+          title: Text(l10n.merchantProfileTitle),
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          titleTextStyle: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w700),
+          actions: [
+            if (_merchant != null)
+              IconButton(
+                  tooltip: l10n.profileShareStoreLabel,
+                  icon: const Icon(Icons.ios_share),
+                  onPressed: () => Share.share(
+                      '${_merchantText('name')}\n${AppConfig.publicBaseUrl}/merchants/${widget.merchantId}')),
+            IconButton(
+                tooltip: _merchantLocalizedText(context, 'Report store',
+                    'ගබඩාව වාර්තා කරන්න', 'கடையைப் புகாரளிக்கவும்'),
+                icon: const Icon(Icons.flag_outlined),
+                onPressed: _showReportStoreDialog),
+          ]),
+      body: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null || _merchant == null
+                      ? Center(
+                          child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.storefront_outlined,
+                                        size: 48),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                        _error == 'not_found'
+                                            ? _merchantLocalizedText(
+                                                context,
+                                                'This store is no longer available.',
+                                                'මෙම වෙළඳසැල තවදුරටත් නොමැත.',
+                                                'இந்தக் கடை இனி கிடைக்காது.')
+                                            : l10n
+                                                .merchantProfileUnavailableLabel,
+                                        textAlign: TextAlign.center),
+                                    const SizedBox(height: 16),
+                                    FilledButton.icon(
+                                        onPressed: _bootstrap,
+                                        icon: const Icon(Icons.refresh),
+                                        label: Text(l10n.retry)),
+                                  ])))
+                      : RefreshIndicator(
+                          onRefresh: _bootstrap,
+                          child: ListView(
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 32),
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                _merchantHero(),
+                                const SizedBox(height: 24),
+                                Wrap(spacing: 8, runSpacing: 8, children: [
+                                  for (final entry in {
+                                    'offers': l10n.profileOffersLabel,
+                                    'about': l10n.about,
+                                    'reviews': l10n.profileReviewsLabel
+                                  }.entries)
+                                    ChoiceChip(
+                                        label: Text(entry.value),
+                                        selected: _profileSection == entry.key,
+                                        onSelected: (_) => setState(
+                                            () => _profileSection = entry.key)),
+                                ]),
+                                const SizedBox(height: 20),
+                                if (_profileSection == 'offers') ...[
+                                  if (_loadingOffers)
+                                    const LinearProgressIndicator(),
+                                  if (_offersFailed)
+                                    Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 16),
+                                        child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(_merchantLocalizedText(
+                                                  context,
+                                                  'Offers could not be loaded. Store details are still available.',
+                                                  'දීමනා පූරණය කළ නොහැක. වෙළඳසැල් විස්තර තවමත් තිබේ.',
+                                                  'சலுகைகளை ஏற்ற முடியவில்லை. கடை விவரங்கள் இன்னும் உள்ளன.')),
+                                              TextButton.icon(
+                                                  onPressed: _fetchOffers,
+                                                  icon:
+                                                      const Icon(Icons.refresh),
+                                                  label: Text(l10n.retry)),
+                                            ])),
+                                  if (!_loadingOffers && !_offersFailed)
+                                    Wrap(spacing: 8, runSpacing: 8, children: [
+                                      ChoiceChip(
+                                          label: Text(
+                                              '${l10n.profileActiveOffersLabel} (${_activeOffers.length})'),
+                                          selected: _activeTab == 'active',
+                                          onSelected: (_) => setState(
+                                              () => _activeTab = 'active')),
+                                      ChoiceChip(
+                                          label: Text(
+                                              '${l10n.profileExpiredOffersLabel} (${_expiredOffers.length})'),
+                                          selected: _activeTab == 'expired',
+                                          onSelected: (_) => setState(
+                                              () => _activeTab = 'expired')),
+                                    ]),
+                                  const SizedBox(height: 16),
+                                  if (!_loadingOffers &&
+                                      !_offersFailed &&
+                                      offers.isEmpty)
+                                    Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 28),
+                                        child: Text(l10n.profileNoOffersLabel,
+                                            textAlign: TextAlign.center)),
+                                  for (final offer
+                                      in (_loadingOffers || _offersFailed
+                                          ? <Promotion>[]
+                                          : offers))
+                                    Padding(
+                                        padding:
+                                            const EdgeInsets.only(bottom: 16),
+                                        child: StitchFullWidthOfferCard(
+                                            offer: offer,
+                                            onOpen: () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        DealDetailScreen(
+                                                            promotion: offer,
+                                                            api:
+                                                                _apiService))))),
+                                ],
+                                if (_profileSection == 'about')
+                                  _merchantAbout(),
+                                if (_profileSection == 'reviews') ...[
+                                  _buildStoreRatingCard(),
+                                  const SizedBox(height: 16),
+                                  _buildStoreReviewsCard()
+                                ],
+                              ])))),
     );
   }
 }

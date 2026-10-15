@@ -10,8 +10,8 @@ class AppColors {
   static const chili = Color(0xFFBC3548);
   static const betelGreen = Color(0xFF237450);
   static const sand = Color(0xFFF5F6FA);
-  static const charcoal = Color(0xFF172033);
-  static const ash = Color(0xFF606B80);
+  static const charcoal = Color(0xFF191919);
+  static const ash = Color(0xFF666666);
   static const textPrimary = charcoal;
   static const textSecondary = ash;
   static const textTertiary = Color(0xFF737D90);
@@ -156,6 +156,8 @@ class AppTheme {
       surface: card,
       onSurface: text,
       onSurfaceVariant: muted,
+      surfaceContainerLow:
+          dark ? const Color(0xFF27292D) : const Color(0xFFF1F1F1),
       surfaceContainerHighest:
           dark ? const Color(0xFF272E3D) : const Color(0xFFEDF0F6),
       outline: muted,

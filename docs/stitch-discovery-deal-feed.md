@@ -7,11 +7,13 @@ in the existing five-tab application shell.
 
 ## Components
 
-- `DiscoverFeedCard`: editorial hero and larger detail-preview cards.
+- `DiscoverOfferSurface`: compact editorial, detail-preview, and expiry cards.
 - `DiscoverOfferTile`: photo cards for horizontal highlights and bank offers.
 - `DiscoverOfferGrid`: adaptive two-column grid, switching to one column for
   narrow layouts or enlarged text and three columns for wider layouts.
 - `DiscoverOfferImage`: bundled demo artwork or the promotion's actual image.
+- `DiscoverOfferRating`: valid API ratings with the app icon font and accessible labels.
+- `DiscoverFilterSheet`: bank/category/fulfillment drafts with Apply and cancellation.
 
 The screen composes these with delivery/in-store/pickup filters, area selection,
 search, category/bank filters, a bank offer entry, nearby highlights, an expiry
@@ -45,3 +47,13 @@ Widget checks cover filtering, category/fulfillment handoff, API failure and
 retry, adaptive grid/card layout with double text size, and working tile taps.
 Light/dark renders use fixture records and bundled artwork; these are not
 live database screenshots or device release validation.
+
+Latest refinements and preview instructions: [Discover fine-tuning](discover-finetuning.md).
+
+## Latest marketplace direction
+
+The location-first brief now supersedes the original editorial section order. See [Discover marketplace](discover-marketplace.md) for implementation, filter behavior and validation scope. The original Stitch artifacts remain available as references.
+
+## Current direction
+
+The rejected marketplace iteration has been replaced by the [Uber Eats reference-based Discover rebuild](uber-eats-discover-redesign.md). The comparison HTML now shows the concrete Uber-published reference and normal phone-sized Flutter renders.

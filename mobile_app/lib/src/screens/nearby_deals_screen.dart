@@ -1,3 +1,4 @@
+import '../utils/offer_presentation.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -12,7 +13,7 @@ import '../services/browsing_area.dart';
 import '../services/api_service.dart';
 import '../services/nearby_discovery_controller.dart';
 import '../services/location_service.dart';
-import '../widgets/dealfinder_mark.dart';
+import '../widgets/stitch_discover_components.dart';
 import '../widgets/nearby_offer_row.dart';
 import '../widgets/discovery_offer_card.dart';
 import '../widgets/sign_in_gate.dart';
@@ -20,17 +21,31 @@ import 'deal_detail_screen.dart';
 import 'notifications_screen.dart';
 import 'user_profile_screen.dart';
 
-class NearbyDealsScreen extends StatefulWidget {
+class NearbyDealsScreen extends StatelessWidget {
   const NearbyDealsScreen(
       {super.key, this.onNavigateAccount, this.api, this.mapBuilder});
   final ApiService? api;
   final Widget Function(GoogleMap map)? mapBuilder;
   final VoidCallback? onNavigateAccount;
   @override
-  State<NearbyDealsScreen> createState() => _NearbyDealsScreenState();
+  Widget build(BuildContext context) => Theme(
+      data: stitchDiscoverTheme(Theme.of(context)),
+      child: _NearbyDealsPage(
+          api: api,
+          mapBuilder: mapBuilder,
+          onNavigateAccount: onNavigateAccount));
 }
 
-class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
+class _NearbyDealsPage extends StatefulWidget {
+  const _NearbyDealsPage({this.api, this.mapBuilder, this.onNavigateAccount});
+  final ApiService? api;
+  final Widget Function(GoogleMap map)? mapBuilder;
+  final VoidCallback? onNavigateAccount;
+  @override
+  State<_NearbyDealsPage> createState() => _NearbyDealsScreenState();
+}
+
+class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
   late final NearbyDiscoveryController _data;
   GoogleMapController? _map;
   bool _movingCamera = false;
@@ -40,7 +55,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
   bool _mapReady = false;
   bool _dirty = false;
   bool _expanded = false;
-  double _sheetExtent = .60;
+  double _sheetExtent = .46;
   bool _locating = false;
   LatLng _draftCenter = const LatLng(6.911, 79.854);
   double _zoom = 13;
@@ -87,7 +102,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
 
   Future<void> _resize(bool expanded) async {
     if (!_sheet.isAttached) return;
-    final extent = expanded ? .92 : .60;
+    final extent = expanded ? .92 : .46;
     final duration = AppMotion.duration(context, 240);
     if (duration == Duration.zero) {
       _sheet.jumpTo(extent);
@@ -320,7 +335,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
 
   Widget _mapButton(String label, IconData icon, VoidCallback? onTap) =>
       Material(
-          color: Theme.of(context).colorScheme.surface,
+          color: Theme.of(context).colorScheme.surfaceContainerLowest,
           shape: const CircleBorder(),
           elevation: 2,
           child:
@@ -354,10 +369,10 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       final selected = group.any((p) => p.id == _data.selectedId);
       final label = group.length > 1
           ? '${group.length}'
-          : first.discount ??
-              ((first.discountedPrice ?? first.price) != null
-                  ? offerMoney(first, (first.discountedPrice ?? first.price)!)
-                  : AppLocalizations.of(context)!.viewOfferLabel);
+          : (OfferPresentation(first).price != null &&
+                  !OfferPresentation(first).useDiscountHeadline
+              ? offerMoney(first, OfferPresentation(first).price!)
+              : getCategoryLabel(first.category));
       final background =
           selected ? theme.colorScheme.primary : theme.colorScheme.surface;
       final foreground =
@@ -403,7 +418,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
       mapToolbarEnabled: false,
       compassEnabled: false,
       // Move Google's logo and attribution above the overlapping results sheet.
-      padding: EdgeInsets.only(bottom: mapPadding, top: 64),
+      padding: EdgeInsets.only(bottom: mapPadding, top: _expanded ? 0 : 64),
       style: theme.brightness == Brightness.dark ? googleMapDarkStyle : null,
       onMapCreated: (controller) {
         if (!mounted) {
@@ -455,6 +470,55 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     return widget.mapBuilder?.call(map) ?? map;
   }
 
+  Widget _header(String areaLabel) {
+    final colors = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
+        child: Row(children: [
+          Expanded(
+              child: InkWell(
+                  onTap: _chooseArea,
+                  borderRadius: BorderRadius.circular(12),
+                  child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Row(children: [
+                        Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                                color: colors.primaryContainer,
+                                shape: BoxShape.circle),
+                            child: Icon(Icons.location_on_outlined,
+                                color: colors.primary, size: 19)),
+                        const SizedBox(width: 9),
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              stitchText(context, l10n.nearbyTab,
+                                  size: 11,
+                                  weight: FontWeight.w600,
+                                  color: colors.onSurfaceVariant),
+                              Row(children: [
+                                Flexible(
+                                    child: stitchText(context, areaLabel,
+                                        size: 16, weight: FontWeight.w700)),
+                                const Icon(Icons.expand_more, size: 18)
+                              ]),
+                            ])),
+                      ])))),
+          IconButton(
+              tooltip: l10n.notifications,
+              onPressed: _notifications,
+              icon: const Icon(Icons.notifications_none, size: 21)),
+          IconButton(
+              tooltip: l10n.accountTab,
+              onPressed: _account,
+              icon: const Icon(Icons.account_circle_outlined, size: 23)),
+        ]));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -473,32 +537,7 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
     return Scaffold(
         body: SafeArea(
             child: Column(children: [
-      Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
-          child: Row(children: [
-            const DealFinderMark(size: 34),
-            const SizedBox(width: 8),
-            Expanded(
-                child: TextButton.icon(
-                    onPressed: _chooseArea,
-                    icon: const Icon(Icons.expand_more),
-                    iconAlignment: IconAlignment.end,
-                    label: Text(areaLabel,
-                        maxLines: 1, overflow: TextOverflow.ellipsis))),
-            IconButton(
-                tooltip: l10n.notifications,
-                onPressed: _notifications,
-                icon: const Icon(Icons.notifications_none)),
-            IconButton(
-                tooltip: l10n.accountTab,
-                onPressed: _account,
-                icon: const Icon(Icons.account_circle_outlined)),
-          ])),
-      Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(l10n.nearbyTab, style: theme.textTheme.titleLarge))),
+      _header(areaLabel),
       SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -513,9 +552,14 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         child: Text(l10n.withinRadiusLabel(r.toInt()))))
                     .toList(),
                 child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Chip(
-                        avatar: const Icon(Icons.radar),
+                        side: BorderSide.none,
+                        backgroundColor: theme.colorScheme.primary,
+                        labelStyle: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onPrimary, fontSize: 12),
+                        avatar: Icon(Icons.radar,
+                            size: 17, color: theme.colorScheme.onPrimary),
                         label: Text(
                             l10n.withinRadiusLabel(_data.radius.toInt()))))),
             const SizedBox(width: 8),
@@ -531,12 +575,21 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                           PopupMenuItem(value: c.id, child: Text(c.name)))
                     ],
                 child: Chip(
+                    side: BorderSide.none,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    labelStyle: theme.textTheme.labelLarge?.copyWith(
+                        fontSize: 12, color: theme.colorScheme.onSurface),
                     avatar: const Icon(Icons.category_outlined),
                     label: Text(_data.category == null
                         ? l10n.allCategories
                         : getCategoryLabel(_data.category)))),
             const SizedBox(width: 8),
             FilterChip(
+                side: BorderSide.none,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                labelStyle: theme.textTheme.labelLarge?.copyWith(
+                    fontSize: 12, color: theme.colorScheme.onSurface),
+                avatar: const Icon(Icons.access_time, size: 16),
                 label: Text(l10n.openNowLabel),
                 selected: _data.openOnly,
                 onSelected: (value) => _data.filter(onlyOpen: value)),
@@ -548,36 +601,42 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                         top: 0,
                         left: 0,
                         right: 0,
-                        height: constraints.maxHeight * .70,
+                        height: constraints.maxHeight,
                         child: _mapView(
                             theme,
                             offers,
                             math.max(
-                                0,
-                                constraints.maxHeight * (_sheetExtent - .30) +
-                                    8))),
-                    Positioned(
-                        top: 12,
-                        left: 16,
-                        right: 76,
-                        child: Align(
-                            alignment: Alignment.center,
-                            child: FilledButton.tonalIcon(
-                                onPressed: _data.loading ? null : _searchMap,
-                                icon: const Icon(Icons.refresh),
-                                label: Text(_dirty
-                                    ? l10n.searchThisAreaLabel
-                                    : l10n.refreshAreaLabel)))),
-                    Positioned(
-                        top: 12,
-                        right: 12,
-                        child: Column(children: [
-                          _mapButton(l10n.useMyLocation, Icons.my_location,
-                              _locating ? null : _useLocation),
-                          const SizedBox(height: 8),
-                          _mapButton(l10n.expandResultsLabel, Icons.list,
-                              () => _resize(true)),
-                        ])),
+                                0, constraints.maxHeight * _sheetExtent + 8))),
+                    if (!_expanded)
+                      Positioned(
+                          top: 12,
+                          left: 16,
+                          right: 76,
+                          child: Align(
+                              alignment: Alignment.center,
+                              child: FilledButton.tonalIcon(
+                                  style: FilledButton.styleFrom(
+                                      backgroundColor: theme
+                                          .colorScheme.surfaceContainerLowest,
+                                      foregroundColor:
+                                          theme.colorScheme.primary,
+                                      elevation: 2),
+                                  onPressed: _data.loading ? null : _searchMap,
+                                  icon: const Icon(Icons.refresh),
+                                  label: Text(_dirty
+                                      ? l10n.searchThisAreaLabel
+                                      : l10n.refreshAreaLabel)))),
+                    if (!_expanded)
+                      Positioned(
+                          top: 12,
+                          right: 12,
+                          child: Column(children: [
+                            _mapButton(l10n.useMyLocation, Icons.my_location,
+                                _locating ? null : _useLocation),
+                            const SizedBox(height: 8),
+                            _mapButton(l10n.expandResultsLabel, Icons.list,
+                                () => _resize(true)),
+                          ])),
                     NotificationListener<DraggableScrollableNotification>(
                       onNotification: (notice) {
                         final expanded = notice.extent > .75;
@@ -591,16 +650,16 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                       },
                       child: DraggableScrollableSheet(
                           controller: _sheet,
-                          initialChildSize: .60,
-                          minChildSize: .28,
+                          initialChildSize: .46,
+                          minChildSize: .20,
                           maxChildSize: .92,
                           snap: true,
-                          snapSizes: const [.28, .60, .92],
+                          snapSizes: const [.20, .46, .92],
                           builder: (context, scroll) => Material(
-                              color: theme.colorScheme.surface,
+                              color: theme.colorScheme.surfaceContainerLowest,
                               borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(28)),
-                              elevation: 8,
+                              elevation: 6,
                               child: ListView(
                                   controller: scroll,
                                   padding:
@@ -621,8 +680,11 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                                           child: Text(
                                               l10n.nearbyOfferCount(
                                                   offers.length),
-                                              style:
-                                                  theme.textTheme.titleLarge)),
+                                              style: theme.textTheme.titleLarge
+                                                  ?.copyWith(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w700))),
                                       IconButton(
                                           tooltip: l10n.filterOffersLabel,
                                           onPressed: _filters,
@@ -640,11 +702,20 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                                         '$areaLabel · ${_data.radius.toInt()} km',
                                         style: theme.textTheme.bodySmall),
                                     const SizedBox(height: 12),
-                                    Text(
-                                        _data.area.approximate
-                                            ? l10n.approximateAreaHint
-                                            : l10n.areaDistanceHint,
-                                        style: theme.textTheme.bodySmall),
+                                    Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(9),
+                                        decoration: BoxDecoration(
+                                            color: theme.colorScheme
+                                                .surfaceContainerLow,
+                                            borderRadius:
+                                                BorderRadius.circular(10)),
+                                        child: Text(
+                                            _data.area.approximate
+                                                ? l10n.approximateAreaHint
+                                                : l10n.areaDistanceHint,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(fontSize: 12))),
                                     if (_data.area.approximate)
                                       TextButton(
                                           onPressed: Geolocator.openAppSettings,
@@ -699,7 +770,9 @@ class _NearbyDealsScreenState extends State<NearbyDealsScreen> {
                                                 MaterialPageRoute(
                                                     builder: (_) =>
                                                         DealDetailScreen(
-                                                            promotion: p)))))),
+                                                            promotion: p,
+                                                            api: widget
+                                                                .api)))))),
                                   ]))),
                     ),
                   ]))),

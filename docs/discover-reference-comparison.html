@@ -13,21 +13,30 @@ img{display:block;width:100%;height:auto}a{color:#2457e8}
 @media(max-width:600px){body{padding:16px}.views{grid-template-columns:1fr}}
 </style>
 <main>
-<h1>Discover: reference and corrected Flutter layout</h1>
-<p>The earlier build added a large branding header, oversized condition footers,
-tall tiles, and a full card inside the expiry section. The correction follows
-the reference's compact controls, photo-only hero, smaller collections, short
-expiry banner, detail cards, and floating map entry.</p>
-<p>The Flutter render uses fixture offers and the existing application navigation.
-Sapphire is the previously approved brand colour. Card linkage, delivery estimates,
-voucher inventory, and countdown claims require supported data.</p>
+<h1>DealFinder: Uber Eats layout reference and Flutter implementation</h1>
+<p>This rebuild follows the concrete mobile layout in Uber's published screenshot:
+compact location header, rounded search, a single illustrated category strip,
+quick filter pills, large photography, open listing rows and a flat bottom tab bar.</p>
+<p>Reference: <a href="https://www.uber.com/us/en/newsroom/uber-and-waymo-autonomous-deliveries-phoenix/">Uber's April 2024 newsroom app screenshot</a>.
+This is a public screen reference, not a hands-on review of the current signed-in app.</p>
+<p>The Flutter screen keeps DealFinder's sapphire identity, real category IDs and working
+save/detail/filter/navigation flows. The original category drawings are native vectors.
+Uber logos and product artwork are not included in the app.</p>
 <div class="views">
-<figure><figcaption>Your supplied Stitch reference</figcaption>
-<img src="../mobile_app/design-reference/stitch-discovery-deal-feed/screen.png" alt="Original Stitch deal feed reference"></figure>
-<figure><figcaption>Corrected Flutter Discover — fixture data</figcaption>
-<img src="../mobile_app/design-preview/discover-reference-corrected-light.png" alt="Corrected compact Discover layout in sapphire"></figure>
+<figure><figcaption>Uber-published reference (phone frame included)</figcaption>
+<img src="../mobile_app/design-reference/uber-eats-public/home-frame.png" alt="Uber Eats public mobile screenshot with location, search, categories and photo listings"></figure>
+<figure><figcaption>Rebuilt DealFinder — 390 × 844 fixture render</figcaption>
+<img src="../mobile_app/design-preview/discover-uber-style-light-phone.png" alt="Rebuilt DealFinder Discover at normal phone viewport size"></figure>
+<figure><figcaption>DealFinder dark appearance — same viewport</figcaption>
+<img src="../mobile_app/design-preview/discover-uber-style-dark-phone.png" alt="Rebuilt DealFinder in dark appearance"></figure>
 </div>
-<p><a href="../mobile_app/design-preview/discover-reference-corrected-dark.png">Dark appearance render</a>
- · <a href="discover-reference-comparison.md">Detailed comparison</a></p>
+<p><a href="../mobile_app/design-preview/discover-uber-style-light.png">Long light render</a>
+ · <a href="../mobile_app/design-preview/discover-uber-style-dark.png">Long dark render</a>
+ · <a href="uber-eats-discover-redesign.md">Implementation notes</a></p>
+<p>Preview offers, ratings and prices are clearly marked fixtures. These are Flutter widget
+renders, not live-device captures. Opening an offer shows its full conditions and supported actions.</p>
+<details><summary>Previous design references</summary>
+<p><a href="../mobile_app/design-reference/stitch-discovery-deal-feed/screen.png">Original Stitch reference</a>
+ · <a href="../mobile_app/design-preview/discover-marketplace-light.png">Previous marketplace iteration</a></p></details>
 </main>
 </html>

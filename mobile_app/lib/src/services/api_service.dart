@@ -85,6 +85,14 @@ class NearbyPromotionsResult {
   });
 }
 
+class MerchantRequestException implements Exception {
+  const MerchantRequestException(this.resource, this.statusCode);
+  final String resource;
+  final int statusCode;
+  @override
+  String toString() => '$resource request failed (HTTP $statusCode)';
+}
+
 class ApiService {
   static String get _baseUrl => AppConfig.baseUrl;
 
@@ -207,7 +215,45 @@ class ApiService {
         body: body, accessToken: token);
   }
 
-  Future<String?> _refreshToken() async {
+  static Future<String?>? _refreshInFlight;
+  Future<String?> _refreshToken() => _refreshInFlight ??=
+      _refreshTokenOnce().whenComplete(() => _refreshInFlight = null);
+
+  Future<void> revokeSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final access = prefs.getString('userToken');
+    final refresh = prefs.getString('refreshToken');
+    if (access == null || refresh == null) return;
+    await http
+        .post(Uri.parse('${_baseUrl}users/logout'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $access'
+            },
+            body: jsonEncode({'refreshToken': refresh}))
+        .timeout(const Duration(seconds: 5));
+  }
+
+  Future<String?> _refreshTokenOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refresh = prefs.getString('refreshToken');
+    if (refresh != null) {
+      try {
+        final response = await http
+            .post(Uri.parse('${_baseUrl}users/refresh-token'),
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({'refreshToken': refresh}))
+            .timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          if (data['token'] is String && data['refreshToken'] is String) {
+            await prefs.setString('userToken', data['token']);
+            await prefs.setString('refreshToken', data['refreshToken']);
+            return data['token'];
+          }
+        }
+      } catch (_) {}
+    }
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return null;
@@ -225,12 +271,45 @@ class ApiService {
         if (newToken != null) {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userToken', newToken);
+          if (data['refreshToken'] is String) {
+            await prefs.setString('refreshToken', data['refreshToken']);
+          }
           return newToken;
         }
       }
     } catch (_) {}
     return null;
   }
+
+  Future<List<Promotion>> fetchPromotionPage(
+      {int limit = 50, int skip = 0}) async {
+    final response = await http
+        .get(Uri.parse('${_baseUrl}promotions?limit=$limit&skip=$skip'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('Could not load more offers');
+    }
+    return (jsonDecode(response.body) as List)
+        .map((row) => Promotion.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<Promotion>> fetchBankOfferPage(
+      {int limit = 50, int skip = 0}) async {
+    final response = await http
+        .get(Uri.parse('${_baseUrl}bank-offers?limit=$limit&skip=$skip'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('Could not load bank offers');
+    }
+    return (jsonDecode(response.body) as List)
+        .map((row) => Promotion.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  bool lastBankOffersFailed = false;
+  bool lastPromotionsFromCache = false;
+  bool? lastPromotionPageHasMore, lastBankOfferPageHasMore;
 
   Future<List<Promotion>> fetchPromotions({bool forceRefresh = false}) async {
     // Check cache first unless force refresh
@@ -240,6 +319,9 @@ class ApiService {
         if (kDebugMode) {
           debugPrint('Loaded ${cached.length} promotions from cache');
         }
+        lastPromotionsFromCache = true;
+        lastPromotionPageHasMore = null;
+        lastBankOfferPageHasMore = null;
         return cached;
       }
     }
@@ -253,12 +335,15 @@ class ApiService {
       final bankOfferResponse = await http
           .get(Uri.parse('${_baseUrl}bank-offers?limit=50'))
           .timeout(const Duration(seconds: 15))
-          .catchError((_) => http.Response('[]', 200));
+          .catchError((_) => http.Response('[]', 503));
+      lastBankOffersFailed = bankOfferResponse.statusCode != 200;
       if (promotionResponse.statusCode == 200) {
         final List<dynamic> promotionBody = jsonDecode(promotionResponse.body);
         final List<dynamic> bankOfferBody = bankOfferResponse.statusCode == 200
             ? jsonDecode(bankOfferResponse.body)
             : const [];
+        lastPromotionPageHasMore = promotionBody.length >= 50;
+        lastBankOfferPageHasMore = bankOfferBody.length >= 50;
         final promotions = _visibleConsumerPromotions([
           ...promotionBody.map((e) => Promotion.fromJson(e)),
           ...bankOfferBody.map((e) => Promotion.fromJson(e)),
@@ -269,6 +354,7 @@ class ApiService {
             debugPrint('Saved ${promotions.length} promotions to cache');
           }
         } catch (_) {}
+        lastPromotionsFromCache = false;
         return promotions;
       }
       throw Exception(
@@ -280,6 +366,9 @@ class ApiService {
         if (kDebugMode) {
           debugPrint('Using stale cache (${cached.length} promotions)');
         }
+        lastPromotionsFromCache = true;
+        lastPromotionPageHasMore = null;
+        lastBankOfferPageHasMore = null;
         return cached;
       }
       rethrow;
@@ -958,12 +1047,13 @@ class ApiService {
 
   // Fetch a single merchant by ID
   Future<Map<String, dynamic>> fetchMerchantById(String merchantId) async {
-    final response =
-        await http.get(Uri.parse('${_baseUrl}merchants/$merchantId'));
+    final response = await http
+        .get(Uri.parse('${_baseUrl}merchants/$merchantId'))
+        .timeout(const Duration(seconds: 30));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
-      throw Exception('Failed to load merchant');
+      throw MerchantRequestException('Store details', response.statusCode);
     }
   }
 
@@ -1078,7 +1168,7 @@ class ApiService {
             promotion['merchantId']?.toString() == merchantId;
       }).toList();
     } else {
-      throw Exception('Failed to load promotions for merchant');
+      throw MerchantRequestException('Store offers', response.statusCode);
     }
   }
 
@@ -1134,9 +1224,9 @@ class ApiService {
   }
 
   Future<List<Promotion>> fetchMerchantPromotions(String merchantId) async {
-    final response = await http
-        .get(Uri.parse('${_baseUrl}promotions/merchant/$merchantId'))
-        .timeout(const Duration(seconds: 30));
+    // Owner workspace reads include private review states; public store reads remain anonymous.
+    final response =
+        await _authGet('${_baseUrl}promotions/merchant/$merchantId');
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data

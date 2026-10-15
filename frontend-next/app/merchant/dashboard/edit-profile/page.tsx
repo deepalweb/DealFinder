@@ -1,491 +1,539 @@
-'use client';
-
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { MerchantAPI, UserAPI, ImageAPI } from '@/lib/api';
-import toast from 'react-hot-toast';
-
-import MapPicker from '@/components/ui/MapPicker';
-import { CURRENCIES } from '@/lib/currency';
-
-const TABS = [
-  { id: 'basic', icon: 'fa-store', label: 'Basic Info' },
-  { id: 'contact', icon: 'fa-phone', label: 'Contact' },
-  { id: 'social', icon: 'fa-share-alt', label: 'Social Media' },
-  { id: 'branding', icon: 'fa-image', label: 'Branding' },
-  { id: 'location', icon: 'fa-map-marker-alt', label: 'Location' },
+"use client";
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { MerchantAPI, MerchantWorkspaceAPI } from "@/lib/api";
+import { merchantCopy } from "@/lib/merchant-copy";
+import { DEALFINDER_CATEGORIES, normalizeCategoryId } from "@/lib/categories";
+import { categoryName } from "@/lib/marketplace-copy";
+import { CURRENCIES } from "@/lib/currency";
+import { phone, httpUrl } from "@/lib/merchant-form";
+import {
+  MerchantShell,
+  Field,
+  Errors,
+  ImageUpload,
+  useUnsaved,
+} from "@/components/merchant/MerchantUI";
+import MapPicker from "@/components/ui/MapPicker";
+import Link from "next/link";
+type Hours = Record<string, { open: string; close: string; closed: boolean }>;
+type StoreForm = {
+  name: string;
+  profile: string;
+  category: string;
+  currency: string;
+  merchantType: string;
+  website: string;
+  orderLink: string;
+  contactInfo: string;
+  contactNumber: string;
+  address: string;
+  logo: string;
+  banner: string;
+  deliveryAvailable: boolean;
+  pickupAvailable: boolean;
+  socialMedia: Record<string, string>;
+  openingHours: Hours;
+  location: { type: "Point"; coordinates: number[] } | null;
+};
+const weekdays = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
-
-const SOCIAL_PLATFORMS = [
-  { key: 'facebook', icon: 'fa-facebook-f', color: '#1877f2', label: 'Facebook', placeholder: 'your.page' },
-  { key: 'instagram', icon: 'fa-instagram', color: '#e1306c', label: 'Instagram', placeholder: '@yourhandle' },
-  { key: 'twitter', icon: 'fa-twitter', color: '#1da1f2', label: 'Twitter / X', placeholder: '@yourhandle' },
-  { key: 'tiktok', icon: 'fa-tiktok', color: '#010101', label: 'TikTok', placeholder: '@yourhandle' },
-];
-
-const CATEGORIES = ['fashion','electronics','travel','health','entertainment','home','pets','food','education','other'];
-
-export default function EditProfilePage() {
-  const { user, updateUser } = useAuth();
+const empty: StoreForm = {
+  name: "",
+  profile: "",
+  category: "food_dining",
+  currency: "LKR",
+  merchantType: "offline",
+  website: "",
+  orderLink: "",
+  contactInfo: "",
+  contactNumber: "",
+  address: "",
+  logo: "",
+  banner: "",
+  deliveryAvailable: false,
+  pickupAvailable: false,
+  socialMedia: { facebook: "", instagram: "", twitter: "", tiktok: "" },
+  openingHours: {},
+  location: null,
+};
+export default function StoreProfile() {
+  const { user, loading: authLoading } = useAuth();
+  const { language } = useLanguage();
+  const c = merchantCopy[language];
   const router = useRouter();
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const bannerInputRef = useRef<HTMLInputElement>(null);
-
-  const [activeTab, setActiveTab] = useState('basic');
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
-  const [originalData, setOriginalData] = useState<any>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
-
-  const [form, setForm] = useState({
-    name: '',
-    profile: '',
-    category: '',
-    website: '',
-    contactInfo: '',
-    contactNumber: '',
-    address: '',
-    logo: '',
-    banner: '',
-    currency: 'USD',
-    socialMedia: { facebook: '', instagram: '', twitter: '', tiktok: '' },
-    location: null as { lat: number; lng: number } | null,
-  });
-
+  const [form, setForm] = useState<StoreForm>(empty);
+  const [baseline, setBaseline] = useState("");
+  const [id, setId] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [failure, setFailure] = useState("");
+  const [message, setMessage] = useState("");
+  const [recovered, setRecovered] = useState(false);
+  const lock = useRef(false);
+  const account = user ? `${user._id}:${user.merchantId}` : "";
+  const recoveryKey = `df-store-recovery:${account}`;
+  const dirty = loaded && JSON.stringify(form) !== baseline;
+  useUnsaved(dirty);
   useEffect(() => {
-    const loadProfile = async () => {
-      if (!user) { router.push('/login'); return; }
-      if (user.role !== 'merchant') { router.push('/'); return; }
-
-      let merchantId = user.merchantId;
-      if (!merchantId) {
-        try {
-          const refreshedUser = await UserAPI.getProfile(user._id);
-          merchantId = refreshedUser.merchantId?.toString();
-          if (merchantId) {
-            updateUser({ merchantId });
-          }
-        } catch {}
-      }
-
-      if (!merchantId) {
-        toast.error('Merchant profile is still syncing. Please sign out and sign in again.');
-        setLoading(false);
-        return;
-      }
-
-      MerchantAPI.getById(merchantId).then(m => {
+    if (authLoading) return;
+    if (!user || user.role !== "merchant") {
+      router.replace("/login?next=%2Fmerchant%2Fdashboard%2Fedit-profile");
+      return;
+    }
+    let active = true;
+    setLoaded(false);
+    setFailure("");
+    (async () => {
+      try {
+        const w = await MerchantWorkspaceAPI.get();
+        if (!active) return;
+        const m = w.merchant;
         const data = {
-          name: m.name || '',
-          profile: m.profile || '',
-          category: m.category || '',
-          website: m.website || '',
-          contactInfo: m.contactInfo || '',
-          contactNumber: m.contactNumber || '',
-          address: m.address || '',
-          logo: m.logo || '',
-          banner: m.banner || '',
-          socialMedia: { facebook: m.socialMedia?.facebook || '', instagram: m.socialMedia?.instagram || '', twitter: m.socialMedia?.twitter || '', tiktok: m.socialMedia?.tiktok || '' },
-          location: m.location?.coordinates ? { lat: m.location.coordinates[1], lng: m.location.coordinates[0] } : null,
-          currency: m.currency || 'USD',
-        };
-        setForm(data);
-        setOriginalData(data);
-      }).catch(() => toast.error('Failed to load profile.')).finally(() => setLoading(false));
+          ...empty,
+          ...Object.fromEntries(
+            Object.keys(empty).map((k) => [
+              k,
+              m[k] ?? empty[k as keyof StoreForm],
+            ]),
+          ),
+          category: normalizeCategoryId(m.category),
+          profile: m.profile || m.description || "",
+          socialMedia: { ...empty.socialMedia, ...m.socialMedia },
+          openingHours: m.openingHours || {},
+        } as StoreForm;
+        setId(m._id);
+        setBaseline(JSON.stringify(data));
+        try {
+          const recovery = JSON.parse(
+            sessionStorage.getItem(recoveryKey) || "null",
+          );
+          if (recovery?.account === account && recovery.merchantId === m._id) {
+            setForm({ ...data, ...recovery.form });
+            setRecovered(true);
+          } else setForm(data);
+        } catch {
+          setForm(data);
+        }
+        setLoaded(true);
+      } catch (e) {
+        if (active) setFailure(e instanceof Error ? e.message : c.loadError);
+      }
+    })();
+    return () => {
+      active = false;
     };
-
-    loadProfile();
-  }, [router, updateUser, user]);
-
-  // Track unsaved changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, account, router]);
   useEffect(() => {
-    if (!originalData) return;
-    setHasChanges(JSON.stringify(form) !== JSON.stringify(originalData));
-  }, [form, originalData]);
-
-  const updateForm = (key: string, value: any) => setForm(prev => ({ ...prev, [key]: value }));
-  const updateSocial = (key: string, value: string) => setForm(prev => ({ ...prev, socialMedia: { ...prev.socialMedia, [key]: value } }));
-
-  const handleImageFile = async (file: File, field: 'logo' | 'banner') => {
-    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
-    const setUploading = field === 'logo' ? setUploadingLogo : setUploadingBanner;
-    setUploading(true);
-    try {
-      const url = await ImageAPI.uploadSingle(file, 'merchants');
-      updateForm(field, url);
-    } catch (err: any) {
-      toast.error(err.message || `Failed to upload ${field}.`);
-    } finally {
-      setUploading(false);
+    if (loaded && account)
+      try {
+        if (dirty)
+          sessionStorage.setItem(
+            recoveryKey,
+            JSON.stringify({ account, merchantId: id, form }),
+          );
+        else sessionStorage.removeItem(recoveryKey);
+      } catch {}
+  }, [form, dirty, loaded, account, recoveryKey, id]);
+  function update<K extends keyof StoreForm>(k: K, v: StoreForm[K]) {
+    setForm((p) => ({ ...p, [k]: v }));
+    setMessage("");
+  }
+  async function save() {
+    if (lock.current || uploadBusy) return;
+    const issues: Record<string, string> = {};
+    for (const k of ["name", "category", "profile"] as const)
+      if (!form[k].trim()) issues[k] = c.requiredError;
+    for (const k of ["website", "orderLink"] as const)
+      if (form[k] && !httpUrl(form[k])) issues[k] = c.urlError;
+    if (!form.contactNumber && !form.contactInfo && !form.website && !Object.values(form.socialMedia).some(httpUrl))
+      issues.contactNumber = c.contactError;
+    if (
+      form.contactInfo &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactInfo)
+    )
+      issues.contactInfo = c.contactError;
+    if (
+      form.contactNumber &&
+      !/^\+?[1-9]\d{6,14}$/.test(phone(form.contactNumber))
+    )
+      issues.contactNumber = c.phoneError;
+    if (form.merchantType !== "online") {
+      if (!form.address.trim()) issues.address = c.requiredError;
+      if (!form.location) issues.location = c.locationError;
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) { toast.error('Business name is required'); setActiveTab('basic'); return; }
-    setSaving(true);
+    if (
+      form.merchantType !== "offline" &&
+      !httpUrl(form.orderLink || form.website)
+    )
+      issues.orderLink = c.urlError;
+    for (const [k, v] of Object.entries(form.socialMedia))
+      if (v && !httpUrl(v)) issues[`social-${k}`] = c.urlError;
+    for (const v of Object.values(form.openingHours))
+      if (
+        !v.closed &&
+        ((v.open && !v.close) ||
+          (!v.open && v.close) ||
+          (v.open && v.close && v.close <= v.open))
+      )
+        issues.openingHours = c.dateError;
+    setErrors(issues);
+    if (Object.keys(issues).length) return;
+    setFailure("");
+    lock.current = true;
+    setBusy(true);
     try {
-      const payload: any = {
-        name: form.name,
-        profile: form.profile,
-        contactInfo: form.contactInfo,
-        contactNumber: form.contactNumber,
-        address: form.address,
-        logo: form.logo,
-        currency: form.currency,
-        socialMedia: form.socialMedia,
-        location: form.location
-          ? { type: 'Point', coordinates: [form.location.lng, form.location.lat] }
-          : null,
-      };
-      await MerchantAPI.update(user!.merchantId!, payload);
-      setOriginalData({ ...form });
-      setHasChanges(false);
-      toast.success('Profile updated successfully!');
-      router.push('/merchant/dashboard');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update profile.');
+      const payload = { ...form, contactNumber: phone(form.contactNumber) };
+      const accepted = await MerchantAPI.update(id, {
+        ...payload,
+        description: form.profile,
+      });
+      if (!accepted._id && !accepted.id) throw new Error(c.saveError);
+      setForm(payload);
+      setBaseline(JSON.stringify(payload));
+      sessionStorage.removeItem(recoveryKey);
+      setMessage(c.saved);
+    } catch (e) {
+      setFailure(e instanceof Error ? e.message : c.saveError);
     } finally {
-      setSaving(false);
+      setBusy(false);
+      lock.current = false;
     }
-  };
-
-  const inputStyle = {
-    width: '100%', padding: '0.75rem 1rem', borderRadius: '0.75rem',
-    border: '1.5px solid var(--border-color)', background: 'var(--card-bg)',
-    color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none',
-    boxSizing: 'border-box' as const, transition: 'border-color 0.2s',
-  };
-
-  const labelStyle = {
-    display: 'block', fontSize: '0.85rem', fontWeight: 600 as const,
-    marginBottom: '0.4rem', color: 'var(--text-primary)',
-  };
-
-  const hintStyle = { fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.3rem' };
-
-  const getSafeLogo = (url: string, name: string) =>
-    url && (url.startsWith('data:') || url.startsWith('http'))
-      ? url : `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'M')}&background=random&size=300`;
-
-  if (loading) return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="skeleton mb-4" style={{ height: '40px', width: '200px' }}></div>
-      <div className="skeleton-card" style={{ height: '500px' }}></div>
-    </div>
+  }
+  const field = (
+    k: keyof StoreForm,
+    label: string,
+    type = "text",
+    required = false,
+    hint?: string,
+  ) => (
+    <Field
+      id={k}
+      label={label}
+      required={required}
+      hint={hint}
+      error={errors[k]}
+    >
+      <input
+        type={type}
+        value={String(form[k])}
+        onChange={(e) => update(k, e.target.value as never)}
+      />
+    </Field>
   );
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      {/* Page Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/merchant/dashboard')}
-            style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <i className="fas fa-arrow-left"></i>
-          </button>
-          <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>Edit Store Profile</h1>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>Update your store information and branding</p>
+  if (!loaded)
+    return (
+      <MerchantShell title={c.store}>
+        {failure ? (
+          <div role="alert" className="mw-notice">
+            {failure}
+            <button
+              className="mw-button mw-secondary"
+              onClick={() => window.location.reload()}
+            >
+              {c.retry}
+            </button>
           </div>
-        </div>
-
-        {/* Unsaved changes indicator */}
-        {hasChanges && (
-          <div className="flex items-center gap-2 fade-in" style={{ padding: '0.4rem 0.875rem', borderRadius: '9999px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)' }}>
-            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }}></div>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#d97706' }}>Unsaved changes</span>
-          </div>
+        ) : (
+          <p role="status">{c.loading}</p>
         )}
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar Tabs */}
-          <div style={{ width: '100%', maxWidth: '200px', flexShrink: 0 }}>
-            <div className="promotion-card" style={{ padding: '0.5rem' }}>
-              {TABS.map(tab => (
-                <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.625rem', width: '100%',
-                    padding: '0.75rem 1rem', borderRadius: '0.625rem', border: 'none', cursor: 'pointer',
-                    fontSize: '0.875rem', fontWeight: 600, textAlign: 'left', transition: 'all 0.15s',
-                    background: activeTab === tab.id ? 'linear-gradient(135deg,var(--primary-color),var(--primary-dark))' : 'transparent',
-                    color: activeTab === tab.id ? '#fff' : 'var(--text-secondary)',
-                    marginBottom: '0.125rem',
-                  }}>
-                  <i className={`fas ${tab.icon}`} style={{ width: '16px', textAlign: 'center' }}></i>
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Store preview card */}
-            <div className="promotion-card mt-4" style={{ padding: '1rem', textAlign: 'center' }}>
-              <img src={getSafeLogo(form.logo, form.name)} alt="Logo preview"
-                style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary-color)', margin: '0 auto 0.75rem' }}
-                onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(form.name || 'M')}&background=random&size=300`; }} />
-              <p style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)', margin: '0 0 0.25rem' }}>{form.name || 'Your Store'}</p>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>{form.category || 'Category'}</p>
-            </div>
-          </div>
-
-          {/* Tab Content */}
-          <div style={{ flex: 1 }}>
-            <div className="promotion-card" style={{ padding: '1.75rem' }}>
-
-              {/* Basic Info */}
-              {activeTab === 'basic' && (
-                <div className="fade-in">
-                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-store" style={{ color: 'var(--primary-color)' }}></i> Basic Information
-                  </h2>
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <label style={labelStyle}>Business Name <span style={{ color: '#ef4444' }}>*</span></label>
-                      <input style={inputStyle} value={form.name} onChange={e => updateForm('name', e.target.value)} required placeholder="Your Store Name"
-                        onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Category</label>
-                      <select style={inputStyle} value={form.category} onChange={e => updateForm('category', e.target.value)}>
-                        <option value="">Select a category</option>
-                        {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Currency</label>
-                      <select style={inputStyle} value={form.currency} onChange={e => updateForm('currency', e.target.value)}
-                        onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')}>
-                        {CURRENCIES.map(c => (
-                          <option key={c.code} value={c.code}>{c.symbol} — {c.name} ({c.code})</option>
-                        ))}
-                      </select>
-                      <p style={hintStyle}>This currency will be shown on all your deal prices</p>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Store Description</label>
-                      <textarea style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }} value={form.profile} onChange={e => updateForm('profile', e.target.value)}
-                        placeholder="Tell customers about your store, what you sell, and what makes you special..."
-                        onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')}></textarea>
-                      <p style={hintStyle}>{form.profile.length}/500 characters</p>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Website</label>
-                      <div style={{ position: 'relative' }}>
-                        <i className="fas fa-globe" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}></i>
-                        <input type="url" style={{ ...inputStyle, paddingLeft: '2.5rem' }} value={form.website} onChange={e => updateForm('website', e.target.value)}
-                          placeholder="https://yourstore.com"
-                          onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                      </div>
-                    </div>
+      </MerchantShell>
+    );
+  return (
+    <MerchantShell
+      title={c.store}
+      subtitle={c.storeIntro}
+      actions={
+        <Link className="mw-button mw-secondary" href={`/merchants/${id}`}>
+          {c.viewStore}
+        </Link>
+      }
+    >
+      {recovered && <div className="mw-notice">{c.recovery}</div>}
+      {message && (
+        <div role="status" className="mw-notice">
+          {message}
+        </div>
+      )}
+      {failure && (
+        <div role="alert" className="mw-notice">
+          {failure}
+        </div>
+      )}
+      <Errors
+        errors={errors}
+        labels={{
+          ...c,
+          contactInfo: c.email,
+          contactNumber: c.phone,
+          openingHours: c.hours,
+        }}
+      />
+      <form
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+      >
+        <fieldset disabled={busy || uploadBusy} style={{ minWidth: 0 }}>
+          <div className="mw-grid">
+            <div>
+              <section className="mw-panel">
+                <h2>{c.identity}</h2>
+                <div className="mw-fields">
+                  {field("name", c.name, "text", true)}
+                  <Field
+                    id="category"
+                    label={c.category}
+                    required
+                    error={errors.category}
+                  >
+                    <select
+                      value={form.category}
+                      onChange={(e) => update("category", e.target.value)}
+                    >
+                      {DEALFINDER_CATEGORIES.filter(
+                        (x) => !["all", "bank_cards"].includes(x.id),
+                      ).map((x) => (
+                        <option key={x.id} value={x.id}>
+                          {categoryName(x.id, language, x.name)}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <div className="mw-wide">
+                    <Field
+                      id="profile"
+                      label={c.profile}
+                      required
+                      error={errors.profile}
+                    >
+                      <textarea
+                        maxLength={500}
+                        value={form.profile}
+                        onChange={(e) => update("profile", e.target.value)}
+                      />
+                    </Field>
                   </div>
+                  <Field id="merchantType" label={c.mode}>
+                    <select
+                      value={form.merchantType}
+                      onChange={(e) => update("merchantType", e.target.value)}
+                    >
+                      {["offline", "online", "hybrid"].map((k) => (
+                        <option key={k} value={k}>
+                          {c[k as keyof typeof c]}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field id="currency" label={c.currency}>
+                    <select
+                      value={form.currency}
+                      onChange={(e) => update("currency", e.target.value)}
+                    >
+                      {CURRENCIES.map((x) => (
+                        <option key={x.code} value={x.code}>
+                          {x.code} · {x.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
                 </div>
-              )}
-
-              {/* Contact */}
-              {activeTab === 'contact' && (
-                <div className="fade-in">
-                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-phone" style={{ color: 'var(--primary-color)' }}></i> Contact Information
-                  </h2>
-                  <div className="flex flex-col gap-4">
-                    <div>
-                      <label style={labelStyle}>Contact Email</label>
-                      <div style={{ position: 'relative' }}>
-                        <i className="fas fa-envelope" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}></i>
-                        <input type="email" style={{ ...inputStyle, paddingLeft: '2.5rem' }} value={form.contactInfo} onChange={e => updateForm('contactInfo', e.target.value)}
-                          placeholder="contact@yourstore.com"
-                          onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Phone Number</label>
-                      <div style={{ position: 'relative' }}>
-                        <i className="fas fa-phone" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}></i>
-                        <input type="tel" style={{ ...inputStyle, paddingLeft: '2.5rem' }} value={form.contactNumber} onChange={e => updateForm('contactNumber', e.target.value)}
-                          placeholder="+1 (555) 000-0000"
-                          onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                      </div>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Store Address</label>
-                      <div style={{ position: 'relative' }}>
-                        <i className="fas fa-map-marker-alt" style={{ position: 'absolute', left: '1rem', top: '1rem', color: 'var(--text-secondary)', pointerEvents: 'none' }}></i>
-                        <textarea style={{ ...inputStyle, paddingLeft: '2.5rem', resize: 'vertical', minHeight: '80px' }} value={form.address} onChange={e => updateForm('address', e.target.value)}
-                          placeholder="123 Main Street, City, Country"
-                          onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')}></textarea>
-                      </div>
-                      <p style={hintStyle}>This address will be shown on your store profile</p>
-                    </div>
-                  </div>
+              </section>
+              <section className="mw-panel">
+                <h2>{c.contact}</h2>
+                <p className="mw-muted" style={{ marginBottom: 20 }}>
+                  {c.private}
+                </p>
+                <div className="mw-fields">
+                  {field(
+                    "contactNumber",
+                    c.phone,
+                    "tel",
+                    false,
+                    "+94 77 123 4567",
+                  )}
+                  {field("contactInfo", c.email, "email")}
+                  {field("website", c.website, "url")}
+                  {form.merchantType !== "offline" &&
+                    field("orderLink", c.orderLink, "url", true)}
                 </div>
-              )}
-
-              {/* Social Media */}
-              {activeTab === 'social' && (
-                <div className="fade-in">
-                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-share-alt" style={{ color: 'var(--primary-color)' }}></i> Social Media
-                  </h2>
-                  <p style={{ ...hintStyle, marginBottom: '1.5rem' }}>Connect your social media accounts to let customers follow you</p>
-                  <div className="flex flex-col gap-4">
-                    {SOCIAL_PLATFORMS.map(p => (
-                      <div key={p.key}>
-                        <label style={labelStyle}>{p.label}</label>
-                        <div style={{ position: 'relative' }}>
-                          <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', width: '28px', height: '28px', borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-                            <i className={`fab ${p.icon}`} style={{ color: '#fff', fontSize: '0.75rem' }}></i>
-                          </div>
-                          <input style={{ ...inputStyle, paddingLeft: '3.25rem' }} value={(form.socialMedia as any)[p.key]}
-                            onChange={e => updateSocial(p.key, e.target.value)} placeholder={p.placeholder}
-                            onFocus={e => (e.target.style.borderColor = p.color)} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                        </div>
-                        {(form.socialMedia as any)[p.key] && (
-                          <p style={{ ...hintStyle, color: 'var(--primary-color)' }}>
-                            <i className="fas fa-check-circle mr-1"></i> Connected
-                          </p>
-                        )}
-                      </div>
+                <details style={{ marginTop: 24 }}>
+                  <summary>{c.social}</summary>
+                  <p className="mw-muted">{c.socialHint}</p>
+                  <div className="mw-fields" style={{ marginTop: 16 }}>
+                    {Object.keys(form.socialMedia).map((k) => (
+                      <Field
+                        key={k}
+                        id={`social-${k}`}
+                        label={
+                          k === "twitter"
+                            ? "X / Twitter"
+                            : k.charAt(0).toUpperCase() + k.slice(1)
+                        }
+                        error={errors[`social-${k}`]}
+                      >
+                        <input
+                          type="url"
+                          value={form.socialMedia[k]}
+                          onChange={(e) =>
+                            update("socialMedia", {
+                              ...form.socialMedia,
+                              [k]: e.target.value,
+                            })
+                          }
+                        />
+                      </Field>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* Branding */}
-              {activeTab === 'branding' && (
-                <div className="fade-in">
-                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-image" style={{ color: 'var(--primary-color)' }}></i> Branding
-                  </h2>
-                  <p style={{ ...hintStyle, marginBottom: '1.5rem' }}>Upload your store logo and banner image</p>
-
-                  {/* Logo */}
-                  <div style={{ marginBottom: '2rem' }}>
-                    <label style={labelStyle}>Store Logo</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.25rem', borderRadius: '1rem', border: '2px dashed var(--border-color)', background: 'var(--light-gray)', marginBottom: '0.75rem' }}>
-                      <img src={getSafeLogo(form.logo, form.name)} alt="Logo"
-                        style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary-color)', flexShrink: 0 }}
-                        onError={(e: any) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(form.name || 'M')}&background=random&size=300`; }} />
-                      <div className="flex-1">
-                        <p style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>Upload a logo</p>
-                        <p style={hintStyle}>PNG, JPG up to 5MB. Recommended: 400×400px</p>
-                        <div className="flex gap-2 mt-3">
-                          <button type="button" disabled={uploadingLogo} onClick={() => logoInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', opacity: uploadingLogo ? 0.6 : 1, cursor: uploadingLogo ? 'not-allowed' : 'pointer' }}>
-                            {uploadingLogo ? <><i className="fas fa-spinner fa-spin"></i> Uploading...</> : <><i className="fas fa-upload"></i> Upload File</>}
-                          </button>
-                          {form.logo && !uploadingLogo && <button type="button" onClick={() => updateForm('logo', '')} style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', borderRadius: '0.625rem', border: '1.5px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer' }}>Remove</button>}
-                        </div>
-                        <input ref={logoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0], 'logo')} />
-                      </div>
-                    </div>
-                    <input style={inputStyle} value={form.logo} onChange={e => updateForm('logo', e.target.value)} placeholder="Or paste image URL: https://..."
-                      onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                    <p style={hintStyle}>You can upload a file or paste a URL</p>
+                </details>
+              </section>
+              {form.merchantType !== "online" && (
+                <section className="mw-panel">
+                  <h2>{c.location}</h2>
+                  {field("address", c.address, "text", true)}
+                  <div id="location" tabIndex={-1} style={{ marginTop: 20 }}>
+                    <h3>{c.map}</h3>
+                    {errors.location && (
+                      <p className="mw-error">{errors.location}</p>
+                    )}
+                    <MapPicker
+                      lat={form.location?.coordinates[1] ?? null}
+                      lng={form.location?.coordinates[0] ?? null}
+                      onChange={(lat, lng) =>
+                        update("location", {
+                          type: "Point",
+                          coordinates: [lng, lat],
+                        })
+                      }
+                      height="300px"
+                    />
+                    {form.location && (
+                      <p className="mw-muted">
+                        {form.location.coordinates[1].toFixed(5)},{" "}
+                        {form.location.coordinates[0].toFixed(5)}
+                      </p>
+                    )}
                   </div>
-
-                  {/* Banner */}
-                  <div>
-                    <label style={labelStyle}>Store Banner</label>
-                    <div style={{ borderRadius: '1rem', overflow: 'hidden', border: '2px dashed var(--border-color)', marginBottom: '0.75rem', position: 'relative', minHeight: '140px', background: form.banner ? `url(${form.banner}) center/cover` : 'var(--light-gray)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {!form.banner && (
-                        <div className="text-center" style={{ padding: '2rem' }}>
-                          <i className="fas fa-image" style={{ fontSize: '2rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block' }}></i>
-                          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>No banner set</p>
-                        </div>
-                      )}
-                      {form.banner && <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}></div>}
-                      <div style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-                        <button type="button" disabled={uploadingBanner} onClick={() => bannerInputRef.current?.click()} className="btn" style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', background: 'rgba(255,255,255,0.9)', color: 'var(--text-primary)', border: 'none', opacity: uploadingBanner ? 0.6 : 1, cursor: uploadingBanner ? 'not-allowed' : 'pointer' }}>
-                          {uploadingBanner ? <><i className="fas fa-spinner fa-spin"></i> Uploading...</> : <><i className="fas fa-upload"></i> Upload</>}
-                        </button>
-                        {form.banner && !uploadingBanner && <button type="button" onClick={() => updateForm('banner', '')} style={{ fontSize: '0.8rem', padding: '0.4rem 0.875rem', borderRadius: '0.625rem', background: 'rgba(239,68,68,0.9)', color: '#fff', border: 'none', cursor: 'pointer' }}>Remove</button>}
-                      </div>
-                      <input ref={bannerInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files?.[0] && handleImageFile(e.target.files[0], 'banner')} />
+                  <details style={{ marginTop: 24 }}>
+                    <summary>{c.hours}</summary>
+                    <p className="mw-muted">{c.hoursHint}</p>
+                    <div className="mw-hours" id="openingHours" tabIndex={-1}>
+                      {weekdays.map((day, i) => {
+                        const v = form.openingHours[day] || {
+                          open: "",
+                          close: "",
+                          closed: false,
+                        };
+                        return (
+                          <div key={day}>
+                            <span>
+                              {new Intl.DateTimeFormat(
+                                language === "en" ? "en-LK" : language,
+                                { weekday: "long" },
+                              ).format(new Date(2026, 0, 5 + i))}
+                            </span>
+                            <Field id={`${day}-open`} label={c.open}>
+                              <input
+                                type="time"
+                                disabled={v.closed}
+                                value={v.open || ""}
+                                onChange={(e) =>
+                                  update("openingHours", {
+                                    ...form.openingHours,
+                                    [day]: { ...v, open: e.target.value },
+                                  })
+                                }
+                              />
+                            </Field>
+                            <Field id={`${day}-close`} label={c.close}>
+                              <input
+                                type="time"
+                                disabled={v.closed}
+                                value={v.close || ""}
+                                onChange={(e) =>
+                                  update("openingHours", {
+                                    ...form.openingHours,
+                                    [day]: { ...v, close: e.target.value },
+                                  })
+                                }
+                              />
+                            </Field>
+                            <label className="mw-checks">
+                              <input
+                                type="checkbox"
+                                checked={v.closed}
+                                onChange={(e) =>
+                                  update("openingHours", {
+                                    ...form.openingHours,
+                                    [day]: { ...v, closed: e.target.checked },
+                                  })
+                                }
+                              />
+                              {c.closed}
+                            </label>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <input style={inputStyle} value={form.banner} onChange={e => updateForm('banner', e.target.value)} placeholder="Or paste banner URL: https://..."
-                      onFocus={e => (e.target.style.borderColor = 'var(--primary-color)')} onBlur={e => (e.target.style.borderColor = 'var(--border-color)')} />
-                    <p style={hintStyle}>Recommended: 1200×400px. This appears at the top of your store page.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Location */}
-              {activeTab === 'location' && (
-                <div className="fade-in">
-                  <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <i className="fas fa-map-marker-alt" style={{ color: 'var(--primary-color)' }}></i> Store Location
-                  </h2>
-                  <p style={{ ...hintStyle, marginBottom: '1.25rem' }}>Pin your store on the map so customers can find nearby deals. Click anywhere on the map or drag the marker to set your location.</p>
-
-                  {form.location && (
-                    <div style={{ padding: '0.75rem 1rem', borderRadius: '0.75rem', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.85rem', color: '#059669', fontWeight: 600 }}>
-                        <i className="fas fa-check-circle mr-2"></i>
-                        {form.location.lat.toFixed(6)}, {form.location.lng.toFixed(6)}
-                      </span>
-                      <button type="button" onClick={() => updateForm('location', null)}
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.625rem', borderRadius: '0.375rem', border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)', color: '#ef4444', cursor: 'pointer' }}>
-                        <i className="fas fa-times mr-1"></i>Clear
-                      </button>
-                    </div>
-                  )}
-
-                  <button type="button" onClick={() => {
-                    if (!navigator.geolocation) { toast.error('Geolocation not supported'); return; }
-                    navigator.geolocation.getCurrentPosition(
-                      ({ coords }) => updateForm('location', { lat: coords.latitude, lng: coords.longitude }),
-                      () => toast.error('Could not get your location')
-                    );
-                  }} className="btn" style={{ marginBottom: '1rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
-                    <i className="fas fa-location-arrow" style={{ color: 'var(--primary-color)' }}></i> Use My Current Location
-                  </button>
-
-                  <MapPicker
-                    lat={form.location?.lat ?? null}
-                    lng={form.location?.lng ?? null}
-                    onChange={(lat, lng) => updateForm('location', { lat, lng })}
-                    height="360px"
-                  />
-                  <p style={{ ...hintStyle, marginTop: '0.5rem' }}>Click on the map to place your store marker, or drag it to adjust.</p>
-                </div>
+                    {errors.openingHours && (
+                      <p className="mw-error">{errors.openingHours}</p>
+                    )}
+                  </details>
+                </section>
               )}
             </div>
-
-            {/* Tab navigation + Save */}
-            <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
-              <div className="flex gap-2">
-                {TABS.findIndex(t => t.id === activeTab) > 0 && (
-                  <button type="button" onClick={() => setActiveTab(TABS[TABS.findIndex(t => t.id === activeTab) - 1].id)}
-                    className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)' }}>
-                    <i className="fas fa-arrow-left"></i> Previous
-                  </button>
-                )}
-                {TABS.findIndex(t => t.id === activeTab) < TABS.length - 1 && (
-                  <button type="button" onClick={() => setActiveTab(TABS[TABS.findIndex(t => t.id === activeTab) + 1].id)}
-                    className="btn" style={{ border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)' }}>
-                    Next <i className="fas fa-arrow-right"></i>
-                  </button>
-                )}
+            <aside>
+              <section className="mw-panel">
+                <h2>{c.branding}</h2>
+                <h3>{c.logo}</h3>
+                <ImageUpload
+                  images={form.logo ? [form.logo] : []}
+                  onChange={(v) => update("logo", v[0] || "")}
+                  max={1}
+                  onBusy={setUploadBusy}
+                />
+                <h3 style={{ marginTop: 28 }}>{c.banner}</h3>
+                <ImageUpload
+                  images={form.banner ? [form.banner] : []}
+                  onChange={(v) => update("banner", v[0] || "")}
+                  max={1}
+                  onBusy={setUploadBusy}
+                />
+              </section>
+              <div className="mw-notice">
+                <h3>{form.name || c.name}</h3>
+                <p>{form.profile}</p>
+                <p className="mw-muted">{c.storeIntro}</p>
               </div>
-
-              <div className="flex gap-3">
-                <button type="button" onClick={() => router.push('/merchant/dashboard')}
-                  style={{ padding: '0.6rem 1.25rem', borderRadius: '0.625rem', border: '1.5px solid var(--border-color)', background: 'var(--card-bg)', color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving || !hasChanges} className="btn btn-primary"
-                  style={{ opacity: !hasChanges ? 0.6 : 1, cursor: !hasChanges ? 'not-allowed' : 'pointer' }}>
-                  {saving ? <><i className="fas fa-spinner fa-spin"></i> Saving...</> : <><i className="fas fa-save"></i> Save Changes</>}
-                </button>
-              </div>
-            </div>
+            </aside>
           </div>
+        </fieldset>
+        <div className="mw-footer">
+          <p className="mw-muted">{dirty ? c.unsaved : message || ""}</p>
+          <button
+            className="mw-button"
+            type="submit"
+            disabled={busy || uploadBusy}
+          >
+            {busy ? c.saving : c.saveStore}
+          </button>
         </div>
       </form>
-    </div>
+    </MerchantShell>
   );
 }

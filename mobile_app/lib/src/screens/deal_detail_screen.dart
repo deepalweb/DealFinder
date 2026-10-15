@@ -1,3 +1,9 @@
+import '../widgets/stitch_discover_components.dart' show stitchDiscoverTheme;
+import '../widgets/discover_offer_rating.dart';
+import '../widgets/hybrid_offer_layout.dart';
+import '../services/browsing_area.dart';
+import '../utils/offer_presentation.dart';
+import '../widgets/discovery_offer_card.dart' show offerMoney;
 import 'dart:convert'; // For base64Decode
 import 'dart:async';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
@@ -39,7 +45,8 @@ String _localizedText(BuildContext context, String en, String si, String ta) {
 
 class DealDetailScreen extends StatefulWidget {
   final Promotion promotion;
-  const DealDetailScreen({super.key, required this.promotion});
+  final ApiService? api;
+  const DealDetailScreen({super.key, required this.promotion, this.api});
 
   @override
   State<DealDetailScreen> createState() => _DealDetailScreenState();
@@ -47,7 +54,20 @@ class DealDetailScreen extends StatefulWidget {
 
 class _DealDetailScreenState extends State<DealDetailScreen> {
   bool _isFavorite = false;
-  bool _detailsExpanded = false;
+  bool _detailsExpanded = true;
+  int _galleryIndex = 0;
+  final _offerAnchor = GlobalKey(),
+      _highlightsAnchor = GlobalKey(),
+      _merchantAnchor = GlobalKey(),
+      _conditionsAnchor = GlobalKey();
+  void _section(GlobalKey key) {
+    final target = key.currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(target,
+          duration: AppMotion.duration(context), alignment: .1);
+    }
+  }
+
   List<Map<String, dynamic>> _comments = [];
   List<Map<String, dynamic>> _ratings = [];
   List<Map<String, dynamic>> _redemptionFeedback = [];
@@ -57,7 +77,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   double _averageRating = 0;
   double _userRating = 0;
   int _reviewCount = 0;
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService = widget.api ?? ApiService();
   final TextEditingController _commentController = TextEditingController();
   String? _userToken;
   String? _userId;
@@ -176,10 +196,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Future<void> _trackView() async {
+    if (_isPlatformBankOffer) return;
     await DealHistoryService.addToHistory(widget.promotion.id);
     await RecommendationService.trackView(
         widget.promotion.id, widget.promotion.category);
-    if (_isPlatformBankOffer) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await _apiService.recordPromotionClick(
@@ -293,12 +313,13 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
   bool _savingFavorite = false;
   Future<void> _toggleFavorite() async {
-    if (_savingFavorite) return;
+    if (_savingFavorite || _isPlatformBankOffer) return;
     _savingFavorite = true;
     try {
       if (!await _ensureSignedIn() || !mounted) return;
       final next = !await FavoritesManager.isFavorite(widget.promotion.id);
-      await SavedOfferService.setSaved(widget.promotion, next);
+      await SavedOfferService.setSaved(widget.promotion, next,
+          api: _apiService);
       if (!mounted) return;
       setState(() => _isFavorite = next);
       if (next && _isPlatformBankOffer) {
@@ -356,16 +377,11 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final coords = _merchantCoordinates();
     if (coords == null) return;
 
-    final locationResult = await LocationService.resolveCurrentLocation(
-      requestPermission: false,
-      allowLastKnownFallback: true,
-    );
-    final position = locationResult.position;
-    if (position == null || !mounted) return;
-
+    final area = await BrowsingArea.read();
+    if (area == null || !mounted) return;
     final distanceKm = LocationService.calculateDistance(
-      position.latitude,
-      position.longitude,
+      area.latitude,
+      area.longitude,
       coords.$1,
       coords.$2,
     );
@@ -385,7 +401,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
 
       final allPromos = await _apiService.fetchPromotions();
       return allPromos
-          .where((p) => p.id != widget.promotion.id)
+          .where((p) =>
+              OfferPresentation(p).public &&
+              OfferPresentation(p).identity !=
+                  OfferPresentation(widget.promotion).identity)
           .take(5)
           .toList();
     } catch (e) {
@@ -473,12 +492,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     try {
-      await _apiService.recordPromotionClick(
-        widget.promotion.id,
-        type: 'outbound',
-        token: _userToken,
-        userId: _userId,
-      );
+      if (!_isPlatformBankOffer) {
+        await _apiService.recordPromotionClick(
+          widget.promotion.id,
+          type: 'outbound',
+          token: _userToken,
+          userId: _userId,
+        );
+      }
       if (mounted) {
         setState(() => _clickCount += 1);
       }
@@ -519,7 +540,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     return '';
   }
 
-  bool get _supportsVisit => widget.promotion.supportsVisit;
+  bool get _supportsVisit =>
+      widget.promotion.fulfillmentType != 'order' &&
+      widget.promotion.supportsVisit;
 
   bool get _showsVisitNow => _supportsVisit && !_isPlatformBankOffer;
 
@@ -528,6 +551,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   bool get _supportsPickup => widget.promotion.supportsPickup;
 
   String? get _effectiveOrderLink {
+    final offerLink = widget.promotion.orderLink?.trim();
+    if (offerLink != null && offerLink.isNotEmpty) return offerLink;
     final merchantLink = _merchantData?['orderLink']?.toString().trim();
     if (merchantLink != null && merchantLink.isNotEmpty) {
       return merchantLink;
@@ -549,31 +574,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     return '${(distanceMeters / 1000).toStringAsFixed(1)} km away';
   }
 
-  String _displayTitle(Promotion promotion) {
-    var title = promotion.title.trim();
-    title = title
-        .replaceFirst(
-          RegExp(r'^[^\w\s]+', unicode: true),
-          '',
-        )
-        .trim();
-
-    final computedDiscount = promotion.discountPercentage;
-    final titleDiscountMatch =
-        RegExp(r'(\d+)\s*%\s*OFF', caseSensitive: false).firstMatch(title);
-    if (computedDiscount != null && titleDiscountMatch != null) {
-      final titleDiscount = int.tryParse(titleDiscountMatch.group(1) ?? '');
-      if (titleDiscount != null && titleDiscount != computedDiscount) {
-        title = title.replaceRange(
-          titleDiscountMatch.start,
-          titleDiscountMatch.end,
-          '$computedDiscount% OFF',
-        );
-      }
-    }
-
-    return title;
-  }
+  String _displayTitle(Promotion promotion) => promotion.title.trim();
 
   String _formatCountdownInline(String countdownText) {
     if (countdownText == 'Expired') {
@@ -669,6 +670,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           .map((rating) => (rating['value'] as num?)?.toDouble())
           .whereType<double>()
           .toList();
+      if (!mounted) return;
       setState(() {
         _comments = comments;
         _ratings = ratings;
@@ -680,20 +682,24 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             : 0;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _comments = [];
         _ratings = [];
       });
     } finally {
-      setState(() {
-        _loadingComments = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loadingComments = false;
+        });
+      }
     }
   }
 
   Future<void> _fetchPromotionStats() async {
     try {
       final stats = await _apiService.fetchPromotionStats(widget.promotion.id);
+      if (!mounted) return;
       setState(() {
         _viewCount = (stats['viewCount'] as num?)?.toInt() ?? 0;
         _favoriteCount = (stats['favoriteCount'] as num?)?.toInt() ?? 0;
@@ -717,6 +723,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             (stats['averageRating'] as num?)?.toDouble() ?? _averageRating;
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
         _commentCount = _comments.length;
         _reviewCount = _ratings.length;
@@ -1110,22 +1117,25 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+      data: stitchDiscoverTheme(Theme.of(context)),
+      child: Builder(builder: _buildDetails));
+
+  Widget _buildDetails(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final promotion = widget.promotion;
     final theme = Theme.of(context);
-    final dateFormat = DateFormat('MMM d, yyyy');
+    final dateFormat =
+        DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag());
     final orderLink = _effectiveOrderLink;
     final deepLink = '${AppConfig.publicBaseUrl}/deal/${promotion.id}';
     final hasMerchant =
         promotion.merchantName != null && promotion.merchantName!.isNotEmpty;
-    final hasPriceInfo = promotion.originalPrice != null ||
-        promotion.discountedPrice != null ||
-        promotion.price != null;
     final headlinePrice = _headlinePriceText(promotion);
     final originalPriceLabel = _originalPriceText(promotion);
-    final savingsLabel = _savingsText(promotion);
-    final distanceLabel = _formatDistance(_displayDistanceMeters);
+    final distanceLabel = OfferPresentation(promotion).onlineOnly
+        ? ''
+        : _formatDistance(_displayDistanceMeters);
     final isVerifiedDeal =
         (_trustStatus ?? promotion.trustStatus) == 'verified' ||
             promotion.adminVerified;
@@ -1135,8 +1145,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             _t('Verified deal', 'Verified deal', 'Verified deal'))
         : null;
     final whyVisitCard = _WhyVisitCard(
-      savingsLabel: savingsLabel,
-      distanceLabel: distanceLabel.isEmpty ? null : distanceLabel,
+      savingsLabel: null,
+      distanceLabel: null,
       countdownText: _countdownText == null
           ? null
           : _formatCountdownInline(_countdownText!),
@@ -1146,44 +1156,22 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final merchantLogoProvider = _buildMerchantLogoProvider(
       (_merchantData?['logo'] ?? promotion.merchantLogoUrl)?.toString(),
     );
-    final activityItems = [
-      _DealStatItem(
-        icon: Icons.visibility_outlined,
-        label: l10n.viewsLabel,
-        value: _viewCount,
-      ),
-      _DealStatItem(
-        icon: Icons.favorite_border,
-        label: l10n.likesLabel,
-        value: _favoriteCount,
-      ),
-      _DealStatItem(
-        icon: Icons.chat_bubble_outline,
-        label: l10n.commentsLabel,
-        value: _commentCount,
-      ),
-      _DealStatItem(
-        icon: Icons.ads_click_outlined,
-        label: l10n.clicksLabel,
-        value: _clickCount,
-      ),
-      _DealStatItem(
-        icon: Icons.directions_outlined,
-        label: l10n.directionsLabel,
-        value: _directionCount,
-      ),
-      if (_redeemCount > 0)
+    final activityItems = <_DealStatItem>[
+      if (_viewCount > 0)
         _DealStatItem(
-          icon: Icons.qr_code_2_rounded,
-          label: _t('Redeemed', 'Redeemed', 'Redeemed'),
-          value: _redeemCount,
-        ),
-      if (_reportCount > 0)
+            icon: Icons.visibility_outlined,
+            label: l10n.viewsLabel,
+            value: _viewCount),
+      if (_favoriteCount > 0)
         _DealStatItem(
-          icon: Icons.report_problem_outlined,
-          label: _t('Reports', 'Reports', 'Reports'),
-          value: _reportCount,
-        ),
+            icon: Icons.favorite_border,
+            label: l10n.likesLabel,
+            value: _favoriteCount),
+      if (_directionCount > 0)
+        _DealStatItem(
+            icon: Icons.directions_outlined,
+            label: l10n.directionsLabel,
+            value: _directionCount),
     ];
     final statusChips = <Widget>[
       if (promotion.featured == true)
@@ -1209,36 +1197,20 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         )
       else if (promotion.adminVerified)
         const DealVerificationBadge(compact: false),
-      if ((promotion.category ?? '').trim().isNotEmpty)
-        _buildInfoPill(
-          icon: Icons.sell_outlined,
-          label: promotion.category!.trim(),
-          backgroundColor: theme.colorScheme.primaryContainer,
-          foregroundColor: theme.colorScheme.onPrimaryContainer,
-        ),
     ];
     final primaryActionButtons = <Widget>[
-      if (_showsVisitNow)
+      if (_showsVisitNow &&
+          (_supportsDelivery || _supportsPickup) &&
+          orderLink != null &&
+          orderLink.isNotEmpty)
         Semantics(
           button: true,
           label: l10n.getDirectionsToMerchant,
           child: ElevatedButton.icon(
             icon: const Icon(Icons.storefront_outlined, size: 18),
-            label: Text(l10n.visitNowLabel),
+            label:
+                Text(_t('Get directions', 'මාර්ගය බලන්න', 'வழிகாட்டல் பெறுக')),
             onPressed: _openDirections,
-          ),
-        ),
-      if ((_supportsDelivery || _supportsPickup) &&
-          orderLink != null &&
-          orderLink.isNotEmpty)
-        Semantics(
-          button: true,
-          label: l10n.openOrderLink,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.delivery_dining, size: 18),
-            label: Text(
-                _supportsDelivery ? l10n.orderNowLabel : l10n.pickupOrderLabel),
-            onPressed: () => _launchURL(orderLink),
           ),
         ),
     ];
@@ -1266,15 +1238,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             ),
           )
         : null;
-    final directionsButton = Semantics(
-      button: true,
-      label: l10n.getDirectionsToMerchant,
-      child: OutlinedButton.icon(
-        icon: const Icon(Icons.directions, size: 18),
-        label: Text(l10n.getDirections),
-        onPressed: _openDirections,
-      ),
-    );
     final secondaryActionButtons = <Widget>[
       if (!_isPlatformBankOffer)
         Semantics(
@@ -1348,7 +1311,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             onPressed: _creatingRedemptionQr ? null : _showRedemptionQr,
           ),
         ),
-      if ((!_supportsDelivery && !_supportsPickup) &&
+      if (_showsVisitNow &&
+          (!_supportsDelivery && !_supportsPickup) &&
           promotion.url != null &&
           promotion.url!.isNotEmpty)
         Semantics(
@@ -1360,7 +1324,10 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             onPressed: () => _launchURL(promotion.url!),
           ),
         ),
-      if ((promotion.websiteUrl ?? '').isNotEmpty)
+      if ((_showsVisitNow ||
+              orderLink != null ||
+              (promotion.url ?? '').isNotEmpty) &&
+          (promotion.websiteUrl ?? '').isNotEmpty)
         Semantics(
           button: true,
           label: l10n.openMerchantWebsite,
@@ -1376,8 +1343,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             orderLink != null &&
             orderLink.isNotEmpty
         ? _StickyActionConfig(
-            label:
-                _supportsDelivery ? l10n.orderNowLabel : l10n.pickupOrderLabel,
+            label: _t('Open merchant website',
+                'වෙළඳසැල් වෙබ් අඩවිය විවෘත කරන්න', 'வணிகர் இணையதளத்தைத் திற'),
             icon: Icons.delivery_dining,
             onPressed: () => _launchURL(orderLink),
             backgroundColor: AppColors.ceylonInk,
@@ -1385,8 +1352,8 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           )
         : _showsVisitNow
             ? _StickyActionConfig(
-                label: l10n.visitNowLabel,
-                icon: Icons.storefront_outlined,
+                label: _t('Get directions', 'මාර්ගය බලන්න', 'வழிகாட்டல் பெறுக'),
+                icon: Icons.directions_outlined,
                 onPressed: _openDirections,
                 backgroundColor: AppColors.ceylonInk,
                 foregroundColor: AppColors.sand,
@@ -1408,104 +1375,68 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         foregroundColor: AppColors.sand,
                       )
                     : null;
-    final _StickyActionConfig? stickySecondaryAction =
-        (!_showsVisitNow || stickyPrimaryAction?.label != 'Visit now')
-            ? _StickyActionConfig(
-                label: l10n.getDirections,
-                icon: Icons.directions,
-                onPressed: _openDirections,
-                backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                foregroundColor: AppColors.ceylonInk,
-              )
-            : _merchantPhoneNumber.isNotEmpty
-                ? _StickyActionConfig(
-                    label: l10n.callLabel,
-                    icon: Icons.call_outlined,
-                    onPressed: _launchPhoneCall,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    foregroundColor: AppColors.ceylonInk,
-                  )
-                : null;
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(_t('Deal details', 'දීමනාවේ විස්තර', 'சலுகை விவரங்கள்')),
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
+        titleTextStyle: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurface, fontWeight: FontWeight.w700),
         actions: [
-          if (stickyPrimaryAction == null)
-            Semantics(
-              button: true,
-              label: _isFavorite ? l10n.removeFavorite : l10n.saveFavorites,
-              child: IconButton(
-                icon: Icon(
-                  _isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: _isFavorite ? theme.colorScheme.primary : null,
-                ),
-                tooltip: l10n.toggleFavoriteTooltip,
-                onPressed: _toggleFavorite,
-              ),
-            ),
-          if (!_isPlatformBankOffer && stickyPrimaryAction == null)
-            IconButton(
-              icon: _loadingDealAlert
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      _dealAlertEnabled
-                          ? Icons.notifications_active
-                          : Icons.notifications_none,
-                      color:
-                          _dealAlertEnabled ? theme.colorScheme.primary : null,
-                    ),
-              tooltip: _dealAlertEnabled
-                  ? _t(
-                      'Disable deal alerts',
-                      'Deal alerts අක්‍රීය කරන්න',
-                      'Deal alerts நிறுத்தவும்',
-                    )
-                  : _t(
-                      'Notify me',
-                      'මට දැනුම් දෙන්න',
-                      'எனக்கு அறிவிக்கவும்',
-                    ),
-              onPressed: _loadingDealAlert ? null : _toggleDealAlert,
-            ),
-          Semantics(
-            button: true,
-            label: l10n.shareDeal,
-            child: IconButton(
-              icon: const Icon(Icons.share_outlined),
-              tooltip: l10n.shareDeal,
-              onPressed: _shareDeal,
-            ),
-          ),
           if (!_isPlatformBankOffer)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert_rounded),
+            IconButton(
+                tooltip: _isFavorite ? l10n.removeFavorite : l10n.saveFavorites,
+                onPressed: _savingFavorite ? null : _toggleFavorite,
+                icon:
+                    Icon(_isFavorite ? Icons.bookmark : Icons.bookmark_border)),
+          IconButton(
+              tooltip: l10n.shareDeal,
+              icon: const Icon(Icons.ios_share),
+              onPressed: _shareDeal),
+          PopupMenuButton<String>(
               tooltip: _t('More', 'තවත්', 'மேலும்'),
-              onSelected: (value) {
-                if (value == 'report') _showReportDealDialog();
+              onSelected: (action) async {
+                if (action == 'copy') {
+                  await Clipboard.setData(ClipboardData(text: deepLink));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l10n.dealLinkCopied)));
+                  }
+                } else if (action == 'save') {
+                  await _toggleFavorite();
+                } else if (action == 'alert') {
+                  await _toggleDealAlert();
+                } else if (action == 'report') {
+                  _showReportDealDialog();
+                }
               },
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  value: 'report',
-                  child: Row(
-                    children: [
-                      const Icon(Icons.flag_outlined, size: 20),
-                      const SizedBox(width: 10),
-                      Text(_t(
-                        'Report deal',
-                        'Deal report කරන්න',
-                        'Deal report செய்யவும்',
-                      )),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+              itemBuilder: (_) => [
+                    PopupMenuItem(
+                        value: 'copy', child: Text(l10n.copyShareableLink)),
+                    if (!_isPlatformBankOffer) ...[
+                      PopupMenuItem(
+                          value: 'save',
+                          enabled: !_savingFavorite,
+                          child: Text(_isFavorite
+                              ? l10n.removeFavorite
+                              : l10n.saveFavorites)),
+                      PopupMenuItem(
+                          value: 'alert',
+                          enabled: !_loadingDealAlert,
+                          child: Text(_dealAlertEnabled
+                              ? _t(
+                                  'Disable deal alerts',
+                                  'දීමනා දැනුම්දීම් අක්‍රීය කරන්න',
+                                  'சலுகை அறிவிப்புகளை நிறுத்து')
+                              : _t('Notify me', 'මට දැනුම් දෙන්න',
+                                  'எனக்கு அறிவிக்கவும்'))),
+                      PopupMenuItem(
+                          value: 'report',
+                          child: Text(_t('Report deal', 'දීමනාව වාර්තා කරන්න',
+                              'சலுகையைப் புகாரளி')))
+                    ]
+                  ])
         ],
       ),
       bottomNavigationBar: stickyPrimaryAction == null
@@ -1513,109 +1444,222 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           : _buildStickyActionBar(
               theme: theme,
               primaryAction: stickyPrimaryAction,
-              secondaryAction: stickySecondaryAction,
             ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 112),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // Promotion Image with Hero animation
-            Hero(
-              tag: 'dealImage_${promotion.id}',
-              child: SizedBox(
-                height: 200,
-                width: double.infinity,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22.0),
-                  child: _buildImageWidget(context, promotion.imageDataString),
+      body: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 680),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Hero(
+                        tag: 'dealImage_${promotion.id}',
+                        child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: AspectRatio(
+                                aspectRatio: 1.8,
+                                child: Stack(fit: StackFit.expand, children: [
+                                  PageView(
+                                      onPageChanged: (i) =>
+                                          setState(() => _galleryIndex = i),
+                                      children: {
+                                        if (promotion.imageDataString != null)
+                                          promotion.imageDataString!,
+                                        ...promotion.images
+                                      }.isEmpty
+                                          ? [_buildImageWidget(context, null)]
+                                          : {
+                                              if (promotion.imageDataString !=
+                                                  null)
+                                                promotion.imageDataString!,
+                                              ...promotion.images
+                                            }
+                                              .map((image) => _buildImageWidget(
+                                                  context, image))
+                                              .toList()),
+                                  if ({
+                                        if (promotion.imageDataString != null)
+                                          promotion.imageDataString!,
+                                        ...promotion.images
+                                      }.length >
+                                      1)
+                                    Positioned(
+                                        right: 12,
+                                        bottom: 12,
+                                        child: Material(
+                                            color: theme.colorScheme.surface,
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                            child: Padding(
+                                                padding:
+                                                    const EdgeInsets.all(8),
+                                                child: Text(
+                                                    '${_galleryIndex + 1} / ${{
+                                                  if (promotion
+                                                          .imageDataString !=
+                                                      null)
+                                                    promotion.imageDataString!,
+                                                  ...promotion.images
+                                                }.length}')))),
+                                ])))),
+                    const SizedBox(height: 16),
+                    SizedBox(key: _offerAnchor),
+                    _DealSummarySection(
+                      title: displayTitle,
+                      rating: DiscoverOfferRating(
+                          offer: promotion.copyWith(
+                              averageRating: _reviewCount > 0
+                                  ? _averageRating
+                                  : promotion.averageRating,
+                              ratingsCount: _reviewCount > 0
+                                  ? _reviewCount
+                                  : promotion.ratingsCount)),
+                      distanceLabel: distanceLabel,
+                      merchantName: promotion.merchantName,
+                      merchantLogoProvider: merchantLogoProvider,
+                      hasMerchant: hasMerchant,
+                      canOpenMerchant: promotion.merchantId != null,
+                      headlinePrice: headlinePrice,
+                      originalPriceLabel: originalPriceLabel,
+                      statusChips: statusChips,
+                      onTapMerchant: promotion.merchantId == null
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => MerchantProfileScreen(
+                                    merchantId: promotion.merchantId!,
+                                  ),
+                                ),
+                              );
+                            },
+                    ),
+                    const SizedBox(height: 18),
+                    SizedBox(key: _conditionsAnchor),
+                    HybridConditionsPanel(
+                        title: _t(
+                            'Before you use this offer',
+                            'දීමනාව භාවිත කිරීමට පෙර',
+                            'சலுகையைப் பயன்படுத்துவதற்கு முன்'),
+                        facts: [
+                          if (promotion.bankName?.isNotEmpty == true)
+                            promotion.bankName!,
+                          if (promotion.cardTypes.isNotEmpty)
+                            promotion.cardTypes
+                                .map((type) => switch (type) {
+                                      'credit' => l10n.creditCardLabel,
+                                      'debit' => l10n.debitCardLabel,
+                                      'prepaid' => l10n.prepaidCardLabel,
+                                      _ => type
+                                    })
+                                .join(' · '),
+                          if (OfferPresentation.validAmount(
+                                  promotion.minimumSpend) !=
+                              null)
+                            l10n.minimumSpendLabel(
+                                offerMoney(promotion, promotion.minimumSpend!)),
+                          if (OfferPresentation.validAmount(
+                                  promotion.maximumBenefit) !=
+                              null)
+                            '${_t('Maximum discount', 'උපරිම වට්ටම', 'அதிகபட்ச தள்ளுபடி')}: ${offerMoney(promotion, promotion.maximumBenefit!)}',
+                          if (OfferPresentation(promotion).onlineOnly)
+                            _t(
+                                'Online · Merchant website',
+                                'මාර්ගගත · වෙළඳසැල් වෙබ් අඩවිය',
+                                'இணையம் · வணிகர் இணையதளம்')
+                          else
+                            [
+                              if (promotion.supportsVisit) l10n.inStoreLabel,
+                              if (promotion.supportsDelivery)
+                                l10n.deliveryLabel,
+                              if (promotion.supportsPickup) l10n.pickupLabel
+                            ].join(' · '),
+                          if (promotion.endDate != null)
+                            l10n.offerEndsOn(dateFormat.format(promotion
+                                .endDate!
+                                .toUtc()
+                                .add(const Duration(hours: 5, minutes: 30))))
+                          else
+                            _t('Expiry not provided', 'අවසන් දිනය සපයා නැත',
+                                'முடிவுத் தேதி வழங்கப்படவில்லை'),
+                          if (promotion.termsAndConditions?.trim().isNotEmpty ==
+                              true)
+                            promotion.termsAndConditions!,
+                        ].where((value) => value.isNotEmpty).toList()),
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 12, children: [
+                      TextButton(
+                          onPressed: () => _section(_offerAnchor),
+                          child: Text(_t('Offer', 'දීමනාව', 'சலுகை'))),
+                      TextButton(
+                          onPressed: () => _section(_conditionsAnchor),
+                          child: Text(
+                              _t('Conditions', 'කොන්දේසි', 'நிபந்தனைகள்'))),
+                      if (whyVisitCard.hasContent)
+                        TextButton(
+                            onPressed: () => _section(_highlightsAnchor),
+                            child: Text(
+                                _t('Highlights', 'විශේෂතා', 'சிறப்பம்சங்கள்'))),
+                      if (promotion.supportsVisit)
+                        TextButton(
+                            onPressed: () => _section(_merchantAnchor),
+                            child: Text(_t('Merchant', 'වෙළඳසැල', 'வணிகர்'))),
+                    ]),
+                    SizedBox(key: _highlightsAnchor),
+                    if (whyVisitCard.hasContent) ...[
+                      whyVisitCard,
+                      const SizedBox(height: 16)
+                    ],
+                    _DealDetailsSection(
+                      description: promotion.description,
+                      startDate: promotion.startDate,
+                      endDate: promotion.endDate,
+                      dateFormat: dateFormat,
+                      termsAndConditions: null,
+                      expanded: _detailsExpanded,
+                      onToggleExpanded: () {
+                        setState(() {
+                          _detailsExpanded = !_detailsExpanded;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20.0),
+                    _buildDealActionPanel(
+                      theme: theme,
+                      primaryActions: primaryActionButtons,
+                      callButton: callButton,
+                      whatsappButton: whatsappButton,
+                      directionsButton: null,
+                      secondaryActions: secondaryActionButtons,
+                    ),
+                    const SizedBox(height: 20.0),
+                    _buildRecommendationsSection(theme),
+                    if (activityItems.isNotEmpty)
+                      Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: activityItems
+                                  .map((item) => _buildStatChip(
+                                      item.icon, item.label, item.value))
+                                  .toList())),
+                    _buildRatingsReviewsSection(theme),
+                    const SizedBox(height: 20.0),
+                    const Divider(height: 32, thickness: 1.2),
+                    if (promotion.supportsVisit &&
+                        promotion.fulfillmentType != 'order')
+                      Container(
+                          key: _merchantAnchor,
+                          child: _buildLocationSection(theme, distanceLabel)),
+                    const SizedBox(height: 20.0),
+                    const SizedBox(height: 10.0),
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 20.0),
-
-            _DealSummarySection(
-              title: displayTitle,
-              merchantName: promotion.merchantName,
-              merchantInitial: hasMerchant
-                  ? (promotion.merchantName!.trim().isEmpty
-                      ? 'M'
-                      : promotion.merchantName!.trim()[0].toUpperCase())
-                  : 'M',
-              merchantLogoProvider: merchantLogoProvider,
-              hasMerchant: hasMerchant,
-              canOpenMerchant: promotion.merchantId != null,
-              hasPriceInfo: hasPriceInfo && headlinePrice != null,
-              headlinePrice: headlinePrice,
-              originalPriceLabel: originalPriceLabel,
-              statusChips: statusChips,
-              activityItems: activityItems,
-              statBuilder: _buildStatChip,
-              onTapMerchant: promotion.merchantId == null
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MerchantProfileScreen(
-                            merchantId: promotion.merchantId!,
-                          ),
-                        ),
-                      );
-                    },
-              onCopyLink: () async {
-                await Clipboard.setData(ClipboardData(text: deepLink));
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(l10n.dealLinkCopied)),
-                );
-              },
-            ),
-            const SizedBox(height: 16.0),
-            if (whyVisitCard.hasContent) ...[
-              whyVisitCard,
-              const SizedBox(height: 16.0),
-            ],
-            if (BankCardPromotionSupport.isBankCardPromotion(promotion)) ...[
-              _BankCardOfferSection(promotion: promotion),
-              const SizedBox(height: 16.0),
-            ],
-            _DealDetailsSection(
-              description: promotion.description,
-              startDate: promotion.startDate,
-              endDate: promotion.endDate,
-              dateFormat: dateFormat,
-              termsAndConditions: promotion.termsAndConditions,
-              expanded: _detailsExpanded,
-              onToggleExpanded: () {
-                setState(() {
-                  _detailsExpanded = !_detailsExpanded;
-                });
-              },
-            ),
-            const SizedBox(height: 20.0),
-            _buildDealActionPanel(
-              theme: theme,
-              primaryActions: primaryActionButtons,
-              callButton: callButton,
-              whatsappButton: whatsappButton,
-              directionsButton: !_showsVisitNow ? directionsButton : null,
-              secondaryActions: secondaryActionButtons,
-            ),
-            const SizedBox(height: 20.0),
-
-            _buildRecommendationsSection(theme),
-            _buildRatingsReviewsSection(theme),
-            const SizedBox(height: 20.0),
-            const Divider(height: 32, thickness: 1.2),
-
-            _buildLocationSection(theme, distanceLabel),
-            const SizedBox(height: 20.0),
-
-            const SizedBox(height: 10.0),
-          ],
-        ),
-      ),
+              ))),
     );
   }
 
@@ -2048,6 +2092,9 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   }
 
   Widget _buildImageWidget(BuildContext context, String? imageDataString) {
+    Widget image(BoxFit fit) => imageDataString?.startsWith('assets/') == true
+        ? Image.asset(imageDataString!, fit: fit, excludeFromSemantics: true)
+        : ImageHelper.buildOptimizedImage(imageDataString, fit: fit);
     return Semantics(
         button: true,
         label: _t('View image', 'රූපය බලන්න', 'படத்தைப் பார்க்கவும்'),
@@ -2061,9 +2108,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                           child: Stack(children: [
                         Center(
                             child: InteractiveViewer(
-                                child: ImageHelper.buildOptimizedImage(
-                                    imageDataString,
-                                    fit: BoxFit.contain))),
+                                child: image(BoxFit.contain))),
                         Positioned(
                             top: 8,
                             right: 8,
@@ -2074,8 +2119,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                                     color: Colors.white))),
                       ])),
                     )),
-            child: ImageHelper.buildOptimizedImage(imageDataString,
-                fit: BoxFit.cover)));
+            child: image(BoxFit.cover)));
   }
 
   Widget _buildStatChip(IconData icon, String label, int value) {
@@ -2169,13 +2213,14 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
             children: [
               Icon(icon, size: 18, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
-              Text(
+              Expanded(
+                  child: Text(
                 title,
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: AppColors.ceylonInk,
+                  color: theme.colorScheme.onSurface,
                 ),
-              ),
+              )),
             ],
           );
         }
@@ -2282,157 +2327,43 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
   Widget _buildStickyActionBar({
     required ThemeData theme,
     required _StickyActionConfig primaryAction,
-    _StickyActionConfig? secondaryAction,
   }) {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          border: Border(
-            top: BorderSide(color: theme.colorScheme.outlineVariant),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 18,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            if (secondaryAction != null) ...[
-              SizedBox(
-                width: 52,
-                height: 52,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: secondaryAction.backgroundColor,
-                    foregroundColor: secondaryAction.foregroundColor,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: secondaryAction.onPressed,
-                  child: Icon(secondaryAction.icon, size: 22),
-                ),
-              ),
-              const SizedBox(width: 10),
-            ],
-            Expanded(
-              child: SizedBox(
-                height: 52,
+    return ColoredBox(
+        color: theme.colorScheme.surfaceContainerLow,
+        child: SafeArea(
+            child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: primaryAction.backgroundColor,
-                    foregroundColor: primaryAction.foregroundColor,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                      minimumSize: const Size(double.infinity, 52),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16))),
                   onPressed: primaryAction.onPressed,
                   icon: Icon(primaryAction.icon, size: 20),
-                  label: Text(
-                    primaryAction.label,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            if (!_isPlatformBankOffer) ...[
-              SizedBox(
-                width: 52,
-                height: 52,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    foregroundColor: _dealAlertEnabled
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: _loadingDealAlert ? null : _toggleDealAlert,
-                  child: _loadingDealAlert
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Icon(
-                          _dealAlertEnabled
-                              ? Icons.notifications_active
-                              : Icons.notifications_none,
-                          size: 22,
-                        ),
-                ),
-              ),
-              const SizedBox(width: 10),
-            ],
-            SizedBox(
-              width: 52,
-              height: 52,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                  foregroundColor: _isFavorite
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                  padding: EdgeInsets.zero,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: _toggleFavorite,
-                child: Icon(
-                  _isFavorite ? Icons.favorite : Icons.favorite_border,
-                  size: 22,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+                  label: Text(primaryAction.label,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.labelLarge
+                          ?.copyWith(color: theme.colorScheme.onPrimary)),
+                ))));
   }
 
   String? _headlinePriceText(Promotion promotion) {
-    if (promotion.discountedPrice != null) {
-      return 'Rs. ${promotion.discountedPrice!.toStringAsFixed(2)}';
-    }
-    if (promotion.price != null) {
-      return 'Rs. ${promotion.price!.toStringAsFixed(2)}';
-    }
-    return null;
+    final v = OfferPresentation(promotion);
+    if (v.useDiscountHeadline) return promotion.discount!.trim();
+    return v.price == null
+        ? promotion.discount?.trim()
+        : offerMoney(promotion, v.price!);
   }
 
   String? _originalPriceText(Promotion promotion) {
-    if (promotion.originalPrice == null || promotion.discountedPrice == null) {
-      return null;
-    }
-    return 'Rs. ${promotion.originalPrice!.toStringAsFixed(2)}';
-  }
-
-  String? _savingsText(Promotion promotion) {
-    if (promotion.originalPrice == null || promotion.discountedPrice == null) {
-      if ((promotion.discount ?? '').trim().isEmpty) return null;
-      return promotion.discount!.trim();
-    }
-
-    final amount = promotion.originalPrice! - promotion.discountedPrice!;
-    if (amount <= 0) return null;
-
-    final percentage = promotion.discountPercentage;
-    if (percentage == null) {
-      return 'Save Rs. ${amount.toStringAsFixed(0)}';
-    }
-    return 'Save $percentage%';
+    final previous = OfferPresentation(promotion).useDiscountHeadline
+        ? null
+        : OfferPresentation(promotion).previous;
+    return previous == null ? null : offerMoney(promotion, previous);
   }
 }
 
@@ -2450,210 +2381,92 @@ class _DealStatItem {
 
 class _DealSummarySection extends StatelessWidget {
   final String title;
+  final Widget rating;
+  final String distanceLabel;
   final String? merchantName;
-  final String merchantInitial;
   final ImageProvider<Object>? merchantLogoProvider;
   final bool hasMerchant;
   final bool canOpenMerchant;
-  final bool hasPriceInfo;
   final String? headlinePrice;
   final String? originalPriceLabel;
   final List<Widget> statusChips;
-  final List<_DealStatItem> activityItems;
-  final Widget Function(IconData icon, String label, int value) statBuilder;
   final VoidCallback? onTapMerchant;
-  final VoidCallback onCopyLink;
 
   const _DealSummarySection({
     required this.title,
+    required this.rating,
+    required this.distanceLabel,
     required this.merchantName,
-    required this.merchantInitial,
     required this.merchantLogoProvider,
     required this.hasMerchant,
     required this.canOpenMerchant,
-    required this.hasPriceInfo,
     required this.headlinePrice,
     required this.originalPriceLabel,
     required this.statusChips,
-    required this.activityItems,
-    required this.statBuilder,
     required this.onTapMerchant,
-    required this.onCopyLink,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (hasMerchant && merchantName != null) ...[
-            GestureDetector(
-              onTap: onTapMerchant,
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: theme.colorScheme.primaryContainer,
-                    backgroundImage: merchantLogoProvider,
-                    child: merchantLogoProvider != null
-                        ? null
-                        : Text(
-                            merchantInitial,
-                            style: TextStyle(
-                              color: theme.colorScheme.onPrimaryContainer,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 18,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 12),
+    final colors = Theme.of(context).colorScheme;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Semantics(
+          header: true,
+          child: hybridCopy(context, title, size: 22, weight: FontWeight.w700)),
+      if (hasMerchant && merchantName != null)
+        InkWell(
+            onTap: onTapMerchant,
+            child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Row(children: [
+                  if (merchantLogoProvider != null) ...[
+                    CircleAvatar(
+                        radius: 12, backgroundImage: merchantLogoProvider),
+                    const SizedBox(width: 8)
+                  ],
                   Expanded(
-                    child: Text(
-                      merchantName!,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
-                    ),
-                  ),
+                      child: hybridCopy(context, merchantName!,
+                          size: 15, color: colors.onSurfaceVariant)),
                   if (canOpenMerchant)
-                    Icon(
-                      Icons.chevron_right,
-                      size: 24,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
-          Text(
-            title,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-          if (statusChips.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: statusChips,
-            ),
-          ],
-          if (hasPriceInfo && headlinePrice != null) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.end,
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                Text(
-                  headlinePrice!,
-                  style: theme.textTheme.displayMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                if (originalPriceLabel != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      originalPriceLabel!,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                    const Icon(Icons.chevron_right, size: 20),
+                ]))),
+      Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            rating,
+            if (distanceLabel.isNotEmpty)
+              Text('≈ $distanceLabel',
+                  style:
+                      TextStyle(fontSize: 13, color: colors.onSurfaceVariant)),
+          ]),
+      const SizedBox(height: 10),
+      if (headlinePrice != null) ...[
+        Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              hybridCopy(context, headlinePrice!,
+                  size: 26, weight: FontWeight.w700, color: colors.primary),
+              if (originalPriceLabel != null)
+                Text(originalPriceLabel!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         decoration: TextDecoration.lineThrough,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          if (activityItems.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            // A single scrollable row, not a Wrap — with a variable item
-            // count (5-7 depending on the deal) a Wrap leaves an uneven,
-            // left-hanging last row; a row always lines up cleanly.
-            SizedBox(
-              height: 40,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: activityItems.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final item = activityItems[index];
-                  return statBuilder(item.icon, item.label, item.value);
-                },
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: onCopyLink,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.link,
-                    color: theme.colorScheme.primary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _localizedText(
-                          context,
-                          'Copy shareable link',
-                          'Shareable link copy කරන්න',
-                          'Shareable link ஐ copy செய்யவும்'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.copy_outlined,
-                    size: 18,
-                    color: theme.colorScheme.primary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+                        color: colors.onSurfaceVariant))
+            ]),
+        const SizedBox(height: 6)
+      ],
+      if (statusChips.isNotEmpty) ...[
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: statusChips)
+      ],
+    ]);
   }
 }
 
-/// The one deliberately bold, high-contrast element on the page: a Ceylon
-/// Ink card that answers "why visit?" in four lines — savings, distance,
-/// time left, and verification — instead of making the reader piece it
-/// together from chips scattered across the screen.
+/// Optional, substantiated highlights after eligibility and conditions.
 class _WhyVisitCard extends StatelessWidget {
   final String? savingsLabel;
   final String? distanceLabel;
@@ -2683,13 +2496,13 @@ class _WhyVisitCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18, color: iconColor ?? AppColors.sand),
+            Icon(icon, size: 18, color: iconColor ?? theme.colorScheme.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 label,
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  color: AppColors.sand,
+                  color: theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2703,17 +2516,17 @@ class _WhyVisitCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.ceylonInk,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        color: theme.colorScheme.surfaceContainerLowest,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _localizedText(context, 'Why visit?', 'ඇයි Visit කරන්නේ?',
-                'ஏன் visit செய்ய வேண்டும்?'),
-            style:
-                theme.textTheme.displayMedium?.copyWith(color: AppColors.sand),
+            _localizedText(context, 'Highlights', 'විශේෂතා', 'சிறப்பம்சங்கள்'),
+            style: theme.textTheme.titleLarge
+                ?.copyWith(color: theme.colorScheme.onSurface),
           ),
           // Savings gets the Turmeric accent — the one thing on this card
           // that's about money, so it's the one thing that gets that color.
@@ -2765,20 +2578,22 @@ class _DealDetailsSection extends StatelessWidget {
             InkWell(
               onTap: onToggleExpanded,
               borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _localizedText(context, 'Full details', 'සම්පූර්ණ විස්තර',
-                          'முழு விவரங்கள்'),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+              child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _localizedText(context, 'Full details',
+                              'සම්පූර්ණ විස්තර', 'முழு விவரங்கள்'),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                  Icon(expanded ? Icons.expand_less : Icons.expand_more),
-                ],
-              ),
+                      Icon(expanded ? Icons.expand_less : Icons.expand_more),
+                    ],
+                  )),
             ),
             AnimatedSize(
               duration: AppMotion.duration(context, 200),
@@ -2808,12 +2623,12 @@ class _DealDetailsSection extends StatelessWidget {
                             const SizedBox(height: 6.0),
                             if (startDate != null)
                               Text(
-                                '${_localizedText(context, 'Starts:', 'ආරම්භය:', 'தொடக்கம்:')} ${dateFormat.format(startDate!)}',
+                                '${_localizedText(context, 'Starts:', 'ආරම්භය:', 'தொடக்கம்:')} ${dateFormat.format(startDate!.toUtc().add(const Duration(hours: 5, minutes: 30)))}',
                                 style: theme.textTheme.bodyMedium,
                               ),
                             if (endDate != null)
                               Text(
-                                '${_localizedText(context, 'Expires:', 'කල් ඉකුත් වීම:', 'முடிவு:')} ${dateFormat.format(endDate!)}',
+                                '${_localizedText(context, 'Expires:', 'කල් ඉකුත් වීම:', 'முடிவு:')} ${dateFormat.format(endDate!.toUtc().add(const Duration(hours: 5, minutes: 30)))}',
                                 style: theme.textTheme.bodyMedium,
                               ),
                           ],
@@ -2842,173 +2657,6 @@ class _DealDetailsSection extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BankCardOfferSection extends StatelessWidget {
-  final Promotion promotion;
-
-  const _BankCardOfferSection({required this.promotion});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bankName = BankCardPromotionSupport.bankName(promotion);
-    final cardTypes = BankCardPromotionSupport.cardTypes(promotion);
-    final offerTypes = BankCardPromotionSupport.offerTypes(promotion);
-    final minimumSpend = BankCardPromotionSupport.minimumSpendLabel(promotion);
-    final maximumBenefit =
-        BankCardPromotionSupport.maximumBenefitLabel(promotion);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.ceylonInk.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.credit_card_rounded,
-                    color: AppColors.ceylonInk,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _localizedText(context, 'Card Offer Details',
-                            'Card Offer විස්තර', 'Card Offer விவரங்கள்'),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _localizedText(
-                            context,
-                            'Check eligible cards, offer type, and spend conditions.',
-                            'සුදුසු cards, offer type සහ spend conditions පරීක්ෂා කරන්න.',
-                            'சரியான cards, offer type மற்றும் spend conditions ஐ சரிபார்க்கவும்.'),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (bankName != null)
-                  _StaticInfoPill(
-                    icon: Icons.account_balance_outlined,
-                    label: bankName,
-                    backgroundColor: AppColors.ash.withValues(alpha: 0.14),
-                    foregroundColor: AppColors.charcoal,
-                  ),
-                if (cardTypes.isNotEmpty)
-                  _StaticInfoPill(
-                    icon: Icons.credit_card_outlined,
-                    label: cardTypes.join(' + '),
-                    backgroundColor: AppColors.ash.withValues(alpha: 0.14),
-                    foregroundColor: AppColors.charcoal,
-                  ),
-                if (offerTypes.isNotEmpty)
-                  _StaticInfoPill(
-                    icon: Icons.account_balance_wallet_outlined,
-                    label: offerTypes.join(' • '),
-                    backgroundColor: AppColors.ash.withValues(alpha: 0.14),
-                    foregroundColor: AppColors.charcoal,
-                  ),
-                if (minimumSpend != null)
-                  _StaticInfoPill(
-                    icon: Icons.payments_outlined,
-                    label: minimumSpend,
-                    backgroundColor: AppColors.ash.withValues(alpha: 0.14),
-                    foregroundColor: AppColors.charcoal,
-                  ),
-                // The one pill in this row that's an actual saving — Turmeric
-                // sets it apart from the neutral eligibility/condition pills.
-                if (maximumBenefit != null)
-                  _StaticInfoPill(
-                    icon: Icons.savings_outlined,
-                    label: maximumBenefit,
-                    backgroundColor: AppColors.turmeric.withValues(alpha: 0.16),
-                    foregroundColor: AppColors.ceylonInk,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              _localizedText(
-                context,
-                'Before paying, confirm the exact eligible bank, card type, discount cap, and whether the offer applies in-store, online, or on selected days only.',
-                'ගෙවීමට පෙර සුදුසු bank, card type, discount cap සහ offer එක in-store, online හෝ නිශ්චිත දිනවල පමණක් අදාළද යන්න තහවුරු කරන්න.',
-                'பணம் செலுத்தும் முன் சரியான bank, card type, discount cap மற்றும் offer in-store, online அல்லது குறிப்பிட்ட நாட்களில் மட்டுமே பொருந்துமா என்பதை உறுதிப்படுத்துங்கள்.',
-              ),
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.45),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StaticInfoPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color backgroundColor;
-  final Color foregroundColor;
-
-  const _StaticInfoPill({
-    required this.icon,
-    required this.label,
-    required this.backgroundColor,
-    required this.foregroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: foregroundColor),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: foregroundColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

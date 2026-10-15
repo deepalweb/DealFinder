@@ -8,7 +8,7 @@ export type DealFinderCategory = {
 export const DEALFINDER_CATEGORIES: DealFinderCategory[] = [
   { id: 'all', name: 'All Deals', icon: 'fa-compass', shortName: 'All' },
   { id: 'shopping_retail', name: 'Shopping & Retail', icon: 'fa-shirt' },
-  { id: 'bank_cards', name: 'Bank Cards', icon: 'fa-credit-card' },
+  { id: 'bank_cards', name: 'Bank Offers', icon: 'fa-credit-card' },
   { id: 'electronics', name: 'Electronics', icon: 'fa-laptop' },
   { id: 'food_dining', name: 'Food & Dining', icon: 'fa-utensils' },
   { id: 'beauty_salon', name: 'Beauty & Salon', icon: 'fa-heart-pulse' },

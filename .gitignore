@@ -45,6 +45,12 @@ yarn-error.log*
 /cloudflare/node_modules
 /cloudflare/.wrangler
 
-# Local backend security audit runtime (binary and pre-fix source snapshot)
-/.codex-logs/mongodb-bin/
-/.codex-logs/backend-audit-baseline/
+# Local agent logs, audit runtime and QA tooling
+/.codex-logs/
+__pycache__/
+
+# Design screenshots stay local; the design docs (.md/.html) are committed
+/mobile_app/design-preview/
+/mobile_app/design-reference/
+/mobile_app/*.png
+/docs/**/*.png
