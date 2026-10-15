@@ -1,4 +1,7 @@
 const cron = require('node-cron');
+const tasks=[];
+function schedule(expression,callback){tasks.push(cron.schedule(expression,callback,{timezone:'Asia/Colombo'}));}
+function stopNotificationJobs(){for(const task of tasks)task.stop();tasks.length=0;}
 const checkNearbyDeals = require('./nearbyDealsNotifications');
 const checkExpiringDealsForUsers = require('./expiringDealsNotifications');
 const { checkFavoriteStoresNewDeals } = require('./favoriteStoreNotifications');
@@ -15,49 +18,49 @@ function initializeNotificationJobs() {
   console.log('[Job Scheduler] Initializing notification jobs...');
 
   // Check for nearby deals every 30 minutes
-  cron.schedule('*/30 * * * *', async () => {
+  schedule('*/30 * * * *', async () => {
     console.log('[Job Scheduler] Running nearby deals check...');
     await checkNearbyDeals();
   });
 
   // Check for expiring deals (user favorites) daily at 9 AM
-  cron.schedule('0 9 * * *', async () => {
+  schedule('0 9 * * *', async () => {
     console.log('[Job Scheduler] Running expiring deals check...');
     await checkExpiringDealsForUsers();
   });
 
   // Check for new deals from favorite stores every 2 hours
-  cron.schedule('0 */2 * * *', async () => {
+  schedule('0 */2 * * *', async () => {
     console.log('[Job Scheduler] Running favorite stores check...');
     await checkFavoriteStoresNewDeals();
   });
 
   // Check for price drops every 2 hours
-  cron.schedule('0 */2 * * *', async () => {
+  schedule('0 */2 * * *', async () => {
     console.log('[Job Scheduler] Running price drops check...');
     await checkPriceDrops();
   });
 
   // Check for expiring flash sales every hour
-  cron.schedule('0 * * * *', async () => {
+  schedule('0 * * * *', async () => {
     console.log('[Job Scheduler] Running flash sales check...');
     await checkExpiringFlashSales();
   });
 
   // Check for category deals every hour
-  cron.schedule('0 * * * *', async () => {
+  schedule('0 * * * *', async () => {
     console.log('[Job Scheduler] Running category deals check...');
     await checkCategoryDeals();
   });
 
   // Send weekly digest every Sunday at 8 AM
-  cron.schedule('0 8 * * 0', async () => {
+  schedule('0 8 * * 0', async () => {
     console.log('[Job Scheduler] Sending weekly digest...');
     await sendWeeklyDigest();
   });
 
   // Merchant expiry notifications (existing) - daily at 10 AM
-  cron.schedule('0 10 * * *', async () => {
+  schedule('0 10 * * *', async () => {
     console.log('[Job Scheduler] Running merchant expiry notifications...');
     await sendExpiryNotifications();
   });
@@ -98,5 +101,6 @@ async function runAllJobsNow() {
 
 module.exports = {
   initializeNotificationJobs,
+  stopNotificationJobs,
   runAllJobsNow
 };

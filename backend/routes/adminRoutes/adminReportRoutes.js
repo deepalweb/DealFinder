@@ -5,12 +5,7 @@ const Promotion = require('../../models/Promotion');
 const Merchant = require('../../models/Merchant');
 const { authenticateJWT, authorizeAdmin } = require('../../middleware/auth');
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 router.get('/reports', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {

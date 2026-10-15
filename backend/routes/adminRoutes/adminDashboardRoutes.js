@@ -6,12 +6,7 @@ const Promotion = require('../../models/Promotion');
 const NotificationLog = require('../../models/NotificationLog');
 const { authenticateJWT, authorizeAdmin } = require('../../middleware/auth');
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function startOfDay(value = new Date()) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());

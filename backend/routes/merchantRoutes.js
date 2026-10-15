@@ -1,22 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const { httpUrl, normalizePhone } = require('../utils/merchantWorkflow');
 const Merchant = require('../models/Merchant');
 const User = require('../models/User');
 const Report = require('../models/Report');
 const imageStorage = require('../services/imageStorage');
 const { body, validationResult } = require('express-validator');
-const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin } = require('../middleware/auth');
+const { authenticateJWT, authorizeAdmin, authorizeMerchantSelfOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 const { getMerchantByIdFromPostgres, updateMerchantInPostgres } = require('../services/postgresMerchantService');
 
 const usePostgres = () => process.env.DATA_SOURCE === 'postgres';
 
 // Remove sensitive error details from all API responses in production
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 // Helper to get followers count for a merchant
 async function getFollowersCount(merchantId) {
@@ -41,6 +37,7 @@ function attachMerchantRatingSummary(merchant) {
 
   return {
     ...merchant,
+    contactInfo: undefined,
     averageRating: ratingValues.length
       ? Number((ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length).toFixed(1))
       : 0,
@@ -78,15 +75,15 @@ function normalizeOpeningHours(input) {
 }
 
 // Get all merchants (optimized)
-router.get('/', async (req, res) => {
+router.get('/', gentleAuthenticateJWT, async (req, res) => {
   try {
     // Check cache
-    if (merchantsCache && Date.now() - merchantsCacheTs < MERCHANTS_CACHE_TTL) {
+    if (req.user?.role!=='admin' && merchantsCache && Date.now() - merchantsCacheTs < MERCHANTS_CACHE_TTL) {
       return res.status(200).json(merchantsCache);
     }
 
     // Optimized: Get merchants without populating promotions
-    const merchants = await Merchant.find()
+    const merchants = await Merchant.find(req.user?.role==='admin'?{}:{status:{$in:['active','approved']}})
       .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable openingHours ratings')
       .lean();
     
@@ -96,7 +93,7 @@ router.get('/', async (req, res) => {
     const promotionCounts = await Promotion.aggregate([
       {
         $match: {
-          status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
+          status: { $in: ['active', 'approved', 'scheduled'] },
           startDate: { $lte: now },
           endDate: { $gte: now }
         }
@@ -136,8 +133,7 @@ router.get('/', async (req, res) => {
       followers: followerMap.get(merchant._id.toString()) || 0
     }));
 
-    merchantsCache = merchantsWithCounts;
-    merchantsCacheTs = Date.now();
+    if(req.user?.role!=='admin'){merchantsCache = merchantsWithCounts;merchantsCacheTs = Date.now();}
 
     res.status(200).json(merchantsWithCounts);
   } catch (error) {
@@ -147,7 +143,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get a merchant by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', gentleAuthenticateJWT, async (req, res) => {
   try {
     if (usePostgres()) {
       const pgMerchant = await getMerchantByIdFromPostgres(req.params.id);
@@ -155,8 +151,10 @@ router.get('/:id', async (req, res) => {
       return res.status(200).json(pgMerchant);
     }
 
-    const merchant = await Merchant.findById(req.params.id).populate('promotions');
+    const merchant = await Merchant.findById(req.params.id).populate({path:'promotions',match:{status:{$in:['active','scheduled','expired']}}});
     if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
+    const owner=req.user?.role==='admin'||(req.user?.role==='merchant'&&String(req.user.merchantId)===String(merchant._id));
+    if(!owner&&!['active','approved'].includes(merchant.status))return res.status(404).json({message:'Merchant not found'});
     const followers = await getFollowersCount(merchant._id);
     const activeDeals = Array.isArray(merchant.promotions)
       ? merchant.promotions.filter(p => p.status === 'active' && new Date(p.endDate) >= new Date()).length
@@ -175,7 +173,7 @@ router.get('/:id/ratings', async (req, res) => {
   try {
     const merchant = await Merchant.findById(req.params.id)
       .select('ratings')
-      .populate('ratings.user', 'name email profilePicture');
+      .populate('ratings.user', 'name profilePicture');
     if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
     res.status(200).json(merchant.ratings || []);
   } catch (error) {
@@ -196,7 +194,7 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
     merchant.ratings = merchant.ratings.filter((rating) => rating.user.toString() !== req.user.id);
     merchant.ratings.push({ user: req.user.id, value });
     await merchant.save();
-    await Merchant.populate(merchant, { path: 'ratings.user', select: 'name email profilePicture' });
+    await Merchant.populate(merchant, { path: 'ratings.user', select: 'name profilePicture' });
     invalidateMerchantsCache();
 
     res.status(201).json(merchant.ratings);
@@ -209,7 +207,7 @@ router.get('/:id/reviews', async (req, res) => {
   try {
     const merchant = await Merchant.findById(req.params.id).populate(
       'reviews.user',
-      'name email profilePicture',
+      'name profilePicture',
     );
     if (!merchant) return res.status(404).json({ message: 'Merchant not found' });
     res.status(200).json(merchant.reviews || []);
@@ -232,7 +230,7 @@ router.post('/:id/reviews', authenticateJWT, async (req, res) => {
     merchant.reviews.push({ user: req.user.id, text });
     await merchant.save();
     const newReview = merchant.reviews[merchant.reviews.length - 1];
-    await Merchant.populate(newReview, { path: 'user', select: 'name email profilePicture' });
+    await Merchant.populate(newReview, { path: 'user', select: 'name profilePicture' });
 
     res.status(201).json(newReview);
   } catch (error) {
@@ -254,8 +252,8 @@ router.post('/:id/reports', authenticateJWT, async (req, res) => {
       'other',
     ];
 
-    if (!validReasons.includes(reason)) {
-      return res.status(400).json({ message: 'Valid report reason is required.' });
+    if (!validReasons.includes(reason) || description.length > 2000) {
+      return res.status(400).json({ message: 'A valid report reason and a description of at most 2000 characters are required.' });
     }
 
     const merchant = await Merchant.findById(req.params.id).select('_id');
@@ -283,21 +281,21 @@ router.post('/', authenticateJWT, authorizeAdmin, [
   body('category').optional().isString(),
   body('merchantType').optional().isIn(['offline', 'online', 'hybrid'])
     .withMessage('Invalid merchant type'),
-  body('website').optional().isString(),
-  body('orderLink').optional().isString(),
+  body('website').optional().isString().custom(v => !v || httpUrl(v)).withMessage('Website must be an HTTP or HTTPS URL'),
+  body('orderLink').optional().isString().custom(v => !v || httpUrl(v)).withMessage('Order link must be an HTTP or HTTPS URL'),
   body('deliveryAvailable').optional().isBoolean(),
   body('pickupAvailable').optional().isBoolean(),
-  body('openingHours').optional().isObject(),
+  body('openingHours').optional().isObject().custom(v => Object.entries(v).every(([day,h]) => DAY_KEYS.includes(day) && h && typeof h === 'object' && (h.closed === true || ((!h.open && !h.close) || (TIME_PATTERN.test(h.open) && TIME_PATTERN.test(h.close) && h.close > h.open))))).withMessage('Use valid opening hours in Asia/Colombo, closing after opening'),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
   body('userId').optional().isString(), // For admin to link to existing user
   body('address').optional().isString(),
-  body('contactNumber').optional().isString(),
-  body('socialMedia').optional().isObject(),
-  body('location').optional().isObject().withMessage('Location must be an object'),
+  body('contactNumber').optional().isString().customSanitizer(normalizePhone).custom(v => !v || /^\+?[1-9]\d{6,14}$/.test(v)).withMessage('Enter a valid phone number'),
+  body('socialMedia').optional().isObject().custom(v => Object.entries(v).every(([k,url]) => ['facebook','instagram','twitter','tiktok'].includes(k) && typeof url === 'string' && (!url || httpUrl(url)))).withMessage('Social links must be valid HTTP or HTTPS URLs'),
+  body('location').optional({nullable:true}).isObject().withMessage('Location must be an object'),
   body('location.type').optional().isIn(['Point']).withMessage('Location type must be "Point"'),
-  body('location.coordinates').optional().isArray({ min: 2, max: 2 }).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
+  body('location.coordinates').optional().isArray({ min: 2, max: 2 }).custom(v => v.length===2 && v.every(Number.isFinite) && Math.abs(v[0])<=180 && Math.abs(v[1])<=90).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
   body('location.coordinates.*').optional().isNumeric().withMessage('Coordinates must contain numbers')
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -378,23 +376,23 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
   body('category').optional().isString(),
   body('merchantType').optional().isIn(['offline', 'online', 'hybrid'])
     .withMessage('Invalid merchant type'),
-  body('website').optional().isString(),
-  body('orderLink').optional().isString(),
+  body('website').optional().isString().custom(v => !v || httpUrl(v)).withMessage('Website must be an HTTP or HTTPS URL'),
+  body('orderLink').optional().isString().custom(v => !v || httpUrl(v)).withMessage('Order link must be an HTTP or HTTPS URL'),
   body('deliveryAvailable').optional().isBoolean(),
   body('pickupAvailable').optional().isBoolean(),
-  body('openingHours').optional().isObject(),
+  body('openingHours').optional().isObject().custom(v => Object.entries(v).every(([day,h]) => DAY_KEYS.includes(day) && h && typeof h === 'object' && (h.closed === true || ((!h.open && !h.close) || (TIME_PATTERN.test(h.open) && TIME_PATTERN.test(h.close) && h.close > h.open))))).withMessage('Use valid opening hours in Asia/Colombo, closing after opening'),
   body('contactInfo').optional().isString(),
   body('logo').optional().isString(),
   body('banner').optional().isString(),
   body('address').optional().isString(),
-  body('contactNumber').optional().isString(),
-  body('socialMedia').optional().isObject(),
+  body('contactNumber').optional().isString().customSanitizer(normalizePhone).custom(v => !v || /^\+?[1-9]\d{6,14}$/.test(v)).withMessage('Enter a valid phone number'),
+  body('socialMedia').optional().isObject().custom(v => Object.entries(v).every(([k,url]) => ['facebook','instagram','twitter','tiktok'].includes(k) && typeof url === 'string' && (!url || httpUrl(url)))).withMessage('Social links must be valid HTTP or HTTPS URLs'),
   body('status').optional().isIn(['active', 'pending_approval', 'approved', 'rejected', 'suspended', 'needs_review'])
     .withMessage('Invalid status value'),
   body('currency').optional().isString().withMessage('Currency must be a string'),
-  body('location').optional().isObject().withMessage('Location must be an object'),
+  body('location').optional({nullable:true}).isObject().withMessage('Location must be an object'),
   body('location.type').optional().isIn(['Point']).withMessage('Location type must be "Point"'),
-  body('location.coordinates').optional().isArray({ min: 2, max: 2 }).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
+  body('location.coordinates').optional().isArray({ min: 2, max: 2 }).custom(v => v.length===2 && v.every(Number.isFinite) && Math.abs(v[0])<=180 && Math.abs(v[1])<=90).withMessage('Coordinates must be an array of two numbers [longitude, latitude]'),
   body('location.coordinates.*').optional().isNumeric().withMessage('Coordinates must contain numbers')
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -412,7 +410,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       return res.status(200).json(updated);
     }
 
-    console.log(`PUT /api/merchants/${req.params.id} - Request Body:`, JSON.stringify(req.body, null, 2));
+
     const {
       name,
       profile,
@@ -517,7 +515,7 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
       return res.status(200).json(merchant); // Or a 304 Not Modified, but 200 with data is fine
     }
 
-    console.log(`PUT /api/merchants/${req.params.id} - Update Operation:`, JSON.stringify(updateOperation, null, 2));
+
 
     const updatedMerchant = await Merchant.findByIdAndUpdate(
       req.params.id,
@@ -531,10 +529,10 @@ router.put('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, [
     }
 
     const cleanupTasks = [];
-    if (logo !== undefined && existingMerchant.logo && existingMerchant.logo !== updatedMerchant.logo && isBlobImageUrl(existingMerchant.logo)) {
+    if (logo !== undefined && existingMerchant.logo && existingMerchant.logo !== updatedMerchant.logo && isBlobImageUrl(existingMerchant.logo) && require('../utils/imagePolicy').canDelete(req.user, existingMerchant.logo)) {
       cleanupTasks.push(imageStorage.deleteImage(existingMerchant.logo));
     }
-    if (banner !== undefined && existingMerchant.banner && existingMerchant.banner !== updatedMerchant.banner && isBlobImageUrl(existingMerchant.banner)) {
+    if (banner !== undefined && existingMerchant.banner && existingMerchant.banner !== updatedMerchant.banner && isBlobImageUrl(existingMerchant.banner) && require('../utils/imagePolicy').canDelete(req.user, existingMerchant.banner)) {
       cleanupTasks.push(imageStorage.deleteImage(existingMerchant.banner));
     }
     if (cleanupTasks.length > 0) {
@@ -568,10 +566,10 @@ router.delete('/:id', authenticateJWT, authorizeMerchantSelfOrAdmin, async (req,
     );
 
     const cleanupTasks = [];
-    if (isBlobImageUrl(merchant.logo)) {
+    if (isBlobImageUrl(merchant.logo) && require('../utils/imagePolicy').canDelete(req.user, merchant.logo)) {
       cleanupTasks.push(imageStorage.deleteImage(merchant.logo));
     }
-    if (isBlobImageUrl(merchant.banner)) {
+    if (isBlobImageUrl(merchant.banner) && require('../utils/imagePolicy').canDelete(req.user, merchant.banner)) {
       cleanupTasks.push(imageStorage.deleteImage(merchant.banner));
     }
     if (cleanupTasks.length > 0) {

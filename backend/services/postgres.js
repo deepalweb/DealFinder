@@ -15,8 +15,9 @@ function getSequelize() {
   sequelize = new Sequelize(databaseUrl, {
     dialect: 'postgres',
     dialectOptions: {
-      ssl: { require: true, rejectUnauthorized: false },
+      ssl: { require: true, rejectUnauthorized: true, ...(process.env.PG_SSL_CA ? {ca:process.env.PG_SSL_CA.replace(/\\n/g,'\n')} : {}) },
     },
+    pool: {max:10,min:0,acquire:10000,idle:10000},
     logging: false,
   });
 

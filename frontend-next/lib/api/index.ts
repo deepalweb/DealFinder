@@ -89,7 +89,7 @@ async function refreshAccessToken(): Promise<string | null> {
       return null;
     }
 
-    setStoredUser({ ...user, token: data.token });
+    setStoredUser({ ...user, token: data.token, refreshToken: data.refreshToken ?? user.refreshToken });
     return data.token as string;
   })();
 
@@ -284,6 +284,7 @@ export const UserAPI = {
   register: (data: any) => fetchAPI<any>('users/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data: any) => fetchAPI<any>('users/login', { method: 'POST', body: JSON.stringify(data) }),
   refreshToken: (refreshToken: string) => fetchAPI<any>('users/refresh-token', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+  logout: (refreshToken: string) => fetchAPI<any>('users/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
   getProfile: (id: string) => fetchAPI<any>(`users/${id}`),
   updateProfile: (id: string, data: any) => fetchAPI<any>(`users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   changePassword: (id: string, data: any) => fetchAPI<any>(`users/${id}/change-password`, { method: 'POST', body: JSON.stringify(data) }),

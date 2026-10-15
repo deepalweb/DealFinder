@@ -9,12 +9,7 @@ const NotificationAnalyticsService = require('../services/NotificationAnalyticsS
 const transporter = require('../mailer');
 const { authenticateJWT, authorizeAdmin } = require('../middleware/auth');
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function buildChannelSummary(notification) {
   if (!notification) {
@@ -53,6 +48,18 @@ function buildSkippedSummary(reason) {
     web: { attempted: false, success: false, error: reason },
     email: { attempted: false, success: false, error: reason },
   };
+}
+
+const PUSH_SERVICE_HOST = /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
+function webPushSubscription(value) {
+  try {
+    const url = new URL(value?.endpoint);
+    const { p256dh, auth } = value.keys || {};
+    if (url.protocol !== 'https:' || !PUSH_SERVICE_HOST.test(url.hostname) || typeof p256dh !== 'string' || typeof auth !== 'string') return null;
+    return { endpoint: url.href, keys: { p256dh, auth } };
+  } catch {
+    return null;
+  }
 }
 
 function flattenForSet(input, prefix = '') {
@@ -141,7 +148,9 @@ router.get('/preferences', authenticateJWT, async (req, res) => {
 // Update notification preferences
 router.put('/preferences', authenticateJWT, async (req, res) => {
   try {
-    const updates = flattenForSet(req.body);
+    // Only user-tunable settings; ownership and delivery endpoints are set by dedicated routes.
+    const updates = Object.fromEntries(Object.entries(flattenForSet(req.body)).filter(([key]) =>
+      /^(preferences|quietHours)\./.test(key) || /^channels\.(push|email|web)\.enabled$/.test(key)));
     updates.updatedAt = new Date();
 
     const prefs = await NotificationPreference.findOneAndUpdate(
@@ -252,11 +261,15 @@ router.delete('/deal-alerts/:promotionId', authenticateJWT, async (req, res) => 
 router.post('/subscribe', authenticateJWT, async (req, res) => {
   try {
     const { subscription, type = 'web' } = req.body;
+    // The server later POSTs to this endpoint, so only real push services are accepted.
+    const web = type === 'web' && webPushSubscription(subscription);
+    if (type === 'web' ? !web : typeof subscription !== 'string' || !subscription || subscription.length > 4096)
+      return res.status(400).json({ message: 'A valid push subscription is required.' });
     const prefs = await NotificationPreference.findOneAndUpdate(
       { userId: req.user.id },
       { 
         $set: type === 'web' 
-          ? { 'channels.web.subscription': subscription, 'channels.web.enabled': true }
+          ? { 'channels.web.subscription': web, 'channels.web.enabled': true }
           : { 'channels.push.token': subscription, 'channels.push.enabled': true }
       },
       { new: true, upsert: true }

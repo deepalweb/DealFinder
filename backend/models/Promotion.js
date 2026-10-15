@@ -1,10 +1,13 @@
 const mongoose = require('mongoose');
 
 const promotionSchema = new mongoose.Schema({
+  benefitType: { type: String, enum: ['percentage','fixed','special','bogo','other'] },
+  benefitValue: { type: Number, min: 0 },
   title: { type: String, required: true },
   description: { type: String, required: true },
+  termsAndConditions: { type: String, maxlength: 5000 },
   discount: { type: String, required: true },
-  code: { type: String, required: true },
+  code: { type: String },
   category: { type: String, required: true },
   merchant: { type: mongoose.Schema.Types.ObjectId, ref: 'Merchant', required: true },
   startDate: { type: Date, required: true },
@@ -23,8 +26,8 @@ const promotionSchema = new mongoose.Schema({
   deliveryAvailable: { type: Boolean, default: false },
   pickupAvailable: { type: Boolean, default: false },
   featured: { type: Boolean, default: false },
-  originalPrice: { type: Number },
-  discountedPrice: { type: Number },
+  originalPrice: { type: Number, min:0 },
+  discountedPrice: { type: Number, min:0 },
   bankName: { type: String, trim: true },
   cardTypes: [{
     type: String,
@@ -55,7 +58,8 @@ const promotionSchema = new mongoose.Schema({
       'expired',
       'rejected',
       'admin_paused',
-      'draft'
+      'draft',
+      'pending_review'
     ],
     default: 'draft'
   },
@@ -79,6 +83,13 @@ const promotionSchema = new mongoose.Schema({
   }]
 }, {
   timestamps: true,
+});
+
+promotionSchema.pre('validate',function(){
+ if(this.endDate && this.startDate && this.endDate<=this.startDate)this.invalidate('endDate','End date must be after start date');
+ if(this.originalPrice!=null && this.discountedPrice!=null && this.discountedPrice>=this.originalPrice)this.invalidate('discountedPrice','Sale price must be below original price');
+ const match=/^(?:up to\s+)?(\d+(?:\.\d+)?)\s*%/i.exec(this.discount||'');
+ if(match && (Number(match[1])<=0 || Number(match[1])>100))this.invalidate('discount','Percentage must be between 0 and 100');
 });
 
 // Indexes for the main query: status + date range filter

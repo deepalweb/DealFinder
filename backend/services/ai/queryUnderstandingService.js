@@ -9,6 +9,10 @@ const {
 
 const QUERY_CACHE_TTL_MS = 5 * 60 * 1000;
 const queryUnderstandingCache = new Map();
+function cacheResult(key,data){
+ if(queryUnderstandingCache.size>=500)queryUnderstandingCache.delete(queryUnderstandingCache.keys().next().value);
+ queryUnderstandingCache.set(key,{timestamp:Date.now(),data});
+}
 
 function extractJsonObject(text) {
   const raw = String(text || '').trim();
@@ -123,33 +127,33 @@ function heuristicQueryUnderstanding(query) {
 
 function sanitizeAiFilters(parsed) {
   const filters = parsed && typeof parsed === 'object' ? parsed : {};
-  const categories = Array.isArray(filters.categories)
-    ? filters.categories.map(normalizeCategoryId).filter(Boolean)
+  const categories = Array.isArray(filters.filters?.categories || filters.categories)
+    ? (filters.filters?.categories || filters.categories).map(normalizeCategoryId).filter(value=>['bank_cards','food_dining','daily_essentials','shopping_retail','electronics','beauty_salon','health_wellness','travel','entertainment','other'].includes(value))
     : [];
-  const numericOrNull = (value) => {
+  const numericOrNull = (value, max=1000000000) => {
     const parsedValue = Number(value);
     if (!Number.isFinite(parsedValue) || parsedValue <= 0) return null;
-    return parsedValue;
+    return Math.min(parsedValue,max);
   };
 
   return {
     normalizedQuery: String(filters.normalizedQuery || '').trim().toLowerCase(),
     intent: {
       type: 'deal_search',
-      wantsNearby: Boolean(filters.intent?.wantsNearby),
-      wantsUrgency: Boolean(filters.intent?.wantsUrgency),
-      wantsFeatured: Boolean(filters.intent?.wantsFeatured),
+      wantsNearby: filters.intent?.wantsNearby === true,
+      wantsUrgency: filters.intent?.wantsUrgency === true,
+      wantsFeatured: filters.intent?.wantsFeatured === true,
     },
     filters: {
       categories: [...new Set(categories)],
       merchantQuery: String(filters.filters?.merchantQuery || '').trim(),
       minPrice: numericOrNull(filters.filters?.minPrice),
       maxPrice: numericOrNull(filters.filters?.maxPrice),
-      minDiscountPercent: numericOrNull(filters.filters?.minDiscountPercent),
-      featuredOnly: Boolean(filters.filters?.featuredOnly),
-      expiringWithinDays: numericOrNull(filters.filters?.expiringWithinDays),
-      radiusKm: numericOrNull(filters.filters?.radiusKm),
-      sortBy: String(filters.filters?.sortBy || 'relevance'),
+      minDiscountPercent: numericOrNull(filters.filters?.minDiscountPercent,100),
+      featuredOnly: filters.filters?.featuredOnly === true,
+      expiringWithinDays: numericOrNull(filters.filters?.expiringWithinDays,365),
+      radiusKm: numericOrNull(filters.filters?.radiusKm,100),
+      sortBy: (['relevance','distance','ending_soon','discount','price_low','price_high','rating','recent'].includes(filters.filters?.sortBy) ? filters.filters.sortBy : 'relevance'),
     },
   };
 }
@@ -174,7 +178,7 @@ async function understandSearchQuery({ query, location, model }) {
 
   const config = getAiConfig();
   if (!config.aiSearchEnabled || !isAzureOpenAIConfigured()) {
-    queryUnderstandingCache.set(cacheKey, { timestamp: Date.now(), data: heuristic });
+    cacheResult(cacheKey,heuristic);
     return heuristic;
   }
 
@@ -197,7 +201,7 @@ async function understandSearchQuery({ query, location, model }) {
 
   try {
     const completion = await createResponse({
-      model,
+      model: config.model,
       instructions: systemPrompt,
       input: [
         {
@@ -217,7 +221,7 @@ async function understandSearchQuery({ query, location, model }) {
 
     const parsed = extractJsonObject(completion.outputText);
     if (!parsed) {
-      queryUnderstandingCache.set(cacheKey, { timestamp: Date.now(), data: heuristic });
+      cacheResult(cacheKey,heuristic);
       return heuristic;
     }
 
@@ -249,16 +253,17 @@ async function understandSearchQuery({ query, location, model }) {
       source: 'azure_openai+heuristic',
     };
 
-    queryUnderstandingCache.set(cacheKey, { timestamp: Date.now(), data: result });
+    cacheResult(cacheKey,result);
     return result;
   } catch (error) {
     console.warn('[AI Search] Query understanding fallback:', error.message);
-    queryUnderstandingCache.set(cacheKey, { timestamp: Date.now(), data: heuristic });
+    cacheResult(cacheKey,heuristic);
     return heuristic;
   }
 }
 
 module.exports = {
+  sanitizeAiFilters,
   heuristicQueryUnderstanding,
   understandSearchQuery,
 };

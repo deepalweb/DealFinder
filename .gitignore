@@ -44,3 +44,7 @@ yarn-error.log*
 # cloudflare worker
 /cloudflare/node_modules
 /cloudflare/.wrangler
+
+# Local backend security audit runtime (binary and pre-fix source snapshot)
+/.codex-logs/mongodb-bin/
+/.codex-logs/backend-audit-baseline/
