@@ -178,6 +178,45 @@ router.get('/', authorizeAdmin, async (req, res) => {
   }
 });
 
+// Self-service account deletion (required by App Store guideline 5.1.1(v)).
+// Personal data is deleted; merchant-facing records keep counts but lose the person.
+router.delete('/me', async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'admin' && await User.countDocuments({ role: 'admin' }) <= 1) {
+      return res.status(409).json({ message: 'Assign another administrator before deleting this account.' });
+    }
+    const id = user._id;
+    const byUserId = ['NotificationPreference', 'NotificationLog', 'DealAlert', 'UserBehaviorEvent', 'UserPreferenceProfile', 'SearchQueryLog']
+      .map((name) => require(`../models/${name}`).deleteMany({ userId: id }));
+    await Promise.all([
+      ...byUserId,
+      require('../models/MerchantDraft').deleteMany({ owner: id }),
+      require('../models/RefreshSession').deleteMany({ user: id }),
+      require('../models/SessionFamily').deleteMany({ user: id }),
+      require('../models/PromotionClick').updateMany({ user: id }, { $unset: { user: 1 } }),
+      require('../models/Report').updateMany({ reporter: id }, { $unset: { reporter: 1 } }),
+      require('../models/Redemption').updateMany({ user: id, status: 'issued' }, { $set: { status: 'cancelled' }, $unset: { issuanceKey: 1 } }),
+      Promotion.updateMany(
+        { $or: [{ 'comments.user': id }, { 'ratings.user': id }, { 'redemptionFeedback.user': id }] },
+        { $pull: { comments: { user: id }, ratings: { user: id }, redemptionFeedback: { user: id } } }),
+      Merchant.updateMany(
+        { $or: [{ 'ratings.user': id }, { 'reviews.user': id }] },
+        { $pull: { ratings: { user: id }, reviews: { user: id } } }),
+    ]);
+    // A store nobody else manages is hidden, not deleted, so an admin can decide what happens to it.
+    if (user.merchantId && !await User.exists({ _id: { $ne: id }, merchantId: user.merchantId })) {
+      await Merchant.updateOne({ _id: user.merchantId }, { $set: { status: 'suspended' } });
+    }
+    await User.deleteOne({ _id: id });
+    res.status(200).json({ message: 'Account deleted' });
+  } catch (error) {
+    console.error('Error deleting own account:', error);
+    res.status(500).json(safeError(error));
+  }
+});
+
 // Delete a user (Admin only)
 router.delete('/:id', authorizeAdmin, async (req, res) => {
   try {

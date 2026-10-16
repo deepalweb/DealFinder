@@ -11,6 +11,13 @@ import 'design_system_test.dart' show host;
 
 class ProfileApi extends ApiService {
   bool unavailable = false;
+  int deleteCalls = 0;
+  @override
+  Future<void> deleteAccount() async {
+    deleteCalls++;
+    throw Exception('offline');
+  }
+
   final save = Completer<Map<String, dynamic>>();
   @override
   Future<Map<String, dynamic>> fetchUserProfile(
@@ -126,6 +133,41 @@ void main() {
         (await SharedPreferences.getInstance()).getString('userName'), 'Alex');
     expect(tester.takeException(), isNull);
   });
+  testWidgets('account deletion asks first and keeps the session when it fails',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'userName': 'Alex',
+      'userEmail': 'alex@example.test',
+      'userId': 'user',
+      'userToken': 'test-token',
+      'userRole': 'user'
+    });
+    final api = ProfileApi();
+    await tester.pumpWidget(host(UserProfileScreen(api: api)));
+    await tester.pumpAndSettle();
+    final delete = find.text('Delete account');
+    await tester.scrollUntilVisible(delete, 200,
+        scrollable: find
+            .ancestor(
+                of: find.text('Edit profile'),
+                matching: find.byType(Scrollable))
+            .first);
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
+    expect(find.text('Delete your account?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(api.deleteCalls, 0);
+    await tester.tap(delete);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(api.deleteCalls, 1);
+    expect(find.textContaining("wasn't deleted"), findsOneWidget);
+    expect((await SharedPreferences.getInstance()).getString('userToken'),
+        'test-token');
+  });
+
   testWidgets('merchant offers lead, future offers hidden, expired reachable',
       (tester) async {
     await tester.pumpWidget(

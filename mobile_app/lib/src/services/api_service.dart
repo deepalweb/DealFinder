@@ -219,6 +219,14 @@ class ApiService {
   Future<String?> _refreshToken() => _refreshInFlight ??=
       _refreshTokenOnce().whenComplete(() => _refreshInFlight = null);
 
+  Future<void> deleteAccount() async {
+    final response = await _authDelete('${_baseUrl}users/me');
+    if (response.statusCode != 200) {
+      throw Exception(_extractErrorMessage(response,
+          fallback: 'Failed to delete account'));
+    }
+  }
+
   Future<void> revokeSession() async {
     final prefs = await SharedPreferences.getInstance();
     final access = prefs.getString('userToken');

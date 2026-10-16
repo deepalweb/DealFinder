@@ -72,6 +72,15 @@ class AuthService {
     await _auth.sendPasswordResetEmail(email: email);
   }
 
+  /// Deletes the account on the server, then clears local state.
+  static Future<void> deleteAccount([ApiService? api]) async {
+    await (api ?? _apiService).deleteAccount();
+    try {
+      await _auth.currentUser?.delete();
+    } catch (_) {}
+    await signOut();
+  }
+
   static Future<void> signOut() async {
     try {
       await PushNotificationService.unsubscribeFromServer();

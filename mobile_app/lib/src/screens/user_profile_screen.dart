@@ -483,6 +483,35 @@ class _UserProfileScreenState extends State<UserProfileScreen>
     await AuthService.signOut();
   }
 
+  Future<void> _deleteAccount() async {
+    final l10n = AppLocalizations.of(context)!;
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+              title: Text(l10n.deleteAccountConfirmTitle),
+              content: Text(l10n.deleteAccountConfirmBody),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(l10n.cancelDialogLabel)),
+                TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error),
+                    child: Text(l10n.deleteAccountConfirmAction)),
+              ],
+            ));
+    if (confirmed != true || !mounted) return;
+    try {
+      await AuthService.deleteAccount(_api);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.deleteAccountFailed)));
+      }
+    }
+  }
+
   ImageProvider? _profileImageProvider() {
     final raw = _profilePicture;
     if (raw == null || raw.isEmpty) return null;
@@ -625,6 +654,12 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                   onPressed: _logout,
                   icon: const Icon(Icons.logout),
                   label: Text(l10n.logout),
+                  style: TextButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error)),
+              TextButton.icon(
+                  onPressed: _deleteAccount,
+                  icon: const Icon(Icons.delete_forever_outlined),
+                  label: Text(l10n.deleteAccount),
                   style: TextButton.styleFrom(
                       foregroundColor: Theme.of(context).colorScheme.error)),
             ]));

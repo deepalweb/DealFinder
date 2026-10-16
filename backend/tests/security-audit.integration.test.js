@@ -304,3 +304,33 @@ test('P0 encoded or traversal image URLs are refused before storage deletion',as
  }
  assert.equal(writes,previous);
 });
+
+test('P0 people can delete their own account and its personal data',async()=>{
+ const Pref=require('../models/NotificationPreference'),Alert=require('../models/DealAlert');
+ const store=await Merchant.create({name:'Deleting owner store',status:'active'});
+ const user=await User.create({name:'Leaving',email:'leaving@audit.test',password:await bcrypt.hash('fixture-password',10),role:'merchant',merchantId:store._id});
+ const pair=await require('../services/sessionService').issue(user);
+ await Pref.create({userId:user._id});await Alert.create({userId:user._id,promotion:P._id,alertTypes:['expiry']});
+ await Promotion.updateOne({_id:P._id},{$push:{comments:{user:user._id,text:'Leaving soon'},ratings:{user:user._id,value:4}}});
+ await Click.create({promotion:P._id,merchant:MB._id,user:user._id,type:'view'});
+ const issued=await Redemption.create({promotion:P._id,merchant:MB._id,user:user._id,token:crypto.randomBytes(24).toString('hex'),expiresAt:new Date(Date.now()+60000)});
+ assert.equal((await request('/users/me',{method:'DELETE'})).status,401);
+ const r=await request('/users/me',{method:'DELETE',token:pair.token});assert.equal(r.status,200);
+ assert.equal(await User.exists({_id:user._id}),null);
+ assert.equal(await Pref.exists({userId:user._id}),null);assert.equal(await Alert.exists({userId:user._id}),null);
+ const offer=await Promotion.findById(P._id).lean();
+ assert.ok(!offer.comments.some(c=>String(c.user)===String(user._id))&&!offer.ratings.some(c=>String(c.user)===String(user._id)));
+ assert.equal(await Click.exists({user:user._id}),null);
+ assert.equal((await Redemption.findById(issued._id)).status,'cancelled');
+ assert.equal((await Merchant.findById(store._id)).status,'suspended');
+ assert.equal(await require('../services/sessionService').rotate(pair.refreshToken),null);
+ assert.equal((await request('/users/'+A._id,{token:pair.token})).status,403);
+ assert.equal(await User.exists({_id:A._id})!==null,true);
+});
+test('P1 the last administrator cannot delete their own account',async()=>{
+ await User.deleteMany({role:'admin'});
+ const admin=await User.create({name:'Only admin',email:'only-admin@audit.test',password:await bcrypt.hash('fixture-password',10),role:'admin'});
+ const pair=await require('../services/sessionService').issue(admin);
+ assert.equal((await request('/users/me',{method:'DELETE',token:pair.token})).status,409);
+ assert.notEqual(await User.exists({_id:admin._id}),null);
+});

@@ -289,6 +289,7 @@ export const UserAPI = {
   login: (data: any) => fetchAPI<any>('users/login', { method: 'POST', body: JSON.stringify(data) }),
   refreshToken: (refreshToken: string) => fetchAPI<any>('users/refresh-token', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
   logout: (refreshToken: string) => fetchAPI<any>('users/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+  deleteAccount: () => fetchAPI<any>('users/me', { method: 'DELETE' }),
   getProfile: (id: string) => fetchAPI<any>(`users/${id}`),
   updateProfile: (id: string, data: any) => fetchAPI<any>(`users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   changePassword: (id: string, data: any) => fetchAPI<any>(`users/${id}/change-password`, { method: 'POST', body: JSON.stringify(data) }),
