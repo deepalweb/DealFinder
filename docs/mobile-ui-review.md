@@ -16,10 +16,10 @@
 | ID | Sev | Finding | Fix | Status |
 |---|---|---|---|---|
 | C1 | Critical | No in-app account deletion. Required by `managing-accounts.md › Deleting accounts` and App Store guideline 5.1.1(v). | `DELETE /api/users/me` + Account screen button with confirmation + web profile button | **Done** (`feat/account-deletion`) |
-| H1 | High | Two brand themes. Blue `#2457E8` (`AppTheme`) vs green `#007B59` (`stitchDiscoverTheme` on Discover, Nearby and offer details). The selected tab and surfaces change color between tabs. | One theme in `AppTheme` (green); delete `stitchDiscoverTheme` | Next |
+| H1 | High | Two brand themes. Blue `#2457E8` (`AppTheme`) vs green `#007B59` (`stitchDiscoverTheme` on Discover, Nearby and offer details). The selected tab and surfaces change color between tabs. | One theme in `AppTheme` (green); `stitchDiscoverTheme` keeps only compact control sizing | **Done** (`feat/unified-theme`) |
 | H2 | High | Discover has three control rows (segmented control, search with filter button, chip row), with "All offers" in two of them | Search, plus one chip row (In store/Online as chips); everything else in the filter sheet | Open |
 | H3 | High | Header buttons duplicate tabs: the store button on Discover, the account button on Nearby | Remove both; keep only the bell | Open |
-| M1 | Medium | The tab bar's height, background and indicator differ between tabs | One `NavigationBarTheme` (comes with H1) | Next |
+| M1 | Medium | The tab bar's height, background and indicator differ between tabs | One `NavigationBarTheme` in `AppTheme` | **Done** (`feat/unified-theme`) |
 | M2 | Medium | Save is a heart in one place and a bookmark elsewhere | Always the bookmark, to match the Saved tab | Open |
 | M3 | Medium | The store page switches views with checkmark chips | `SegmentedButton` / `TabBar` for Offers/About/Reviews | Open |
 | M4 | Medium | "Ends in 26395d 0h" | Countdown under 48 h, otherwise the date | Open |
@@ -27,7 +27,7 @@
 | M6 | Medium | System-speak: "Matching offers loaded so far", "2 visible • 0 following • 2 total stores", "Not rated" on every row, "1 Offers", "Deal details" vs "offer" | Remove or rewrite; use ICU plurals; "Offer details" | Open |
 | L1 | Low | Store cards have three actions | Remove "View store" (the card opens the store) | Open |
 | L2 | Low | Offer cards on a store page are titled with the store name | Use the offer title | Open |
-| L3 | Low | The unused `textTertiary #737D90` token fails contrast (3.84:1) | Delete it | Open |
+| L3 | Low | The unused `textTertiary #737D90` token fails contrast (3.84:1) | Delete it | **Done** (`feat/unified-theme`) |
 
 ## Platform notes
 

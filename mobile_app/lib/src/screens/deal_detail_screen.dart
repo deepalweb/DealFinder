@@ -1179,7 +1179,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           icon: Icons.auto_awesome,
           label: l10n.featuredLabel,
           backgroundColor: AppColors.turmeric.withValues(alpha: 0.16),
-          foregroundColor: AppColors.ceylonInk,
+          foregroundColor: AppColors.brand,
         ),
       if (DealExpiryHelper.isEndingToday(promotion.endDate))
         _buildInfoPill(
@@ -1279,7 +1279,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                   )),
             style: _dealAlertEnabled
                 ? OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.ceylonInk,
+                    foregroundColor: AppColors.brand,
                     backgroundColor: AppColors.turmeric.withValues(alpha: 0.18),
                     side: const BorderSide(color: AppColors.turmeric),
                   )
@@ -1347,7 +1347,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 'වෙළඳසැල් වෙබ් අඩවිය විවෘත කරන්න', 'வணிகர் இணையதளத்தைத் திற'),
             icon: Icons.delivery_dining,
             onPressed: () => _launchURL(orderLink),
-            backgroundColor: AppColors.ceylonInk,
+            backgroundColor: AppColors.brand,
             foregroundColor: AppColors.sand,
           )
         : _showsVisitNow
@@ -1355,7 +1355,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                 label: _t('Get directions', 'මාර්ගය බලන්න', 'வழிகாட்டல் பெறுக'),
                 icon: Icons.directions_outlined,
                 onPressed: _openDirections,
-                backgroundColor: AppColors.ceylonInk,
+                backgroundColor: AppColors.brand,
                 foregroundColor: AppColors.sand,
               )
             : (promotion.url ?? '').isNotEmpty
@@ -1363,7 +1363,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     label: l10n.openDealLabel,
                     icon: Icons.launch,
                     onPressed: () => _launchURL(promotion.url!),
-                    backgroundColor: AppColors.ceylonInk,
+                    backgroundColor: AppColors.brand,
                     foregroundColor: AppColors.sand,
                   )
                 : (promotion.websiteUrl ?? '').isNotEmpty
@@ -1371,7 +1371,7 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                         label: l10n.websiteLabel,
                         icon: Icons.public,
                         onPressed: () => _launchURL(promotion.websiteUrl!),
-                        backgroundColor: AppColors.ceylonInk,
+                        backgroundColor: AppColors.brand,
                         foregroundColor: AppColors.sand,
                       )
                     : null;

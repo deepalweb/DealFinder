@@ -9,29 +9,10 @@ import 'discover_search_hint.dart';
 import 'discovery_offer_card.dart';
 import 'offer_save_button.dart';
 
-/// Marketplace-page palette, scoped to Discover and Nearby, never globally.
+/// Compact control sizing for the marketplace screens. Colors come from AppTheme.
 ThemeData stitchDiscoverTheme(ThemeData base) {
-  final dark = base.brightness == Brightness.dark;
-  final scheme = base.colorScheme.copyWith(
-    primary: dark ? const Color(0xFF81E2BF) : const Color(0xFF007B59),
-    onPrimary: dark ? const Color(0xFF003829) : Colors.white,
-    tertiary: dark ? const Color(0xFFFFCF7A) : const Color(0xFFC07812),
-    primaryContainer: dark ? const Color(0xFF174D3B) : const Color(0xFFA9F4D8),
-    onPrimaryContainer:
-        dark ? const Color(0xFFBCFBE3) : const Color(0xFF00553E),
-    surface: dark ? const Color(0xFF111A16) : const Color(0xFFFDF8FC),
-    surfaceContainerLowest: dark ? const Color(0xFF1B2721) : Colors.white,
-    surfaceContainerLow:
-        dark ? const Color(0xFF18221D) : const Color(0xFFF8FCFB),
-    surfaceContainerHighest:
-        dark ? const Color(0xFF29342E) : const Color(0xFFEFEDEE),
-    onSurface: dark ? const Color(0xFFEDF5EF) : const Color(0xFF17201C),
-    onSurfaceVariant: dark ? const Color(0xFFB5C6BB) : const Color(0xFF5C6962),
-    outlineVariant: dark ? const Color(0xFF38463E) : const Color(0xFFE8E5E7),
-  );
+  final scheme = base.colorScheme;
   return base.copyWith(
-    colorScheme: scheme,
-    scaffoldBackgroundColor: scheme.surface,
     iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
             foregroundColor: scheme.primary, minimumSize: const Size(48, 48))),

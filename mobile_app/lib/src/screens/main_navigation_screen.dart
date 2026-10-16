@@ -10,7 +10,6 @@ import 'stores_screen.dart';
 import 'nearby_deals_screen.dart';
 import '../services/app_session.dart';
 import '../widgets/sign_in_gate.dart';
-import '../widgets/stitch_discover_components.dart' show stitchDiscoverTheme;
 
 class MainNavigationScreen extends StatefulWidget {
   final String userId;
@@ -206,9 +205,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ])));
     }
     final navigation = NavigationBar(
-      height: _selectedIndex <= 1
-          ? (MediaQuery.textScalerOf(context).scale(16) > 24 ? 104 : 68)
-          : null,
+      height: MediaQuery.textScalerOf(context).scale(16) > 24 ? 104 : 68,
       selectedIndex: _selectedIndex,
       onDestinationSelected: _onItemTapped,
       destinations: _navItems
@@ -218,39 +215,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               label: item.label(l10n)))
           .toList(),
     );
-    final discoverTheme = stitchDiscoverTheme(theme);
+    // One tab bar for every tab: the same height, colors and labels everywhere.
     return Scaffold(
       body: screens,
-      bottomNavigationBar: _selectedIndex > 1
-          ? navigation
-          : Theme(
-              data: discoverTheme.copyWith(
-                  navigationBarTheme: discoverTheme.navigationBarTheme.copyWith(
-                backgroundColor: discoverTheme.colorScheme.surfaceContainerLow,
-                indicatorColor: Colors.transparent,
-                iconTheme: WidgetStateProperty.resolveWith((states) =>
-                    IconThemeData(
-                        size: 22,
-                        color: states.contains(WidgetState.selected)
-                            ? discoverTheme.colorScheme.primary
-                            : discoverTheme.colorScheme.onSurfaceVariant)),
-                labelTextStyle: WidgetStateProperty.resolveWith((states) =>
-                    theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 11,
-                        fontWeight: states.contains(WidgetState.selected)
-                            ? FontWeight.w700
-                            : FontWeight.w500,
-                        color: states.contains(WidgetState.selected)
-                            ? discoverTheme.colorScheme.primary
-                            : discoverTheme.colorScheme.onSurfaceVariant)),
-              )),
-              child: DecoratedBox(
-                  decoration: BoxDecoration(
-                      border: Border(
-                          top: BorderSide(
-                              color:
-                                  discoverTheme.colorScheme.outlineVariant))),
-                  child: navigation)),
+      bottomNavigationBar: DecoratedBox(
+          decoration: BoxDecoration(
+              border: Border(
+                  top: BorderSide(color: theme.colorScheme.outlineVariant))),
+          child: navigation),
     );
   }
 
