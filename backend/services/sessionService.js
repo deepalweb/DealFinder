@@ -33,5 +33,11 @@ async function revoke(token,userId){
  const row=await RefreshSession.findOne({tokenHash:hash(token),user:userId});
  if(row){await Family.updateOne({_id:row.family,user:userId},{$set:{revokedAt:new Date()}});await RefreshSession.updateMany({family:row.family},{$set:{revokedAt:new Date()}});}
 }
-async function revokeAll(userId){await Family.updateMany({user:userId},{$set:{revokedAt:new Date()}});await RefreshSession.updateMany({user:userId},{$set:{revokedAt:new Date()}});}
+async function revokeAll(userId){
+ await Family.updateMany({user:userId},{$set:{revokedAt:new Date()}});await RefreshSession.updateMany({user:userId},{$set:{revokedAt:new Date()}});
+ // Firebase sessions too, or a signed-in device could exchange a Firebase token for a new session.
+ const account=await require('../models/User').findById(userId).select('+firebaseUid').lean();
+ const {admin,ensureFirebaseAdminInitialized}=require('./firebaseAdmin');
+ if(account?.firebaseUid&&ensureFirebaseAdminInitialized())await admin.auth().revokeRefreshTokens(account.firebaseUid).catch(()=>{});
+}
 module.exports={issue,rotate,revoke,revokeAll,hash};

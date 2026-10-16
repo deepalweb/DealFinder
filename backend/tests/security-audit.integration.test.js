@@ -9,7 +9,8 @@ const {MongoMemoryServer}=require('mongodb-memory-server');
 let providerIdentity={email:'firebase@audit.test',uid:'public-fixture-uid',name:'Fixture',email_verified:true};
 const firebasePath=require.resolve('../services/firebaseAdmin');
 require.cache[firebasePath]={id:firebasePath,filename:firebasePath,loaded:true,exports:{ensureFirebaseAdminInitialized:()=>true,
- admin:{auth:()=>({verifyIdToken:async()=>providerIdentity})}}};
+ admin:{auth:()=>({verifyIdToken:async()=>providerIdentity,revokeRefreshTokens:async(uid)=>{firebaseRevoked.push(uid);}})}}};
+const firebaseRevoked=[];
 let writes=0;
 const storagePath=require.resolve('../services/imageStorage');
 require.cache[storagePath]={id:storagePath,filename:storagePath,loaded:true,exports:{isConfigured:()=>true,
@@ -333,4 +334,26 @@ test('P1 the last administrator cannot delete their own account',async()=>{
  const pair=await require('../services/sessionService').issue(admin);
  assert.equal((await request('/users/me',{method:'DELETE',token:pair.token})).status,409);
  assert.notEqual(await User.exists({_id:admin._id}),null);
+});
+
+// --- Sign-in round: Firebase sessions and merchant sign-up ---
+test('P1 password change and account deletion also revoke Firebase sessions',async()=>{
+ const user=await User.create({name:'Firebase owner',email:'firebase-owner@audit.test',firebaseUid:'firebase-owner-uid',password:await bcrypt.hash('previous-password',10)});
+ const sessions=require('../services/sessionService');let pair=await sessions.issue(user);
+ assert.equal((await request('/users/'+user._id+'/change-password',{method:'POST',token:pair.token,body:{currentPassword:'previous-password',newPassword:'replacement-password'}})).status,200);
+ assert.ok(firebaseRevoked.includes('firebase-owner-uid'));
+ firebaseRevoked.length=0;pair=await sessions.issue(await User.findById(user._id));
+ assert.equal((await request('/users/me',{method:'DELETE',token:pair.token})).status,200);
+ assert.ok(firebaseRevoked.includes('firebase-owner-uid'));
+});
+test('P2 merchant sign-up with a business name already in use gets its own pending store',async()=>{
+ const previous=providerIdentity;
+ try{
+  providerIdentity={email:'second-store@audit.test',uid:'second-store-uid',name:'Second',email_verified:true};
+  const r=await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture',role:'merchant',businessName:'Audit Store A'}});
+  assert.equal(r.status,200);const data=await r.json();
+  const store=await Merchant.findById(data.merchantId);
+  assert.ok(store);assert.notEqual(String(store._id),String(MA._id));assert.equal(store.status,'pending_approval');
+  assert.equal(await User.countDocuments({email:'second-store@audit.test'}),1);
+ }finally{providerIdentity=previous;}
 });

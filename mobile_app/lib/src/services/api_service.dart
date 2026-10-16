@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -185,7 +184,7 @@ class ApiService {
     }
 
     var response = await send(token);
-    if (response.statusCode == 401) {
+    if (_needsRefresh(response)) {
       token = await _refreshToken();
       if (token != null) {
         response = await send(token);
@@ -213,6 +212,19 @@ class ApiService {
       {Map<String, dynamic>? body, String? token}) async {
     return _sendAuthenticatedRequest('PUT', url,
         body: body, accessToken: token);
+  }
+
+  // The backend answers an expired or revoked access token with 403
+  // "Invalid or expired token" (the web client checks the same message).
+  static bool _needsRefresh(http.Response response) {
+    if (response.statusCode == 401) return true;
+    if (response.statusCode != 403) return false;
+    try {
+      return (jsonDecode(response.body) as Map)['message'] ==
+          'Invalid or expired token';
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<String?>? _refreshInFlight;
@@ -262,30 +274,8 @@ class ApiService {
         }
       } catch (_) {}
     }
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return null;
-      final idToken = await user.getIdToken(true); // force refresh
-      final response = await http
-          .post(
-            Uri.parse('${_baseUrl}users/firebase-auth'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'idToken': idToken}),
-          )
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final newToken = data['token'] as String?;
-        if (newToken != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userToken', newToken);
-          if (data['refreshToken'] is String) {
-            await prefs.setString('refreshToken', data['refreshToken']);
-          }
-          return newToken;
-        }
-      }
-    } catch (_) {}
+    // No Firebase fallback: a revoked session (logout everywhere, password
+    // change) must stay revoked until the person signs in again.
     return null;
   }
 

@@ -131,15 +131,8 @@ router.post('/firebase-auth', async (req, res) => {
         role: role === 'merchant' ? 'merchant' : 'user', // never trust a client-supplied admin role
         businessName,
       });
-      const savedUser = await user.save();
-
-      if (role === 'merchant' && businessName) {
-        const merchant = new Merchant({ name: businessName, contactInfo: email, status:'pending_approval' });
-        const savedMerchant = await merchant.save();
-        savedUser.merchantId = savedMerchant._id;
-        await savedUser.save();
-        user = savedUser;
-      }
+      // The pending store is created below by ensureMerchantProfileForUser, which keeps store names unique.
+      user = await user.save();
     }
 
     if(!user.firebaseUid){
@@ -188,6 +181,7 @@ router.delete('/me', async (req, res) => {
       return res.status(409).json({ message: 'Assign another administrator before deleting this account.' });
     }
     const id = user._id;
+    await sessions.revokeAll(id);
     const byUserId = ['NotificationPreference', 'NotificationLog', 'DealAlert', 'UserBehaviorEvent', 'UserPreferenceProfile', 'SearchQueryLog']
       .map((name) => require(`../models/${name}`).deleteMany({ userId: id }));
     await Promise.all([
