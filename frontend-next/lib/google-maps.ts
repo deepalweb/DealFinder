@@ -1,3 +1,4 @@
+/// <reference types="@types/google.maps" />
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 
 let loaded: Promise<google.maps.MapsLibrary> | undefined;

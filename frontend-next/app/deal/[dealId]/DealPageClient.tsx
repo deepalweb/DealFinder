@@ -10,9 +10,16 @@ import {
   ExternalLink,
   MapPin,
   Copy,
+  Check,
   Share2,
   Star,
+  ChevronDown,
+  ChevronUp,
+  Store,
+  Ticket,
+  MessageCircle,
 } from "lucide-react";
+import GoogleMapView from "@/components/ui/GoogleMapView";
 import toast from "react-hot-toast";
 import { BankOfferAPI, PromotionAPI } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -64,6 +71,9 @@ export default function DealPageClient({
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -169,6 +179,8 @@ export default function DealPageClient({
     try {
       if (deal?.code) {
         await navigator.clipboard.writeText(deal.code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2500);
         toast.success(c.copySuccess);
       }
     } catch {
@@ -176,17 +188,26 @@ export default function DealPageClient({
     }
   }
   async function share() {
-    try {
-      if (navigator.share)
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
         await navigator.share({
-          title: deal?.title,
+          title: deal?.title || "Deal on DealFinder",
+          text: `Check out this deal on DealFinder: ${deal?.title || ""}`,
           url: window.location.href,
         });
-      else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast.success(c.copySuccess);
-      }
-    } catch {}
+      } catch {}
+    } else {
+      setShareOpen((prev) => !prev);
+    }
+  }
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success(c.copySuccess || "Link copied!");
+      setShareOpen(false);
+    } catch {
+      toast.error(c.copyFailed);
+    }
   }
   async function rate(value: number) {
     if (!user) {
@@ -326,47 +347,128 @@ export default function DealPageClient({
           >
             {deal.description}
           </p>
-          <section className="mp-detail-panel">
-            <h2>{c.conditions}</h2>
-            <p>
-              {start && `${start} — `}
-              {end ? `${c.ends} ${end}` : c.dateUnknown}
-            </p>
-            {deal.bankName && (
-              <p>
-                {deal.bankName} ·{" "}
-                {deal.cardTypes
-                  ?.map(
-                    (type) => c[type as "credit" | "debit" | "prepaid"] || type,
-                  )
-                  .join(", ")}
-              </p>
+
+          {/* Embedded Interactive Map */}
+          {coordinates &&
+            coordinates.length >= 2 &&
+            coordinates.every(Number.isFinite) && (
+              <div className="mp-map-card">
+                <div className="mp-map-header">
+                  <h3>
+                    <MapPin size={18} style={{ color: "var(--primary-color)" }} />
+                    {merchant?.name || v.merchantName}
+                  </h3>
+                  <a
+                    className="mp-button"
+                    style={{ minHeight: 34, padding: "6px 12px", fontSize: 13 }}
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${coordinates[1]},${coordinates[0]}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MapPin size={14} />
+                    {c.directions}
+                  </a>
+                </div>
+                <GoogleMapView
+                  lat={coordinates[1]}
+                  lng={coordinates[0]}
+                  points={[
+                    {
+                      id: String(dealId),
+                      lat: coordinates[1],
+                      lng: coordinates[0],
+                      title: merchant?.name || v.merchantName || v.title,
+                    },
+                  ]}
+                  height="220px"
+                />
+              </div>
             )}
-            {v.minimum !== null && (
-              <p>
-                {c.minimum}: {money(v.minimum)}
-              </p>
+
+          {/* Interactive Terms & Conditions Accordion */}
+          <div className="mp-accordion">
+            <button
+              type="button"
+              className="mp-accordion-summary"
+              style={{
+                width: "100%",
+                background: "none",
+                border: "none",
+                color: "inherit",
+                textAlign: "left",
+              }}
+              onClick={() => setTermsOpen((prev) => !prev)}
+              aria-expanded={termsOpen}
+            >
+              <span>{c.conditions}</span>
+              {termsOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
+            <div
+              className="mp-chips"
+              style={{
+                paddingInline: 20,
+                marginBlock: 0,
+                paddingBottom: 12,
+              }}
+            >
+              {end && (
+                <span className="mp-intro-pill">
+                  {c.ends}: {end}
+                </span>
+              )}
+              {v.minimum !== null && (
+                <span className="mp-intro-pill">
+                  {c.minimum}: {money(v.minimum)}
+                </span>
+              )}
+              {deal.bankName && (
+                <span className="mp-intro-pill">{deal.bankName}</span>
+              )}
+            </div>
+            {termsOpen && (
+              <div className="mp-accordion-content">
+                <p>
+                  {start && `${start} — `}
+                  {end ? `${c.ends} ${end}` : c.dateUnknown}
+                </p>
+                {deal.bankName && (
+                  <p>
+                    {deal.bankName} ·{" "}
+                    {deal.cardTypes
+                      ?.map(
+                        (type) =>
+                          c[type as "credit" | "debit" | "prepaid"] || type,
+                      )
+                      .join(", ")}
+                  </p>
+                )}
+                {v.minimum !== null && (
+                  <p>
+                    {c.minimum}: {money(v.minimum)}
+                  </p>
+                )}
+                {v.maximum !== null && (
+                  <p>
+                    {c.maximum}: {money(v.maximum)}
+                  </p>
+                )}
+                <p>
+                  {[
+                    deal.visitAvailable && c.visit,
+                    deal.deliveryAvailable && c.delivery,
+                    deal.pickupAvailable && c.pickup,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                {deal.termsAndConditions && (
+                  <p style={{ whiteSpace: "pre-wrap" }}>
+                    {deal.termsAndConditions}
+                  </p>
+                )}
+              </div>
             )}
-            {v.maximum !== null && (
-              <p>
-                {c.maximum}: {money(v.maximum)}
-              </p>
-            )}
-            <p>
-              {[
-                deal.visitAvailable && c.visit,
-                deal.deliveryAvailable && c.delivery,
-                deal.pickupAvailable && c.pickup,
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
-            {deal.termsAndConditions && (
-              <p style={{ whiteSpace: "pre-wrap" }}>
-                {deal.termsAndConditions}
-              </p>
-            )}
-          </section>
+          </div>
         </section>
         <aside className="mp-detail-panel mp-detail-actions">
           <p className="mp-price">{v.benefit}</p>

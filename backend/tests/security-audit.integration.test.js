@@ -357,3 +357,44 @@ test('P2 merchant sign-up with a business name already in use gets its own pendi
   assert.equal(await User.countDocuments({email:'second-store@audit.test'}),1);
  }finally{providerIdentity=previous;}
 });
+
+// --- One password store: the backend ---
+test('P1 email sign-in ignores letter case, including older mixed-case accounts',async()=>{
+ let r=await request('/users/register',{method:'POST',body:{name:'Case',email:'Case.User@Audit.test',password:'case-password-1'}});assert.equal(r.status,201);
+ assert.equal((await r.json()).email,'case.user@audit.test');
+ for(const email of ['case.user@audit.test','CASE.USER@AUDIT.TEST',' Case.User@audit.test '])
+  assert.equal((await request('/users/login',{method:'POST',body:{email:email.trim(),password:'case-password-1'}})).status,200,email);
+ assert.equal((await request('/users/register',{method:'POST',body:{name:'Dup',email:'case.USER@audit.test',password:'case-password-2'}})).status,400);
+ await User.collection.insertOne({name:'Legacy',email:'Legacy.Mixed@audit.test',password:await bcrypt.hash('legacy-password-1',10),role:'user',createdAt:new Date()});
+ assert.equal((await request('/users/login',{method:'POST',body:{email:'legacy.mixed@audit.test',password:'legacy-password-1'}})).status,200);
+});
+test('P1 an app-registered Firebase password moves to the backend once, then Firebase passwords are refused',async()=>{
+ const previous=providerIdentity;
+ const user=await User.create({name:'App user',email:'app-user@audit.test',firebaseUid:'app-user-uid',password:await bcrypt.hash(crypto.randomBytes(16).toString('hex'),10)});
+ try{
+  providerIdentity={email:user.email,uid:'app-user-uid',email_verified:true,firebase:{sign_in_provider:'password'}};
+  // Older app versions send no password and keep working until the account moves.
+  assert.equal((await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture'}})).status,200);
+  assert.equal((await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture',password:'short'}})).status,400);
+  assert.equal((await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture',password:'moved-password-1'}})).status,200);
+  assert.equal((await request('/users/login',{method:'POST',body:{email:user.email,password:'moved-password-1'}})).status,200);
+  assert.equal((await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture',password:'another-password'}})).status,401);
+  providerIdentity={...providerIdentity,firebase:{sign_in_provider:'google.com'}};
+  assert.equal((await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture'}})).status,200);
+ }finally{providerIdentity=previous;}
+});
+test('P1 setting a backend password retires the Firebase password',async()=>{
+ const previous=providerIdentity;
+ const user=await User.create({name:'Changer',email:'changer@audit.test',firebaseUid:'changer-uid',password:await bcrypt.hash('changer-password-1',10)});
+ const pair=await require('../services/sessionService').issue(user);
+ assert.equal((await request('/users/'+user._id+'/change-password',{method:'POST',token:pair.token,body:{currentPassword:'changer-password-1',newPassword:'changer-password-2'}})).status,200);
+ try{
+  providerIdentity={email:user.email,uid:'changer-uid',email_verified:true,firebase:{sign_in_provider:'password'}};
+  assert.equal((await request('/users/firebase-auth',{method:'POST',body:{idToken:'fixture'}})).status,401);
+ }finally{providerIdentity=previous;}
+});
+test('P2 registering a store whose name is in use creates its own pending store',async()=>{
+ const r=await request('/users/register',{method:'POST',body:{name:'Twin',email:'twin-store@audit.test',password:'twin-password-1',role:'merchant',businessName:'Audit Store A'}});
+ assert.equal(r.status,201);const data=await r.json();
+ const store=await Merchant.findById(data.merchantId);assert.ok(store);assert.notEqual(String(store._id),String(MA._id));assert.equal(store.status,'pending_approval');
+});

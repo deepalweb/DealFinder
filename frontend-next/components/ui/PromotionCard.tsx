@@ -3,7 +3,7 @@ import { useState } from "react";
 import OfferImage from "@/components/marketplace/OfferImage";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bookmark, Clock, MapPin, ArrowUpRight } from "lucide-react";
+import { Bookmark, Clock, MapPin, ArrowUpRight, Store, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -43,6 +43,10 @@ export default function PromotionCard({
   const end = expiryLabel(promotion.endDate, language);
   const money = (n: number) =>
     formatPrice(n, v.currency, language === "en" ? "en-LK" : language);
+  const savings =
+    v.previous !== null && v.price !== null && v.previous > v.price
+      ? v.previous - v.price
+      : null;
   const trackOpen = () => {
     if (v.kind === "promotion")
       void PromotionAPI.recordClick(v.id, { type: "click" }).catch(() => {});
@@ -96,7 +100,12 @@ export default function PromotionCard({
         )}
       </div>
       <div className="mp-offer-body">
-        {v.merchantName && <p className="mp-merchant">{v.merchantName}</p>}
+        {v.merchantName && (
+          <p className="mp-merchant">
+            <Store size={13} aria-hidden="true" />
+            <span>{v.merchantName}</span>
+          </p>
+        )}
         <h3>
           <Link href={v.href} onClick={trackOpen}>
             {v.title}
@@ -106,14 +115,22 @@ export default function PromotionCard({
           <p className="mp-price">
             {money(v.price)}{" "}
             {v.previous !== null && <del>{money(v.previous)}</del>}
+            {savings !== null && (
+              <span className="mp-save-amount">
+                Save {money(savings)}
+              </span>
+            )}
           </p>
         )}
         {v.bank && (
-          <p className="mp-conditions">
-            {promotion.bankName} ·{" "}
-            {promotion.cardTypes
-              ?.map((type) => c[type as "credit" | "debit" | "prepaid"] || type)
-              .join(", ")}
+          <p className="mp-conditions mp-bank-condition">
+            <CreditCard size={13} aria-hidden="true" />
+            <span>
+              {promotion.bankName} ·{" "}
+              {promotion.cardTypes
+                ?.map((type) => c[type as "credit" | "debit" | "prepaid"] || type)
+                .join(", ")}
+            </span>
           </p>
         )}
         <div className="mp-conditions">

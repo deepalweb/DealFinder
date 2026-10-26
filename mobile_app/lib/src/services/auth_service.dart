@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'app_session.dart';
@@ -10,6 +9,7 @@ class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final ApiService _apiService = ApiService();
 
+  // Email and password live in the backend, shared with the web app.
   static Future<Map<String, dynamic>> registerWithEmail({
     required String name,
     required String email,
@@ -17,24 +17,16 @@ class AuthService {
     required String role,
     String? businessName,
   }) async {
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      await credential.user!.updateDisplayName(name);
-      final idToken = await credential.user!.getIdToken();
-      final response = await _apiService.firebaseAuthSync(
-        idToken: idToken!,
-        name: name,
-        role: role,
-        businessName: businessName,
-      );
-      await saveSession(response);
-      return response;
-    } on FirebaseAuthException catch (e) {
-      throw Exception('Firebase Auth error [${e.code}]: ${e.message}');
-    }
+    final response = await _apiService.registerUser({
+      'name': name,
+      'email': email,
+      'password': password,
+      'role': role,
+      if (businessName != null && businessName.isNotEmpty)
+        'businessName': businessName,
+    });
+    await saveSession(response);
+    return response;
   }
 
   static Future<Map<String, dynamic>> loginWithEmail(
@@ -42,35 +34,39 @@ class AuthService {
     String password,
   ) async {
     try {
-      try {
-        final credential = await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
-        final idToken = await credential.user!.getIdToken();
-        final response = await _apiService.firebaseAuthSync(idToken: idToken!);
-        await saveSession(response);
-        return response;
-      } on FirebaseAuthException catch (e) {
-        if (kDebugMode) {
-          debugPrint('Firebase auth failed: ${e.code} - ${e.message}');
-        }
-      }
-
-      final response = await _apiService.directLogin(
-        email: email,
-        password: password,
-      );
+      final response =
+          await _apiService.directLogin(email: email, password: password);
       await saveSession(response);
       return response;
-    } catch (e) {
-      throw Exception('Login failed: ${e.toString()}');
+    } on InvalidCredentialsException {
+      // Accounts registered in the app before passwords moved to the backend
+      // only have a Firebase password. Verify it once and move it over.
+      final response = await _moveFirebasePassword(email, password);
+      if (response == null) rethrow;
+      await saveSession(response);
+      return response;
     }
   }
 
-  static Future<void> sendPasswordReset(String email) async {
-    await _auth.sendPasswordResetEmail(email: email);
+  static Future<Map<String, dynamic>?> _moveFirebasePassword(
+      String email, String password) async {
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+          email: email, password: password);
+      final idToken = await credential.user!.getIdToken();
+      return await _apiService.firebaseAuthSync(
+          idToken: idToken!, password: password);
+    } catch (_) {
+      return null;
+    } finally {
+      try {
+        await _auth.signOut();
+      } catch (_) {}
+    }
   }
+
+  static Future<void> sendPasswordReset(String email) =>
+      _apiService.requestPasswordReset(email);
 
   /// Deletes the account on the server, then clears local state.
   static Future<void> deleteAccount([ApiService? api]) async {

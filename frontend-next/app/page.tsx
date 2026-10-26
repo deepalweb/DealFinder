@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import OfferImage from "@/components/marketplace/OfferImage";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles, ShieldCheck, CreditCard, Flame } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useArea } from "@/contexts/AreaContext";
 import { marketplaceCopy, categoryName } from "@/lib/marketplace-copy";
@@ -89,19 +89,34 @@ export default function Home() {
           {c.title} <span>{c.subtitle}</span>
         </h1>
         <p>{c.intro}</p>
+        <div className="mp-intro-highlights">
+          <span className="mp-intro-pill">
+            <ShieldCheck size={16} />
+            Verified Local Stores
+          </span>
+          <span className="mp-intro-pill">
+            <CreditCard size={16} />
+            Exclusive Bank Card Perks
+          </span>
+          <span className="mp-intro-pill">
+            <Flame size={16} />
+            Live Discounts across Sri Lanka
+          </span>
+        </div>
       </div>
       {campaignView && (
         <section className="mp-campaign">
           <div className="mp-campaign-copy">
-            <p>
+            <span className="mp-campaign-tag">
+              <Sparkles size={14} />
               {c.featured} · {campaignView.benefit}
-            </p>
+            </span>
             <h2>{campaignView.title}</h2>
             <p>{campaignView.merchantName}</p>
             <Link
               href={campaignView.href}
               className="mp-button mp-primary"
-              style={{ marginTop: 16 }}
+              style={{ marginTop: 20, alignSelf: "flex-start" }}
             >
               {c.view}
               <ArrowRight size={16} />

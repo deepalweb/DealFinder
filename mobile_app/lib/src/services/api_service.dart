@@ -92,6 +92,12 @@ class MerchantRequestException implements Exception {
   String toString() => '$resource request failed (HTTP $statusCode)';
 }
 
+class InvalidCredentialsException implements Exception {
+  const InvalidCredentialsException();
+  @override
+  String toString() => 'Invalid email or password.';
+}
+
 class ApiService {
   static String get _baseUrl => AppConfig.baseUrl;
 
@@ -432,7 +438,20 @@ class ApiService {
     }
   }
 
-  // Direct login (bypass Firebase) - fallback when Firebase is unavailable
+  // Sends the backend's reset email; the link opens the web reset page.
+  Future<void> requestPasswordReset(String email) async {
+    final response = await http
+        .post(Uri.parse('${_baseUrl}users/reset-password'),
+            headers: {'Content-Type': 'application/json; charset=UTF-8'},
+            body: jsonEncode({'email': email}))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception(_extractErrorMessage(response,
+          fallback: 'Password reset is unavailable. Please try again later.'));
+    }
+  }
+
+  // Email/password sign-in against the backend, the single password store.
   Future<Map<String, dynamic>> directLogin(
       {required String email, required String password}) async {
     try {
@@ -454,16 +473,13 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        if (kDebugMode) debugPrint('Direct login successful');
         return jsonDecode(response.body) as Map<String, dynamic>;
-      } else if (response.statusCode == 400 || response.statusCode == 401) {
-        final errorBody = jsonDecode(response.body);
-        throw Exception(errorBody['message'] ?? 'Invalid email or password.');
-      } else {
-        throw Exception('Login failed. Status code: ${response.statusCode}');
       }
+      if (response.statusCode == 401) throw const InvalidCredentialsException();
+      throw Exception(_extractErrorMessage(response,
+          fallback: 'Sign-in failed. Please try again.'));
     } on TimeoutException {
-      throw Exception('Connection timed out. Is the backend running?');
+      throw Exception("Couldn't reach DealFinder. Check your connection and try again.");
     } catch (e) {
       if (kDebugMode) debugPrint('Direct login error: $e');
       rethrow;
@@ -1242,6 +1258,7 @@ class ApiService {
     String? name,
     String? role,
     String? businessName,
+    String? password,
   }) async {
     try {
       final response = await http
@@ -1253,6 +1270,7 @@ class ApiService {
               if (name != null) 'name': name,
               if (role != null) 'role': role,
               if (businessName != null) 'businessName': businessName,
+              if (password != null) 'password': password,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -1263,7 +1281,7 @@ class ApiService {
         throw Exception(errorBody['message'] ?? 'Authentication failed');
       }
     } on TimeoutException {
-      throw Exception('Connection timed out. Is the backend running?');
+      throw Exception("Couldn't reach DealFinder. Check your connection and try again.");
     } catch (e) {
       rethrow;
     }

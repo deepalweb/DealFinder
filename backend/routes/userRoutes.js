@@ -117,7 +117,7 @@ router.post('/firebase-auth', async (req, res) => {
 
     let user = await User.findOne({firebaseUid:uid}).select('+firebaseUid');
     if(!user){
-      user=await User.findOne({email}).select('+firebaseUid');
+      user=await User.findByEmail(email).select('+firebaseUid');
       if(user && (decoded.email_verified!==true || (user.firebaseUid && user.firebaseUid!==uid)))
         return res.status(401).json({message:'Verify your email before linking this account.'});
     }
@@ -135,6 +135,17 @@ router.post('/firebase-auth', async (req, res) => {
       user = await user.save();
     }
 
+    // Email/password now lives in the backend. A legacy Firebase password moves over once;
+    // after that Firebase password sign-ins are refused (Google and other providers still work).
+    if(decoded.firebase?.sign_in_provider==='password'){
+      if(user.backendPassword)return res.status(401).json({message:'Sign in with your DealFinder password.'});
+      if(req.body.password!==undefined){
+        const password=req.body.password;
+        if(typeof password!=='string'||password.length<8||Buffer.byteLength(password,'utf8')>72)
+          return res.status(400).json({message:'Password must be at least 8 characters.'});
+        user.password=await bcrypt.hash(password,10);user.backendPassword=true;await user.save();
+      }
+    }
     if(!user.firebaseUid){
       user.firebaseUid=uid;
       // Repair historical UID-derived credentials only after valid provider authentication.
@@ -269,6 +280,7 @@ router.post('/:id/change-password', authorizeSelfOrAdmin, [
     // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedNewPassword;
+    user.backendPassword = true;
     user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
     await sessions.revokeAll(user._id);
@@ -333,7 +345,7 @@ router.post('/register', gentleAuthenticateJWT, [
     }
     
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
@@ -347,25 +359,12 @@ router.post('/register', gentleAuthenticateJWT, [
       password: hashedPassword,
       role: role || 'user',
       businessName,
-      profilePicture
+      profilePicture,
+      backendPassword: true,
     });
     
-    const savedUser = await user.save();
-    
-    // If registering as a merchant, create a merchant profile
-    if (role === 'merchant' && businessName) {
-      const merchant = new Merchant({
-        name: businessName,
-        status:'pending_approval',
-        contactInfo: email
-      });
-      
-      const savedMerchant = await merchant.save();
-      
-      // Link merchant to user
-      savedUser.merchantId = savedMerchant._id;
-      await savedUser.save();
-    }
+    // ensureMerchantProfileForUser creates the pending store and keeps store names unique.
+    const savedUser = await ensureMerchantProfileForUser(await user.save(), { businessName, contactInfo: email });
     
     // Don't return the password
     const userResponse = savedUser.toObject();
@@ -393,7 +392,7 @@ router.post('/login', [
     // Find user
     let user = process.env.DATA_SOURCE === 'postgres'
       ? await findPostgresUserByEmail(email)
-      : await User.findOne({ email });
+      : await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -673,7 +672,7 @@ router.post('/reset-password', async (req, res) => {
     if (!process.env.M365_EMAIL || !(process.env.M365_PASSWORD || process.env.EMAIL_PASSWORD)) {
       return res.status(503).json({message:'Password reset email is not configured.'});
     }
-    const user = await User.findOne({ email });
+    const user = await User.findByEmail(email);
     if (!user) {
       // Respond with success even if user not found (to prevent email enumeration)
       return res.status(200).json({ message: 'If your email is registered, you will receive a password reset link.' });
@@ -709,7 +708,7 @@ router.post('/reset-password/confirm', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.findOneAndUpdate({
       resetPasswordToken: sessions.hash(token), resetPasswordExpires: { $gt: new Date() }
-    }, { $set:{password:hashedPassword}, $inc:{tokenVersion:1},
+    }, { $set:{password:hashedPassword,backendPassword:true}, $inc:{tokenVersion:1},
          $unset:{resetPasswordToken:1,resetPasswordExpires:1}}, {new:true});
     if(!user)return res.status(400).json({message:'Invalid or expired token.'});
     await sessions.revokeAll(user._id);
@@ -740,7 +739,7 @@ router.post('/google-signin', async (req, res) => {
         const { name, email, picture, email_verified } = ticket.getPayload();
         if (email_verified !== true || typeof email !== 'string') return res.status(401).json({ message: 'A verified email identity is required' });
 
-        let user = await User.findOne({ email });
+        let user = await User.findByEmail(email);
         if (!user) {
             const password = crypto.randomBytes(32).toString('hex'); // unusable; Google users sign in via Google
             const hashedPassword = await bcrypt.hash(password, 10);
