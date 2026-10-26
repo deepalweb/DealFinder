@@ -11,7 +11,8 @@ import '../services/search_service.dart';
 import '../utils/bank_card_promotion_support.dart';
 import '../utils/deal_filter_support.dart';
 import '../widgets/app_empty_state.dart';
-import '../widgets/modern_deal_card.dart';
+import '../widgets/discover_marketplace_card.dart';
+import '../utils/offer_presentation.dart';
 import 'deal_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -81,6 +82,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _handleQueryChanged(String value) {
     _debounce?.cancel();
+    setState(() {});
     final query = value.trim();
 
     if (query.length < 2) {
@@ -382,19 +384,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return data;
   }
 
-  double _effectivePrice(Promotion promotion) {
-    return promotion.discountedPrice ??
-        promotion.price ??
-        promotion.originalPrice ??
-        0;
-  }
-
-  int _discountSignal(Promotion promotion) {
-    final percentage = promotion.discountPercentage;
-    if (percentage != null) return percentage;
-    final match = RegExp(r'(\d+)').firstMatch(promotion.discount ?? '');
-    return match == null ? 0 : int.tryParse(match.group(1) ?? '') ?? 0;
-  }
+  double _discountSignal(Promotion promotion) =>
+      OfferPresentation(promotion).percentage;
 
   List<Promotion> get _sortedResults {
     final sorted = List<Promotion>.from(_results);
@@ -425,10 +416,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         );
         break;
       case 'price_low':
-        sorted.sort((a, b) => _effectivePrice(a).compareTo(_effectivePrice(b)));
+        sorted.sort(OfferPresentation.comparePrices);
         break;
       case 'price_high':
-        sorted.sort((a, b) => _effectivePrice(b).compareTo(_effectivePrice(a)));
+        sorted.sort(
+            (a, b) => OfferPresentation.comparePrices(a, b, descending: true));
         break;
     }
     return sorted;
@@ -439,8 +431,8 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return sorted.where(
       (promotion) {
         final categoryMatches = _selectedCategory == null ||
-            BankCardPromotionSupport.effectiveCategoryId(promotion) ==
-                _selectedCategory;
+            BankCardPromotionSupport.matchesCategory(
+                promotion, _selectedCategory!);
         final capabilityMatches = _selectedCapabilityPresetId == null ||
             matchesDealCapabilityPreset(
               promotion,
@@ -835,46 +827,20 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     });
   }
 
-  Widget _buildResultsGrid(List<Promotion> visibleResults) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final crossAxisCount = width >= 900
-            ? 4
-            : width >= 680
-                ? 3
-                : 2;
-
-        return GridView.builder(
+  Widget _buildResultsGrid(List<Promotion> visibleResults) =>
+      ListView.separated(
+          key: const PageStorageKey('search-offer-results'),
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 0.61,
-          ),
+          padding: const EdgeInsets.all(16),
           itemCount: visibleResults.length,
-          itemBuilder: (context, index) {
-            final promotion = visibleResults[index];
-            return ModernDealCard(
-              promotion: promotion,
-              onTap: () {
-                Navigator.push(
+          separatorBuilder: (_, __) => const SizedBox(height: 24),
+          itemBuilder: (context, i) => DiscoverMarketplaceCard(
+              offer: visibleResults[i],
+              onOpen: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => DealDetailScreen(
-                      promotion: promotion,
-                    ),
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
+                      builder: (_) =>
+                          DealDetailScreen(promotion: visibleResults[i])))));
 
   @override
   Widget build(BuildContext context) {

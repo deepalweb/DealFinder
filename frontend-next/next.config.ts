@@ -2,9 +2,10 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const isProd = process.env.NODE_ENV === 'production';
+const useStandalone = process.env.STANDALONE === 'true' || (isProd && process.platform !== 'win32');
 
 const nextConfig: NextConfig = {
-  ...(isProd ? { output: 'standalone' } : {}),
+  ...(useStandalone ? { output: 'standalone' } : {}),
   turbopack: {
     root: path.resolve(__dirname),
   },

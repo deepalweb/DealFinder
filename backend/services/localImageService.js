@@ -41,7 +41,8 @@ class LocalImageService {
       const filePath = path.join(UPLOADS_ROOT, relative);
 
       // Guard against path traversal outside the uploads root
-      if (!filePath.startsWith(UPLOADS_ROOT)) return;
+      const relativePath = path.relative(UPLOADS_ROOT, path.resolve(filePath));
+      if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) return;
 
       await fs.promises.unlink(filePath).catch(() => {});
     } catch (error) {

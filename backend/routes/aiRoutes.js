@@ -10,15 +10,13 @@ const { searchPromotions } = require('../services/ai/recommendationService');
 const { understandSearchQuery } = require('../services/ai/queryUnderstandingService');
 const { ensureUserPreferenceProfile, refreshUserPreferenceProfile } = require('../services/ai/userProfileService');
 const { normalizeCategoryId } = require('../services/ai/searchTaxonomy');
+const { HIDDEN_MERCHANT_STATUSES, isPublicMerchant } = require('../utils/merchantWorkflow');
 
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
+router.use('/search',rateLimit({windowMs:60*60*1000,limit:30,standardHeaders:true,legacyHeaders:false}));
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function handleValidationErrors(req, res) {
   const errors = validationResult(req);
@@ -38,7 +36,7 @@ function sanitizeObjectId(value) {
 router.post('/events', gentleAuthenticateJWT, [
   body('eventType').isString().trim().notEmpty().withMessage('eventType is required'),
   body('platform').optional().isIn(['web', 'mobile', 'backend', 'unknown']),
-  body('query').optional().isString(),
+  body('query').optional().isString().isLength({max:500}),
   body('category').optional().isString(),
   body('sessionId').optional().isString(),
 ], async (req, res) => {
@@ -101,7 +99,7 @@ router.get('/profile/me', authenticateJWT, async (req, res) => {
 
 // Phase 1: AI search
 router.post('/search', gentleAuthenticateJWT, [
-  body('query').optional().isString(),
+  body('query').optional().isString().isLength({max:500}),
   body('filters').optional().isObject(),
   body('location').optional().isObject(),
   body('limit').optional().isInt({ min: 1, max: 50 }),
@@ -113,13 +111,14 @@ router.post('/search', gentleAuthenticateJWT, [
   try {
     const {
       query: rawQuery = '',
-      filters = {},
+      filters: rawFilters = {},
       location = null,
       limit = 20,
       sessionId,
       model,
     } = req.body;
 
+    const filters = require('../services/ai/queryUnderstandingService').sanitizeAiFilters({filters:rawFilters}).filters;
     const interpretedQuery = await understandSearchQuery({
       query: rawQuery,
       location,
@@ -144,7 +143,7 @@ router.post('/search', gentleAuthenticateJWT, [
 });
 
 router.get('/search/suggestions', gentleAuthenticateJWT, [
-  query('q').isString().trim().isLength({ min: 1 }).withMessage('q is required'),
+  query('q').isString().trim().isLength({ min: 1, max: 100 }).withMessage('q of 1–100 characters is required'),
 ], async (req, res) => {
   if (handleValidationErrors(req, res)) return;
 
@@ -154,14 +153,16 @@ router.get('/search/suggestions', gentleAuthenticateJWT, [
 
     const [promotions, merchants] = await Promise.all([
       Promotion.find({
-        status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
+        status: { $in: ['active', 'scheduled'] },
+        endDate: { $gt: new Date() },
         $or: [
           { title: regex },
           { description: regex },
           { category: regex },
         ],
-      }).select('title category').limit(12).lean(),
-      Merchant.find({ name: regex }).select('name category').limit(8).lean(),
+      }).select('title category merchant').populate('merchant', 'status').limit(24).lean()
+        .then((rows) => rows.filter((p) => isPublicMerchant(p.merchant)).slice(0, 12)),
+      Merchant.find({ name: regex, status: { $nin: HIDDEN_MERCHANT_STATUSES } }).select('name category').limit(8).lean(),
     ]);
 
     const suggestions = new Set();

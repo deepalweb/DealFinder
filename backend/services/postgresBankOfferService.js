@@ -22,7 +22,7 @@ function serialize(offer) {
   };
 }
 
-async function listActive({ limit = 100 } = {}) {
+async function listActive({ limit = 100, skip = 0 } = {}) {
   const now = new Date();
   const offers = await pg.BankOffer.findAll({
     where: {
@@ -30,8 +30,9 @@ async function listActive({ limit = 100 } = {}) {
       startDate: { [Op.lt]: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
       endDate: { [Op.gte]: now },
     },
-    order: [['featured', 'DESC'], ['priority', 'DESC'], ['createdAt', 'DESC']],
+    order: [['featured', 'DESC'], ['priority', 'DESC'], ['createdAt', 'DESC'], ['id', 'DESC']],
     limit,
+    offset: skip,
   });
   return offers.map(serialize);
 }

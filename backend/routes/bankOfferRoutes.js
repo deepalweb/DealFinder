@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
 const BankOffer = require('../models/BankOffer');
-const { authenticateJWT, authorizeAdmin } = require('../middleware/auth');
+const { authenticateJWT, authorizeAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 const pgBankOffers = require('../services/postgresBankOfferService');
 
 const usePostgres = () => process.env.DATA_SOURCE === 'postgres';
@@ -14,12 +14,7 @@ const COLOMBO_TIME_ZONE = 'Asia/Colombo';
 const COLOMBO_OFFSET = '+05:30';
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function getColomboDateKey(value = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -139,16 +134,26 @@ function validateNormalizedBankOffer(data) {
 
 router.get('/', async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 200);
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 100, 200));
+    const skip = Number(req.query.skip ?? 0);
+    if (!Number.isSafeInteger(skip) || skip < 0 || skip > 100000) {
+      return res.status(400).json({ message: 'skip must be an integer between 0 and 100000' });
+    }
 
     if (usePostgres()) {
-      const offers = await pgBankOffers.listActive({ limit });
+      if(req.query.bankName||req.query.cardType||req.query.category)return res.status(501).json({message:'Bank filters are not supported by the selected provider.'});
+      const offers = await pgBankOffers.listActive({ limit, skip });
       return res.status(200).json(offers);
     }
 
     const query = buildActiveQuery();
+    for(const key of ['bankName','cardType','category'])if(req.query[key]!==undefined&&typeof req.query[key]!=='string')return res.status(400).json({message:'Invalid bank filter'});
+    if(req.query.bankName)query.bankName=req.query.bankName;
+    if(req.query.cardType)query.cardTypes=req.query.cardType;
+    if(req.query.category)query.applicableCategories=req.query.category;
     const offers = await BankOffer.find(query)
       .sort({ featured: -1, priority: -1, createdAt: -1, _id: -1 })
+      .skip(skip)
       .limit(limit)
       .lean();
     res.status(200).json(offers);
@@ -175,7 +180,7 @@ router.get('/admin', authenticateJWT, authorizeAdmin, async (_req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', gentleAuthenticateJWT, async (req, res) => {
   try {
     if (!isValidId(req.params.id)) {
       return res.status(400).json({ message: 'Invalid bank offer ID.' });
@@ -183,12 +188,12 @@ router.get('/:id', async (req, res) => {
 
     if (usePostgres()) {
       const offer = await pgBankOffers.getById(req.params.id);
-      if (!offer) return res.status(404).json({ message: 'Bank offer not found.' });
+      if (!offer || (req.user?.role!=='admin'&&!['active','scheduled','expired'].includes(offer.status))) return res.status(404).json({ message: 'Bank offer not found.' });
       return res.status(200).json(offer);
     }
 
     const offer = await BankOffer.findById(req.params.id).lean();
-    if (!offer) {
+    if (!offer || (req.user?.role!=='admin'&&!['active','scheduled','expired'].includes(offer.status))) {
       return res.status(404).json({ message: 'Bank offer not found.' });
     }
     res.status(200).json(offer);

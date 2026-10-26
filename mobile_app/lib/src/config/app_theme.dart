@@ -5,27 +5,28 @@ import 'package:flutter/services.dart';
 /// DealFinder: sapphire actions, quiet surfaces, and photography-led content.
 /// Legacy names remain aliases so all existing screens share the new tokens.
 class AppColors {
-  static const ceylonInk = Color(0xFF2457E8);
+  // One brand color across the app (was blue #2457E8 outside Discover).
+  static const brand = Color(0xFF007B59);
+  static const brandDark = Color(0xFF81E2BF);
   static const turmeric = Color(0xFFFFD67A);
   static const chili = Color(0xFFBC3548);
   static const betelGreen = Color(0xFF237450);
-  static const sand = Color(0xFFF5F6FA);
-  static const charcoal = Color(0xFF172033);
-  static const ash = Color(0xFF606B80);
+  static const sand = Color(0xFFFDF8FC);
+  static const charcoal = Color(0xFF17201C);
+  static const ash = Color(0xFF5C6962);
   static const textPrimary = charcoal;
   static const textSecondary = ash;
-  static const textTertiary = Color(0xFF737D90);
   static const surfaceLight = sand;
   static const cardLight = Color(0xFFFFFFFF);
-  static const borderLight = Color(0xFFDDE2EC);
+  static const borderLight = Color(0xFFE8E5E7);
   static const borderSubtle = Color(0xFFE8ECF3);
-  static const surfaceDark = Color(0xFF10131B);
-  static const cardDark = Color(0xFF1B202C);
-  static const borderDark = Color(0xFF343C4C);
-  static const textPrimaryDark = Color(0xFFF1F4FA);
-  static const textSecondaryDark = Color(0xFFADB8CC);
+  static const surfaceDark = Color(0xFF111A16);
+  static const cardDark = Color(0xFF1B2721);
+  static const borderDark = Color(0xFF38463E);
+  static const textPrimaryDark = Color(0xFFEDF5EF);
+  static const textSecondaryDark = Color(0xFFB5C6BB);
   static const barBackgroundLight = Color(0xEEFFFFFF);
-  static const barBackgroundDark = Color(0xEE1B202C);
+  static const barBackgroundDark = Color(0xEE1B2721);
   static const error = chili;
 
   static bool isDark(BuildContext context) =>
@@ -93,7 +94,7 @@ class AppMotion {
 class AppButtonStyles {
   static ButtonStyle primary({Color? background, Color? foreground}) =>
       ElevatedButton.styleFrom(
-        backgroundColor: background ?? AppColors.ceylonInk,
+        backgroundColor: background ?? AppColors.brand,
         foregroundColor: foreground ?? Colors.white,
         elevation: 0,
         minimumSize: const Size(48, 52),
@@ -140,24 +141,28 @@ class AppTheme {
     final border = highContrast
         ? (dark ? AppColors.textSecondaryDark : AppColors.textSecondary)
         : (dark ? AppColors.borderDark : AppColors.borderLight);
-    final accent = dark ? const Color(0xFF9EB9FF) : AppColors.ceylonInk;
-    final onAccent = dark ? AppColors.surfaceDark : Colors.white;
+    final accent = dark ? AppColors.brandDark : AppColors.brand;
+    final onAccent = dark ? const Color(0xFF003829) : Colors.white;
     final scheme = ColorScheme.fromSeed(
-            seedColor: AppColors.ceylonInk, brightness: brightness)
+            seedColor: AppColors.brand, brightness: brightness)
         .copyWith(
       primary: accent,
       onPrimary: onAccent,
       primaryContainer:
-          dark ? const Color(0xFF273657) : const Color(0xFFE9EFFF),
+          dark ? const Color(0xFF174D3B) : const Color(0xFFA9F4D8),
       onPrimaryContainer:
-          dark ? AppColors.textPrimaryDark : AppColors.ceylonInk,
+          dark ? const Color(0xFFBCFBE3) : const Color(0xFF00553E),
+      tertiary: dark ? const Color(0xFFFFCF7A) : const Color(0xFFC07812),
       secondary: accent,
       onSecondary: onAccent,
       surface: card,
       onSurface: text,
       onSurfaceVariant: muted,
+      surfaceContainerLowest: dark ? AppColors.cardDark : Colors.white,
+      surfaceContainerLow:
+          dark ? const Color(0xFF18221D) : const Color(0xFFF8FCFB),
       surfaceContainerHighest:
-          dark ? const Color(0xFF272E3D) : const Color(0xFFEDF0F6),
+          dark ? const Color(0xFF29342E) : const Color(0xFFEFEDEE),
       outline: muted,
       outlineVariant: border,
       error: dark ? const Color(0xFFFFA7B2) : AppColors.chili,
@@ -206,6 +211,23 @@ class AppTheme {
                   fontSize: 12, fontWeight: FontWeight.w500, color: muted),
             );
     return base.copyWith(
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surfaceContainerLow,
+        indicatorColor: Colors.transparent,
+        iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
+            size: 22,
+            color: states.contains(WidgetState.selected)
+                ? scheme.primary
+                : scheme.onSurfaceVariant)),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+            fontSize: 11,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w700
+                : FontWeight.w500,
+            color: states.contains(WidgetState.selected)
+                ? scheme.primary
+                : scheme.onSurfaceVariant)),
+      ),
       scaffoldBackgroundColor: canvas,
       visualDensity: VisualDensity.standard,
       textTheme: typography,

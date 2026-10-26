@@ -31,6 +31,11 @@ const String capabilityHideReported = 'hide_reported';
 
 const List<DealCapabilityPreset> dealCapabilityPresets = [
   DealCapabilityPreset(
+      id: 'online',
+      label: 'Online',
+      description: 'Online merchant offers',
+      icon: Icons.language),
+  DealCapabilityPreset(
     id: capabilityDelivery,
     label: 'Delivery',
     description: 'Deals you can order in',
@@ -120,6 +125,9 @@ bool matchesDealCapabilityPreset(Promotion promotion, String presetId) {
   final price = effectivePromotionPrice(promotion);
 
   switch (presetId) {
+    case 'online':
+      return promotion.fulfillmentType == 'order' ||
+          promotion.merchantType == 'online';
     case capabilityDelivery:
       return promotion.supportsDelivery;
     case capabilityPickup:

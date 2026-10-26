@@ -154,7 +154,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                        color: AppColors.ceylonInk,
+                                        color: AppColors.brand,
                                         borderRadius:
                                             BorderRadius.circular(10)),
                                     child: Text(discount!,

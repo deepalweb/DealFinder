@@ -8,8 +8,7 @@ const mongoose = require('mongoose');
 const webpush = require('web-push');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
-const sendExpiryNotifications = require('./jobs/expiryNotifications');
-const { initializeNotificationJobs } = require('./jobs/notificationScheduler');
+const { initializeNotificationJobs, stopNotificationJobs } = require('./jobs/notificationScheduler');
 const { ensureFirebaseAdminInitialized } = require('./services/firebaseAdmin');
 const { ensurePostgresConnected } = require('./services/postgres');
 
@@ -92,6 +91,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   credentials: true,
+  exposedHeaders:['X-Total-Count','X-Has-More'],
   preflightContinue: false,
   optionsSuccessStatus: 204
 }));
@@ -102,6 +102,7 @@ app.use(bodyParser.urlencoded({ limit: '15mb', extended: true }));
 
 
 // API status route
+app.get('/api/ready', require('./middleware/readiness'));
 app.get('/api/status', (req, res) => {
   res.send('API is running... deploy 2026-04-22-nearby-refresh');
 });
@@ -130,11 +131,14 @@ const aiRoutes = require('./routes/aiRoutes');
 // Use API Routes
 app.use('/api/users/login', loginLimiter);
 app.use('/api/users/register', registerLimiter);
+app.use('/api/users/reset-password', loginLimiter);
+app.use('/api/users/reset-password/confirm', loginLimiter);
 app.use('/api', apiLimiter);
 app.use('/api/users', userRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/bank-offers', bankOfferRoutes);
 app.use('/api/merchants', merchantRoutes);
+app.use('/api/merchant-workspace', require('./routes/merchantWorkspaceRoutes'));
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/images', imageRoutes);
 app.use('/api/ai', aiRoutes);
@@ -190,7 +194,7 @@ if (process.env.DATA_SOURCE !== 'postgres') {
 }
 
 // Connect to Postgres (Supabase) - separate from MongoDB, does not block app startup
-ensurePostgresConnected();
+if(process.env.DATA_SOURCE==='postgres')ensurePostgresConnected();
 
 // Serve the frontend
 if (process.env.NODE_ENV === 'production') {
@@ -249,12 +253,12 @@ app.use((err, req, res, next) => {
   console.error('API Error:', err);
   res.status(500).json({ 
     message: 'Internal Server Error', 
-    error: process.env.NODE_ENV === 'production' ? 'An error occurred' : err.message 
+    error: 'An error occurred' 
   });
 });
 
 // Start Server
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   ensureFirebaseAdminInitialized();
 
@@ -262,12 +266,8 @@ app.listen(PORT, () => {
   // models directly and haven't been ported to Postgres yet — skip registering them
   // in that mode rather than let each one fail on its schedule.
   if (process.env.DATA_SOURCE !== 'postgres') {
-    initializeNotificationJobs();
-
-    // Legacy: Run expiry notifications daily at startup then every 24 hours
-    // (This is now handled by the job scheduler, but keeping for backward compatibility)
-    sendExpiryNotifications();
-    setInterval(sendExpiryNotifications, 24 * 60 * 60 * 1000);
+    if(mongoose.connection.readyState===1)initializeNotificationJobs();
+    else mongoose.connection.once('connected',initializeNotificationJobs);
   } else {
     console.log('DATA_SOURCE=postgres — skipping Mongo-only notification jobs.');
   }
@@ -285,4 +285,15 @@ if (config.VAPID_PUBLIC_KEY && config.VAPID_PRIVATE_KEY) {
     console.warn('VAPID keys not found. Push notifications will not work.');
 }
 
+let stopping=false;
+async function shutdown(){
+ if(stopping)return;stopping=true;stopNotificationJobs();
+ const timer=setTimeout(()=>process.exit(1),10000);timer.unref();
+ httpServer.close(async()=>{
+  await mongoose.disconnect();
+  const pg=require('./services/postgres').getSequelize();if(pg)await pg.close();
+  clearTimeout(timer);process.exit(0);
+ });
+}
+process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
 module.exports = mongoose;

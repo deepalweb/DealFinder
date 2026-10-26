@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { UserAPI } from '@/lib/api';
 import { buildApiUrl } from '@/lib/config/api';
 import toast from 'react-hot-toast';
+import { safeReturn } from '@/lib/offer-display';
 
 declare global {
   interface Window { google: any; }
@@ -23,7 +24,7 @@ export default function LoginPage() {
   const googleClientIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (user) router.push(user.role === 'merchant' ? '/merchant/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/');
+    if (user) router.push(safeReturn(new URLSearchParams(window.location.search).get('next')) || (user.role === 'merchant' ? '/merchant/dashboard' : user.role === 'admin' ? '/admin/dashboard' : '/'));
   }, [user]);
 
   // Step 1: Fetch client ID
@@ -84,7 +85,7 @@ export default function LoginPage() {
       const res = await UserAPI.googleSignIn({ token: response.credential });
       login(res);
       toast.success(`Welcome, ${res.name}!`);
-      router.push(res.role === 'merchant' ? '/merchant/dashboard' : res.role === 'admin' ? '/admin/dashboard' : '/');
+      router.push(safeReturn(new URLSearchParams(window.location.search).get('next')) || (res.role === 'merchant' ? '/merchant/dashboard' : res.role === 'admin' ? '/admin/dashboard' : '/'));
     } catch (err: any) {
       toast.error(err.message || 'Google Sign-In failed.');
     }
@@ -97,7 +98,7 @@ export default function LoginPage() {
       const res = await UserAPI.login(formData);
       login(res);
       toast.success(`Welcome back, ${res.name}!`);
-      router.push(res.role === 'merchant' ? '/merchant/dashboard' : res.role === 'admin' ? '/admin/dashboard' : '/');
+      router.push(safeReturn(new URLSearchParams(window.location.search).get('next')) || (res.role === 'merchant' ? '/merchant/dashboard' : res.role === 'admin' ? '/admin/dashboard' : '/'));
     } catch (err: any) {
       toast.error(err.message || 'Invalid email or password.');
     } finally {

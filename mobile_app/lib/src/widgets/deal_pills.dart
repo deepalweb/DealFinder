@@ -154,7 +154,7 @@ class PriceBlock extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: AppColors.ceylonInk,
+              color: AppColors.brand,
               borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             child: Text(

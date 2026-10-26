@@ -48,7 +48,8 @@ type EffectiveStatus =
   | 'rejected'
   | 'admin_paused'
   | 'expired'
-  | 'draft';
+  | 'draft'
+  | 'pending_review';
 
 type EnrichedPromotion = PromotionRecord & {
   effectiveStatus: EffectiveStatus;
@@ -65,6 +66,7 @@ const statusOptions: { value: string; label: string }[] = [
   { value: 'admin_paused', label: 'Paused' },
   { value: 'expired', label: 'Expired' },
   { value: 'draft', label: 'Draft' },
+  { value: 'pending_review', label: 'Pending review' },
 ];
 
 const bulkActions = [
@@ -517,11 +519,12 @@ export default function AdminPromotionsPage() {
                               <i className="fas fa-pause"></i> Pause
                             </button>
                           ) : null}
-                          {isPaused ? (
+                          {isPaused || promotion.effectiveStatus === 'pending_review' ? (
                             <button className="btn btn-secondary" onClick={() => updateStatus(id, 'active')} disabled={!!actionLoading} style={{ padding: '0.42rem 0.7rem', fontSize: '0.75rem', color: '#059669' }}>
-                              <i className="fas fa-play"></i> Resume
+                              <i className="fas fa-play" aria-hidden="true"></i> {promotion.effectiveStatus === 'pending_review' ? 'Approve' : 'Resume'}
                             </button>
                           ) : null}
+                          {promotion.effectiveStatus === 'pending_review' && <button className="btn btn-secondary" onClick={()=>updateStatus(id,'rejected')} disabled={!!actionLoading}>Reject</button>}
                           <button className="btn btn-secondary" onClick={() => toggleFeatured(promotion)} disabled={!!actionLoading} style={{ padding: '0.42rem 0.7rem', fontSize: '0.75rem', color: promotion.featured ? '#d97706' : 'var(--text-secondary)' }}>
                             <i className={`fas ${promotion.featured ? 'fa-star' : 'fa-star-half-stroke'}`}></i>
                           </button>

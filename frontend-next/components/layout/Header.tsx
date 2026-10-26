@@ -1,735 +1,153 @@
-'use client';
-
-import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import { LANGUAGE_OPTIONS, useLanguage } from '@/contexts/LanguageContext';
-import NotificationBell from '@/components/ui/NotificationBell';
-
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Search, Bookmark, User, Sun, Moon, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { LANGUAGE_OPTIONS, useLanguage } from "@/contexts/LanguageContext";
+import { DEALFINDER_CATEGORIES } from "@/lib/categories";
+import { marketplaceCopy, categoryName } from "@/lib/marketplace-copy";
+import AreaSelector from "@/components/marketplace/AreaSelector";
+import NotificationBell from "@/components/ui/NotificationBell";
+const categoryOrder = [
+  "all",
+  "food_dining",
+  "daily_essentials",
+  "shopping_retail",
+  "electronics",
+  "beauty_salon",
+  "health_wellness",
+  "entertainment_activities",
+  "bank_cards",
+];
+const navigationCategories = categoryOrder.flatMap((id) =>
+  DEALFINDER_CATEGORIES.filter((category) => category.id === id),
+);
 export default function Header() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { user, logout, loading } = useAuth();
+  const { user, logout } = useAuth();
   const { language, setLanguage } = useLanguage();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
+  const c = marketplaceCopy[language];
+  const [query, setQuery] = useState("");
+  const [dark, setDark] = useState(false);
   useEffect(() => {
-    const saved = localStorage.getItem('df-theme');
-    if (saved === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    }
+    const value = localStorage.getItem("df-theme") === "dark";
+    setDark(value);
+    document.documentElement.dataset.theme = value ? "dark" : "light";
   }, []);
-
-  useEffect(() => {
-    const handler = (event: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setUserMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/';
-    return pathname === href || pathname.startsWith(`${href}/`);
-  };
-
-  const navLinks = [
-    {
-      href: '/categories/all',
-      icon: 'fa-tags',
-      label: language === 'en' ? 'Categories' : language === 'si' ? 'වර්ග' : 'பிரிவுகள்',
-    },
-    {
-      href: '/nearby',
-      icon: 'fa-location-dot',
-      label: language === 'en' ? 'Nearby Deals' : language === 'si' ? 'අසල Deals' : 'அருகிலுள்ள Deals',
-    },
-    {
-      href: '/merchants',
-      icon: 'fa-store',
-      label: language === 'en' ? 'Businesses' : language === 'si' ? 'ව්‍යාපාර' : 'வணிகங்கள்',
-    },
-  ];
-
-  const getSafeImage = (url?: string, name?: string) => {
-    if (url && (url.startsWith('data:image') || url.startsWith('http'))) return url;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'U')}&background=random&size=100`;
-  };
-
-  const submitSearch = () => {
-    const trimmed = searchQuery.trim();
-    setMenuOpen(false);
-    setUserMenuOpen(false);
-    router.push(trimmed ? `/categories/all?q=${encodeURIComponent(trimmed)}` : '/categories/all');
-  };
-
-  const userMenuItems = user
-    ? [
-        { href: '/profile', icon: 'fa-user', label: 'My Profile' },
-        { href: '/favorites', icon: 'fa-heart', label: 'Saved Deals' },
-        ...(user.role === 'merchant' ? [{ href: '/merchant/dashboard', icon: 'fa-chart-line', label: 'Merchant Dashboard' }] : []),
-        ...(user.role === 'admin' ? [{ href: '/admin/dashboard', icon: 'fa-shield-halved', label: 'Admin Console' }] : []),
-      ]
-    : [];
-
-  const headerCopy = {
-    brandTagline: language === 'en' ? 'Sri Lanka Deals' : language === 'si' ? 'ශ්‍රී ලංකා Deals' : 'இலங்கை Deals',
-    searchPlaceholder:
-      language === 'en'
-        ? 'Search restaurants, hotels, bank offers…'
-        : language === 'si'
-          ? 'Restaurants, hotels, bank offers සොයන්න…'
-          : 'Restaurants, hotels, bank offers தேடுங்கள்…',
-    searchButton: language === 'en' ? 'Search' : language === 'si' ? 'සොයන්න' : 'தேடு',
-    mobileSearchPlaceholder:
-      language === 'en'
-        ? 'Search restaurants, hotels…'
-        : language === 'si'
-          ? 'Restaurants, hotels සොයන්න…'
-          : 'Restaurants, hotels தேடுங்கள்…',
-    mobileSearchButton: language === 'en' ? 'Go' : language === 'si' ? 'යන්න' : 'செல்',
-    login: language === 'en' ? 'Login' : language === 'si' ? 'Login' : 'Login',
-    register: language === 'en' ? 'Download App' : language === 'si' ? 'App එක ගන්න' : 'App ஐ பெறுங்கள்',
-    member: language === 'en' ? 'Member' : language === 'si' ? 'සාමාජික' : 'உறுப்பினர்',
-    merchant: language === 'en' ? 'Merchant account' : language === 'si' ? 'Merchant account' : 'Merchant account',
-    admin: language === 'en' ? 'Admin account' : language === 'si' ? 'Admin account' : 'Admin account',
-    profile: language === 'en' ? 'My Profile' : language === 'si' ? 'මගේ Profile' : 'என் Profile',
-    savedDeals: language === 'en' ? 'Saved Deals' : language === 'si' ? 'Saved Deals' : 'Saved Deals',
-    merchantDashboard: language === 'en' ? 'Merchant Dashboard' : language === 'si' ? 'Merchant Dashboard' : 'Merchant Dashboard',
-    adminConsole: language === 'en' ? 'Admin Console' : language === 'si' ? 'Admin Console' : 'Admin Console',
-    logout: language === 'en' ? 'Logout' : language === 'si' ? 'Logout' : 'Logout',
-    grabDeals: language === 'en' ? 'Grab Deals' : language === 'si' ? 'Deals ගන්න' : 'Deals பெறுங்கள்',
-  };
-
+  function theme() {
+    const value = !dark;
+    setDark(value);
+    localStorage.setItem("df-theme", value ? "dark" : "light");
+    document.documentElement.dataset.theme = value ? "dark" : "light";
+  }
   return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        background: 'color-mix(in srgb, var(--header-bg) 90%, transparent)',
-        backdropFilter: 'blur(22px)',
-        borderBottom: '1px solid color-mix(in srgb, var(--border-color) 72%, transparent)',
-        boxShadow: '0 16px 36px rgba(15, 23, 42, 0.08)',
-      }}
-    >
-      <div className="max-w-7xl mx-auto px-4" style={{ paddingTop: '0.8rem', paddingBottom: '0.8rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '1rem',
-            minWidth: 0,
-          }}
-        >
-          {/* LEFT: Logo + Brand */}
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.65rem',
-              textDecoration: 'none',
-              flexShrink: 0,
-            }}
+    <>
+      <div className="mp-utility">
+        <div className="mp-shell">
+          <Link href="/merchants">{c.stores}</Link>
+          <Link href="/register">{c.merchants}</Link>
+          <a
+            href="https://drive.google.com/uc?export=download&id=12xY8BPO4HqN6oH4vj0wcJSwXiDM0tDKu"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            <span
-              style={{
-                width: '2.4rem',
-                height: '2.4rem',
-                borderRadius: '0.7rem',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'var(--primary-gradient)',
-                color: '#fff',
-                fontWeight: 900,
-                fontSize: '1.2rem',
-                boxShadow: '0 8px 16px rgba(37,99,235,0.2)',
-              }}
-            >
-              %
-            </span>
-            <span>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: '1.05rem',
-                  fontWeight: 800,
-                  letterSpacing: '-0.02em',
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.2,
-                }}
-              >
-                DealFinder
-              </span>
-              <span
-                className="hidden sm:block"
-                style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--text-secondary)',
-                  whiteSpace: 'nowrap',
-                  fontWeight: 500,
-                }}
-              >
-                {headerCopy.brandTagline}
-              </span>
-            </span>
+            {c.download}
+          </a>
+        </div>
+      </div>
+      <header className="mp-header">
+        <div className="mp-shell mp-header-row">
+          <Link className="mp-brand" href="/" aria-label="DealFinder">
+            <span aria-hidden="true">%</span>DealFinder
           </Link>
-
-          {/* CENTER: Large Search Bar */}
-          <div
-            className="hidden md:flex"
-            style={{
-              flex: '0 1 340px',
-              minWidth: '250px',
-              maxWidth: '340px',
-            }}
-          >
-            <div
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.65rem',
-                padding: '0.38rem 0.4rem 0.38rem 0.9rem',
-                borderRadius: '999px',
-                background: 'color-mix(in srgb, var(--card-bg) 96%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--border-color) 86%, transparent)',
-                boxShadow: '0 12px 24px rgba(15,23,42,0.08)',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--primary-color)';
-                e.currentTarget.style.boxShadow = '0 14px 28px rgba(37,99,235,0.12)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--border-color)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(15,23,42,0.08)';
-              }}
-            >
-              <i className="fas fa-search" style={{ color: 'var(--text-secondary)', fontSize: '1rem' }}></i>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') submitSearch();
-                }}
-                placeholder={headerCopy.searchPlaceholder}
-                style={{
-                  flex: '1 1 auto',
-                  minWidth: '120px',
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.92rem',
-                  fontWeight: 500,
-                  lineHeight: 1.2,
-                }}
-              />
+          <form action="/categories/all" className="mp-search" role="search">
+            <label className="sr-only" htmlFor="marketplace-search">
+              {c.search}
+            </label>
+            <Search size={20} aria-hidden="true" />
+            <input
+              id="marketplace-search"
+              name="q"
+              placeholder={c.search}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
               <button
-                onClick={submitSearch}
-                className="btn btn-primary"
-                style={{ 
-                  flexShrink: 0,
-                  padding: '0.68rem 1rem', 
-                  borderRadius: '999px',
-                  fontSize: '0.84rem',
-                  fontWeight: 700,
-                  boxShadow: '0 10px 22px rgba(79,42,232,0.28)',
-                  minWidth: '90px',
-                  whiteSpace: 'nowrap',
-                }}
+                type="button"
+                className="mp-icon"
+                aria-label={c.clear}
+                onClick={() => setQuery("")}
               >
-                {headerCopy.searchButton}
+                <X size={18} />
               </button>
-            </div>
-          </div>
-
-          {/* CENTER-RIGHT: Desktop Navigation */}
-          <div
-            className="hidden lg:flex"
-            style={{
-              flex: '1 1 auto',
-              minWidth: 0,
-              alignItems: 'center',
-              gap: '0.8rem',
-            }}
-          >
-            <nav
-              className="flex items-center gap-1"
-              style={{
-                flex: '1 1 auto',
-                minWidth: 0,
-                padding: '0.3rem',
-                borderRadius: '999px',
-                background: 'color-mix(in srgb, var(--card-bg) 96%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--border-color) 84%, transparent)',
-                boxShadow: '0 10px 24px rgba(15,23,42,0.06)',
-              }}
-            >
-              {navLinks.map(({ href, icon, label }) => {
-                const active = isActive(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setUserMenuOpen(false);
-                    }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.66rem 0.82rem',
-                      borderRadius: '999px',
-                      textDecoration: 'none',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      color: active ? '#fff' : 'var(--text-secondary)',
-                      background: active ? 'var(--primary-gradient)' : 'transparent',
-                      transition: 'all 0.2s ease',
-                      boxShadow: active ? '0 10px 22px rgba(79,42,232,0.22)' : 'none',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!active) {
-                        e.currentTarget.style.background = 'color-mix(in srgb, var(--light-gray) 78%, white)';
-                        e.currentTarget.style.color = 'var(--text-primary)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!active) {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = 'var(--text-secondary)';
-                      }
-                    }}
-                  >
-                    <i className={`fas ${icon}`} style={{ fontSize: '0.9rem' }}></i>
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.55rem',
-                padding: '0.42rem 0.78rem',
-                borderRadius: '999px',
-                background: 'color-mix(in srgb, var(--card-bg) 96%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--border-color) 84%, transparent)',
-                boxShadow: '0 10px 24px rgba(15,23,42,0.06)',
-                flexShrink: 0,
-              }}
-            >
-              <i className="fas fa-language" style={{ color: 'var(--primary-color)', fontSize: '0.9rem' }}></i>
-              <select
-                value={language}
-                onChange={(event) => setLanguage(event.target.value as 'en' | 'si' | 'ta')}
-                style={{
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.84rem',
-                  fontWeight: 800,
-                  outline: 'none',
-                  cursor: 'pointer',
-                  minWidth: '6rem',
-                }}
-              >
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* RIGHT: User Actions */}
-          <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
-            {!loading && user ? <NotificationBell /> : null}
-
-            {!loading && user ? (
-                <div className="hidden md:block relative" ref={userMenuRef}>
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    style={{
-                      border: '1px solid var(--border-color)',
-                      background: 'var(--card-bg)',
-                      borderRadius: '999px',
-                      padding: '0.35rem 0.45rem 0.35rem 0.85rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      cursor: 'pointer',
-                      boxShadow: 'var(--box-shadow)',
-                    }}
-                  >
-                    <span style={{ textAlign: 'right' }}>
-                      <span style={{ display: 'block', fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {user.name}
-                      </span>
-                      <span style={{ display: 'block', fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
-                        {user.role === 'merchant' ? headerCopy.merchant : user.role === 'admin' ? headerCopy.admin : headerCopy.member}
-                      </span>
-                    </span>
-                    <span
-                      style={{
-                        width: '2.25rem',
-                        height: '2.25rem',
-                        position: 'relative',
-                        borderRadius: '999px',
-                        overflow: 'hidden',
-                        border: '2px solid rgba(37,99,235,0.16)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Image
-                        src={getSafeImage(user.profilePicture, user.name)}
-                        alt="Profile"
-                        fill
-                        sizes="36px"
-                        style={{ objectFit: 'cover' }}
-                      />
-                    </span>
-                  </button>
-
-                  {userMenuOpen && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 'calc(100% + 0.7rem)',
-                        width: '250px',
-                        background: 'var(--card-bg)',
-                        borderRadius: '1rem',
-                        boxShadow: '0 20px 40px rgba(15,23,42,0.16)',
-                        border: '1px solid var(--border-color)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          padding: '1rem',
-                          background: 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(245,158,11,0.08))',
-                          borderBottom: '1px solid var(--border-color)',
-                        }}
-                      >
-                        <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{user.name}</div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{user.email}</div>
-                      </div>
-
-                      <div style={{ padding: '0.5rem' }}>
-                        {userMenuItems.map((item) => (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setUserMenuOpen(false)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.65rem',
-                              padding: '0.8rem',
-                              borderRadius: '0.8rem',
-                              textDecoration: 'none',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.9rem',
-                              fontWeight: 600,
-                            }}
-                            onMouseEnter={(event) => {
-                              event.currentTarget.style.background = 'var(--light-gray)';
-                            }}
-                            onMouseLeave={(event) => {
-                              event.currentTarget.style.background = 'transparent';
-                            }}
-                          >
-                            <i className={`fas ${item.icon}`} style={{ width: '1rem', color: 'var(--primary-color)' }}></i>
-                            {item.href === '/profile'
-                              ? headerCopy.profile
-                              : item.href === '/favorites'
-                                ? headerCopy.savedDeals
-                                : item.href === '/merchant/dashboard'
-                                  ? headerCopy.merchantDashboard
-                                  : item.href === '/admin/dashboard'
-                                    ? headerCopy.adminConsole
-                                    : item.label}
-                          </Link>
-                        ))}
-                        <button
-                          onClick={() => logout()}
-                          style={{
-                            marginTop: '0.25rem',
-                            width: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.65rem',
-                            padding: '0.8rem',
-                            borderRadius: '0.8rem',
-                            border: 'none',
-                            background: 'transparent',
-                            color: 'var(--danger-color)',
-                            fontSize: '0.9rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <i className="fas fa-right-from-bracket" style={{ width: '1rem' }}></i>
-                          {headerCopy.logout}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : !loading ? (
-                <div className="hidden md:flex items-center gap-2">
-                  <Link
-                    href="/login"
-                    onClick={() => setMenuOpen(false)}
-                    style={{
-                      padding: '0.68rem 0.95rem',
-                      borderRadius: '999px',
-                      textDecoration: 'none',
-                      color: 'var(--text-primary)',
-                      fontWeight: 700,
-                      fontSize: '0.86rem',
-                      transition: 'all 0.2s ease',
-                      whiteSpace: 'nowrap',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--light-gray)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                    }}
-                  >
-                    {headerCopy.login}
-                  </Link>
-                </div>
-              ) : null}
-
+            )}
             <button
-              className="md:hidden"
-              onClick={() => setMenuOpen(!menuOpen)}
-              style={{
-                width: '2.4rem',
-                height: '2.4rem',
-                borderRadius: '0.6rem',
-                border: '1px solid var(--border-color)',
-                background: 'var(--card-bg)',
-                color: 'var(--text-secondary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: '1.1rem',
-              }}
+              className="mp-search-submit"
+              type="submit"
+              aria-label={c.searchAction}
             >
-              <i className={`fas ${menuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+              <Search size={20} />
             </button>
+          </form>
+          <AreaSelector />
+          <div className="mp-header-actions">
+            <Link className="mp-icon" href="/favorites" aria-label={c.saved}>
+              <Bookmark size={22} />
+            </Link>
+            {user && <NotificationBell />}
+            <details className="mp-account">
+              <summary className="mp-icon" aria-label={c.account}>
+                <User size={22} />
+              </summary>
+              <div className="mp-menu">
+                {user ? (
+                  <>
+                    <Link href="/profile">{c.account}</Link>
+                    {user.role === "merchant" && (
+                      <Link href="/merchant/dashboard">{c.workspace}</Link>
+                    )}
+                    {user.role === "admin" && (
+                      <Link href="/admin/dashboard">{c.admin}</Link>
+                    )}
+                    <button onClick={() => logout()}>{c.signOut}</button>
+                  </>
+                ) : (
+                  <Link href="/login">{c.signIn}</Link>
+                )}
+                <label>
+                  {c.language}
+                  <select
+                    aria-label={c.language}
+                    value={language}
+                    onChange={(e) =>
+                      setLanguage(e.target.value as "en" | "si" | "ta")
+                    }
+                  >
+                    {LANGUAGE_OPTIONS.map((l) => (
+                      <option value={l.code} key={l.code}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button onClick={theme}>
+                  {dark ? <Sun size={18} /> : <Moon size={18} />} {c.theme}
+                </button>
+              </div>
+            </details>
           </div>
         </div>
-
-        {menuOpen && (
-          <div
-            className="md:hidden"
-            style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              borderRadius: '1rem',
-              background: 'var(--card-bg)',
-              border: '1px solid var(--border-color)',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-            }}
-          >
-            {/* Mobile Search Bar */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.6rem',
-                padding: '0.7rem 1rem',
-                borderRadius: '0.8rem',
-                background: 'var(--light-gray)',
-                marginBottom: '1rem',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <i className="fas fa-search" style={{ color: 'var(--text-secondary)' }}></i>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') submitSearch();
-                }}
-                placeholder={headerCopy.mobileSearchPlaceholder}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  border: 'none',
-                  outline: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem',
-                }}
-              />
-              <button
-                onClick={submitSearch}
-                className="btn btn-primary"
-                style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}
-              >
-                {headerCopy.mobileSearchButton}
-              </button>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.6rem',
-                marginBottom: '1rem',
-                padding: '0.7rem 1rem',
-                borderRadius: '0.9rem',
-                background: 'var(--light-gray)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <i className="fas fa-language" style={{ color: 'var(--primary-color)' }}></i>
-              <select
-                value={language}
-                onChange={(event) => setLanguage(event.target.value as 'en' | 'si' | 'ta')}
-                className="modern-select"
-                style={{ background: 'transparent', border: 'none', padding: 0, boxShadow: 'none' }}
-              >
-                {LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <nav className="grid grid-cols-1 gap-2 mb-4">
-              {navLinks.map(({ href, icon, label }) => {
-                const active = isActive(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setMenuOpen(false)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.7rem',
-                      padding: '0.85rem 1rem',
-                      borderRadius: '0.8rem',
-                      textDecoration: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      color: active ? 'var(--primary-color)' : 'var(--text-primary)',
-                      background: active ? 'rgba(37,99,235,0.1)' : 'var(--light-gray)',
-                    }}
-                  >
-                    <i className={`fas ${icon}`}></i>
-                    {label}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div
-              style={{
-                paddingTop: '1rem',
-                borderTop: '1px solid var(--border-color)',
-              }}
-            >
-
-              {!loading && user ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {userMenuItems.map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.7rem',
-                        padding: '0.9rem 1rem',
-                        borderRadius: '0.9rem',
-                        background: 'var(--light-gray)',
-                        color: 'var(--text-primary)',
-                        textDecoration: 'none',
-                        fontWeight: 700,
-                      }}
-                    >
-                      <i className={`fas ${item.icon}`} style={{ color: 'var(--primary-color)' }}></i>
-                      {item.href === '/profile'
-                        ? headerCopy.profile
-                        : item.href === '/favorites'
-                          ? headerCopy.savedDeals
-                          : item.href === '/merchant/dashboard'
-                            ? headerCopy.merchantDashboard
-                            : item.href === '/admin/dashboard'
-                              ? headerCopy.adminConsole
-                              : item.label}
-                    </Link>
-                  ))}
-                  <button
-                    onClick={() => logout()}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.7rem',
-                      padding: '0.9rem 1rem',
-                      borderRadius: '0.9rem',
-                      border: 'none',
-                      background: 'rgba(239,68,68,0.08)',
-                      color: 'var(--danger-color)',
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <i className="fas fa-right-from-bracket"></i>
-                    {headerCopy.logout}
-                  </button>
-                </div>
-              ) : !loading ? (
-                <div className="grid grid-cols-1 gap-2">
-                  <Link
-                    href="/login"
-                    onClick={() => setMenuOpen(false)}
-                    className="btn"
-                    style={{
-                      justifyContent: 'center',
-                      background: 'var(--light-gray)',
-                      color: 'var(--text-primary)',
-                      padding: '0.9rem 1rem',
-                    }}
-                  >
-                    {headerCopy.login}
-                  </Link>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        )}
-      </div>
-    </header>
+        <nav className="mp-category-nav mp-shell" aria-label={c.category}>
+          {navigationCategories.map((cat) => (
+            <Link href={`/categories/${cat.id}`} key={cat.id}>
+              {cat.id === "all"
+                ? c.all
+                : categoryName(cat.id, language, cat.name)}
+            </Link>
+          ))}
+          <Link href="/categories/all">{c.moreCategories}</Link>
+        </nav>
+      </header>
+    </>
   );
 }

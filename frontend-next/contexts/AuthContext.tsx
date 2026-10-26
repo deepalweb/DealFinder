@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { invalidateCache, NotificationAPI } from '@/lib/api';
+import { invalidateCache, NotificationAPI, UserAPI } from '@/lib/api';
 import { unsubscribeFromPushNotifications } from '@/lib/webPush';
 
 interface User {
@@ -88,6 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {}
     })();
 
+    if (user?.refreshToken) {
+      try { await withTimeout(UserAPI.logout(user.refreshToken), 2500); } catch {}
+    }
     localStorage.removeItem('dealFinderUser');
     invalidateCache();
     setUser(null);

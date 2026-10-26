@@ -21,7 +21,7 @@ void main() {
       token: 'test-token',
       homeScreenBuilder: (_) => const Text('Discover content'),
       nearbyScreenBuilder: (_) => const SizedBox(),
-      bankOffersScreenBuilder: (_) => const SizedBox(),
+      storesScreenBuilder: (_) => const SizedBox(),
       favoritesScreenBuilder: (_) => const SizedBox(),
       profileScreenBuilder: (_) => UserProfileScreen(api: ProfileApi()),
     )));

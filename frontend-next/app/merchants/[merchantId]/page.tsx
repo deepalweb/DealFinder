@@ -1,3 +1,4 @@
+import { serializeStructuredData } from '@/lib/structured-data';
 import type { Metadata } from 'next';
 import MerchantProfilePageClient from './MerchantProfilePageClient';
 import { buildApiUrl } from '@/lib/config/api';
@@ -165,12 +166,12 @@ export default async function MerchantProfilePage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeStructuredData(breadcrumbJsonLd) }}
       />
       {merchantJsonLd ? (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(merchantJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeStructuredData(merchantJsonLd) }}
         />
       ) : null}
       <MerchantProfilePageClient />

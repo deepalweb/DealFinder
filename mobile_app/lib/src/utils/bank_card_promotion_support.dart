@@ -71,21 +71,27 @@ class BankCardPromotionSupport {
     if ((promotion.offerType ?? '').trim().isNotEmpty) return true;
 
     final corpus = _corpus(promotion);
-    final mentionsCard =
-        corpus.contains('credit card') ||
+    final mentionsCard = corpus.contains('credit card') ||
         corpus.contains('debit card') ||
         corpus.contains(' bank card') ||
         corpus.contains(' cards') ||
         corpus.contains(' mastercard') ||
         corpus.contains(' visa ');
     final mentionsBank = _bankNames.any(corpus.contains);
-    final mentionsOfferType =
-        corpus.contains('cashback') ||
+    final mentionsOfferType = corpus.contains('cashback') ||
         corpus.contains('installment') ||
         corpus.contains('instalment') ||
         corpus.contains('emi');
 
     return mentionsCard || (mentionsBank && mentionsOfferType);
+  }
+
+  /// Bank offers are a facet; a dining offer can still match Food & Dining.
+  static bool matchesCategory(Promotion promotion, String category) {
+    final normalized = normalizeCategoryId(category);
+    return normalized == categoryId
+        ? isBankCardPromotion(promotion)
+        : normalizeCategoryId(promotion.category) == normalized;
   }
 
   static String effectiveCategoryId(Promotion promotion) {
@@ -176,7 +182,9 @@ class BankCardPromotionSupport {
       return 'Min spend Rs. ${promotion.minimumSpend!.toStringAsFixed(0)}';
     }
     final corpus = _corpus(promotion);
-    final match = RegExp(r'(min(?:imum)? spend[^0-9]{0,12}|spend over[^0-9]{0,12}|above[^0-9]{0,12})(rs\.?|lkr)?\s*([\d,]+)', caseSensitive: false)
+    final match = RegExp(
+            r'(min(?:imum)? spend[^0-9]{0,12}|spend over[^0-9]{0,12}|above[^0-9]{0,12})(rs\.?|lkr)?\s*([\d,]+)',
+            caseSensitive: false)
         .firstMatch(corpus);
     if (match == null) return null;
     final amount = match.group(3);

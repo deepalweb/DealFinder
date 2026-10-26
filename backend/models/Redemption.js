@@ -4,6 +4,7 @@ const redemptionSchema = new mongoose.Schema({
   promotion: { type: mongoose.Schema.Types.ObjectId, ref: 'Promotion', required: true, index: true },
   merchant: { type: mongoose.Schema.Types.ObjectId, ref: 'Merchant', required: true, index: true },
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  issuanceKey: {type:String,unique:true,sparse:true},
   token: { type: String, required: true, unique: true, index: true },
   status: {
     type: String,

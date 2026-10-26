@@ -3,6 +3,8 @@ import 'package:geolocator/geolocator.dart';
 import '../models/promotion.dart';
 import '../services/api_service.dart';
 import 'search_matcher.dart';
+import 'browsing_area.dart';
+import '../utils/offer_presentation.dart';
 import '../utils/bank_card_promotion_support.dart';
 
 class SearchService {
@@ -28,19 +30,8 @@ class SearchService {
     'பக்கத்தில்',
   ];
 
-  static double _effectivePrice(Promotion deal) {
-    return deal.discountedPrice ?? deal.price ?? deal.originalPrice ?? 0;
-  }
-
   static double _discountSignal(Promotion deal) {
-    final percentage = deal.discountPercentage;
-    if (percentage != null) return percentage.toDouble();
-
-    final rawDiscount = deal.discount;
-    if (rawDiscount == null || rawDiscount.isEmpty) return 0;
-
-    final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(rawDiscount);
-    return match != null ? double.tryParse(match.group(1)!) ?? 0 : 0;
+    return OfferPresentation(deal).percentage;
   }
 
   static bool _looksLikeNearbySearch(String query, String sortBy) {
@@ -56,28 +47,20 @@ class SearchService {
     double? longitude,
   }) async {
     if (latitude != null && longitude != null) return null;
-    if (!_looksLikeNearbySearch(query, sortBy)) return null;
 
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return null;
-
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return null;
-      }
-
-      return Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-        timeLimit: const Duration(seconds: 8),
-      );
-    } catch (_) {
-      return null;
-    }
+    final area = await BrowsingArea.read();
+    if (area == null) return null;
+    return Position(
+        latitude: area.latitude,
+        longitude: area.longitude,
+        timestamp: DateTime.now(),
+        accuracy: 0,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0);
   }
 
   static Future<List<String>> getSearchHistory() async {
@@ -221,9 +204,8 @@ class SearchService {
         final normalizedCategory = SearchMatcher.normalizeCategory(category);
         results = results
             .where(
-              (deal) =>
-                  BankCardPromotionSupport.effectiveCategoryId(deal) ==
-                  normalizedCategory,
+              (deal) => BankCardPromotionSupport.matchesCategory(
+                  deal, normalizedCategory),
             )
             .toList();
       }
@@ -231,7 +213,8 @@ class SearchService {
       // Price range filter
       if (minPrice != null || maxPrice != null) {
         results = results.where((deal) {
-          final price = _effectivePrice(deal);
+          final price = OfferPresentation(deal).price;
+          if (price == null) return false;
           return (minPrice == null || price >= minPrice) &&
               (maxPrice == null || price <= maxPrice);
         }).toList();
@@ -284,12 +267,11 @@ class SearchService {
       // Sorting
       switch (sortBy) {
         case 'price_low':
-          results
-              .sort((a, b) => _effectivePrice(a).compareTo(_effectivePrice(b)));
+          results.sort(OfferPresentation.comparePrices);
           break;
         case 'price_high':
-          results
-              .sort((a, b) => _effectivePrice(b).compareTo(_effectivePrice(a)));
+          results.sort((a, b) =>
+              OfferPresentation.comparePrices(a, b, descending: true));
           break;
         case 'discount':
           results

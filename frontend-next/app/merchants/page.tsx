@@ -1,3 +1,4 @@
+import { serializeStructuredData } from '@/lib/structured-data';
 import type { Metadata } from 'next';
 import MerchantsPageClient from './MerchantsPageClient';
 import { DEFAULT_OG_IMAGE, SITE_NAME, absoluteUrl } from '@/lib/seo';
@@ -64,11 +65,11 @@ export default function MerchantsPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeStructuredData(breadcrumbJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeStructuredData(collectionJsonLd) }}
       />
       <MerchantsPageClient />
     </>

@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node server.js",
     "create:demo-admin": "node scripts/createDemoAdmin.js",
-    "seed:mobile-demo": "node scripts/seedMobileDemoDeals.js"
+    "seed:mobile-demo": "node scripts/seedMobileDemoDeals.js",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1147.0",
@@ -28,14 +29,18 @@
     "mysql2": "^3.14.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
-    "nodemailer": "^7.0.3",
+    "nodemailer": "^10.1.1",
     "pg": "^8.23.0",
     "sequelize": "^6.37.7",
+    "sharp": "^0.35.5",
     "uuid": "^11.0.5",
     "web-push": "^3.6.7"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "devDependencies": {
+    "mongodb-memory-server": "^11.3.0"
+  }
 }

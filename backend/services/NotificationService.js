@@ -138,6 +138,10 @@ class NotificationService {
       }
     } catch (error) {
       log.status.push.error = error.message;
+      if (['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'].includes(error.code)) {
+        await NotificationPreference.updateOne({ _id: prefs._id },
+          { $unset: { 'channels.push.token': 1 }, $set: { 'channels.push.enabled': false } }).catch(() => {});
+      }
       console.error('Push notification error:', error);
     }
   }
@@ -163,6 +167,11 @@ class NotificationService {
       log.status.web.sent = true;
     } catch (error) {
       log.status.web.error = error.message;
+      // 404/410: the browser unsubscribed; stop retrying a dead endpoint.
+      if ([404, 410].includes(error.statusCode)) {
+        await NotificationPreference.updateOne({ _id: prefs._id },
+          { $unset: { 'channels.web.subscription': 1 }, $set: { 'channels.web.enabled': false } }).catch(() => {});
+      }
       console.error('Web push error:', error);
     }
   }

@@ -6,7 +6,8 @@ export type PromotionLifecycleStatus =
   | 'rejected'
   | 'admin_paused'
   | 'expired'
-  | 'draft';
+  | 'draft'
+  | 'pending_review';
 
 export const ADMIN_STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   active: { bg: 'rgba(16,185,129,0.1)', color: '#059669' },
@@ -16,6 +17,7 @@ export const ADMIN_STATUS_STYLES: Record<string, { bg: string; color: string }> 
   rejected: { bg: 'rgba(239,68,68,0.1)', color: '#ef4444' },
   admin_paused: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
   expired: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
+  pending_review: { bg: 'var(--light-gray)', color: 'var(--text-primary)' },
   draft: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
   suspended: { bg: 'rgba(100,116,139,0.1)', color: '#64748b' },
   needs_review: { bg: 'rgba(99,102,241,0.1)', color: '#6366f1' },
@@ -49,7 +51,7 @@ export function getEffectivePromotionStatus(promotion: {
   endDate?: string;
 }): PromotionLifecycleStatus {
   const rawStatus = promotion.status || 'draft';
-  if (['rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
+  if (['rejected', 'admin_paused', 'draft', 'pending_review'].includes(rawStatus)) {
     return rawStatus as PromotionLifecycleStatus;
   }
 

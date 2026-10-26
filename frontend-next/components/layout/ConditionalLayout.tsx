@@ -1,24 +1,32 @@
-'use client';
+"use client";
 
-import { usePathname } from 'next/navigation';
-import Header from './Header';
-import Footer from './Footer';
-import WebPushBootstrap from '@/components/providers/WebPushBootstrap';
+import { usePathname } from "next/navigation";
+import Header from "./Header";
+import Footer from "./Footer";
+import WebPushBootstrap from "@/components/providers/WebPushBootstrap";
+import { AreaProvider } from "@/contexts/AreaContext";
+import { SavedOffersProvider } from "@/contexts/SavedOffersContext";
 
-export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
+export default function ConditionalLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith('/admin');
+  const isAdmin = pathname?.startsWith("/admin");
 
   if (isAdmin) {
     return <>{children}</>;
   }
 
   return (
-    <>
-      <WebPushBootstrap />
-      <Header />
-      <main className="page-container">{children}</main>
-      <Footer />
-    </>
+    <AreaProvider>
+      <SavedOffersProvider>
+        <WebPushBootstrap />
+        <Header />
+        <main className="page-container">{children}</main>
+        <Footer />
+      </SavedOffersProvider>
+    </AreaProvider>
   );
 }

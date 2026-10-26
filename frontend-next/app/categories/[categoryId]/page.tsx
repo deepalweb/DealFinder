@@ -1,3 +1,4 @@
+import { serializeStructuredData } from '@/lib/structured-data';
 import type { Metadata } from 'next';
 import CategoryPageClient from './CategoryPageClient';
 import {
@@ -94,11 +95,11 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeStructuredData(breadcrumbJsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeStructuredData(collectionJsonLd) }}
       />
       <CategoryPageClient />
     </>

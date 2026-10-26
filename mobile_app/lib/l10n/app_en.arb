@@ -698,5 +698,10 @@
   "profileSaveLabel": "Save changes",
   "profileCurrentPasswordLabel": "Current password",
   "profileNewPasswordLabel": "New password",
-  "profileConfirmPasswordLabel": "Confirm new password"
+  "profileConfirmPasswordLabel": "Confirm new password",
+  "deleteAccount": "Delete account",
+  "deleteAccountConfirmTitle": "Delete your account?",
+  "deleteAccountConfirmBody": "This permanently deletes your profile, saved offers, followed stores, reviews and notification settings. If you manage a store, it is hidden until an administrator reviews it. This can't be undone.",
+  "deleteAccountConfirmAction": "Delete",
+  "deleteAccountFailed": "Your account wasn't deleted. Check your connection and try again."
 }

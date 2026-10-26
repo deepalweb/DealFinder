@@ -1,3 +1,4 @@
+const { isPublicMerchant } = require('../../utils/merchantWorkflow');
 const Merchant = require('../../models/Merchant');
 const Promotion = require('../../models/Promotion');
 const SearchQueryLog = require('../../models/SearchQueryLog');
@@ -76,8 +77,8 @@ function mergeSearchFilters({ explicitFilters = {}, aiFilters = {} }) {
     maxPrice: parseNumber(explicitFilters.maxPrice) ?? parseNumber(aiFilters.maxPrice),
     minDiscountPercent: parseNumber(explicitFilters.minDiscountPercent) ?? parseNumber(aiFilters.minDiscountPercent),
     featuredOnly: explicitFilters.featuredOnly !== undefined
-      ? Boolean(explicitFilters.featuredOnly)
-      : Boolean(aiFilters.featuredOnly),
+      ? explicitFilters.featuredOnly === true
+      : aiFilters.featuredOnly === true,
     expiringWithinDays: parseNumber(explicitFilters.expiringWithinDays) ?? parseNumber(aiFilters.expiringWithinDays),
     radiusKm: parseNumber(explicitFilters.radiusKm) ?? parseNumber(aiFilters.radiusKm),
     sortBy: String(explicitFilters.sortBy || aiFilters.sortBy || 'relevance'),
@@ -95,7 +96,7 @@ async function resolveMerchantIdsByQuery(merchantQuery) {
 function buildPromotionQuery({ normalizedQuery, filters }) {
   const { start, endExclusive } = getColomboDayRange();
   const query = {
-    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
+    status: { $in: ['active', 'approved', 'scheduled'] },
     startDate: { $lt: endExclusive },
     endDate: { $gte: start },
   };
@@ -254,7 +255,7 @@ function scorePromotion({
   }
 
   let distanceKm = null;
-  if (userLocation && Array.isArray(promotion.merchant?.location?.coordinates) && promotion.merchant.location.coordinates.length === 2) {
+  if (userLocation && promotion.fulfillmentType!=='order' && promotion.merchant?.merchantType!=='online' && Array.isArray(promotion.merchant?.location?.coordinates) && promotion.merchant.location.coordinates.length === 2) {
     distanceKm = haversineDistanceKm(userLocation, {
       latitude: promotion.merchant.location.coordinates[1],
       longitude: promotion.merchant.location.coordinates[0],
@@ -275,6 +276,7 @@ function scorePromotion({
     }
   }
 
+  if(filters.radiusKm && distanceKm===null)return {score:Number.NEGATIVE_INFINITY,reasons,breakdown,distanceKm};
   const averageRating = Array.isArray(promotion.ratings) && promotion.ratings.length
     ? promotion.ratings.reduce((sum, rating) => sum + (rating.value || 0), 0) / promotion.ratings.length
     : 0;
@@ -339,9 +341,7 @@ async function searchPromotions({
 
   if (filters.merchantQuery) {
     const merchantIds = await resolveMerchantIdsByQuery(filters.merchantQuery);
-    if (merchantIds.length) {
-      candidateQuery.merchant = { $in: merchantIds };
-    }
+    candidateQuery.merchant = { $in: merchantIds };
   }
 
   const [userProfile, userFavorites, promotions] = await Promise.all([
@@ -350,14 +350,14 @@ async function searchPromotions({
       ? require('../../models/User').findById(userId).select('favorites').lean().then((user) => new Set((user?.favorites || []).map((id) => String(id))))
       : Promise.resolve(new Set()),
     Promotion.find(candidateQuery)
-      .populate('merchant', 'name logo address currency location category')
+      .populate('merchant', 'name logo address currency location category merchantType status')
       .select('-comments.text')
       .sort({ featured: -1, createdAt: -1 })
       .limit(160)
       .lean(),
   ]);
 
-  const filtered = promotions.filter((promotion) => matchesNumericFilters(promotion, filters));
+  const filtered = promotions.filter((promotion) => isPublicMerchant(promotion.merchant) && matchesNumericFilters(promotion, filters));
 
   const scored = filtered
     .map((promotion) => {
@@ -443,6 +443,8 @@ async function searchPromotions({
       fallbackUsed: Boolean(interpretedQuery?.fallbackUsed),
       source: interpretedQuery?.source || 'heuristic',
       resultCount: resultPayload.length,
+      candidateLimit:160,
+      coverage:'ranked_candidate_sample',
       latencyMs,
       filters,
     },

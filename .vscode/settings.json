@@ -8,5 +8,6 @@
       "./frontend"
     ]
   ],
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "python.terminal.useEnvFile": true
 }

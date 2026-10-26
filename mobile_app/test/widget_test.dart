@@ -90,7 +90,7 @@ void main() {
           nearbyScreenBuilder: (_) => const Scaffold(
             body: Center(child: Text('Deals Screen')),
           ),
-          bankOffersScreenBuilder: (_) => const Scaffold(
+          storesScreenBuilder: (_) => const Scaffold(
             body: Center(child: Text('Stores Screen')),
           ),
           favoritesScreenBuilder: (_) =>

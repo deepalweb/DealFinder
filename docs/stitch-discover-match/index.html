@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DealFinder — Stitch reference comparison</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f5f3;color:#17201c;font:15px/1.5 system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:28px 20px}h1{font-size:25px;margin:0 0 8px}p{max-width:850px}a{color:#006c4c}.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}figure{margin:0}figcaption{font-weight:650;margin:12px 0}img{width:100%;display:block;border:1px solid #e3e5e2;border-radius:12px}nav{display:flex;flex-wrap:wrap;gap:12px;margin:20px 0}nav a{padding:8px 12px;border:1px solid #c5d5ca;border-radius:20px;text-decoration:none}details{margin:20px 0;padding:16px;background:white;border-radius:12px}.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px}small{color:#526158}@media(max-width:560px){main{padding:16px 10px}.compare{gap:10px}figcaption{font-size:12px}}
+</style></head><body><main>
+<h1>Discover · reference and rendered Flutter</h1>
+<p>The left image is the supplied 287 × 1600 Stitch reference. The right image renders the actual Flutter screen at 390 logical pixels, with deterministic, labelled design fixtures. Prices, ratings, merchants and offers in these renders are test data, never live inventory.</p>
+<p>The latest render includes the subsequently requested small-card Nearby deals section between Featured offers and Bank Perks. The original sections retain their layout and inventory.</p>
+<nav><a href="#full">Full page</a><a href="#viewport">First viewport</a><a href="#accessibility">Other layouts</a><a href="../stitch-discover-match.md">Implementation report</a></nav>
+<details open><summary>Intentional differences and limits</summary><ul>
+<li>Offers around a selected area replaces “Delivering to” and delivery estimates. The compact store-directory shortcut replaces the cart count.</li>
+<li>All offers / In-store / Online use supported fulfillment. Ending soon, Categories and Bank Offers replace unsupported ranking, free-delivery and BOGO filters.</li>
+<li>Featured offers replaces an unverified “Top” ranking. Actual bank names and card conditions replace registered-card eligibility claims.</li>
+<li>View offer opens the existing detail/action flow. No unsupported direct redemption, claimed counts, scarcity or capacity progress.</li>
+<li>Existing controlled food photography substitutes for the exact pizza, sushi and waffle reference images. No reference photos were added to app assets.</li>
+<li>Platform typography, 44–48px touch targets, explicit restrictions and fixture labels can make cards taller. Dark mode and enlarged/localized text adapt rather than shrinking type.</li>
+</ul></details>
+<section id="full" class="compare"><figure><figcaption>Supplied visual authority</figcaption><img src="reference.png" alt="Supplied emerald Discover reference"></figure><figure><figcaption>Actual Flutter · fixtures · light</figcaption><img src="../../mobile_app/design-preview/stitch-match/light-390-full.png" alt="Full rendered Flutter Discover with banner, expiry strip, rail, bank grid and full-width feed"></figure></section>
+<section id="viewport"><h2>First viewport · 390 × 844</h2><div class="compare"><figure><figcaption>Light</figcaption><img src="../../mobile_app/design-preview/stitch-match/light-390-viewport.png" alt="Light first viewport"></figure><figure><figcaption>Dark</figcaption><img src="../../mobile_app/design-preview/stitch-match/dark-390-viewport.png" alt="Dark first viewport"></figure></div></section>
+<section id="accessibility"><h2>Narrow and enlarged layouts</h2><div class="gallery"><figure><figcaption>320px · normal text</figcaption><img src="../../mobile_app/design-preview/stitch-match/light-320-viewport.png" alt="Narrow phone"></figure><figure><figcaption>320px · 2× text · dark</figcaption><img src="../../mobile_app/design-preview/stitch-match/dark-320-large-viewport.png" alt="Narrow phone with enlarged text"></figure><figure><figcaption>Sinhala · 2× text</figcaption><img src="../../mobile_app/design-preview/stitch-match/sinhala-large-viewport.png" alt="Enlarged Sinhala text"></figure><figure><figcaption>Tamil · 2× text · dark</figcaption><img src="../../mobile_app/design-preview/stitch-match/tamil-large-viewport.png" alt="Enlarged Tamil text"></figure></div></section>
+<p><small>Reference comparison verifies composition; it does not establish a pixel-perfect match or certify real-device assistive technology.</small></p>
+</main></body></html>

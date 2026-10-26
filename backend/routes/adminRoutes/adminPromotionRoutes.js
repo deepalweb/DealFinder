@@ -7,12 +7,7 @@ const PromotionClick = require('../../models/PromotionClick');
 const User = require('../../models/User');
 const { authenticateJWT, authorizeAdmin } = require('../../middleware/auth');
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function parseBoolean(value) {
   if (value === undefined || value === null || value === '' || value === 'all') return undefined;
@@ -44,7 +39,7 @@ function normalizeValue(value) {
 
 function getEffectivePromotionStatus(promotion) {
   const rawStatus = promotion.status || 'draft';
-  if (['rejected', 'admin_paused', 'draft'].includes(rawStatus)) {
+  if (['rejected', 'admin_paused', 'draft', 'pending_review'].includes(rawStatus)) {
     return rawStatus;
   }
 
@@ -373,7 +368,7 @@ router.post('/promotions/bulk', authenticateJWT, authorizeAdmin, async (req, res
     }
 
     const result = await Promotion.updateMany(
-      { _id: { $in: validIds } },
+      { _id: { $in: validIds }, ...(action === 'resume' ? { status: { $nin: ['pending_review','draft'] } } : {}) },
       { $set: update }
     );
 

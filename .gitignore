@@ -44,3 +44,13 @@ yarn-error.log*
 # cloudflare worker
 /cloudflare/node_modules
 /cloudflare/.wrangler
+
+# Local agent logs, audit runtime and QA tooling
+/.codex-logs/
+__pycache__/
+
+# Design screenshots stay local; the design docs (.md/.html) are committed
+/mobile_app/design-preview/
+/mobile_app/design-reference/
+/mobile_app/*.png
+/docs/**/*.png

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -83,6 +82,20 @@ class NearbyPromotionsResult {
     this.cachedLocationName,
     this.cachedDistanceKm,
   });
+}
+
+class MerchantRequestException implements Exception {
+  const MerchantRequestException(this.resource, this.statusCode);
+  final String resource;
+  final int statusCode;
+  @override
+  String toString() => '$resource request failed (HTTP $statusCode)';
+}
+
+class InvalidCredentialsException implements Exception {
+  const InvalidCredentialsException();
+  @override
+  String toString() => 'Invalid email or password.';
 }
 
 class ApiService {
@@ -177,7 +190,7 @@ class ApiService {
     }
 
     var response = await send(token);
-    if (response.statusCode == 401) {
+    if (_needsRefresh(response)) {
       token = await _refreshToken();
       if (token != null) {
         response = await send(token);
@@ -207,30 +220,100 @@ class ApiService {
         body: body, accessToken: token);
   }
 
-  Future<String?> _refreshToken() async {
+  // The backend answers an expired or revoked access token with 403
+  // "Invalid or expired token" (the web client checks the same message).
+  static bool _needsRefresh(http.Response response) {
+    if (response.statusCode == 401) return true;
+    if (response.statusCode != 403) return false;
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return null;
-      final idToken = await user.getIdToken(true); // force refresh
-      final response = await http
-          .post(
-            Uri.parse('${_baseUrl}users/firebase-auth'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'idToken': idToken}),
-          )
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final newToken = data['token'] as String?;
-        if (newToken != null) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userToken', newToken);
-          return newToken;
+      return (jsonDecode(response.body) as Map)['message'] ==
+          'Invalid or expired token';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<String?>? _refreshInFlight;
+  Future<String?> _refreshToken() => _refreshInFlight ??=
+      _refreshTokenOnce().whenComplete(() => _refreshInFlight = null);
+
+  Future<void> deleteAccount() async {
+    final response = await _authDelete('${_baseUrl}users/me');
+    if (response.statusCode != 200) {
+      throw Exception(_extractErrorMessage(response,
+          fallback: 'Failed to delete account'));
+    }
+  }
+
+  Future<void> revokeSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final access = prefs.getString('userToken');
+    final refresh = prefs.getString('refreshToken');
+    if (access == null || refresh == null) return;
+    await http
+        .post(Uri.parse('${_baseUrl}users/logout'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $access'
+            },
+            body: jsonEncode({'refreshToken': refresh}))
+        .timeout(const Duration(seconds: 5));
+  }
+
+  Future<String?> _refreshTokenOnce() async {
+    final prefs = await SharedPreferences.getInstance();
+    final refresh = prefs.getString('refreshToken');
+    if (refresh != null) {
+      try {
+        final response = await http
+            .post(Uri.parse('${_baseUrl}users/refresh-token'),
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode({'refreshToken': refresh}))
+            .timeout(const Duration(seconds: 15));
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          if (data['token'] is String && data['refreshToken'] is String) {
+            await prefs.setString('userToken', data['token']);
+            await prefs.setString('refreshToken', data['refreshToken']);
+            return data['token'];
+          }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
+    // No Firebase fallback: a revoked session (logout everywhere, password
+    // change) must stay revoked until the person signs in again.
     return null;
   }
+
+  Future<List<Promotion>> fetchPromotionPage(
+      {int limit = 50, int skip = 0}) async {
+    final response = await http
+        .get(Uri.parse('${_baseUrl}promotions?limit=$limit&skip=$skip'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('Could not load more offers');
+    }
+    return (jsonDecode(response.body) as List)
+        .map((row) => Promotion.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<Promotion>> fetchBankOfferPage(
+      {int limit = 50, int skip = 0}) async {
+    final response = await http
+        .get(Uri.parse('${_baseUrl}bank-offers?limit=$limit&skip=$skip'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('Could not load bank offers');
+    }
+    return (jsonDecode(response.body) as List)
+        .map((row) => Promotion.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  bool lastBankOffersFailed = false;
+  bool lastPromotionsFromCache = false;
+  bool? lastPromotionPageHasMore, lastBankOfferPageHasMore;
 
   Future<List<Promotion>> fetchPromotions({bool forceRefresh = false}) async {
     // Check cache first unless force refresh
@@ -240,6 +323,9 @@ class ApiService {
         if (kDebugMode) {
           debugPrint('Loaded ${cached.length} promotions from cache');
         }
+        lastPromotionsFromCache = true;
+        lastPromotionPageHasMore = null;
+        lastBankOfferPageHasMore = null;
         return cached;
       }
     }
@@ -253,12 +339,15 @@ class ApiService {
       final bankOfferResponse = await http
           .get(Uri.parse('${_baseUrl}bank-offers?limit=50'))
           .timeout(const Duration(seconds: 15))
-          .catchError((_) => http.Response('[]', 200));
+          .catchError((_) => http.Response('[]', 503));
+      lastBankOffersFailed = bankOfferResponse.statusCode != 200;
       if (promotionResponse.statusCode == 200) {
         final List<dynamic> promotionBody = jsonDecode(promotionResponse.body);
         final List<dynamic> bankOfferBody = bankOfferResponse.statusCode == 200
             ? jsonDecode(bankOfferResponse.body)
             : const [];
+        lastPromotionPageHasMore = promotionBody.length >= 50;
+        lastBankOfferPageHasMore = bankOfferBody.length >= 50;
         final promotions = _visibleConsumerPromotions([
           ...promotionBody.map((e) => Promotion.fromJson(e)),
           ...bankOfferBody.map((e) => Promotion.fromJson(e)),
@@ -269,6 +358,7 @@ class ApiService {
             debugPrint('Saved ${promotions.length} promotions to cache');
           }
         } catch (_) {}
+        lastPromotionsFromCache = false;
         return promotions;
       }
       throw Exception(
@@ -280,6 +370,9 @@ class ApiService {
         if (kDebugMode) {
           debugPrint('Using stale cache (${cached.length} promotions)');
         }
+        lastPromotionsFromCache = true;
+        lastPromotionPageHasMore = null;
+        lastBankOfferPageHasMore = null;
         return cached;
       }
       rethrow;
@@ -345,7 +438,20 @@ class ApiService {
     }
   }
 
-  // Direct login (bypass Firebase) - fallback when Firebase is unavailable
+  // Sends the backend's reset email; the link opens the web reset page.
+  Future<void> requestPasswordReset(String email) async {
+    final response = await http
+        .post(Uri.parse('${_baseUrl}users/reset-password'),
+            headers: {'Content-Type': 'application/json; charset=UTF-8'},
+            body: jsonEncode({'email': email}))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception(_extractErrorMessage(response,
+          fallback: 'Password reset is unavailable. Please try again later.'));
+    }
+  }
+
+  // Email/password sign-in against the backend, the single password store.
   Future<Map<String, dynamic>> directLogin(
       {required String email, required String password}) async {
     try {
@@ -367,16 +473,13 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        if (kDebugMode) debugPrint('Direct login successful');
         return jsonDecode(response.body) as Map<String, dynamic>;
-      } else if (response.statusCode == 400 || response.statusCode == 401) {
-        final errorBody = jsonDecode(response.body);
-        throw Exception(errorBody['message'] ?? 'Invalid email or password.');
-      } else {
-        throw Exception('Login failed. Status code: ${response.statusCode}');
       }
+      if (response.statusCode == 401) throw const InvalidCredentialsException();
+      throw Exception(_extractErrorMessage(response,
+          fallback: 'Sign-in failed. Please try again.'));
     } on TimeoutException {
-      throw Exception('Connection timed out. Is the backend running?');
+      throw Exception("Couldn't reach DealFinder. Check your connection and try again.");
     } catch (e) {
       if (kDebugMode) debugPrint('Direct login error: $e');
       rethrow;
@@ -958,12 +1061,13 @@ class ApiService {
 
   // Fetch a single merchant by ID
   Future<Map<String, dynamic>> fetchMerchantById(String merchantId) async {
-    final response =
-        await http.get(Uri.parse('${_baseUrl}merchants/$merchantId'));
+    final response = await http
+        .get(Uri.parse('${_baseUrl}merchants/$merchantId'))
+        .timeout(const Duration(seconds: 30));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
-      throw Exception('Failed to load merchant');
+      throw MerchantRequestException('Store details', response.statusCode);
     }
   }
 
@@ -1078,7 +1182,7 @@ class ApiService {
             promotion['merchantId']?.toString() == merchantId;
       }).toList();
     } else {
-      throw Exception('Failed to load promotions for merchant');
+      throw MerchantRequestException('Store offers', response.statusCode);
     }
   }
 
@@ -1134,9 +1238,9 @@ class ApiService {
   }
 
   Future<List<Promotion>> fetchMerchantPromotions(String merchantId) async {
-    final response = await http
-        .get(Uri.parse('${_baseUrl}promotions/merchant/$merchantId'))
-        .timeout(const Duration(seconds: 30));
+    // Owner workspace reads include private review states; public store reads remain anonymous.
+    final response =
+        await _authGet('${_baseUrl}promotions/merchant/$merchantId');
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data
@@ -1154,6 +1258,7 @@ class ApiService {
     String? name,
     String? role,
     String? businessName,
+    String? password,
   }) async {
     try {
       final response = await http
@@ -1165,6 +1270,7 @@ class ApiService {
               if (name != null) 'name': name,
               if (role != null) 'role': role,
               if (businessName != null) 'businessName': businessName,
+              if (password != null) 'password': password,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -1175,7 +1281,7 @@ class ApiService {
         throw Exception(errorBody['message'] ?? 'Authentication failed');
       }
     } on TimeoutException {
-      throw Exception('Connection timed out. Is the backend running?');
+      throw Exception("Couldn't reach DealFinder. Check your connection and try again.");
     } catch (e) {
       rethrow;
     }

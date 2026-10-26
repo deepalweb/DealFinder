@@ -32,16 +32,23 @@ const {
   deletePromotionInPostgres,
 } = require('../services/postgresPromotionService');
 const pgModels = require('../models-pg');
+const { isPublicMerchant } = require('../utils/merchantWorkflow');
 
 const usePostgres = () => process.env.DATA_SOURCE === 'postgres';
 
-// Add safeError helper
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
+async function authorizePromotionRead(req,res,next){
+ if(usePostgres())return next();
+ try{
+  const row=await Promotion.findById(req.params.id).select('status merchant');
+  if(!row)return res.status(404).json({message:'Promotion not found'});
+  if(['active','approved','scheduled','expired'].includes(row.status) || req.user?.role==='admin' ||
+    (req.user?.role==='merchant' && String(row.merchant)===String(req.user.merchantId)))return next();
+  return res.status(404).json({message:'Promotion not found'});
+ }catch{return res.status(400).json({message:'Invalid promotion ID'});}
 }
+
+// Add safeError helper
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function stripBase64Media(value) {
   return typeof value === 'string' && value.startsWith('data:image') ? null : value;
@@ -160,6 +167,7 @@ function buildTrustSummary(promotion, metrics = {}) {
 }
 
 function parseFiniteNumber(value) {
+  if(value===undefined||value===null||value===''||!['string','number'].includes(typeof value))return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -179,11 +187,13 @@ function getDiscountSignal(promotion) {
   if (Number.isFinite(percentage) && percentage > 0) return percentage;
 
   const discount = String(promotion?.discount || '');
-  const percentMatch = discount.match(/(\d+(?:\.\d+)?)\s*%/);
-  if (percentMatch) return Number(percentMatch[1]) || 0;
+  // "Up to 60%" is a cap, not a saving every customer gets.
+  const percentMatch = /up\s+to/i.test(discount) ? null : discount.match(/(\d+(?:\.\d+)?)\s*%/);
+  if (percentMatch) {const percent=Number(percentMatch[1]);return percent>=0&&percent<=100?percent:0;}
 
   const original = Number(promotion?.originalPrice);
-  const discounted = Number(promotion?.discountedPrice ?? promotion?.price);
+  const current=promotion?.discountedPrice ?? promotion?.price;
+  const discounted = current==null?NaN:Number(current);
   if (Number.isFinite(original) && original > 0 && Number.isFinite(discounted) && discounted < original) {
     return Math.round(((original - discounted) / original) * 100);
   }
@@ -214,7 +224,7 @@ function isTruthyQuery(value) {
 }
 
 function haversineDistanceKm(fromLat, fromLon, toLat, toLon) {
-  if (![fromLat, fromLon, toLat, toLon].every(Number.isFinite)) return null;
+  if (![fromLat, fromLon, toLat, toLon].every(Number.isFinite)||Math.abs(fromLat)>90||Math.abs(toLat)>90||Math.abs(fromLon)>180||Math.abs(toLon)>180) return null;
   const toRadians = (degrees) => degrees * (Math.PI / 180);
   const earthRadiusKm = 6371;
   const dLat = toRadians(toLat - fromLat);
@@ -289,7 +299,7 @@ function buildRedemptionPayload(redemption) {
 
 async function resolveMerchantIdForRedemption(user) {
   if (user?.role === 'admin') return null;
-  if (user?.merchantId) return user.merchantId.toString();
+  if (user?.role !== 'merchant') return '';
   if (!user?.id) return '';
   const dbUser = await User.findById(user.id).select('merchantId').lean();
   return dbUser?.merchantId ? dbUser.merchantId.toString() : '';
@@ -309,9 +319,9 @@ function buildActivePromotionQuery(value = new Date()) {
   const { start, endExclusive } = getColomboDayRange(value);
 
   return {
-    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
-    startDate: { $lt: endExclusive },
-    endDate: { $gte: start },
+    status: { $in: ['active', 'approved', 'scheduled'] },
+    startDate: { $lte: value },
+    endDate: { $gt: value },
   };
 }
 
@@ -322,6 +332,9 @@ function sanitizePromotionPayload(promotion) {
   if (sanitized.merchant && typeof sanitized.merchant === 'object') {
     sanitized.merchant = {
       ...sanitized.merchant,
+      contactInfo: undefined,
+      ratings: undefined,
+      reviews: undefined,
       logo: stripBase64Media(sanitized.merchant.logo),
     };
   }
@@ -388,14 +401,14 @@ function validateBankCardOffer(body = {}, { partial = false } = {}) {
 // For now, let's make it admin only or merchant if their merchantId matches
 async function authorizeMerchantAnalytics(req, res, next) {
   if (!req.user) return res.status(401).json({ message: "Authentication required." });
-  if (req.user.role === 'admin' || (req.user.role === 'merchant' && req.user.merchantId === req.params.merchantId)) {
+  if (req.user.role === 'admin' || (req.user.role === 'merchant' && String(req.user.merchantId) === req.params.merchantId)) {
     return next();
   }
   return res.status(403).json({ message: "Forbidden: You cannot access this merchant's analytics."});
 }
 router.get('/analytics/merchant/:merchantId', authenticateJWT, authorizeMerchantAnalytics, async (req, res) => {
   try {
-    const clicks = await PromotionClick.find({ merchant: req.params.merchantId }).populate('promotion user');
+    const clicks = await PromotionClick.find({ merchant: req.params.merchantId }).populate('promotion', 'title status').populate('user', 'name');
     res.status(200).json(clicks);
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -405,7 +418,7 @@ router.get('/analytics/merchant/:merchantId', authenticateJWT, authorizeMerchant
 // Get analytics for a promotion (Protected: promotion owner or admin)
 router.get('/:id/analytics', authenticateJWT, authorizePromotionOwnerOrAdmin, async (req, res) => {
   try {
-    const clicks = await PromotionClick.find({ promotion: req.params.id }).populate('user');
+    const clicks = await PromotionClick.find({ promotion: req.params.id }).populate('user', 'name');
     res.status(200).json(clicks);
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -433,13 +446,13 @@ router.get('/homepage', async (req, res) => {
       resolveHomepageSections(),
       Promotion.find(query)
         .select('-comments')
-        .populate('merchant', 'name logo currency website merchantType orderLink deliveryAvailable pickupAvailable')
+        .populate('merchant', 'name logo currency website merchantType orderLink deliveryAvailable pickupAvailable status')
         .sort(newestFirstSort)
         .limit(20)
         .lean()
     ]);
 
-    const latestWithTrust = await attachPromotionTrustSummaries(latest.map(sanitizePromotionPayload));
+    const latestWithTrust = await attachPromotionTrustSummaries(latest.filter((p) => isPublicMerchant(p.merchant)).map(sanitizePromotionPayload));
     const trustedSections = await attachHomepageSectionTrustSummaries(sections);
 
     homepageCache = {
@@ -484,161 +497,13 @@ function setNearbyCache(lat, lon, radius, data) {
 }
 
 // Get nearby promotions - Optimized with single aggregation pipeline
-router.get('/nearby', async (req, res) => {
-  try {
-    const { latitude, longitude, radius } = req.query;
-
-    if (!latitude || !longitude) {
-      return res.status(400).json({ message: 'Latitude and longitude are required query parameters.' });
-    }
-
-    const lat = parseFloat(latitude);
-    const lon = parseFloat(longitude);
-
-    if (isNaN(lat) || isNaN(lon)) {
-      return res.status(400).json({ message: 'Latitude and longitude must be valid numbers.' });
-    }
-
-    const searchRadiusKm = parseFloat(radius) || 10;
-    
-    // Check cache first
-    const cached = getNearbyCache(lat, lon, searchRadiusKm);
-    if (cached) {
-      console.log('[Nearby API] Returning cached results');
-      return res.status(200).json(cached);
-    }
-
-    const radiusInMeters = searchRadiusKm * 1000;
-    const merchantLimit = parseInt(req.query.limit) || 30; // Reduced for faster geo query
-    const promotionLimit = parseInt(req.query.promotionLimit) || 100;
-
-    const { start, endExclusive } = getColomboDayRange();
-
-    try {
-      // Single optimized aggregation pipeline
-      const promotions = await Merchant.aggregate([
-        {
-          $geoNear: {
-            near: { type: 'Point', coordinates: [lon, lat] },
-            distanceField: 'distance',
-            maxDistance: radiusInMeters,
-            spherical: true,
-            query: { 'location.type': 'Point' }
-          }
-        },
-        { $limit: merchantLimit }, // Limit merchants first for faster geo query
-        {
-          $lookup: {
-            from: 'promotions',
-            let: { merchantId: '$_id' },
-            pipeline: [
-              {
-                $match: {
-                  $expr: { $eq: ['$merchant', '$$merchantId'] },
-                  status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
-                  startDate: { $lt: endExclusive },
-                  endDate: { $gte: start }
-                }
-              },
-              { $sort: newestFirstSort },
-              { $limit: 10 }, // Keep only the newest promotions per merchant
-              {
-                $project: {
-                  title: 1,
-                  description: 1,
-                  discount: 1,
-                  code: 1,
-                  category: 1,
-                  merchant: 1,
-                  startDate: 1,
-                  endDate: 1,
-                  images: 1,
-                  image: 1,
-                  url: 1,
-                  fulfillmentType: 1,
-                  orderLink: 1,
-                  visitAvailable: 1,
-                  deliveryAvailable: 1,
-                  pickupAvailable: 1,
-                  featured: 1,
-                  originalPrice: 1,
-                  discountedPrice: 1,
-                  bankName: 1,
-                  cardTypes: 1,
-                  offerType: 1,
-                  minimumSpend: 1,
-                  maximumBenefit: 1,
-                  status: 1,
-                  createdAt: 1,
-                  updatedAt: 1,
-                  ratings: 1,
-                }
-              }
-            ],
-            as: 'promotions'
-          }
-        },
-        {
-          $unwind: {
-            path: '$promotions',
-            preserveNullAndEmptyArrays: false // Don't include merchants with no promotions
-          }
-        },
-        {
-          $replaceRoot: {
-            newRoot: {
-              $mergeObjects: [
-                '$promotions',
-                {
-                  merchant: {
-                    _id: '$_id',
-                    name: '$name',
-                    logo: '$logo',
-                    website: '$website',
-                    merchantType: '$merchantType',
-                    orderLink: '$orderLink',
-                    deliveryAvailable: '$deliveryAvailable',
-                    pickupAvailable: '$pickupAvailable',
-                    location: '$location',
-                    address: '$address',
-                    contactInfo: '$contactInfo',
-                    currency: '$currency',
-                    distance: '$distance'
-                  }
-                }
-              ]
-            }
-          }
-        },
-        {
-          $sort: newestFirstSort
-        },
-        { $limit: promotionLimit }
-      ]);
-
-      const sanitizedPromotions = await attachPromotionTrustSummaries(promotions.map(sanitizePromotionPayload));
-
-      // Cache the result
-      setNearbyCache(lat, lon, searchRadiusKm, sanitizedPromotions);
-
-      res.status(200).json(sanitizedPromotions);
-
-    } catch (geoErr) {
-      console.error('[Nearby API] Aggregation error:', geoErr.message);
-      return res.status(500).json({ 
-        message: 'Query failed',
-        error: process.env.NODE_ENV === 'production' ? undefined : geoErr.message,
-        hint: 'Check if geospatial index exists on Merchant.location field'
-      });
-    }
-
-  } catch (error) {
-    console.error('[Nearby API] Error:', error);
-    res.status(500).json(safeError(error));
-  }
+router.get('/nearby', (req,res)=>{
+ if(req.query.latitude===undefined||req.query.longitude===undefined)return res.status(400).json({message:'Latitude and longitude are required.'});
+ req.query={...req.query,radiusKm:req.query.radiusKm??req.query.radius??'10',
+   sortBy:req.query.sortBy??'nearest',limit:req.query.promotionLimit??req.query.limit??'100'};
+ return listPromotions(req,res);
 });
 
-// Manual cache clear endpoint (for admin/testing - clears all in-memory caches)
 router.post('/admin/clear-cache', authenticateJWT, authorizeAdmin, async (req, res) => {
   try {
     invalidateHomepageCache();
@@ -703,10 +568,11 @@ router.get('/recommended', gentleAuthenticateJWT, async (req, res) => {
       ]),
       Promotion.find(query)
         .select('-comments')
-        .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
+        .populate('merchant', 'name logo address currency location website merchantType orderLink deliveryAvailable pickupAvailable status')
         .sort(newestFirstSort)
         .limit(120)
-        .lean(),
+        .lean()
+        .then((rows) => rows.filter((p) => isPublicMerchant(p.merchant))),
     ]);
 
     const favoriteIds = new Set((user?.favorites || []).map((id) => String(id)));
@@ -797,13 +663,33 @@ router.get('/recommended', gentleAuthenticateJWT, async (req, res) => {
 });
 
 // Get all promotions
-router.get('/', async (req, res) => {
+async function listPromotions(req, res) {
   try {
-    const limit = parseInt(req.query.limit) || 0; // 0 means no limit
-    const skip = parseInt(req.query.skip) || 0;
+    for(const value of Object.values(req.query))if(typeof value!=='string')return res.status(400).json({message:'Query fields must be scalar strings.'});
+    const limit = req.query.limit===undefined?50:Number(req.query.limit);
+    const skip = req.query.skip===undefined?0:Number(req.query.skip);
+    if(!Number.isSafeInteger(limit)||limit<1||limit>100||!Number.isSafeInteger(skip)||skip<0)return res.status(400).json({message:'Invalid pagination: limit must be 1–100 and skip nonnegative.'});
+    const latValue=parseFiniteNumber(req.query.latitude),lonValue=parseFiniteNumber(req.query.longitude);
+    const radiusValue=parseFiniteNumber(req.query.radiusKm??req.query.radius);
+    if((req.query.latitude!==undefined||req.query.longitude!==undefined) &&
+       (latValue===null||lonValue===null||Math.abs(latValue)>90||Math.abs(lonValue)>180))return res.status(400).json({message:'Invalid geographic coordinates.'});
+    if((req.query.radiusKm!==undefined||req.query.radius!==undefined) &&
+       (radiusValue===null||radiusValue<=0||radiusValue>100||latValue===null||lonValue===null))return res.status(400).json({message:'Radius requires valid coordinates and must be greater than 0 and at most 100 km.'});
     const sortBy = String(req.query.sortBy || req.query.sort || 'recent');
+    if(!['recent','discount','highest_rated','rating','ending_soon','nearest','distance','price_low','price_high'].includes(sortBy))return res.status(400).json({message:'Unsupported sort order.'});
+    if(['nearest','distance'].includes(sortBy)&&(latValue===null||lonValue===null))return res.status(400).json({message:'Distance sorting requires coordinates.'});
+    for(const [key,max] of [['minRating',5],['minDiscount',100],['maxPrice',1e12],['minPrice',1e12]]){
+      if(req.query[key]!==undefined){const n=parseFiniteNumber(req.query[key]);if(n===null||n<0||n>max)return res.status(400).json({message:'Invalid numeric filter.'});}
+    }
+    if((req.query.search||req.query.q||'').length>500)return res.status(400).json({message:'Search is too long.'});
+    if(req.query.availability && req.query.availability!=='active')return res.status(400).json({message:'This endpoint lists active offers only.'});
+    const mode=req.query.fulfillmentType||req.query.fulfillment||req.query.capability;
+    if(mode&&!['all','visit','in_store','in-store','online','order','hybrid','delivery','pickup'].includes(mode))return res.status(400).json({message:'Unsupported fulfillment filter.'});
+
 
     if (process.env.DATA_SOURCE === 'postgres') {
+      const supported=new Set(['limit','skip','category','sortBy','sort']);
+      if(Object.keys(req.query).some(key=>!supported.has(key)))return res.status(501).json({message:'These discovery filters are not supported by the selected provider.'});
       const promotions = await getPromotionsFromPostgres({
         limit,
         skip,
@@ -819,20 +705,19 @@ router.get('/', async (req, res) => {
 
     const query = buildActivePromotionQuery();
     if (req.query.category) {
-      query.category = new RegExp(String(req.query.category).trim(), 'i');
+      query.category = new RegExp('^'+String(req.query.category).trim().slice(0,100).replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$', 'i');
     }
     
     let promotions = await Promotion.find(query)
       .select('-comments')
-      .populate('merchant', 'name logo address contactInfo currency location website merchantType orderLink deliveryAvailable pickupAvailable')
+      .populate('merchant', 'name logo address contactNumber currency location website status merchantType orderLink deliveryAvailable pickupAvailable')
       .sort(newestFirstSort)
       .lean();
 
     promotions = await attachPromotionTrustSummaries(promotions.map(sanitizePromotionPayload));
 
     const now = new Date();
-    const endOfToday = new Date(now);
-    endOfToday.setHours(23, 59, 59, 999);
+    const endOfToday = getColomboDayRange(now).endExclusive;
     const minRating = parseFiniteNumber(req.query.minRating);
     const minDiscount = parseFiniteNumber(req.query.minDiscount);
     const maxPrice = parseFiniteNumber(req.query.maxPrice);
@@ -840,7 +725,7 @@ router.get('/', async (req, res) => {
 
     promotions = promotions
       .map((promotion) => {
-        const distanceKm = haversineDistanceKm(
+        const distanceKm = promotion.fulfillmentType==='order'||promotion.merchant?.merchantType==='online' ? null : haversineDistanceKm(
           latitude,
           longitude,
           promotion.latitude ?? promotion.merchant?.location?.coordinates?.[1],
@@ -850,6 +735,16 @@ router.get('/', async (req, res) => {
       })
       .filter((promotion) => {
         if (!matchesPromotionTextSearch(promotion, req.query.search || req.query.q)) return false;
+        if (!isPublicMerchant(promotion.merchant)) return false;
+        const fulfillment=req.query.fulfillmentType||req.query.fulfillment||req.query.capability;
+        const online=promotion.fulfillmentType==='order'||promotion.merchant.merchantType==='online';
+        if(fulfillment==='hybrid'&&promotion.fulfillmentType!=='hybrid')return false;
+        if(['online','order'].includes(fulfillment)&&!online)return false;
+        if(['visit','in_store','in-store'].includes(fulfillment)&&(online||promotion.visitAvailable===false))return false;
+        if(fulfillment==='delivery'&&!(promotion.deliveryAvailable||promotion.merchant.deliveryAvailable))return false;
+        if(fulfillment==='pickup'&&!(promotion.pickupAvailable||promotion.merchant.pickupAvailable))return false;
+        if(req.query.bankName&&String(promotion.bankName||'').toLowerCase()!==req.query.bankName.toLowerCase())return false;
+        if(req.query.cardType&&!promotion.cardTypes?.includes(req.query.cardType))return false;
         if (isTruthyQuery(req.query.verifiedOnly) && promotion.trustSummary?.status !== 'verified') return false;
         if (isTruthyQuery(req.query.hideReported) && promotion.trustSummary?.status === 'reported') return false;
         if (isTruthyQuery(req.query.reportedOnly) && promotion.trustSummary?.status !== 'reported') return false;
@@ -860,14 +755,16 @@ router.get('/', async (req, res) => {
         }
         if (minRating != null && (promotion.averageRating || 0) < minRating) return false;
         if (minDiscount != null && getDiscountSignal(promotion) < minDiscount) return false;
-        const price = Number(promotion.discountedPrice ?? promotion.price ?? promotion.originalPrice ?? 0);
+        const rawPrice=promotion.discountedPrice ?? promotion.price;
+        const price=rawPrice==null?null:Number(rawPrice);
+        if((minPrice!==null||maxPrice!==null)&&(!Number.isFinite(price)||price<0))return false;
         if (minPrice != null && price < minPrice) return false;
         if (maxPrice != null && price > maxPrice) return false;
         if (radiusKm != null && (promotion.distanceKm == null || promotion.distanceKm > radiusKm)) return false;
         return true;
       });
 
-    promotions.sort((a, b) => {
+    const compare=(a, b) => {
       switch (sortBy) {
         case 'discount':
           return getDiscountSignal(b) - getDiscountSignal(a);
@@ -890,15 +787,19 @@ router.get('/', async (req, res) => {
         default:
           return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
       }
-    });
+    };
+    promotions.sort((a,b)=>compare(a,b)||String(b._id).localeCompare(String(a._id)));
 
+    res.set('X-Total-Count',String(promotions.length));
+    res.set('X-Has-More',String(skip+limit<promotions.length));
     const paged = limit > 0 ? promotions.slice(skip, skip + limit) : promotions.slice(skip);
     res.status(200).json(paged);
   } catch (error) {
     console.error('Error in GET /api/promotions:', error);
     res.status(500).json(safeError(error));
   }
-});
+}
+router.get('/',listPromotions);
 
 router.get('/sections', async (_req, res) => {
   try {
@@ -935,7 +836,7 @@ router.get('/sections/:sectionKey', async (req, res) => {
 });
 
 // Get public stats for a promotion
-router.get('/:id/stats', async (req, res) => {
+router.get('/:id/stats', gentleAuthenticateJWT, authorizePromotionRead, async (req, res) => {
   try {
     if (usePostgres()) {
       const promotion = await pgModels.Promotion.findByPk(req.params.id);
@@ -1034,7 +935,7 @@ router.get('/:id/stats', async (req, res) => {
 });
 
 // Get promotions by merchant ID
-router.get('/merchant/:merchantId', async (req, res) => {
+router.get('/merchant/:merchantId', gentleAuthenticateJWT, async (req, res) => {
   try {
     if (usePostgres()) {
       const promotions = await getPromotionsByMerchantFromPostgres(req.params.merchantId);
@@ -1044,7 +945,9 @@ router.get('/merchant/:merchantId', async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.merchantId)) {
       return res.status(400).json({ message: 'Valid merchant ID is required' });
     }
-    const promotions = await Promotion.find({ merchant: req.params.merchantId })
+    const account = req.user?.role === 'merchant' ? await User.findById(req.user.id).select('merchantId role') : null;
+    const owner = req.user?.role === 'admin' || (account?.role === 'merchant' && String(account.merchantId) === String(req.params.merchantId));
+    const promotions = await Promotion.find({ merchant: req.params.merchantId, ...(owner ? {} : {status:{$in:['active','scheduled','expired']}}) })
       .select('-comments')
       .sort(newestFirstSort)
       .lean();
@@ -1056,7 +959,7 @@ router.get('/merchant/:merchantId', async (req, res) => {
 });
 
 // Get a promotion by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', gentleAuthenticateJWT, async (req, res) => {
   try {
     if (usePostgres()) {
       const pgPromotion = await getPromotionByIdFromPostgres(req.params.id);
@@ -1066,6 +969,12 @@ router.get('/:id', async (req, res) => {
 
     const promotion = await Promotion.findById(req.params.id).populate('merchant');
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
+    const owns=req.user?.role==='admin'||(req.user?.role==='merchant'&&String(req.user.merchantId)===String(promotion.merchant?._id));
+    if(!owns&&!isPublicMerchant(promotion.merchant))return res.status(404).json({message:'Promotion not found'});
+    if (!['active','approved','scheduled','expired'].includes(promotion.status) && req.user?.role !== 'admin') {
+      const account = req.user?.role === 'merchant' ? await User.findById(req.user.id).select('merchantId role') : null;
+      if (account?.role !== 'merchant' || String(account.merchantId) !== String(promotion.merchant._id)) return res.status(404).json({ message: 'Promotion not found' });
+    }
     const [withTrust] = await attachPromotionTrustSummaries([
       sanitizePromotionPayload(promotion.toObject()),
     ]);
@@ -1160,6 +1069,7 @@ router.post('/', authenticateJWT, [
       });
     }
 
+    if (req.user.role === 'merchant' && usePostgres()) return res.status(503).json({ message: 'Merchant review submissions require the MongoDB workflow. Direct publishing is not permitted.' });
     // Authorization: Admin can create for any merchantId. Merchant can only create for their own merchantId.
     if (req.user.role === 'merchant') {
       if (!req.user.merchantId) {
@@ -1189,7 +1099,7 @@ router.post('/', authenticateJWT, [
     }
     // If admin, they can specify any merchantId, so no changes needed to merchantId from req.body
 
-    let initialStatus = resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
+    let initialStatus = req.user.role === 'merchant' && !usePostgres() ? 'pending_review' : resolveLifecycleStatus(normalizedStartDate, normalizedEndDate);
     if (req.user.role === 'admin' && ['rejected', 'admin_paused', 'draft'].includes(req.body.status)) {
       initialStatus = req.body.status;
     }
@@ -1247,6 +1157,8 @@ router.post('/', authenticateJWT, [
       return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
     }
 
+    const createIssues = require('../utils/merchantWorkflow').validateOffer({ ...req.body, fulfillmentType: fulfillmentType || 'visit' }, merchant);
+    if (Object.keys(createIssues).length) return res.status(400).json({ message: 'Promotion validation failed', errors: createIssues });
     const promotionData = {
       title,
       description,
@@ -1286,8 +1198,8 @@ router.post('/', authenticateJWT, [
       { runValidators: false }
     );
     
-    // Trigger notifications asynchronously
-    setImmediate(async () => {
+    // Drafts/review submissions never send consumer notifications.
+    if (savedPromotion.status === 'active') setImmediate(async () => {
       try {
         // Notify favorite store followers
         await notifyFavoriteStoreFollowers(savedPromotion._id);
@@ -1388,7 +1300,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       const hasBankOfferFieldsPg =
         bankName !== undefined || cardTypes !== undefined || offerType !== undefined ||
         minimumSpend !== undefined || maximumBenefit !== undefined;
-      if (category === 'bank_cards' || hasBankOfferFieldsPg) {
+      if (category === 'bank_cards') {
         return res.status(400).json({
           message: 'Bank card offers are now managed separately from merchant promotions.',
           errors: [{ msg: 'Move this offer into the bank offers module instead of updating it as a promotion.', path: 'category' }],
@@ -1451,6 +1363,14 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       return res.status(200).json(updatedPg);
     }
 
+    const currentOffer = await Promotion.findById(req.params.id);
+    if (!currentOffer) return res.status(404).json({ message: 'Promotion not found' });
+    if (req.user.role !== 'admin' && ['draft','pending_review','rejected','admin_paused'].includes(currentOffer.status)) return res.status(409).json({ message: 'Use the merchant draft workflow to submit a new reviewed offer. Existing published terms are preserved.' });
+    if (currentOffer.status === 'pending_review' && ['active','scheduled'].includes(req.body.status)) {
+      const store = await Merchant.findById(currentOffer.merchant);
+      const issues = require('../utils/merchantWorkflow').validateOffer({ ...currentOffer.toObject(), ...req.body }, store);
+      if (Object.keys(issues).length) return res.status(400).json({ message: 'Offer is not ready for approval', errors: issues });
+    }
     const updateData = {
       title, description, discount, code, category, image, url,
     };
@@ -1465,12 +1385,16 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
       offerType !== undefined ||
       minimumSpend !== undefined ||
       maximumBenefit !== undefined;
-    if (nextCategory === 'bank_cards' || hasBankOfferFields) {
+    if (nextCategory === 'bank_cards') {
       return res.status(400).json({
         message: 'Bank card offers are now managed separately from merchant promotions.',
         errors: [{ msg: 'Move this offer into the bank offers module instead of updating it as a promotion.', path: 'category' }],
       });
     }
+    for(const key of ['bankName','cardTypes','offerType','minimumSpend','maximumBenefit'])
+      if(req.body[key]!==undefined)updateData[key]=req.body[key];
+    for(const key of ['url','orderLink'])if(req.body[key] && !require('../utils/merchantWorkflow').httpUrl(req.body[key]))
+      return res.status(400).json({message:'Offer links must be absolute HTTP(S) URLs.'});
     if (fulfillmentType !== undefined) updateData.fulfillmentType = fulfillmentType;
     if (orderLink !== undefined) updateData.orderLink = orderLink;
     if (visitAvailable !== undefined) {
@@ -1487,7 +1411,7 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     if (images !== undefined) updateData.images = images;
 
     // Properly calculate status based on dates
-    if (startDate || endDate) {
+    if ((startDate || endDate) && ['active','scheduled','expired'].includes(currentOffer.status)) {
       const existingPromotion = await Promotion.findById(req.params.id).select('startDate endDate');
       if (!existingPromotion) {
         return res.status(404).json({ message: 'Promotion not found' });
@@ -1557,10 +1481,19 @@ router.put('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, [
     // Get the old promotion data before update
     const oldPromotion = await Promotion.findById(req.params.id);
     
+    if(req.user.role==='merchant'){
+      updateData.status='pending_review';updateData.adminVerified=false;
+      updateData.verifiedAt=null;updateData.verifiedBy=null;
+    }
+    for(const key of Object.keys(updateData))if(updateData[key]===undefined)delete updateData[key];
+    const next={...currentOffer.toObject(),...updateData};
+    if(Boolean(next.bankName?.trim())!==Boolean(next.cardTypes?.length))return res.status(400).json({message:'Bank and card-type conditions must be provided together.'});
+    try {await new Promotion({...currentOffer.toObject(),...updateData}).validate();}
+    catch {return res.status(400).json({message:'Invalid offer prices, dates or conditions.'});}
     const updatedPromotion = await Promotion.findByIdAndUpdate(
       req.params.id,
       { $set: updateData }, // Use $set to only update provided fields
-      { new: true }
+      { new: true, runValidators:true }
     );
     
     if (!updatedPromotion) {
@@ -1660,6 +1593,7 @@ router.delete('/:id', authenticateJWT, authorizePromotionOwnerOrAdmin, async (re
 // Uses gentleAuthenticateJWT imported from ../middleware/auth
 router.post('/:id/click', gentleAuthenticateJWT, async (req, res) => {
   try {
+    if(req.body.type && !['view','click','direction','order'].includes(req.body.type)) return res.status(400).json({message:'Invalid click type'});
     if (usePostgres()) {
       const promotion = await pgModels.Promotion.findByPk(req.params.id);
       if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
@@ -1668,7 +1602,7 @@ router.post('/:id/click', gentleAuthenticateJWT, async (req, res) => {
         id: crypto.randomUUID(),
         promotionId: promotion.id,
         merchantId: promotion.merchantId,
-        userId: req.user ? req.user.id : (req.body.userId || null),
+        userId: req.user ? req.user.id : null,
         type: req.body.type || 'click',
       });
       return res.status(201).json({ message: 'Click recorded' });
@@ -1681,7 +1615,7 @@ router.post('/:id/click', gentleAuthenticateJWT, async (req, res) => {
       promotion: promotion._id,
       merchant: promotion.merchant,
       type: req.body.type || 'click',
-      user: req.user ? req.user.id : (req.body.userId || null) // Prefer authenticated user
+      user: req.user ? req.user.id : null // Prefer authenticated user
     };
 
     // If req.user exists, we use req.user.id.
@@ -1701,8 +1635,9 @@ router.post('/:id/click', gentleAuthenticateJWT, async (req, res) => {
 // Add a comment to a promotion (Authenticated users only)
 router.post('/:id/comments', authenticateJWT, async (req, res) => {
   try {
-    const { text } = req.body; // userId will come from req.user.id
-    if (!text) return res.status(400).json({ message: 'Text is required.' });
+    // Comments live inside the promotion document, so unbounded text could push it past MongoDB's 16MB limit.
+    const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+    if (!text || text.length > 1000) return res.status(400).json({ message: 'Comment text of 1–1000 characters is required.' });
 
     if (usePostgres()) {
       const promotion = await pgModels.Promotion.findByPk(req.params.id);
@@ -1732,7 +1667,7 @@ router.post('/:id/comments', authenticateJWT, async (req, res) => {
     await promotion.save();
     // Populate user details for the new comment before sending back
     const newComment = promotion.comments[promotion.comments.length - 1];
-    await Promotion.populate(newComment, { path: 'user', select: 'name email profilePicture' });
+    await Promotion.populate(newComment, { path: 'user', select: 'name profilePicture' });
 
     res.status(201).json(newComment);
   } catch (error) {
@@ -1741,7 +1676,7 @@ router.post('/:id/comments', authenticateJWT, async (req, res) => {
 });
 
 // Get comments for a promotion
-router.get('/:id/comments', async (req, res) => {
+router.get('/:id/comments', gentleAuthenticateJWT, authorizePromotionRead, async (req, res) => {
   try {
     if (usePostgres()) {
       const comments = await pgModels.PromotionComment.findAll({
@@ -1754,7 +1689,7 @@ router.get('/:id/comments', async (req, res) => {
 
     const promotion = await Promotion.findById(req.params.id).populate(
       'comments.user',
-      'name email profilePicture',
+      'name profilePicture',
     );
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json(promotion.comments);
@@ -1804,7 +1739,7 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
     await promotion.save();
 
     // Populate user details for the ratings before sending back
-    await Promotion.populate(promotion, { path: 'ratings.user', select: 'name email profilePicture' });
+    await Promotion.populate(promotion, { path: 'ratings.user', select: 'name profilePicture' });
 
     res.status(201).json(promotion.ratings);
   } catch (error) {
@@ -1813,7 +1748,7 @@ router.post('/:id/ratings', authenticateJWT, async (req, res) => {
 });
 
 // Get ratings for a promotion
-router.get('/:id/ratings', async (req, res) => {
+router.get('/:id/ratings', gentleAuthenticateJWT, authorizePromotionRead, async (req, res) => {
   try {
     if (usePostgres()) {
       const ratings = await pgModels.PromotionRating.findAll({
@@ -1826,7 +1761,7 @@ router.get('/:id/ratings', async (req, res) => {
 
     const promotion = await Promotion.findById(req.params.id).populate(
       'ratings.user',
-      'name email profilePicture',
+      'name profilePicture',
     );
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json(promotion.ratings);
@@ -1835,7 +1770,7 @@ router.get('/:id/ratings', async (req, res) => {
   }
 });
 
-router.get('/:id/redemption-feedback', async (req, res) => {
+router.get('/:id/redemption-feedback', gentleAuthenticateJWT, authorizePromotionRead, async (req, res) => {
   try {
     if (usePostgres()) {
       const promotion = await pgModels.Promotion.findByPk(req.params.id);
@@ -1854,7 +1789,7 @@ router.get('/:id/redemption-feedback', async (req, res) => {
 
     const promotion = await Promotion.findById(req.params.id)
       .select('redemptionFeedback')
-      .populate('redemptionFeedback.user', 'name email profilePicture');
+      .populate('redemptionFeedback.user', 'name profilePicture');
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
     res.status(200).json({
       feedback: promotion.redemptionFeedback || [],
@@ -1909,7 +1844,7 @@ router.post('/:id/redemption-feedback', authenticateJWT, async (req, res) => {
     await promotion.save();
     await Promotion.populate(promotion, {
       path: 'redemptionFeedback.user',
-      select: 'name email profilePicture',
+      select: 'name profilePicture',
     });
 
     res.status(201).json({
@@ -1935,8 +1870,8 @@ router.post('/:id/reports', authenticateJWT, async (req, res) => {
       'other',
     ];
 
-    if (!validReasons.includes(reason)) {
-      return res.status(400).json({ message: 'Valid report reason is required.' });
+    if (!validReasons.includes(reason) || description.length > 2000) {
+      return res.status(400).json({ message: 'A valid report reason and a description of at most 2000 characters are required.' });
     }
 
     const promotion = await Promotion.findById(req.params.id).select('_id');
@@ -1963,17 +1898,24 @@ router.post('/:id/redemptions', authenticateJWT, async (req, res) => {
     }
 
     const promotion = await Promotion.findById(req.params.id)
-      .select('merchant title endDate status fulfillmentType')
-      .populate('merchant', 'name');
+      .select('merchant title startDate endDate status fulfillmentType visitAvailable')
+      .populate('merchant', 'name status merchantType');
     if (!promotion) return res.status(404).json({ message: 'Promotion not found' });
 
-    if (promotion.fulfillmentType === 'order') {
+    if (!isPublicMerchant(promotion.merchant)) return res.status(400).json({message:'This merchant is not available.'});
+    if (promotion.fulfillmentType === 'order' || promotion.visitAvailable === false) {
       return res.status(400).json({ message: 'QR redemption is only available for visit or hybrid deals.' });
     }
     if (promotion.endDate && new Date(promotion.endDate) < new Date()) {
       return res.status(400).json({ message: 'This deal is expired.' });
     }
 
+    if (!['active','approved','scheduled'].includes(promotion.status) ||
+        (promotion.startDate && promotion.startDate > new Date())) {
+      return res.status(400).json({message:'This offer is not available for redemption.'});
+    }
+    await Redemption.updateMany({promotion:promotion._id,user:req.user.id,status:'issued',expiresAt:{$lte:new Date()}},
+      {$set:{status:'expired'},$unset:{issuanceKey:1}});
     const existing = await Redemption.findOne({
       promotion: promotion._id,
       user: req.user.id,
@@ -1985,15 +1927,22 @@ router.post('/:id/redemptions', authenticateJWT, async (req, res) => {
       return res.status(200).json(buildRedemptionPayload(existing));
     }
 
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const redemption = await Redemption.create({
+    const expiresAt = new Date(Math.min(Date.now() + 15 * 60 * 1000, promotion.endDate?.getTime() || Infinity));
+    const issuanceKey = `${promotion._id}:${req.user.id}`;
+    let redemption;
+    try { redemption = await Redemption.create({
+      issuanceKey,
       promotion: promotion._id,
       merchant: promotion.merchant._id || promotion.merchant,
       user: req.user.id,
       token: crypto.randomBytes(24).toString('hex'),
       expiresAt,
-    });
-
+    }); } catch(error) {
+      if(error.code!==11000)throw error;
+      redemption=await Redemption.findOne({issuanceKey,status:'issued'});
+      if(!redemption)return res.status(409).json({message:'Redemption state changed. Please retry.'});
+      return res.status(200).json(buildRedemptionPayload(redemption));
+    }
     res.status(201).json(buildRedemptionPayload(redemption));
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -2006,15 +1955,10 @@ router.post('/redemptions/verify', authenticateJWT, async (req, res) => {
     if (!token) return res.status(400).json({ message: 'Redemption token is required.' });
 
     const redemption = await Redemption.findOne({ token })
-      .populate('promotion', 'title status endDate')
+      .populate('promotion', 'title status startDate endDate')
       .populate('merchant', 'name')
-      .populate('user', 'name email');
+      .populate('user', 'name');
     if (!redemption) return res.status(404).json({ message: 'Redemption not found.' });
-
-    if (redemption.expiresAt < new Date() && redemption.status === 'issued') {
-      redemption.status = 'expired';
-      await redemption.save();
-    }
 
     if (req.user.role !== 'admin') {
       const merchantId = await resolveMerchantIdForRedemption(req.user);
@@ -2035,9 +1979,9 @@ router.post('/redemptions/redeem', authenticateJWT, async (req, res) => {
     if (!token) return res.status(400).json({ message: 'Redemption token is required.' });
 
     const redemption = await Redemption.findOne({ token })
-      .populate('promotion', 'title status endDate')
+      .populate('promotion', 'title status startDate endDate')
       .populate('merchant', 'name')
-      .populate('user', 'name email');
+      .populate('user', 'name');
     if (!redemption) return res.status(404).json({ message: 'Redemption not found.' });
 
     if (req.user.role !== 'admin') {
@@ -2047,28 +1991,21 @@ router.post('/redemptions/redeem', authenticateJWT, async (req, res) => {
       }
     }
 
-    if (redemption.status === 'redeemed') {
-      return res.status(409).json({ message: 'This QR code has already been redeemed.', redemption: buildRedemptionPayload(redemption) });
+    const now=new Date();
+    if (redemption.status !== 'issued') return res.status(409).json({message:'This QR code is no longer redeemable.'});
+    if (redemption.expiresAt <= now) return res.status(400).json({message:'This QR code is expired.'});
+    if (!redemption.promotion || !['active','approved','scheduled'].includes(redemption.promotion.status) ||
+        (redemption.promotion.startDate && redemption.promotion.startDate > now) ||
+        (redemption.promotion.endDate && redemption.promotion.endDate <= now)) {
+      return res.status(400).json({message:'This offer is no longer available.'});
     }
-    if (redemption.expiresAt < new Date()) {
-      redemption.status = 'expired';
-      await redemption.save();
-      return res.status(400).json({ message: 'This QR code is expired.', redemption: buildRedemptionPayload(redemption) });
-    }
-
-    redemption.status = 'redeemed';
-    redemption.redeemedAt = new Date();
-    redemption.redeemedBy = req.user.id;
-    await redemption.save();
-
-    await PromotionClick.create({
-      promotion: redemption.promotion._id || redemption.promotion,
-      merchant: redemption.merchant._id || redemption.merchant,
-      user: redemption.user._id || redemption.user,
-      type: 'redeem',
-    });
-
-    res.status(200).json(buildRedemptionPayload(redemption));
+    const consumed=await Redemption.findOneAndUpdate({_id:redemption._id,status:'issued',expiresAt:{$gt:now}},
+      {$set:{status:'redeemed',redeemedAt:now,redeemedBy:req.user.id},$unset:{issuanceKey:1}},{new:true});
+    if(!consumed)return res.status(409).json({message:'This QR code has already been consumed.'});
+    // The entitlement itself is the durable audit record. Analytics cannot reverse acceptance.
+    try {await PromotionClick.create({promotion:consumed.promotion,merchant:consumed.merchant,user:consumed.user,type:'redeem'});}
+    catch {console.warn('Redemption accepted; analytics recording failed.');}
+    res.status(200).json(buildRedemptionPayload(consumed));
   } catch (error) {
     res.status(500).json(safeError(error));
   }

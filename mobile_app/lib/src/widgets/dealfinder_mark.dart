@@ -23,7 +23,7 @@ class _MarkPainter extends CustomPainter {
     canvas.drawRRect(
       RRect.fromRectAndRadius(
           const Rect.fromLTWH(0, 0, 64, 64), const Radius.circular(19)),
-      Paint()..color = AppColors.ceylonInk,
+      Paint()..color = AppColors.brand,
     );
     final ticket = Path()
       ..moveTo(16, 19)
@@ -45,7 +45,7 @@ class _MarkPainter extends CustomPainter {
       ..quadraticBezierTo(31, 34, 24, 32)
       ..quadraticBezierTo(31, 30, 32, 23)
       ..close();
-    canvas.drawPath(star, Paint()..color = AppColors.ceylonInk);
+    canvas.drawPath(star, Paint()..color = AppColors.brand);
   }
 
   @override

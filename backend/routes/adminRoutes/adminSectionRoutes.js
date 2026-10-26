@@ -14,12 +14,7 @@ const {
 
 const router = express.Router();
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function parseNullableNumber(value) {
   if (value === '' || value === null || value === undefined) return undefined;

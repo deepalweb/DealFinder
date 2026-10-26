@@ -3,6 +3,7 @@ const PromotionClick = require('../models/PromotionClick');
 const SectionAssignment = require('../models/SectionAssignment');
 const User = require('../models/User');
 const Merchant = require('../models/Merchant');
+const { HIDDEN_MERCHANT_STATUSES, isPublicMerchant } = require('../utils/merchantWorkflow');
 
 const SECTION_KEYS = ['banner', 'hot_deals', 'new_this_week', 'flash_sales'];
 const COLOMBO_TIME_ZONE = 'Asia/Colombo';
@@ -113,7 +114,7 @@ const newestFirstSort = { updatedAt: -1, createdAt: -1, _id: -1 };
 
 function getNowActivePromotionQuery(now = new Date()) {
   return {
-    status: { $in: ['active', 'approved', 'pending_approval', 'scheduled'] },
+    status: { $in: ['active', 'approved', 'scheduled'] },
     startDate: { $lte: now },
     endDate: { $gte: now },
   };
@@ -191,7 +192,7 @@ async function getAssignmentsForSection(sectionKey) {
     .populate({
       path: 'promotion',
       match: getNowActivePromotionQuery(),
-      populate: { path: 'merchant', select: 'name logo currency location address contactInfo' },
+      populate: { path: 'merchant', select: 'name logo currency location address status' },
     })
     .populate('updatedBy', 'name email')
     .sort({ priority: -1, updatedAt: -1 })
@@ -238,7 +239,7 @@ async function getTrendingDeals(limit) {
 
   const promotions = await Promotion.find(baseQuery)
     .select('-comments')
-    .populate('merchant', 'name logo currency location address contactInfo')
+    .populate('merchant', 'name logo currency location address status')
     .lean();
 
   if (!promotions.length) return [];
@@ -314,7 +315,7 @@ async function resolveHotDealsSection() {
     _id: { $nin: Array.from(hiddenIds) },
   })
     .select('-comments')
-    .populate('merchant', 'name logo currency location address contactInfo')
+    .populate('merchant', 'name logo currency location address status')
     .sort({ endDate: 1, ...newestFirstSort })
     .limit(config.maxItems * 2)
     .lean();
@@ -373,7 +374,7 @@ async function resolveNewThisWeekSection() {
     _id: { $nin: Array.from(hiddenIds) },
   })
     .select('-comments')
-    .populate('merchant', 'name logo currency location address contactInfo')
+    .populate('merchant', 'name logo currency location address status')
     .sort(newestFirstSort)
     .limit(config.maxItems * 2)
     .lean();
@@ -432,7 +433,7 @@ async function resolveFlashSalesSection() {
     _id: { $nin: Array.from(hiddenIds) },
   })
     .select('-comments')
-    .populate('merchant', 'name logo currency location address contactInfo')
+    .populate('merchant', 'name logo currency location address status')
     .sort({ endDate: 1, ...newestFirstSort })
     .limit(config.maxItems * 2)
     .lean();
@@ -483,7 +484,7 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
         distanceField: 'distance',
         maxDistance: radius * 1000,
         spherical: true,
-        query: { 'location.type': 'Point' },
+        query: { 'location.type': 'Point', status: { $nin: HIDDEN_MERCHANT_STATUSES } },
       },
     },
     { $limit: 50 },
@@ -517,7 +518,7 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
                 logo: '$logo',
                 location: '$location',
                 address: '$address',
-                contactInfo: '$contactInfo',
+                status: '$status',
                 currency: '$currency',
                 distance: '$distance',
               },
@@ -550,7 +551,16 @@ async function resolveNearbySection({ latitude, longitude, radiusKm = 10 }) {
   return response;
 }
 
+// Cached section data can outlive a store suspension, so visibility is applied on the way out.
+function publicOnly(section) {
+  return { ...section, items: (section.items || []).filter((item) => item && isPublicMerchant(item.merchant)) };
+}
+
 async function resolveSection(sectionKey, options = {}) {
+  return publicOnly(await resolveSectionUnfiltered(sectionKey, options));
+}
+
+async function resolveSectionUnfiltered(sectionKey, options = {}) {
   switch (sectionKey) {
     case 'banner':
       return resolveBannerSection();
@@ -568,12 +578,12 @@ async function resolveSection(sectionKey, options = {}) {
 }
 
 async function resolveHomepageSections() {
-  const [banner, hotDeals, newThisWeek, flashSales] = await Promise.all([
+  const [banner, hotDeals, newThisWeek, flashSales] = (await Promise.all([
     resolveBannerSection(),
     resolveHotDealsSection(),
     resolveNewThisWeekSection(),
     resolveFlashSalesSection(),
-  ]);
+  ])).map(publicOnly);
 
   return {
     banner: banner.items,

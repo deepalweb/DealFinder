@@ -1162,4 +1162,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileConfirmPasswordLabel => 'Confirm new password';
+
+  @override
+  String get deleteAccount => 'Delete account';
+
+  @override
+  String get deleteAccountConfirmTitle => 'Delete your account?';
+
+  @override
+  String get deleteAccountConfirmBody =>
+      'This permanently deletes your profile, saved offers, followed stores, reviews and notification settings. If you manage a store, it is hidden until an administrator reviews it. This can\'t be undone.';
+
+  @override
+  String get deleteAccountConfirmAction => 'Delete';
+
+  @override
+  String get deleteAccountFailed =>
+      'Your account wasn\'t deleted. Check your connection and try again.';
 }

@@ -6,16 +6,12 @@ const Promotion = require('../models/Promotion');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const sessions = require('../services/sessionService');
 const { body, validationResult } = require('express-validator');
 const { authenticateJWT, authorizeAdmin, authorizeSelfOrAdmin, gentleAuthenticateJWT } = require('../middleware/auth');
 const { findUserByEmail: findPostgresUserByEmail } = require('../services/postgresUserService');
 
-function safeError(error) {
-  if (process.env.NODE_ENV === 'production') {
-    return { message: 'An error occurred' };
-  }
-  return { message: error.message, stack: error.stack };
-}
+function safeError(_error) { return {message:'An error occurred'}; }
 
 function attachMerchantRatingSummary(merchantDoc) {
   if (!merchantDoc) return merchantDoc;
@@ -35,29 +31,6 @@ function attachMerchantRatingSummary(merchantDoc) {
   };
 }
 
-// In-memory store for refresh tokens
-const refreshTokens = new Set();
-
-// Helper: Generate JWT
-function generateToken(user) {
-  return jwt.sign(
-    // Ensure merchantId is included in the token if the user is a merchant
-    { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-}
-
-// Helper: Generate Refresh Token
-function generateRefreshToken(user) {
-  return jwt.sign(
-    // Ensure merchantId is included in the token if the user is a merchant
-    { id: user._id, email: user.email, role: user.role, merchantId: user.merchantId },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: '30d' }
-  );
-}
-
 async function ensureMerchantProfileForUser(user, overrides = {}) {
   if (!user || user.role !== 'merchant' || user.merchantId) {
     return user;
@@ -71,7 +44,8 @@ async function ensureMerchantProfileForUser(user, overrides = {}) {
     'Merchant'
   ).trim();
 
-  let merchant = await Merchant.findOne({ contactInfo });
+  // Public contact information is not proof of store ownership.
+  let merchant = null;
 
   if (!merchant) {
     let candidateName = baseName;
@@ -84,6 +58,7 @@ async function ensureMerchantProfileForUser(user, overrides = {}) {
 
     merchant = await Merchant.create({
       name: candidateName,
+      status:'pending_approval',
       contactInfo,
       logo: overrides.logo || user.logo || '',
       profile: overrides.profile || '',
@@ -104,6 +79,7 @@ async function ensureMerchantProfileForUser(user, overrides = {}) {
 
 // Middleware to protect routes
 function protectRoute(req, res, next) {
+  if(process.env.DATA_SOURCE==='postgres')return res.status(503).json({message:'Durable account workflows are not supported for the selected database provider.'});
   const openRoutes = [
     { path: '/register', method: 'POST' }, // Will be handled by gentleAuthenticateJWT
     { path: '/login', method: 'POST' },
@@ -134,31 +110,52 @@ router.post('/firebase-auth', async (req, res) => {
   }
 
   try {
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    const decoded = await admin.auth().verifyIdToken(idToken, true);
     const { email, uid } = decoded;
+    if (typeof email !== 'string' || typeof uid !== 'string') return res.status(401).json({ message: 'An email identity is required' });
     const displayName = decoded.name || name || email.split('@')[0];
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({firebaseUid:uid}).select('+firebaseUid');
+    if(!user){
+      user=await User.findByEmail(email).select('+firebaseUid');
+      if(user && (decoded.email_verified!==true || (user.firebaseUid && user.firebaseUid!==uid)))
+        return res.status(401).json({message:'Verify your email before linking this account.'});
+    }
     if (!user) {
-      const hashedPassword = await bcrypt.hash(uid, 10);
+      const hashedPassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
       user = new User({
         name: displayName,
+        firebaseUid: uid,
         email,
         password: hashedPassword,
         role: role === 'merchant' ? 'merchant' : 'user', // never trust a client-supplied admin role
         businessName,
       });
-      const savedUser = await user.save();
-
-      if (role === 'merchant' && businessName) {
-        const merchant = new Merchant({ name: businessName, contactInfo: email });
-        const savedMerchant = await merchant.save();
-        savedUser.merchantId = savedMerchant._id;
-        await savedUser.save();
-        user = savedUser;
-      }
+      // The pending store is created below by ensureMerchantProfileForUser, which keeps store names unique.
+      user = await user.save();
     }
 
+    // Email/password now lives in the backend. A legacy Firebase password moves over once;
+    // after that Firebase password sign-ins are refused (Google and other providers still work).
+    if(decoded.firebase?.sign_in_provider==='password'){
+      if(user.backendPassword)return res.status(401).json({message:'Sign in with your DealFinder password.'});
+      if(req.body.password!==undefined){
+        const password=req.body.password;
+        if(typeof password!=='string'||password.length<8||Buffer.byteLength(password,'utf8')>72)
+          return res.status(400).json({message:'Password must be at least 8 characters.'});
+        user.password=await bcrypt.hash(password,10);user.backendPassword=true;await user.save();
+      }
+    }
+    if(!user.firebaseUid){
+      user.firebaseUid=uid;
+      // Repair historical UID-derived credentials only after valid provider authentication.
+      if(await bcrypt.compare(uid,user.password)){
+        user.password=await bcrypt.hash(crypto.randomBytes(32).toString('hex'),10);
+        user.tokenVersion=(user.tokenVersion||0)+1;
+        await sessions.revokeAll(user._id);
+      }
+      await user.save();
+    }
     user = await ensureMerchantProfileForUser(user, {
       businessName,
       contactInfo: email,
@@ -166,9 +163,7 @@ router.post('/firebase-auth', async (req, res) => {
 
     const userResponse = user.toObject();
     delete userResponse.password;
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-    refreshTokens.add(refreshToken);
+    const { token, refreshToken } = await sessions.issue(user);
     res.status(200).json({ ...userResponse, token, refreshToken });
   } catch (error) {
     console.error('Firebase auth error:', error);
@@ -183,6 +178,46 @@ router.get('/', authorizeAdmin, async (req, res) => {
     const users = await User.find().select('-password');
     res.status(200).json(users);
   } catch (error) {
+    res.status(500).json(safeError(error));
+  }
+});
+
+// Self-service account deletion (required by App Store guideline 5.1.1(v)).
+// Personal data is deleted; merchant-facing records keep counts but lose the person.
+router.delete('/me', async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'admin' && await User.countDocuments({ role: 'admin' }) <= 1) {
+      return res.status(409).json({ message: 'Assign another administrator before deleting this account.' });
+    }
+    const id = user._id;
+    await sessions.revokeAll(id);
+    const byUserId = ['NotificationPreference', 'NotificationLog', 'DealAlert', 'UserBehaviorEvent', 'UserPreferenceProfile', 'SearchQueryLog']
+      .map((name) => require(`../models/${name}`).deleteMany({ userId: id }));
+    await Promise.all([
+      ...byUserId,
+      require('../models/MerchantDraft').deleteMany({ owner: id }),
+      require('../models/RefreshSession').deleteMany({ user: id }),
+      require('../models/SessionFamily').deleteMany({ user: id }),
+      require('../models/PromotionClick').updateMany({ user: id }, { $unset: { user: 1 } }),
+      require('../models/Report').updateMany({ reporter: id }, { $unset: { reporter: 1 } }),
+      require('../models/Redemption').updateMany({ user: id, status: 'issued' }, { $set: { status: 'cancelled' }, $unset: { issuanceKey: 1 } }),
+      Promotion.updateMany(
+        { $or: [{ 'comments.user': id }, { 'ratings.user': id }, { 'redemptionFeedback.user': id }] },
+        { $pull: { comments: { user: id }, ratings: { user: id }, redemptionFeedback: { user: id } } }),
+      Merchant.updateMany(
+        { $or: [{ 'ratings.user': id }, { 'reviews.user': id }] },
+        { $pull: { ratings: { user: id }, reviews: { user: id } } }),
+    ]);
+    // A store nobody else manages is hidden, not deleted, so an admin can decide what happens to it.
+    if (user.merchantId && !await User.exists({ _id: { $ne: id }, merchantId: user.merchantId })) {
+      await Merchant.updateOne({ _id: user.merchantId }, { $set: { status: 'suspended' } });
+    }
+    await User.deleteOne({ _id: id });
+    res.status(200).json({ message: 'Account deleted' });
+  } catch (error) {
+    console.error('Error deleting own account:', error);
     res.status(500).json(safeError(error));
   }
 });
@@ -221,7 +256,7 @@ router.delete('/:id', authorizeAdmin, async (req, res) => {
 // Change user password (Self or Admin)
 router.post('/:id/change-password', authorizeSelfOrAdmin, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
-  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+  body('newPassword').isString().isByteLength({max:72}).isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -245,7 +280,10 @@ router.post('/:id/change-password', authorizeSelfOrAdmin, [
     // Hash new password
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedNewPassword;
+    user.backendPassword = true;
+    user.tokenVersion = (user.tokenVersion || 0) + 1;
     await user.save();
+    await sessions.revokeAll(user._id);
 
     res.status(200).json({ message: 'Password changed successfully' });
 
@@ -271,7 +309,7 @@ router.get('/:id', authorizeSelfOrAdmin, async (req, res) => {
 router.post('/register', gentleAuthenticateJWT, [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
-  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+  body('password').isString().isByteLength({max:72}).isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('role').optional().custom((value, { req }) => {
     const allowedRoles = ['user', 'merchant'];
     if (req.user && req.user.role === 'admin') {
@@ -307,7 +345,7 @@ router.post('/register', gentleAuthenticateJWT, [
     }
     
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findByEmail(email);
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
@@ -321,32 +359,18 @@ router.post('/register', gentleAuthenticateJWT, [
       password: hashedPassword,
       role: role || 'user',
       businessName,
-      profilePicture
+      profilePicture,
+      backendPassword: true,
     });
     
-    const savedUser = await user.save();
-    
-    // If registering as a merchant, create a merchant profile
-    if (role === 'merchant' && businessName) {
-      const merchant = new Merchant({
-        name: businessName,
-        contactInfo: email
-      });
-      
-      const savedMerchant = await merchant.save();
-      
-      // Link merchant to user
-      savedUser.merchantId = savedMerchant._id;
-      await savedUser.save();
-    }
+    // ensureMerchantProfileForUser creates the pending store and keeps store names unique.
+    const savedUser = await ensureMerchantProfileForUser(await user.save(), { businessName, contactInfo: email });
     
     // Don't return the password
     const userResponse = savedUser.toObject();
     delete userResponse.password;
     // Generate tokens
-    const token = generateToken(savedUser);
-    const refreshToken = generateRefreshToken(savedUser);
-    refreshTokens.add(refreshToken);
+    const { token, refreshToken } = await sessions.issue(savedUser);
     res.status(201).json({ ...userResponse, token, refreshToken });
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -368,7 +392,7 @@ router.post('/login', [
     // Find user
     let user = process.env.DATA_SOURCE === 'postgres'
       ? await findPostgresUserByEmail(email)
-      : await User.findOne({ email });
+      : await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -391,9 +415,7 @@ router.post('/login', [
     const userResponse = user.toObject ? user.toObject() : { ...user };
     delete userResponse.password;
     // Generate tokens
-    const token = generateToken(user);
-    const refreshToken = generateRefreshToken(user);
-    refreshTokens.add(refreshToken);
+    const { token, refreshToken } = await sessions.issue(user);
     res.status(200).json({ ...userResponse, token, refreshToken });
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -401,39 +423,16 @@ router.post('/login', [
 });
 
 // Refresh token endpoint
-router.post('/refresh-token', (req, res) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken || !refreshTokens.has(refreshToken)) {
-    return res.status(401).json({ message: 'Invalid refresh token' });
-  }
-  jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET, async (err, user) => {
-    if (err) return res.status(403).json({ message: 'Invalid or expired refresh token' });
-
-    try {
-      let dbUser = await User.findById(user.id);
-      if (!dbUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      dbUser = await ensureMerchantProfileForUser(dbUser, {
-        businessName: dbUser.businessName || dbUser.name,
-        contactInfo: dbUser.email,
-        logo: dbUser.logo,
-      });
-
-      const newToken = generateToken(dbUser);
-      res.status(200).json({ token: newToken });
-    } catch (refreshError) {
-      res.status(500).json(safeError(refreshError));
-    }
-  });
+router.post('/refresh-token', async (req, res) => {
+ try {
+  const tokens=await sessions.rotate(req.body.refreshToken);
+  if(!tokens)return res.status(401).json({message:'Invalid refresh token'});
+  res.json(tokens);
+ }catch{return res.status(503).json({message:'Session service unavailable'});}
 });
-
-// Logout (invalidate refresh token)
-router.post('/logout', (req, res) => {
-  const { refreshToken } = req.body;
-  if (refreshToken) refreshTokens.delete(refreshToken);
-  res.status(200).json({ message: 'Logged out successfully' });
+router.post('/logout', async (req,res)=>{
+ try {await sessions.revoke(req.body.refreshToken,req.user.id);res.json({message:'Logged out successfully'});}
+ catch{return res.status(503).json({message:'Session service unavailable'});}
 });
 
 // Update user profile (Self or Admin)
@@ -562,7 +561,7 @@ router.get('/:id/favorites', authorizeSelfOrAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).populate({
       path: 'favorites',
-      populate: { path: 'merchant' },
+      populate: { path: 'merchant', select: '-contactInfo -reviews -ratings -promotions' },
       options: { sort: { updatedAt: -1, createdAt: -1, _id: -1 } }
     });
     
@@ -581,7 +580,7 @@ router.get('/:id/following-merchants', authorizeSelfOrAdmin, async (req, res) =>
   try {
     const user = await User.findById(req.params.id)
       .select('followingMerchants')
-      .populate('followingMerchants');
+      .populate('followingMerchants', '-contactInfo -reviews -promotions');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -670,7 +669,10 @@ router.post('/reset-password', async (req, res) => {
     return res.status(400).json({ message: 'Please provide a valid email address.' });
   }
   try {
-    const user = await User.findOne({ email });
+    if (!process.env.M365_EMAIL || !(process.env.M365_PASSWORD || process.env.EMAIL_PASSWORD)) {
+      return res.status(503).json({message:'Password reset email is not configured.'});
+    }
+    const user = await User.findByEmail(email);
     if (!user) {
       // Respond with success even if user not found (to prevent email enumeration)
       return res.status(200).json({ message: 'If your email is registered, you will receive a password reset link.' });
@@ -678,11 +680,14 @@ router.post('/reset-password', async (req, res) => {
     // Generate a secure random token
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour
-    user.resetPasswordToken = resetToken;
+    user.resetPasswordToken = sessions.hash(resetToken);
     user.resetPasswordExpires = resetPasswordExpires;
     await user.save();
-    // In a real app, send an email with the reset link
-    console.log(`Password reset link for ${email}: http://localhost:5001/reset-password?token=${resetToken}`);
+    const mailer = require('../mailer');
+    const url = new URL('/reset-password', process.env.APP_URL || 'https://dealfinderapp.lk');
+    url.searchParams.set('token',resetToken);
+    await mailer.sendMail({from:process.env.M365_EMAIL,to:email,subject:'Reset your DealFinder password',
+      text:`Use this link within one hour to reset your password: ${url.toString()}`});
     return res.status(200).json({ message: 'If your email is registered, you will receive a password reset link.' });
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -696,23 +701,17 @@ router.post('/reset-password/confirm', async (req, res) => {
   if (typeof token !== 'string' || typeof password !== 'string' || !token || !password) {
     return res.status(400).json({ message: 'Token and new password are required.' });
   }
-  if (password.length < 8) {
+  if (password.length < 8 || Buffer.byteLength(password,'utf8')>72) {
     return res.status(400).json({ message: 'Password must be at least 8 characters.' });
   }
   try {
-    const user = await User.findOne({
-      resetPasswordToken: token,
-      resetPasswordExpires: { $gt: Date.now() }
-    });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid or expired token.' });
-    }
-    // Hash new password
     const hashedPassword = await bcrypt.hash(password, 10);
-    user.password = hashedPassword;
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
+    const user = await User.findOneAndUpdate({
+      resetPasswordToken: sessions.hash(token), resetPasswordExpires: { $gt: new Date() }
+    }, { $set:{password:hashedPassword,backendPassword:true}, $inc:{tokenVersion:1},
+         $unset:{resetPasswordToken:1,resetPasswordExpires:1}}, {new:true});
+    if(!user)return res.status(400).json({message:'Invalid or expired token.'});
+    await sessions.revokeAll(user._id);
     res.status(200).json({ message: 'Password has been reset successfully.' });
   } catch (error) {
     res.status(500).json(safeError(error));
@@ -737,9 +736,10 @@ router.post('/google-signin', async (req, res) => {
             idToken: googleToken,
             audience: config.GOOGLE_CLIENT_ID,
         });
-        const { name, email, picture } = ticket.getPayload();
+        const { name, email, picture, email_verified } = ticket.getPayload();
+        if (email_verified !== true || typeof email !== 'string') return res.status(401).json({ message: 'A verified email identity is required' });
 
-        let user = await User.findOne({ email });
+        let user = await User.findByEmail(email);
         if (!user) {
             const password = crypto.randomBytes(32).toString('hex'); // unusable; Google users sign in via Google
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -758,14 +758,12 @@ router.post('/google-signin', async (req, res) => {
 
         const userResponse = user.toObject();
         delete userResponse.password;
-        const jwtToken = generateToken(user);
-        const refreshToken = generateRefreshToken(user);
-        refreshTokens.add(refreshToken);
+        const { token: jwtToken, refreshToken } = await sessions.issue(user);
         res.status(200).json({ ...userResponse, token: jwtToken, refreshToken });
 
     } catch (error) {
         console.error('Google Sign-In error:', error.message);
-        res.status(500).json({ message: 'Google Sign-In failed: ' + error.message });
+        res.status(500).json({ message: 'Google Sign-In failed' });
     }
 });
 
@@ -801,6 +799,7 @@ router.post('/initialize-merchant-profile', authenticateJWT, [
     // 1. Create a new Merchant document
     const newMerchant = new Merchant({
       name: businessName,
+      status:'pending_approval',
       profile: profile || '',
       contactInfo: contactInfo || req.user.email, // Default to user's email if not provided
       logo: logo || '',
@@ -824,9 +823,7 @@ router.post('/initialize-merchant-profile', authenticateJWT, [
     }
 
     // 3. Generate new tokens as merchantId in JWT payload needs to be updated
-    const token = generateToken(updatedUser); // updatedUser now has merchantId
-    const refreshToken = generateRefreshToken(updatedUser);
-    refreshTokens.add(refreshToken); // Assuming refreshTokens is your in-memory store
+    const { token, refreshToken } = await sessions.issue(updatedUser);
 
     // 4. Respond with updated user object and new tokens
     const userResponse = updatedUser.toObject();

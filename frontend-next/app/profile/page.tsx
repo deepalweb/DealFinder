@@ -15,6 +15,17 @@ import toast from 'react-hot-toast';
 export default function ProfilePage() {
   const { user, logout, updateUser } = useAuth();
   const router = useRouter();
+
+  const deleteAccount = async () => {
+    if (!window.confirm("Delete your account? This permanently deletes your profile, saved offers, followed stores, reviews and notification settings. If you manage a store, it is hidden until an administrator reviews it. This can't be undone.")) return;
+    try {
+      await UserAPI.deleteAccount();
+      await logout();
+      router.push('/');
+    } catch {
+      toast.error("Your account wasn't deleted. Check your connection and try again.");
+    }
+  };
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
@@ -170,6 +181,7 @@ export default function ProfilePage() {
               {user.role === 'merchant' && <button onClick={() => router.push('/merchant/dashboard')} style={{ display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.6rem 0.875rem', borderRadius:'0.625rem', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:500, background:'transparent', color:'var(--text-secondary)' }}><i className="fas fa-chart-line" style={{ width:'16px' }}></i> Dashboard</button>}
               <hr style={{ border:'none', borderTop:'1px solid var(--border-color)', margin:'0.5rem 0' }} />
               <button onClick={logout} style={{ display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.6rem 0.875rem', borderRadius:'0.625rem', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:500, background:'transparent', color:'#ef4444' }}><i className="fas fa-sign-out-alt" style={{ width:'16px' }}></i> Logout</button>
+              <button onClick={deleteAccount} style={{ display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.6rem 0.875rem', borderRadius:'0.625rem', border:'none', cursor:'pointer', fontSize:'0.875rem', fontWeight:500, background:'transparent', color:'#b91c1c' }}><i className="fas fa-user-times" style={{ width:'16px' }}></i> Delete account</button>
             </nav>
           </div>
         </div>

@@ -180,8 +180,7 @@ void main() {
         }, now: DateTime.utc(2026, 10, 13, 5)),
         isNull);
   });
-  testWidgets(
-      'nearby result keeps bank conditions and price readable with large text',
+  testWidgets('nearby summary keeps price readable with large text',
       (tester) async {
     tester.view.physicalSize = const Size(375, 812);
     tester.view.devicePixelRatio = 1;
@@ -198,8 +197,87 @@ void main() {
         dark: true,
         scale: 2));
     await tester.pumpAndSettle();
-    expect(find.text('Test Bank'), findsOneWidget);
-    expect(find.text('View offer'), findsOneWidget);
+    expect(find.textContaining('Test Bank'), findsNothing);
+    expect(find.text('LKR1,400'), findsOneWidget);
+    expect(find.byTooltip('View offer'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  test('shared area changes refresh Nearby without duplicate own requests',
+      () async {
+    await BrowsingArea.select(BrowsingArea.initial);
+    final api = NearbyApi();
+    final data = NearbyDiscoveryController(api: api);
+    const next =
+        BrowsingArea(latitude: 6.895, longitude: 79.858, label: 'Colombo 04');
+    await BrowsingArea.select(next);
+    expect(api.requests.length, 1);
+    api.pending.single.complete(
+        NearbyPromotionsResult(promotions: [offer('new', lat: 6.895)]));
+    await Future<void>.delayed(Duration.zero);
+    expect(data.area.label, 'Colombo 04');
+    final own = data.search(BrowsingArea.initial);
+    await Future<void>.delayed(Duration.zero);
+    expect(api.requests.length, 2);
+    api.pending.last
+        .complete(NearbyPromotionsResult(promotions: [offer('own')]));
+    await own;
+    expect(api.requests.length, 2);
+    data.dispose();
+  });
+  test('Nearby excludes private offers and invalid coordinates', () async {
+    final api = NearbyApi();
+    final data = NearbyDiscoveryController(api: api);
+    final result = data.search(BrowsingArea.initial, persist: false);
+    api.pending.single.complete(NearbyPromotionsResult(promotions: [
+      offer('public'),
+      offer('private').copyWith(status: 'pending_review'),
+      offer('invalid', lat: 95)
+    ]));
+    await result;
+    expect(data.offers.map((p) => p.id), ['public']);
+    data.dispose();
+  });
+  testWidgets(
+      'nearby cards have equal size despite optional details and titles',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var selected = false;
+    var opened = false;
+    final first = offer('short').copyWith(
+        title: 'Lunch',
+        merchantName: 'Cafe',
+        averageRating: 4.5,
+        ratingsCount: 12,
+        distance: 650);
+    final second = offer('long').copyWith(
+        title: 'A much longer offer title that wraps across several lines',
+        merchantName: 'A longer store name for this second card',
+        minimumSpend: 3000,
+        maximumBenefit: 1000);
+    await tester.pumpWidget(host(Scaffold(
+        body: Column(children: [
+      NearbyOfferRow(
+          offer: first,
+          selected: false,
+          onSelect: () => selected = true,
+          onOpen: () => opened = true),
+      NearbyOfferRow(
+          offer: second, selected: true, onSelect: () {}, onOpen: () {}),
+    ]))));
+    await tester.pumpAndSettle();
+    final rows = find.byType(NearbyOfferRow);
+    expect(tester.getSize(rows.at(0)), tester.getSize(rows.at(1)));
+    expect(find.text('4.5 (12)'), findsOneWidget);
+    expect(find.textContaining('650 m'), findsOneWidget);
+    expect(find.text('Not rated'), findsOneWidget);
+    expect(find.textContaining('Test Bank'), findsNothing);
+    await tester.tap(find.text('Lunch'));
+    expect(selected, isTrue);
+    await tester.tap(find.byTooltip('View offer').first);
+    expect(opened, isTrue);
     expect(tester.takeException(), isNull);
   });
 }
