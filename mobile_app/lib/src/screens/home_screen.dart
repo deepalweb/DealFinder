@@ -725,37 +725,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextButton(
                                   onPressed: _load, child: Text(l10n.retry)),
                             ]))),
-                      if (banner != null)
-                        box(Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                            child: StitchFeaturedBanner(
-                                offer: banner, onOpen: () => _open(banner)))),
-                      if (_curatedFailed)
-                        box(inset(TextButton(
-                            onPressed: _loadCurated,
-                            child: Text(_t(
-                                'Featured offers could not be refreshed. Retry',
-                                'විශේෂ දීමනා යාවත්කාලීන කළ නොහැක. නැවත උත්සාහ කරන්න',
-                                'சிறப்புச் சலுகைகளைப் புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்'))))),
-                      if (expiring != null)
-                        box(Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                            child: StitchExpiringOfferStrip(
-                                offer: expiring,
-                                now: _now,
-                                onOpen: () => _open(expiring)))),
-                      if (lead.isNotEmpty) ...[
-                        box(_sectionTitle(
-                            context,
-                            _t('Featured offers', 'විශේෂ දීමනා',
-                                'சிறப்புச் சலுகைகள்'),
-                            subtitle: _t(
-                                'Matching offers loaded so far',
-                                'මෙතෙක් පූරණය කළ ගැළපෙන දීමනා',
-                                'இதுவரை ஏற்றப்பட்ட பொருந்தும் சலுகைகள்'),
-                            action: _all)),
-                        box(_rail(context, lead)),
-                      ],
                       if (!_loading && !_offline && visible.isEmpty)
                         box(Padding(
                             padding: const EdgeInsets.all(16),
@@ -802,6 +771,37 @@ class _HomeScreenState extends State<HomeScreen> {
                                   onPressed: _chooseArea,
                                   child: Text(l10n.chooseAreaLabel)),
                             ]))),
+                      if (banner != null)
+                        box(Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: StitchFeaturedBanner(
+                                offer: banner, onOpen: () => _open(banner)))),
+                      if (_curatedFailed)
+                        box(inset(TextButton(
+                            onPressed: _loadCurated,
+                            child: Text(_t(
+                                'Featured offers could not be refreshed. Retry',
+                                'විශේෂ දීමනා යාවත්කාලීන කළ නොහැක. නැවත උත්සාහ කරන්න',
+                                'சிறப்புச் சலுகைகளைப் புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்'))))),
+                      if (expiring != null)
+                        box(Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                            child: StitchExpiringOfferStrip(
+                                offer: expiring,
+                                now: _now,
+                                onOpen: () => _open(expiring)))),
+                      if (lead.isNotEmpty) ...[
+                        box(_sectionTitle(
+                            context,
+                            _t('Featured offers', 'විශේෂ දීමනා',
+                                'சிறப்புச் சலுகைகள்'),
+                            subtitle: _t(
+                                'Matching offers loaded so far',
+                                'මෙතෙක් පූරණය කළ ගැළපෙන දීමනා',
+                                'இதுவரை ஏற்றப்பட்ட பொருந்தும் சலுகைகள்'),
+                            action: _all)),
+                        box(_rail(context, lead)),
+                      ],
                       if (banks.isNotEmpty || _api.lastBankOffersFailed)
                         box(_sectionTitle(
                             context,

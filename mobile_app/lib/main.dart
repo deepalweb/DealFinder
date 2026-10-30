@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -22,9 +24,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _loadEnvironment();
   await appLanguageController.load();
-  await ApiService.warmUp();
-  await _initializeRemoteServices();
   runApp(const MyApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(ApiService.warmUp());
+    unawaited(_initializeRemoteServices());
+  });
 }
 
 Future<void> _loadEnvironment() async {

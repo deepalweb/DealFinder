@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
@@ -123,44 +122,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   static const _navItems = <({
     IconData activeIcon,
-    Color accent,
-    Color accentSoft,
     IconData icon,
     String Function(AppLocalizations) label,
   })>[
     (
-      activeIcon: CupertinoIcons.compass_fill,
-      accent: Color(0xFF2563EB),
-      accentSoft: Color(0xFFE0EEFF),
-      icon: CupertinoIcons.compass,
+      activeIcon: Icons.explore,
+      icon: Icons.explore_outlined,
       label: _homeLabel,
     ),
     (
-      activeIcon: CupertinoIcons.location_fill,
-      accent: Color(0xFF7C3AED),
-      accentSoft: Color(0xFFF1E7FF),
-      icon: CupertinoIcons.location,
+      activeIcon: Icons.near_me,
+      icon: Icons.near_me_outlined,
       label: _exploreLabel,
     ),
     (
       activeIcon: Icons.storefront,
-      accent: Color(0xFF059669),
-      accentSoft: Color(0xFFE0F7EF),
       icon: Icons.storefront_outlined,
       label: _storesLabel,
     ),
     (
-      activeIcon: CupertinoIcons.bookmark_fill,
-      accent: Color(0xFFE11D48),
-      accentSoft: Color(0xFFFFE3EB),
-      icon: CupertinoIcons.bookmark,
+      activeIcon: Icons.bookmark,
+      icon: Icons.bookmark_border,
       label: _favoritesLabel,
     ),
     (
-      activeIcon: CupertinoIcons.person_fill,
-      accent: Color(0xFFF59E0B),
-      accentSoft: Color(0xFFFFF1CC),
-      icon: CupertinoIcons.person,
+      activeIcon: Icons.person,
+      icon: Icons.person_outline,
       label: _profileLabel,
     ),
   ];
