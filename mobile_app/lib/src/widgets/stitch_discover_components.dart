@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
@@ -564,6 +566,113 @@ class StitchFeaturedBanner extends StatelessWidget {
                                   child: Text(AppLocalizations.of(context)!
                                       .viewOfferLabel)))),
                     ]))));
+  }
+}
+
+class StitchFeaturedBannerCarousel extends StatefulWidget {
+  const StitchFeaturedBannerCarousel(
+      {super.key, required this.offers, required this.onOpen});
+
+  final List<Promotion> offers;
+  final ValueChanged<Promotion> onOpen;
+
+  @override
+  State<StitchFeaturedBannerCarousel> createState() =>
+      _StitchFeaturedBannerCarouselState();
+}
+
+class _StitchFeaturedBannerCarouselState
+    extends State<StitchFeaturedBannerCarousel> {
+  static const _slideInterval = Duration(seconds: 2);
+  static const _transitionDuration = Duration(milliseconds: 350);
+
+  Timer? _timer;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant StitchFeaturedBannerCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.offers.length != widget.offers.length) _page = 0;
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (widget.offers.length < 2) return;
+    _timer = Timer.periodic(_slideInterval, (_) {
+      if (mounted) _showPage((_page + 1) % widget.offers.length);
+    });
+  }
+
+  void _showPage(int index) => setState(() => _page = index);
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.offers.isEmpty) return const SizedBox.shrink();
+    final offer = widget.offers[_page.clamp(0, widget.offers.length - 1)];
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      GestureDetector(
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity.abs() < 100 || widget.offers.length < 2) return;
+          final delta = velocity < 0 ? 1 : -1;
+          _showPage(
+              (_page + delta + widget.offers.length) % widget.offers.length);
+        },
+        child: AnimatedSize(
+          alignment: Alignment.topCenter,
+          duration: _transitionDuration,
+          curve: Curves.easeInOut,
+          child: AnimatedSwitcher(
+            duration: _transitionDuration,
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: StitchFeaturedBanner(
+              key: ValueKey('featured-banner:${offer.id}'),
+              offer: offer,
+              onOpen: () => widget.onOpen(offer),
+            ),
+          ),
+        ),
+      ),
+      if (widget.offers.length > 1) ...[
+        const SizedBox(height: 7),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var index = 0; index < widget.offers.length; index++)
+              Semantics(
+                label: 'Banner ${index + 1} of ${widget.offers.length}',
+                selected: index == _page,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: index == _page ? 16 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: index == _page
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ]);
   }
 }
 

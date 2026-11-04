@@ -727,10 +727,11 @@ class _HomeScreenState extends State<HomeScreen> {
         .where((p) => !used.contains(OfferPresentation(p).identity))
         .map(_withDistance)
         .toList();
-    final banners =
-        remaining(_curated?.banner ?? visible.where((p) => p.featured == true));
-    final banner = banners.isEmpty ? null : banners.first;
-    if (banner != null) used.add(OfferPresentation(banner).identity);
+    final curatedBanners = _curated?.banner ?? const <Promotion>[];
+    final banners = remaining(curatedBanners.isNotEmpty
+        ? curatedBanners
+        : visible.where((p) => p.featured == true));
+    used.addAll(banners.map((p) => OfferPresentation(p).identity));
     final expiryCandidates = remaining([...visible, ...?_curated?.flashSales])
         .where((p) =>
             p.endDate != null &&
@@ -848,6 +849,11 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextButton(
                                   onPressed: _load, child: Text(l10n.retry)),
                             ]))),
+                      if (banners.isNotEmpty)
+                        box(Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: StitchFeaturedBannerCarousel(
+                                offers: banners, onOpen: _open))),
                       box(_sectionTitle(context, l10n.nearbyDeals,
                           subtitle: _position == null
                               ? null
@@ -862,11 +868,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       else
                         box(inset(_nearbyEmptyCard(context,
                             areaSelected: _position != null))),
-                      if (banner != null)
-                        box(Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                            child: StitchFeaturedBanner(
-                                offer: banner, onOpen: () => _open(banner)))),
                       if (_curatedFailed)
                         box(inset(TextButton(
                             onPressed: _loadCurated,
