@@ -33,7 +33,7 @@ class _DiscoverSearchHintState extends State<DiscoverSearchHint> {
     }
     _timer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (!mounted ||
-          !TickerMode.valuesOf(context).enabled ||
+          !TickerMode.of(context) ||
           ModalRoute.of(context)?.isCurrent == false ||
           widget.suggestions.length < 2) {
         return;

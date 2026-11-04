@@ -16,13 +16,15 @@ class AppColors {
   static const ash = Color(0xFF5C6962);
   static const textPrimary = charcoal;
   static const textSecondary = ash;
-  static const surfaceLight = sand;
+  // Keep page surfaces softly tinted so white offer cards read as distinct
+  // surfaces without adding heavy shadows behind photography.
+  static const surfaceLight = Color(0xFFF1F5F2);
   static const cardLight = Color(0xFFFFFFFF);
-  static const borderLight = Color(0xFFE8E5E7);
+  static const borderLight = Color(0xFFBFCBC3);
   static const borderSubtle = Color(0xFFE8ECF3);
   static const surfaceDark = Color(0xFF111A16);
   static const cardDark = Color(0xFF1B2721);
-  static const borderDark = Color(0xFF38463E);
+  static const borderDark = Color(0xFF526158);
   static const textPrimaryDark = Color(0xFFEDF5EF);
   static const textSecondaryDark = Color(0xFFB5C6BB);
   static const barBackgroundLight = Color(0xEEFFFFFF);
@@ -62,8 +64,8 @@ class AppTypeScale {
   static const displayS = 26.0;
   static const title = 17.0;
   static const body = 16.0;
-  static const label = 13.0;
-  static const caption = 12.0;
+  static const label = 14.0;
+  static const caption = 13.0;
 }
 
 class AppRadius {
@@ -143,9 +145,9 @@ class AppTheme {
         : (dark ? AppColors.borderDark : AppColors.borderLight);
     final accent = dark ? AppColors.brandDark : AppColors.brand;
     final onAccent = dark ? const Color(0xFF003829) : Colors.white;
-    final scheme = ColorScheme.fromSeed(
-            seedColor: AppColors.brand, brightness: brightness)
-        .copyWith(
+    final scheme =
+        ColorScheme.fromSeed(seedColor: AppColors.brand, brightness: brightness)
+            .copyWith(
       primary: accent,
       onPrimary: onAccent,
       primaryContainer:
@@ -160,9 +162,9 @@ class AppTheme {
       onSurfaceVariant: muted,
       surfaceContainerLowest: dark ? AppColors.cardDark : Colors.white,
       surfaceContainerLow:
-          dark ? const Color(0xFF18221D) : const Color(0xFFF8FCFB),
+          dark ? const Color(0xFF18221D) : const Color(0xFFF1F5F2),
       surfaceContainerHighest:
-          dark ? const Color(0xFF29342E) : const Color(0xFFEFEDEE),
+          dark ? const Color(0xFF29342E) : const Color(0xFFE6ECE8),
       outline: muted,
       outlineVariant: border,
       error: dark ? const Color(0xFFFFA7B2) : AppColors.chili,
@@ -273,7 +275,7 @@ class AppTheme {
           margin: const EdgeInsets.symmetric(vertical: 6),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
-              side: BorderSide(color: border.withValues(alpha: 0.65)))),
+              side: BorderSide(color: border))),
       listTileTheme: ListTileThemeData(
           textColor: text,
           iconColor: accent,

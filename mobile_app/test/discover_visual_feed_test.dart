@@ -178,7 +178,7 @@ void main() {
     await tester.pumpWidget(host(HomeScreen(api: FeedApi())));
     await tester.pumpAndSettle();
     expect(find.byType(StitchQuickFilters), findsOneWidget);
-    expect(find.byType(StitchHorizontalOfferCard), findsWidgets);
+    expect(find.byType(StitchNearbyOfferCard), findsWidgets);
     final firstTitle = tester.getTopLeft(find.text('Weekend lunch')).dy;
     await tester.scrollUntilVisible(find.text('Bank Perks'), 200,
         scrollable: find.byType(Scrollable).first);
@@ -528,9 +528,9 @@ void main() {
           scale: 2));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-          find.widgetWithText(FilledButton, 'View offer'), 250,
+          find.bySubtype<FilledButton>(), 250,
           scrollable: find.byType(Scrollable).first);
-      await tester.tap(find.widgetWithText(FilledButton, 'View offer'));
+      await tester.tap(find.bySubtype<FilledButton>());
       expect(opened, true);
       expect(tester.takeException(), isNull);
     }

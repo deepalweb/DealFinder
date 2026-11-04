@@ -1109,6 +1109,11 @@ router.post('/', authenticateJWT, [
       if (!pgMerchant) {
         return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
       }
+      if (['active', 'scheduled'].includes(initialStatus) && !isPublicMerchant(pgMerchant)) {
+        return res.status(409).json({
+          message: 'This store is not approved for public offers. Approve the store before publishing a deal.',
+        });
+      }
 
       const pgPromotionData = {
         title,
@@ -1155,6 +1160,11 @@ router.post('/', authenticateJWT, [
     const merchant = await Merchant.findById(merchantId);
     if (!merchant) {
       return res.status(404).json({ message: `Merchant not found with ID: ${merchantId}` });
+    }
+    if (['active', 'scheduled'].includes(initialStatus) && !isPublicMerchant(merchant)) {
+      return res.status(409).json({
+        message: 'This store is not approved for public offers. Approve the store before publishing a deal.',
+      });
     }
 
     const createIssues = require('../utils/merchantWorkflow').validateOffer({ ...req.body, fulfillmentType: fulfillmentType || 'visit' }, merchant);

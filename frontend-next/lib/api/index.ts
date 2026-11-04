@@ -171,7 +171,7 @@ async function fetchAPI<T>(endpoint: string, options: RequestInit = {}, revalida
 export const PromotionAPI = {
   getAll: (params?: { limit?: number; skip?: number }) => {
     const q = params ? new URLSearchParams(params as any).toString() : '';
-    return fetchAPI<any[]>(`promotions${q ? `?${q}` : ''}`);
+    return fetchAPI<any[]>(`promotions${q ? `?${q}` : ''}`, { cache: 'no-store' });
   },
   getHomepage: () => fetchAPI<{ featured: any[]; latest: any[] }>('promotions/homepage', { cache: 'no-store' }),
   getSections: () => fetchAPI<any>('promotions/sections', { cache: 'no-store' }),

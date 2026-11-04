@@ -24,7 +24,9 @@ class CompactDiscoverCardLayout extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Material(
       color: colors.surfaceContainerLowest,
-      borderRadius: BorderRadius.circular(12),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: colors.outlineVariant)),
       clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Stack(children: [
@@ -48,7 +50,7 @@ class CompactDiscoverCardLayout extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                                fontSize: 13,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: colors.onSurface)),
                       if (benefit.isNotEmpty) ...[
@@ -61,7 +63,7 @@ class CompactDiscoverCardLayout extends StatelessWidget {
                       if (previousPrice != null)
                         Text(previousPrice!,
                             style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 14,
                                 decoration: TextDecoration.lineThrough,
                                 color: colors.onSurfaceVariant)),
                       if (title.trim().toLowerCase() !=
@@ -71,7 +73,7 @@ class CompactDiscoverCardLayout extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontSize: 14,
+                                fontSize: 16,
                                 height: 1.25,
                                 fontWeight: FontWeight.w500)),
                       ],
@@ -94,7 +96,10 @@ Widget hybridCopy(BuildContext context, String value,
         Color? color}) =>
     Text(value,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontSize: size, fontWeight: weight, height: 1.3, color: color));
+            fontSize: size < 14 ? 14 : size,
+            fontWeight: weight,
+            height: 1.35,
+            color: color));
 
 class HybridOfferCardLayout extends StatelessWidget {
   const HybridOfferCardLayout(
@@ -183,7 +188,7 @@ class HybridOfferCardLayout extends StatelessWidget {
                                             benefit.trim().toLowerCase()) ...[
                                       const SizedBox(height: 5),
                                       hybridCopy(context, title,
-                                          size: 16, weight: FontWeight.w600)
+                                          size: 18, weight: FontWeight.w600)
                                     ],
                                     if (eligibility?.isNotEmpty == true ||
                                         conditions.isNotEmpty)
@@ -198,7 +203,7 @@ class HybridOfferCardLayout extends StatelessWidget {
                                     if (metadata.isNotEmpty) ...[
                                       const SizedBox(height: 9),
                                       hybridCopy(context, metadata,
-                                          size: 13,
+                                          size: 14,
                                           color: colors.onSurfaceVariant)
                                     ],
                                   ]))),

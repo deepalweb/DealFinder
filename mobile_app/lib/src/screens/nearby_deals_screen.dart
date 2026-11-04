@@ -269,6 +269,7 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
     final apply = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
+        showDragHandle: true,
         builder: (context) => StatefulBuilder(
             builder: (context, update) => SafeArea(
                 child: Padding(
@@ -530,6 +531,12 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
             ? l10n.deviceLocationLabel
             : _data.area.label;
     final selected = _data.selected;
+    final activeFilterCount = [
+      if (_data.query.trim().isNotEmpty) true,
+      if (_data.openOnly) true,
+      if (_data.category != null) true,
+      if (_data.radius != 3) true,
+    ].length;
     final ordered = [
       if (selected != null) selected,
       ...offers.where((p) => p.id != selected?.id)
@@ -688,7 +695,11 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
                                       IconButton(
                                           tooltip: l10n.filterOffersLabel,
                                           onPressed: _filters,
-                                          icon: const Icon(Icons.tune)),
+                                          icon: Badge(
+                                              isLabelVisible:
+                                                  activeFilterCount > 0,
+                                              label: Text('$activeFilterCount'),
+                                              child: const Icon(Icons.tune))),
                                       IconButton(
                                           tooltip: _expanded
                                               ? l10n.collapseResultsLabel

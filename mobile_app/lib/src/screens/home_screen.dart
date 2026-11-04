@@ -575,6 +575,134 @@ class _HomeScreenState extends State<HomeScreen> {
           BankCardPromotionSupport.matchesCategory(p, _category!)) &&
       _matchesFilters(p);
 
+  Widget _nearbyEmptyCard(BuildContext context, {required bool areaSelected}) {
+    final colors = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: .055),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.primary.withValues(alpha: .14)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: .1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              areaSelected ? Icons.location_searching : Icons.place_outlined,
+              size: 19,
+              color: colors.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  areaSelected ? l10n.noNearbyDealsFound : l10n.chooseAreaLabel,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colors.onSurface,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  areaSelected
+                      ? l10n.noNearbyDealsSubtitle
+                      : l10n.locationUnavailableHint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.onSurfaceVariant,
+                        height: 1.25,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                TextButton.icon(
+                  onPressed: _chooseArea,
+                  icon: const Icon(Icons.location_on_outlined, size: 17),
+                  label: Text(l10n.chooseAreaLabel),
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadingOfferRail(BuildContext context, {bool nearby = false}) {
+    final colors = Theme.of(context).colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final cardWidth = nearby
+        ? ((width - 44) / 2).clamp(160.0, 210.0)
+        : (width * .66).clamp(228.0, 350.0);
+    final placeholder = colors.surfaceContainerHighest.withValues(alpha: .72);
+
+    Widget skeletonCard() => Container(
+          width: cardWidth,
+          height: 172,
+          margin: const EdgeInsets.only(right: 12),
+          decoration: BoxDecoration(
+            color: colors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: colors.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(height: 88, color: placeholder),
+              Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                        width: cardWidth * .42,
+                        height: 10,
+                        decoration: BoxDecoration(
+                            color: placeholder,
+                            borderRadius: BorderRadius.circular(5))),
+                    const SizedBox(height: 9),
+                    Container(
+                        width: cardWidth * .72,
+                        height: 12,
+                        decoration: BoxDecoration(
+                            color: placeholder,
+                            borderRadius: BorderRadius.circular(6))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+
+    return Semantics(
+      label: AppLocalizations.of(context)!.loadingNearbyLabel,
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.only(left: 16, right: 4),
+          child: Row(children: [skeletonCard(), skeletonCard()]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Theme(
       data: stitchDiscoverTheme(Theme.of(context)),
@@ -648,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen> {
     Widget inset(Widget child) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16), child: child);
     return Scaffold(
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceContainerLow,
         body: SafeArea(
             bottom: false,
             child: RefreshIndicator(
@@ -661,8 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           area: _area ?? l10n.chooseAreaLabel,
                           unread: _unread,
                           onArea: _chooseArea,
-                          onNotifications: _notifications,
-                          onStores: _stores)),
+                          onNotifications: _notifications)),
                       box(StitchFulfillmentSegments(
                           selected: ['visit', 'online'].contains(_fulfillment)
                               ? _fulfillment
@@ -701,10 +828,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: TextButton(
                                 onPressed: _clearFilters,
                                 child: Text(l10n.clearFilters))))),
-                      if (_loading)
-                        box(const Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Center(child: CircularProgressIndicator()))),
                       if (_offline)
                         box(inset(Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -725,6 +848,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextButton(
                                   onPressed: _load, child: Text(l10n.retry)),
                             ]))),
+                      box(_sectionTitle(context, l10n.nearbyDeals,
+                          subtitle: _position == null
+                              ? null
+                              : l10n.withinRadiusLabel(3),
+                          icon: Icons.near_me_outlined,
+                          action: _nearbyTab)),
+                      if (nearby.isNotEmpty)
+                        box(_rail(context, nearby.take(6).toList(),
+                            nearby: true))
+                      else if (_loading)
+                        box(_loadingOfferRail(context, nearby: true))
+                      else
+                        box(inset(_nearbyEmptyCard(context,
+                            areaSelected: _position != null))),
                       if (banner != null)
                         box(Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -755,6 +892,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'இதுவரை ஏற்றப்பட்ட பொருந்தும் சலுகைகள்'),
                             action: _all)),
                         box(_rail(context, lead)),
+                      ] else if (_loading) ...[
+                        box(_sectionTitle(context, l10n.featuredDeals)),
+                        box(_loadingOfferRail(context)),
                       ],
                       if (!_loading && !_offline && visible.isEmpty)
                         box(Padding(
@@ -770,38 +910,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                         'No matches in loaded results. Clear filters or load another page.',
                                         'පූරණය කළ ප්‍රතිඵලවල ගැළපීම් නැත. පෙරහන් ඉවත් කරන්න හෝ තවත් පිටුවක් පූරණය කරන්න.',
                                         'ஏற்றப்பட்ட முடிவுகளில் பொருத்தங்கள் இல்லை. வடிகட்டிகளை அகற்றவும் அல்லது மேலும் ஏற்றவும்.')))),
-                      box(_sectionTitle(context, l10n.nearbyDeals,
-                          subtitle: _position == null
-                              ? _t(
-                                  'Choose an area to find nearby offers',
-                                  'අවට දීමනා සඳහා ප්‍රදේශයක් තෝරන්න',
-                                  'அருகிலுள்ள சலுகைகளுக்கு பகுதியைத் தேர்ந்தெடுக்கவும்')
-                              : _t(
-                                  'Within 3 km · matching offers loaded so far',
-                                  'කි.මී. 3 ඇතුළත · පූරණය කළ ගැළපෙන දීමනා',
-                                  '3 கி.மீ.க்குள் · இதுவரை ஏற்றப்பட்ட பொருத்தங்கள்'),
-                          icon: Icons.near_me_outlined,
-                          action: _nearbyTab)),
-                      if (nearby.isNotEmpty)
-                        box(_rail(context, nearby.take(6).toList(),
-                            nearby: true))
-                      else
-                        box(inset(Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (_position != null)
-                                stitchText(
-                                    context,
-                                    _t(
-                                        'No nearby matches in loaded offers. Try another area or load more offers.',
-                                        'පූරණය කළ දීමනාවල අවට ගැළපීම් නැත. වෙනත් ප්‍රදේශයක් හෝ තවත් දීමනා බලන්න.',
-                                        'ஏற்றப்பட்ட சலுகைகளில் அருகிலுள்ள பொருத்தங்கள் இல்லை. வேறு பகுதியைத் தேர்ந்தெடுக்கவும் அல்லது மேலும் ஏற்றவும்.'),
-                                    size: 12,
-                                    color: colors.onSurfaceVariant),
-                              TextButton(
-                                  onPressed: _chooseArea,
-                                  child: Text(l10n.chooseAreaLabel)),
-                            ]))),
                       if (banks.isNotEmpty || _api.lastBankOffersFailed)
                         box(_sectionTitle(
                             context,

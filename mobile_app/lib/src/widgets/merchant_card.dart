@@ -99,14 +99,14 @@ class MerchantCard extends StatelessWidget {
     Widget slot(String value, double size, int lines, {FontWeight? weight}) =>
         SizedBox(
             width: double.infinity,
-            height: scaler.scale(size) * 1.3 * lines,
+            height: scaler.scale(size < 14 ? 14 : size) * 1.3 * lines,
             child: Tooltip(
                 message: value,
                 child: Text(value,
                     maxLines: lines,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        fontSize: size,
+                        fontSize: size < 14 ? 14 : size,
                         height: 1.3,
                         fontWeight: weight,
                         color: colors.onSurface))));
@@ -145,6 +145,8 @@ class MerchantCard extends StatelessWidget {
     ]);
     final view =
         TextButton(onPressed: onVisit, child: Text(l10n.viewStoreLabel));
+    Widget openable(Widget child) => InkWell(
+        onTap: onVisit, borderRadius: BorderRadius.circular(10), child: child);
     final follow = OutlinedButton.icon(
         onPressed: isFollowUpdating ? null : onFollowToggle,
         icon: isFollowUpdating
@@ -159,46 +161,46 @@ class MerchantCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             side: BorderSide(color: colors.outlineVariant)),
         clipBehavior: Clip.antiAlias,
-        child: InkWell(
-            onTap: onVisit,
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (compact) image,
-                  Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(children: [
-                        if (compact || large)
-                          info
-                        else
-                          Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                image,
-                                const SizedBox(width: 12),
-                                Expanded(child: info)
-                              ]),
-                        const SizedBox(height: 8),
-                        if (large) ...[
-                          SizedBox(width: double.infinity, child: follow),
-                          Row(children: [
-                            Expanded(child: view),
-                            IconButton(
-                                onPressed: onShare,
-                                tooltip: l10n.profileShareStoreLabel,
-                                icon: const Icon(Icons.ios_share, size: 20))
+        child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (compact) openable(image),
+              Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(children: [
+                    if (compact || large)
+                      openable(Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: info))
+                    else
+                      Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            openable(image),
+                            const SizedBox(width: 12),
+                            Expanded(child: openable(info))
                           ]),
-                        ] else
-                          Row(children: [
-                            Expanded(child: view),
-                            Expanded(child: follow),
-                            IconButton(
-                                onPressed: onShare,
-                                tooltip: l10n.profileShareStoreLabel,
-                                icon: const Icon(Icons.ios_share, size: 20))
-                          ]),
-                      ])),
-                ])));
+                    const SizedBox(height: 8),
+                    if (large) ...[
+                      SizedBox(width: double.infinity, child: follow),
+                      Row(children: [
+                        Expanded(child: view),
+                        IconButton(
+                            onPressed: onShare,
+                            tooltip: l10n.profileShareStoreLabel,
+                            icon: const Icon(Icons.ios_share, size: 20))
+                      ]),
+                    ] else
+                      Row(children: [
+                        Expanded(child: view),
+                        Expanded(child: follow),
+                        IconButton(
+                            onPressed: onShare,
+                            tooltip: l10n.profileShareStoreLabel,
+                            icon: const Icon(Icons.ios_share, size: 20))
+                      ]),
+                  ])),
+            ]));
   }
 }

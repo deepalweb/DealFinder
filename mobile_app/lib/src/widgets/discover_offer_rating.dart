@@ -26,7 +26,7 @@ class DiscoverOfferRating extends StatelessWidget {
           Icon(Icons.star_rounded, size: 14, color: theme.colorScheme.tertiary),
           const SizedBox(width: 3),
           Text('${value.toStringAsFixed(1)} (${offer.ratingsCount})',
-              style: theme.textTheme.bodySmall?.copyWith(fontSize: 11)),
+              style: theme.textTheme.bodySmall?.copyWith(fontSize: 13)),
         ])));
   }
 }

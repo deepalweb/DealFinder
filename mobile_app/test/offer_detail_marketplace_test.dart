@@ -136,7 +136,7 @@ void main() {
         .bottomNavigationBar!;
     expect(
         find.descendant(
-            of: find.byWidget(bar), matching: find.byType(FilledButton)),
+            of: find.byWidget(bar), matching: find.bySubtype<FilledButton>()),
         findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());

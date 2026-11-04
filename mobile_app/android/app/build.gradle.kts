@@ -11,8 +11,25 @@ val mapsProperties = Properties().apply {
     val secretsFile = rootProject.file("secrets.properties")
     if (secretsFile.exists()) secretsFile.inputStream().use { load(it) }
 }
+
+fun readMobileEnvValue(name: String): String? {
+    val envFile = rootProject.file("../.env")
+    if (!envFile.isFile) return null
+    val prefix = "$name="
+    return envFile.readLines()
+        .firstOrNull { it.trimStart().startsWith(prefix) }
+        ?.trim()
+        ?.substringAfter('=')
+        ?.trim()
+        ?.trim('"', '\'')
+        ?.takeIf { it.isNotBlank() }
+}
+
 val mapsApiKey = System.getenv("GOOGLE_MAPS_ANDROID_API_KEY")
-    ?: mapsProperties.getProperty("GOOGLE_MAPS_API_KEY", "")
+    ?.takeIf { it.isNotBlank() }
+    ?: mapsProperties.getProperty("GOOGLE_MAPS_API_KEY")?.takeIf { it.isNotBlank() }
+    ?: readMobileEnvValue("GOOGLE_MAPS_ANDROID_API_KEY")
+    ?: ""
 
 val hasGoogleServicesFile =
     file("google-services.json").exists() ||
@@ -76,17 +93,24 @@ android {
 
     buildTypes {
         release {
-            if (!hasReleaseSigning) {
-                throw GradleException(
-                    "Release signing is not configured. Add android/key.properties or provide storeFile, storePassword, keyAlias, and keyPassword.",
-                )
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = rootProject.file(releaseStoreFile!!)
+                    storePassword = releaseStorePassword
+                    keyAlias = releaseKeyAlias
+                    keyPassword = releaseKeyPassword
+                }
             }
-            signingConfig = signingConfigs.create("release") {
-                storeFile = rootProject.file(releaseStoreFile!!)
-                storePassword = releaseStorePassword
-                keyAlias = releaseKeyAlias
-                keyPassword = releaseKeyPassword
-            }
+        }
+    }
+}
+
+if (!hasReleaseSigning) {
+    gradle.taskGraph.whenReady {
+        if (allTasks.any { it.name.contains("Release", ignoreCase = true) }) {
+            throw GradleException(
+                "Release signing is not configured. Add android/key.properties or provide storeFile, storePassword, keyAlias, and keyPassword.",
+            )
         }
     }
 }

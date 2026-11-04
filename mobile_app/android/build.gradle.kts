@@ -13,6 +13,14 @@ val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build"
 rootProject.layout.buildDirectory.value(newBuildDir)
 
 subprojects {
+    plugins.withId("com.android.library") {
+        if (name == "flutter_app_badger") {
+            extensions.configure<com.android.build.gradle.LibraryExtension> {
+                namespace = "fr.g123k.flutterappbadge.flutterappbadger"
+            }
+        }
+    }
+
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }

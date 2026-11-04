@@ -445,6 +445,7 @@ class _StoresScreenState extends State<_StoresPage> {
 
   Widget _buildSearchBar() {
     final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.card(context),
@@ -466,13 +467,13 @@ class _StoresScreenState extends State<_StoresPage> {
               'கடைகள் அல்லது வகைகளைத் தேடுங்கள்'),
           labelText: l10n.stores,
           hintStyle: TextStyle(color: AppColors.muted(context)),
-          prefixIcon: const Icon(Icons.search, color: Color(0xFF8B97A8)),
+          prefixIcon: Icon(Icons.search, color: colors.onSurfaceVariant),
           suffixIcon: _searchTerm.isNotEmpty
               ? IconButton(
                   tooltip:
                       MaterialLocalizations.of(context).deleteButtonTooltip,
                   icon:
-                      const Icon(Icons.close_rounded, color: Color(0xFF8B97A8)),
+                      Icon(Icons.close_rounded, color: colors.onSurfaceVariant),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchTerm = '');
@@ -628,37 +629,34 @@ class _StoresScreenState extends State<_StoresPage> {
     required String label,
     required VoidCallback onRemoved,
   }) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F7FB),
+        color: colors.secondaryContainer,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF4F5D75)),
+          Icon(icon, size: 16, color: colors.onSecondaryContainer),
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF243447),
+              color: colors.onSecondaryContainer,
             ),
           ),
-          const SizedBox(width: 6),
-          InkWell(
-            onTap: onRemoved,
-            borderRadius: BorderRadius.circular(999),
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: Icon(
-                Icons.close_rounded,
-                size: 16,
-                color: AppColors.muted(context),
-              ),
-            ),
+          IconButton(
+            tooltip: AppLocalizations.of(context)!.clearFilters,
+            onPressed: onRemoved,
+            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+            padding: EdgeInsets.zero,
+            icon: Icon(Icons.close_rounded,
+                size: 18, color: colors.onSecondaryContainer),
           ),
         ],
       ),
@@ -667,6 +665,7 @@ class _StoresScreenState extends State<_StoresPage> {
 
   Widget _buildSortMenu() {
     final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
     return PopupMenuButton<String>(
       initialValue: _sortMode,
       onSelected: (value) {
@@ -685,19 +684,19 @@ class _StoresScreenState extends State<_StoresPage> {
         decoration: BoxDecoration(
           color: AppColors.card(context),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE5EAF1)),
+          border: Border.all(color: colors.outlineVariant),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF5C6B7A)),
+            Icon(Icons.tune_rounded, size: 16, color: colors.onSurfaceVariant),
             const SizedBox(width: 6),
             Text(
               _sortLabel(_sortMode),
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF243447),
+                color: colors.onSurface,
               ),
             ),
           ],
@@ -723,6 +722,7 @@ class _StoresScreenState extends State<_StoresPage> {
 
   Widget _buildEmptyState() {
     final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
     final isSearching =
         _searchTerm.trim().isNotEmpty || _selectedCategory != 'all';
     return Center(
@@ -735,13 +735,13 @@ class _StoresScreenState extends State<_StoresPage> {
               width: 92,
               height: 92,
               decoration: BoxDecoration(
-                color: const Color(0xFFE9EEF6),
+                color: colors.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(28),
               ),
               child: Icon(
                 isSearching ? Icons.travel_explore : Icons.storefront_outlined,
                 size: 44,
-                color: const Color(0xFF718096),
+                color: colors.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 18),

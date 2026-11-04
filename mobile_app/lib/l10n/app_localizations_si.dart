@@ -1154,19 +1154,19 @@ class AppLocalizationsSi extends AppLocalizations {
   String get profileConfirmPasswordLabel => 'නව මුරපදය තහවුරු කරන්න';
 
   @override
-  String get deleteAccount => 'Delete account';
+  String get deleteAccount => 'ගිණුම මකන්න';
 
   @override
-  String get deleteAccountConfirmTitle => 'Delete your account?';
+  String get deleteAccountConfirmTitle => 'ඔබගේ ගිණුම මකන්නද?';
 
   @override
   String get deleteAccountConfirmBody =>
-      'This permanently deletes your profile, saved offers, followed stores, reviews and notification settings. If you manage a store, it is hidden until an administrator reviews it. This can\'t be undone.';
+      'මෙයින් ඔබගේ පැතිකඩ, සුරකින ලද දීමනා, අනුගමනය කරන ලද වෙළඳසැල්, සමාලෝචන සහ දැනුම්දීම් සැකසුම් ස්ථිරවම මකා දැමෙනු ඇත. ඔබ වෙළඳසැලක් කළමනාකරණය කරන්නේ නම්, පරිපාලකයෙකු එය සමාලෝචනය කරන තෙක් එය සඟවනු ලැබේ. මෙය අහෝසි කළ නොහැක.';
 
   @override
-  String get deleteAccountConfirmAction => 'Delete';
+  String get deleteAccountConfirmAction => 'මකන්න';
 
   @override
   String get deleteAccountFailed =>
-      'Your account wasn\'t deleted. Check your connection and try again.';
+      'ඔබගේ ගිණුම මකා දැමීමට නොහැකි විය. ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න.';
 }

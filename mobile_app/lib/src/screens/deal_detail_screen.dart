@@ -1403,8 +1403,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(l10n.dealLinkCopied)));
                   }
-                } else if (action == 'save') {
-                  await _toggleFavorite();
                 } else if (action == 'alert') {
                   await _toggleDealAlert();
                 } else if (action == 'report') {
@@ -1415,12 +1413,6 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
                     PopupMenuItem(
                         value: 'copy', child: Text(l10n.copyShareableLink)),
                     if (!_isPlatformBankOffer) ...[
-                      PopupMenuItem(
-                          value: 'save',
-                          enabled: !_savingFavorite,
-                          child: Text(_isFavorite
-                              ? l10n.removeFavorite
-                              : l10n.saveFavorites)),
                       PopupMenuItem(
                           value: 'alert',
                           enabled: !_loadingDealAlert,

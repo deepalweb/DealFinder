@@ -149,13 +149,16 @@ void main() {
     final api = FailedSectionsApi()..lastBankOffersFailed = true;
     await tester.pumpWidget(host(HomeScreen(api: api, now: () => fixtureNow)));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Featured offers could not be refreshed.'),
-        findsOneWidget);
     final scroll = find
         .descendant(
             of: find.byType(CustomScrollView),
             matching: find.byType(Scrollable))
         .first;
+    await tester.scrollUntilVisible(
+        find.textContaining('Featured offers could not be refreshed.'), 200,
+        scrollable: scroll);
+    expect(find.textContaining('Featured offers could not be refreshed.'),
+        findsOneWidget);
     await tester.scrollUntilVisible(
         find.textContaining('Bank offers could not be refreshed.'), 200,
         scrollable: scroll);

@@ -21,13 +21,13 @@ ThemeData stitchDiscoverTheme(ThemeData base) {
             foregroundColor: scheme.primary,
             minimumSize: const Size(44, 44),
             textStyle: base.textTheme.labelLarge
-                ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600))),
+                ?.copyWith(fontSize: 14, fontWeight: FontWeight.w600))),
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
             foregroundColor: scheme.primary,
             side: BorderSide(color: scheme.outlineVariant),
             minimumSize: const Size(44, 44),
-            textStyle: base.textTheme.labelLarge?.copyWith(fontSize: 12))),
+            textStyle: base.textTheme.labelLarge?.copyWith(fontSize: 14))),
   );
 }
 
@@ -47,7 +47,11 @@ Widget stitchText(BuildContext context, String text,
         maxLines: lines,
         overflow: lines == null ? null : TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontSize: size, height: 1.25, fontWeight: weight, color: color));
+            // Keep compact labels readable while Text still honors text scaling.
+            fontSize: size < 13 ? 13 : size,
+            height: 1.25,
+            fontWeight: weight,
+            color: color));
 
 class StitchLocationHeader extends StatelessWidget {
   const StitchLocationHeader(
@@ -55,11 +59,10 @@ class StitchLocationHeader extends StatelessWidget {
       required this.area,
       required this.unread,
       required this.onArea,
-      required this.onNotifications,
-      required this.onStores});
+      required this.onNotifications});
   final String area;
   final int unread;
-  final VoidCallback onArea, onNotifications, onStores;
+  final VoidCallback onArea, onNotifications;
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -110,17 +113,6 @@ class StitchLocationHeader extends StatelessWidget {
                   isLabelVisible: unread > 0,
                   label: Text('$unread'),
                   child: const Icon(Icons.notifications_none, size: 21))),
-          IconButton(
-              tooltip: l10n.browseStores,
-              onPressed: onStores,
-              icon: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: colors.primary,
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Icon(Icons.storefront_outlined,
-                      size: 18, color: colors.onPrimary))),
         ]));
   }
 }
@@ -175,7 +167,7 @@ class StitchFulfillmentSegments extends StatelessWidget {
                                                 child: Text(item.$2,
                                                     textAlign: TextAlign.center,
                                                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                                        fontSize: 12,
+                                                        fontSize: 14,
                                                         fontWeight: selected == item.$1 ? FontWeight.w700 : FontWeight.w500,
                                                         color: selected == item.$1 ? colors.primary : colors.onSurfaceVariant))))))))
                             .toList())))));
@@ -212,7 +204,7 @@ class StitchDiscoverSearchBar extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                                 child: DiscoverSearchHint(
-                                    fontSize: 12,
+                                    fontSize: 15,
                                     maxLines: 1,
                                     searchLabel: stitchLabel(
                                         context,
@@ -642,15 +634,15 @@ class StitchExpiringOfferStrip extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               stitchText(context, copy.merchant,
-                                  size: 12, weight: FontWeight.w700),
+                                  size: 15, weight: FontWeight.w700),
                               if (copy.merchant != offer.title) ...[
                                 const SizedBox(height: 5),
                                 stitchText(context, offer.title,
-                                    size: 11, lines: 2),
+                                    size: 14, lines: 2),
                               ],
                               const SizedBox(height: 5),
                               stitchText(context, copy.benefit,
-                                  size: 12,
+                                  size: 16,
                                   weight: FontWeight.w700,
                                   color: colors.primary),
                               if (copy.bank.isNotEmpty)
@@ -782,7 +774,7 @@ class _StitchOfferCard extends StatelessWidget {
                                         .textTheme
                                         .bodySmall
                                         ?.copyWith(
-                                            fontSize: 11,
+                                            fontSize: 14,
                                             decoration:
                                                 TextDecoration.lineThrough,
                                             color: colors.onSurfaceVariant)),
@@ -884,19 +876,19 @@ class _StitchCompactSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          slot(offer.title, 13, lines: 2, weight: FontWeight.w700),
+          slot(offer.title, 16, lines: 2, weight: FontWeight.w700),
           const SizedBox(height: 4),
           slot(
               offer.merchantName?.trim().isNotEmpty == true
                   ? offer.merchantName!
                   : '—',
-              12,
+              14,
               color: colors.onSurfaceVariant),
           const SizedBox(height: 4),
-          slot(ratingText, 11, color: colors.onSurfaceVariant),
-          slot(distanceText, 11, color: colors.onSurfaceVariant),
+          slot(ratingText, 13, color: colors.onSurfaceVariant),
+          slot(distanceText, 13, color: colors.onSurfaceVariant),
           const SizedBox(height: 4),
-          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 14,
+          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 18,
               lines: 2, weight: FontWeight.w700, color: colors.primary),
         ]);
   }

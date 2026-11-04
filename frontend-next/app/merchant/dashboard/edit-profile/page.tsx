@@ -80,6 +80,8 @@ export default function StoreProfile() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [failure, setFailure] = useState("");
   const [message, setMessage] = useState("");
+  const [latitudeDraft, setLatitudeDraft] = useState("");
+  const [longitudeDraft, setLongitudeDraft] = useState("");
   const [recovered, setRecovered] = useState(false);
   const lock = useRef(false);
   const account = user ? `${user._id}:${user.merchantId}` : "";
@@ -114,6 +116,9 @@ export default function StoreProfile() {
           openingHours: m.openingHours || {},
         } as StoreForm;
         setId(m._id);
+        const initialLocation = data.location;
+        setLatitudeDraft(initialLocation ? String(initialLocation.coordinates[1]) : "");
+        setLongitudeDraft(initialLocation ? String(initialLocation.coordinates[0]) : "");
         setBaseline(JSON.stringify(data));
         try {
           const recovery = JSON.parse(
@@ -150,6 +155,24 @@ export default function StoreProfile() {
   function update<K extends keyof StoreForm>(k: K, v: StoreForm[K]) {
     setForm((p) => ({ ...p, [k]: v }));
     setMessage("");
+  }
+  function setPin(lat: number, lng: number) {
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) return;
+    setFailure("");
+    setLatitudeDraft(String(lat));
+    setLongitudeDraft(String(lng));
+    update("location", { type: "Point", coordinates: [lng, lat] });
+  }
+  function useDeviceLocation() {
+    if (!navigator.geolocation) {
+      setFailure("Location is unavailable in this browser. Enter the coordinates instead.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => setPin(coords.latitude, coords.longitude),
+      () => setFailure("Could not get your location. Allow location access or enter coordinates instead."),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
   }
   async function save() {
     if (lock.current || uploadBusy) return;
@@ -414,14 +437,24 @@ export default function StoreProfile() {
                     <MapPicker
                       lat={form.location?.coordinates[1] ?? null}
                       lng={form.location?.coordinates[0] ?? null}
-                      onChange={(lat, lng) =>
-                        update("location", {
-                          type: "Point",
-                          coordinates: [lng, lat],
-                        })
-                      }
+                      onChange={setPin}
                       height="300px"
                     />
+                    <div className="mw-actions" style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      <button className="mw-button mw-secondary" type="button" onClick={useDeviceLocation}>Use my location</button>
+                      <button className="mw-button mw-secondary" type="button" onClick={() => {
+                        setLatitudeDraft(""); setLongitudeDraft(""); update("location", null);
+                      }}>Clear pin</button>
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 12 }}>
+                      <Field id="store-latitude" label="Latitude">
+                        <input type="number" inputMode="decimal" min={-90} max={90} step="any" value={latitudeDraft} onChange={(e) => setLatitudeDraft(e.target.value)} placeholder="6.9271" />
+                      </Field>
+                      <Field id="store-longitude" label="Longitude">
+                        <input type="number" inputMode="decimal" min={-180} max={180} step="any" value={longitudeDraft} onChange={(e) => setLongitudeDraft(e.target.value)} placeholder="79.8612" />
+                      </Field>
+                      <button className="mw-button mw-secondary" type="button" onClick={() => setPin(Number(latitudeDraft), Number(longitudeDraft))} disabled={!latitudeDraft.trim() || !longitudeDraft.trim() || !Number.isFinite(Number(latitudeDraft)) || !Number.isFinite(Number(longitudeDraft)) || Number(latitudeDraft) < -90 || Number(latitudeDraft) > 90 || Number(longitudeDraft) < -180 || Number(longitudeDraft) > 180}>Set pin from coordinates</button>
+                    </div>
                     {form.location && (
                       <p className="mw-muted">
                         {form.location.coordinates[1].toFixed(5)},{" "}

@@ -26,8 +26,12 @@ export default function AdminNewDealPage() {
   const [merchants, setMerchants] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
-  const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const colomboDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  const today = colomboDate;
+  const nextMonth = new Date(`${today}T00:00:00.000Z`);
+  nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
 
   const [form, setForm] = useState({
     merchantId: '',
@@ -53,7 +57,7 @@ export default function AdminNewDealPage() {
 
   useEffect(() => {
     MerchantAPI.getAll()
-      .then(data => setMerchants(data.filter((m: any) => m.status === 'active')))
+      .then(data => setMerchants(data.filter((m: any) => ['active', 'approved'].includes(m.status))))
       .catch(() => toast.error('Failed to load merchants.'));
   }, []);
 
@@ -104,8 +108,12 @@ export default function AdminNewDealPage() {
         if (!data.minimumSpend) delete data.minimumSpend;
         if (!data.maximumBenefit) delete data.maximumBenefit;
       }
-      await PromotionAPI.create(data);
-      toast.success('Deal created and set live!');
+      const created = await PromotionAPI.create(data);
+      toast.success(created.status === 'scheduled'
+        ? `Deal scheduled to go live on ${form.startDate}.`
+        : created.status === 'active'
+          ? 'Deal created and live!'
+          : `Deal saved with status: ${created.status || 'unknown'}.`);
       router.push('/admin/promotions');
     } catch (err: any) {
       toast.error(err.message || 'Failed to create deal.');
@@ -127,7 +135,7 @@ export default function AdminNewDealPage() {
         </button>
         <div>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Quick Add Deal</h1>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>Creates deal as <strong>Active</strong> immediately — no approval needed</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>Deals go live on their start date. Admin-created deals do not need approval.</p>
         </div>
       </div>
 

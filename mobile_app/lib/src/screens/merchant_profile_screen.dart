@@ -62,6 +62,7 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
   Map<String, dynamic>? _merchant;
   List<Map<String, dynamic>> _deals = [];
   bool _loading = true;
+  bool _refreshFailed = false;
   bool _loadingOffers = false;
   bool _offersFailed = false;
   bool _followBusy = false;
@@ -118,7 +119,9 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
   Future<void> _fetchMerchant() async {
     if (mounted) {
       setState(() {
-        _loading = true;
+        // Keep the last known profile visible while a pull-to-refresh runs.
+        if (_merchant == null) _loading = true;
+        _refreshFailed = false;
         _error = null;
       });
     }
@@ -128,6 +131,7 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
       if (!mounted) return;
       setState(() {
         _merchant = merchant;
+        _refreshFailed = false;
         _averageRating =
             (merchant['averageRating'] as num?)?.toDouble() ?? _averageRating;
         _ratingsCount =
@@ -138,9 +142,15 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is MerchantRequestException && e.statusCode == 404
-            ? 'not_found'
-            : 'request_failed';
+        if (_merchant == null) {
+          _error = e is MerchantRequestException && e.statusCode == 404
+              ? 'not_found'
+              : 'request_failed';
+        } else {
+          // A transient refresh error should not replace a usable profile with
+          // a full-screen error state.
+          _refreshFailed = true;
+        }
         _loading = false;
       });
     }
@@ -872,12 +882,6 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
     );
   }
 
-  Widget _buildStatChip(
-          {required IconData icon,
-          required String label,
-          required String value}) =>
-      Chip(avatar: Icon(icon, size: 18), label: Text('$value $label'));
-
   Widget _buildModeChip({required IconData icon, required String label}) =>
       Chip(avatar: Icon(icon, size: 18), label: Text(label));
 
@@ -1185,31 +1189,54 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
     final l10n = AppLocalizations.of(context)!;
     final banner = _merchantText('banner');
     final logo = _merchantText('logo');
+    final address = _merchantText('address');
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (banner.isNotEmpty) ...[
         ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             child: AspectRatio(
                 aspectRatio: 2.6,
                 child: _buildImageWidget(banner, width: double.infinity))),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
       ],
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             child: _buildImageWidget(logo.isEmpty ? null : logo,
-                width: 56, height: 56)),
-        const SizedBox(width: 14),
+                width: 64, height: 64)),
+        const SizedBox(width: 12),
         Expanded(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Semantics(
               header: true,
               child: Text(_merchantText('name'),
-                  style: theme.textTheme.headlineSmall)),
-          if (_merchantText('address').isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(_merchantText('address'), style: theme.textTheme.bodyMedium),
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700, height: 1.15))),
+          if (address.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.location_on_outlined,
+                  size: 17, color: theme.colorScheme.onSurfaceVariant),
+              const SizedBox(width: 4),
+              Expanded(
+                  child: Text(address,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant))),
+            ]),
+          ],
+          if (_ratingsCount > 0) ...[
+            const SizedBox(height: 7),
+            Row(children: [
+              Icon(Icons.star_rounded,
+                  size: 18, color: theme.colorScheme.tertiary),
+              const SizedBox(width: 4),
+              Text(
+                  '${_averageRating.toStringAsFixed(1)} · $_ratingsCount ${l10n.profileReviewsLabel}',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface)),
+            ]),
           ],
         ])),
       ]),
@@ -1230,21 +1257,6 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
           _buildModeChip(
               icon: Icons.schedule,
               label: _isOpenNow! ? l10n.openNowLabel : l10n.profileClosedLabel),
-        if (!_loadingOffers && !_offersFailed)
-          _buildStatChip(
-              icon: Icons.local_offer_outlined,
-              label: l10n.profileOffersLabel,
-              value: '${_activeOffers.length}'),
-        if (_ratingsCount > 0)
-          _buildStatChip(
-              icon: Icons.star_outline,
-              label: '($_ratingsCount)',
-              value: _averageRating.toStringAsFixed(1)),
-        if (_merchant!['followers'] is num)
-          _buildStatChip(
-              icon: Icons.people_outline,
-              label: l10n.profileFollowersLabel,
-              value: '${_merchant!['followers']}'),
       ]),
       const SizedBox(height: 18),
       Wrap(spacing: 10, runSpacing: 10, children: [
@@ -1412,6 +1424,37 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
                                   const EdgeInsets.fromLTRB(16, 12, 16, 32),
                               physics: const AlwaysScrollableScrollPhysics(),
                               children: [
+                                if (_refreshFailed)
+                                  Container(
+                                      margin: const EdgeInsets.only(bottom: 12),
+                                      padding: const EdgeInsets.fromLTRB(
+                                          12, 8, 4, 8),
+                                      decoration: BoxDecoration(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .errorContainer,
+                                          borderRadius:
+                                              BorderRadius.circular(14)),
+                                      child: Row(children: [
+                                        Icon(Icons.cloud_off_outlined,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onErrorContainer),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                            child: Text(
+                                                l10n.checkConnectionRetry,
+                                                style: Theme.of(context)
+                                                    .textTheme
+                                                    .bodySmall
+                                                    ?.copyWith(
+                                                        color: Theme.of(context)
+                                                            .colorScheme
+                                                            .onErrorContainer))),
+                                        TextButton(
+                                            onPressed: _fetchMerchant,
+                                            child: Text(l10n.retry)),
+                                      ])),
                                 _merchantHero(),
                                 const SizedBox(height: 24),
                                 Wrap(spacing: 8, runSpacing: 8, children: [

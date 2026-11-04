@@ -240,8 +240,8 @@ class ApiService {
   Future<void> deleteAccount() async {
     final response = await _authDelete('${_baseUrl}users/me');
     if (response.statusCode != 200) {
-      throw Exception(_extractErrorMessage(response,
-          fallback: 'Failed to delete account'));
+      throw Exception(
+          _extractErrorMessage(response, fallback: 'Failed to delete account'));
     }
   }
 
@@ -380,16 +380,18 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> loginUser(String email, String password) async {
-    final response = await http.post(
-      Uri.parse('${_baseUrl}users/login'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        'email': email,
-        'password': password,
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse('${_baseUrl}users/login'),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: jsonEncode(<String, String>{
+            'email': email,
+            'password': password,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       // If the server returns a 200 OK response, parse the JSON.
@@ -408,13 +410,15 @@ class ApiService {
 
   Future<Map<String, dynamic>> registerUser(
       Map<String, dynamic> userData) async {
-    final response = await http.post(
-      Uri.parse('${_baseUrl}users/register'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(userData),
-    );
+    final response = await http
+        .post(
+          Uri.parse('${_baseUrl}users/register'),
+          headers: <String, String>{
+            'Content-Type': 'application/json; charset=UTF-8',
+          },
+          body: jsonEncode(userData),
+        )
+        .timeout(const Duration(seconds: 20));
     if (response.statusCode == 201) {
       // Registration successful
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -455,10 +459,6 @@ class ApiService {
   Future<Map<String, dynamic>> directLogin(
       {required String email, required String password}) async {
     try {
-      if (kDebugMode) {
-        debugPrint('Attempting direct backend login for: $email');
-      }
-
       final response = await http
           .post(
             Uri.parse('${_baseUrl}users/login'),
@@ -479,7 +479,8 @@ class ApiService {
       throw Exception(_extractErrorMessage(response,
           fallback: 'Sign-in failed. Please try again.'));
     } on TimeoutException {
-      throw Exception("Couldn't reach DealFinder. Check your connection and try again.");
+      throw Exception(
+          "Couldn't reach DealFinder. Check your connection and try again.");
     } catch (e) {
       if (kDebugMode) debugPrint('Direct login error: $e');
       rethrow;
@@ -661,7 +662,7 @@ class ApiService {
     final uri = Uri.parse('${_baseUrl}promotions').replace(
       queryParameters: {'search': query},
     );
-    final response = await http.get(uri);
+    final response = await http.get(uri).timeout(const Duration(seconds: 15));
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
       return _visibleConsumerPromotions(
@@ -733,8 +734,9 @@ class ApiService {
 
   // Filter promotions by category
   Future<List<Promotion>> filterPromotionsByCategory(String category) async {
-    final response =
-        await http.get(Uri.parse('${_baseUrl}promotions?category=$category'));
+    final uri = Uri.parse('${_baseUrl}promotions')
+        .replace(queryParameters: {'category': category});
+    final response = await http.get(uri).timeout(const Duration(seconds: 15));
     if (response.statusCode == 200) {
       List<dynamic> body = jsonDecode(response.body);
       return _visibleConsumerPromotions(
@@ -790,7 +792,8 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchPromotionComments(
       String promotionId) async {
     final response = await http
-        .get(Uri.parse('${_baseUrl}promotions/$promotionId/comments'));
+        .get(Uri.parse('${_baseUrl}promotions/$promotionId/comments'))
+        .timeout(const Duration(seconds: 15));
     if (response.statusCode == 200) {
       final dynamic data = jsonDecode(response.body);
       if (data is List) {
@@ -807,8 +810,9 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> fetchPromotionRatings(
       String promotionId) async {
-    final response =
-        await http.get(Uri.parse('${_baseUrl}promotions/$promotionId/ratings'));
+    final response = await http
+        .get(Uri.parse('${_baseUrl}promotions/$promotionId/ratings'))
+        .timeout(const Duration(seconds: 15));
     if (response.statusCode == 200) {
       final dynamic data = jsonDecode(response.body);
       if (data is List) {
@@ -991,14 +995,16 @@ class ApiService {
       headers['Authorization'] = 'Bearer $token';
     }
 
-    final response = await http.post(
-      Uri.parse('${_baseUrl}promotions/$promotionId/click'),
-      headers: headers,
-      body: jsonEncode({
-        'type': type,
-        if (userId != null && userId.isNotEmpty) 'userId': userId,
-      }),
-    );
+    final response = await http
+        .post(
+          Uri.parse('${_baseUrl}promotions/$promotionId/click'),
+          headers: headers,
+          body: jsonEncode({
+            'type': type,
+            if (userId != null && userId.isNotEmpty) 'userId': userId,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode != 201) {
       final errorBody = jsonDecode(response.body);
@@ -1281,7 +1287,8 @@ class ApiService {
         throw Exception(errorBody['message'] ?? 'Authentication failed');
       }
     } on TimeoutException {
-      throw Exception("Couldn't reach DealFinder. Check your connection and try again.");
+      throw Exception(
+          "Couldn't reach DealFinder. Check your connection and try again.");
     } catch (e) {
       rethrow;
     }
@@ -1289,11 +1296,13 @@ class ApiService {
 
   // Google Sign-In
   Future<Map<String, dynamic>> googleSignIn(String idToken) async {
-    final response = await http.post(
-      Uri.parse('${_baseUrl}users/google-signin'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'idToken': idToken}),
-    );
+    final response = await http
+        .post(
+          Uri.parse('${_baseUrl}users/google-signin'),
+          headers: {'Content-Type': 'application/json; charset=UTF-8'},
+          body: jsonEncode({'idToken': idToken}),
+        )
+        .timeout(const Duration(seconds: 20));
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -1364,14 +1373,11 @@ class ApiService {
   }) async {
     try {
       if (kDebugMode) {
-        debugPrint(
-            'Fetching nearby deals: lat=$lat, lng=$lng, radius=${radiusKm}km');
+        debugPrint('Fetching nearby deals within ${radiusKm}km.');
       }
 
       final url =
           '${_baseUrl}promotions/nearby?latitude=$lat&longitude=$lng&radius=$radiusKm';
-      if (kDebugMode) debugPrint('Nearby URL: $url');
-
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -1681,7 +1687,9 @@ class ApiService {
     );
 
     if (response.statusCode == 201) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final promotion = jsonDecode(response.body) as Map<String, dynamic>;
+      await CacheService.clearPromotions();
+      return promotion;
     }
 
     final dynamic errorBody =
@@ -1711,7 +1719,9 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as Map<String, dynamic>;
+      final promotion = jsonDecode(response.body) as Map<String, dynamic>;
+      await CacheService.clearPromotions();
+      return promotion;
     }
 
     final dynamic errorBody =
@@ -1737,6 +1747,7 @@ class ApiService {
         await _authDelete('${_baseUrl}promotions/$promotionId', token: token);
 
     if (response.statusCode == 200) {
+      await CacheService.clearPromotions();
       return;
     }
 
