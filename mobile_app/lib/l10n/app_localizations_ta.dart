@@ -1173,19 +1173,20 @@ class AppLocalizationsTa extends AppLocalizations {
       'புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்';
 
   @override
-  String get deleteAccount => 'Delete account';
+  String get deleteAccount => 'கணக்கை நீக்கு';
 
   @override
-  String get deleteAccountConfirmTitle => 'Delete your account?';
+  String get deleteAccountConfirmTitle =>
+      'உங்கள் கணக்கை நீக்க விரும்புகிறீர்களா?';
 
   @override
   String get deleteAccountConfirmBody =>
-      'This permanently deletes your profile, saved offers, followed stores, reviews and notification settings. If you manage a store, it is hidden until an administrator reviews it. This can\'t be undone.';
+      'இது உங்கள் சுயவிவரம், சேமிக்கப்பட்ட சலுகைகள், பின்தொடரும் கடைகள், மதிப்புரைகள் மற்றும் அறிவிப்பு அமைப்புகளை நிரந்தரமாக நீக்கும். நீங்கள் ஒரு கடையை நிர்வகித்தால், நிர்வாகி மதிப்பாய்வு செய்யும் வரை அது மறைக்கப்படும். இதை செயல்தவிர்க்க முடியாது.';
 
   @override
-  String get deleteAccountConfirmAction => 'Delete';
+  String get deleteAccountConfirmAction => 'நீக்கு';
 
   @override
   String get deleteAccountFailed =>
-      'Your account wasn\'t deleted. Check your connection and try again.';
+      'உங்கள் கணக்கை நீக்க முடியவில்லை. உங்கள் இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.';
 }

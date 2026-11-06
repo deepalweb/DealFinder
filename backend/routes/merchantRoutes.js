@@ -84,7 +84,7 @@ router.get('/', gentleAuthenticateJWT, async (req, res) => {
 
     // Optimized: Get merchants without populating promotions
     const merchants = await Merchant.find(req.user?.role==='admin'?{}:{status:{$in:['active','approved']}})
-      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable openingHours ratings')
+      .select('name logo banner category merchantType description address location currency orderLink deliveryAvailable pickupAvailable openingHours ratings status')
       .lean();
     
     // Get promotion counts in a single aggregation query

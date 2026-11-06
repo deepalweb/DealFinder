@@ -63,31 +63,31 @@ class NearbyOfferRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          slot(offer.title, 14, lines: 2, weight: FontWeight.w700),
+          slot(offer.title, 16, lines: 2, weight: FontWeight.w700),
           const SizedBox(height: 3),
           slot(
               offer.merchantName?.trim().isNotEmpty == true
                   ? offer.merchantName!
                   : '—',
-              12,
+              14,
               color: colors.onSurfaceVariant),
           const SizedBox(height: 5),
           if (large) ...[
-            slot(ratingText, 12, color: colors.onSurfaceVariant),
-            slot(distanceText, 12, color: colors.onSurfaceVariant),
+            slot(ratingText, 13, color: colors.onSurfaceVariant),
+            slot(distanceText, 13, color: colors.onSurfaceVariant),
           ] else
             Row(children: [
               Expanded(
                   flex: 3,
-                  child: slot(ratingText, 12, color: colors.onSurfaceVariant)),
+                  child: slot(ratingText, 13, color: colors.onSurfaceVariant)),
               const SizedBox(width: 6),
               Expanded(
                   flex: 2,
                   child:
-                      slot(distanceText, 12, color: colors.onSurfaceVariant)),
+                      slot(distanceText, 13, color: colors.onSurfaceVariant)),
             ]),
           const SizedBox(height: 5),
-          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 16,
+          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 18,
               lines: large ? 2 : 1,
               weight: FontWeight.w800,
               color: colors.primary),

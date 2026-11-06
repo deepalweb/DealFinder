@@ -599,13 +599,8 @@ class _UserProfileScreenState extends State<UserProfileScreen>
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               _buildProfileHero(),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                  onPressed: () => _openSection(4),
-                  icon: const Icon(Icons.edit_outlined),
-                  label: Text(l10n.profileEditLabel)),
               if (_role == 'merchant') ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 FilledButton.icon(
                     onPressed: () => Navigator.push(
                         context,
@@ -614,6 +609,11 @@ class _UserProfileScreenState extends State<UserProfileScreen>
                     icon: const Icon(Icons.storefront),
                     label: Text(l10n.merchantDashboard)),
               ],
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                  onPressed: () => _openSection(4),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: Text(l10n.profileEditLabel)),
               ProfileSection(title: l10n.savedTab, children: [
                 ProfileActionTile(
                     icon: Icons.bookmark_border,

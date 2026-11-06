@@ -134,8 +134,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
             width: widget.width,
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.6))),
+                border: Border.all(color: scheme.outlineVariant)),
             child: LayoutBuilder(builder: (context, constraints) {
               final compact = (widget.width ?? constraints.maxWidth) <= 210;
               return Column(
@@ -161,7 +160,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 14,
                                             fontWeight: FontWeight.w700,
                                             color: Colors.white)))),
                         ])),
@@ -178,14 +177,15 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 14,
                                               color: scheme.onSurfaceVariant,
                                               fontWeight: FontWeight.w500))),
                                   if (verified)
                                     Tooltip(
                                         message: AppLocalizations.of(context)!
                                             .verifiedDealLabel,
-                                        child: const Icon(Icons.verified_rounded,
+                                        child: const Icon(
+                                            Icons.verified_rounded,
                                             size: 16,
                                             color: AppColors.betelGreen)),
                                 ]),
@@ -194,7 +194,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.w600,
                                       height: 1.25,
                                       letterSpacing: -0.2,

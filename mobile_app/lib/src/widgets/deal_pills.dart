@@ -134,7 +134,7 @@ class PriceBlock extends StatelessWidget {
         Text(
           currentPriceLabel,
           style: TextStyle(
-            fontSize: compact ? 16 : 18,
+            fontSize: compact ? 18 : 20,
             fontWeight: FontWeight.w700,
             color: AppColors.text(context),
             letterSpacing: -0.2,
@@ -144,7 +144,7 @@ class PriceBlock extends StatelessWidget {
           Text(
             originalPriceLabel!,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 14,
               color: AppColors.muted(context),
               decoration: TextDecoration.lineThrough,
               decorationThickness: 1.5,
@@ -160,7 +160,7 @@ class PriceBlock extends StatelessWidget {
             child: Text(
               discountLabel!,
               style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: AppColors.turmeric),
             ),

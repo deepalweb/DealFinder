@@ -131,8 +131,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       label: _homeLabel,
     ),
     (
-      activeIcon: Icons.near_me,
-      icon: Icons.near_me_outlined,
       label: _exploreLabel,
     ),
     (
@@ -192,7 +190,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ])));
     }
     final navigation = NavigationBar(
-      height: MediaQuery.textScalerOf(context).scale(16) > 24 ? 104 : 68,
+      height: MediaQuery.textScalerOf(context).scale(16) > 24 ? 104 : 80,
       selectedIndex: _selectedIndex,
       onDestinationSelected: _onItemTapped,
       destinations: _navItems

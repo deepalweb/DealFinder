@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
@@ -21,13 +23,13 @@ ThemeData stitchDiscoverTheme(ThemeData base) {
             foregroundColor: scheme.primary,
             minimumSize: const Size(44, 44),
             textStyle: base.textTheme.labelLarge
-                ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600))),
+                ?.copyWith(fontSize: 14, fontWeight: FontWeight.w600))),
     outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
             foregroundColor: scheme.primary,
             side: BorderSide(color: scheme.outlineVariant),
             minimumSize: const Size(44, 44),
-            textStyle: base.textTheme.labelLarge?.copyWith(fontSize: 12))),
+            textStyle: base.textTheme.labelLarge?.copyWith(fontSize: 14))),
   );
 }
 
@@ -47,7 +49,11 @@ Widget stitchText(BuildContext context, String text,
         maxLines: lines,
         overflow: lines == null ? null : TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontSize: size, height: 1.25, fontWeight: weight, color: color));
+            // Keep compact labels readable while Text still honors text scaling.
+            fontSize: size < 13 ? 13 : size,
+            height: 1.25,
+            fontWeight: weight,
+            color: color));
 
 class StitchLocationHeader extends StatelessWidget {
   const StitchLocationHeader(
@@ -55,11 +61,10 @@ class StitchLocationHeader extends StatelessWidget {
       required this.area,
       required this.unread,
       required this.onArea,
-      required this.onNotifications,
-      required this.onStores});
+      required this.onNotifications});
   final String area;
   final int unread;
-  final VoidCallback onArea, onNotifications, onStores;
+  final VoidCallback onArea, onNotifications;
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -110,17 +115,6 @@ class StitchLocationHeader extends StatelessWidget {
                   isLabelVisible: unread > 0,
                   label: Text('$unread'),
                   child: const Icon(Icons.notifications_none, size: 21))),
-          IconButton(
-              tooltip: l10n.browseStores,
-              onPressed: onStores,
-              icon: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                  decoration: BoxDecoration(
-                      color: colors.primary,
-                      borderRadius: BorderRadius.circular(20)),
-                  child: Icon(Icons.storefront_outlined,
-                      size: 18, color: colors.onPrimary))),
         ]));
   }
 }
@@ -175,7 +169,7 @@ class StitchFulfillmentSegments extends StatelessWidget {
                                                 child: Text(item.$2,
                                                     textAlign: TextAlign.center,
                                                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                                        fontSize: 12,
+                                                        fontSize: 14,
                                                         fontWeight: selected == item.$1 ? FontWeight.w700 : FontWeight.w500,
                                                         color: selected == item.$1 ? colors.primary : colors.onSurfaceVariant))))))))
                             .toList())))));
@@ -212,7 +206,7 @@ class StitchDiscoverSearchBar extends StatelessWidget {
                             const SizedBox(width: 8),
                             Expanded(
                                 child: DiscoverSearchHint(
-                                    fontSize: 12,
+                                    fontSize: 15,
                                     maxLines: 1,
                                     searchLabel: stitchLabel(
                                         context,
@@ -575,6 +569,113 @@ class StitchFeaturedBanner extends StatelessWidget {
   }
 }
 
+class StitchFeaturedBannerCarousel extends StatefulWidget {
+  const StitchFeaturedBannerCarousel(
+      {super.key, required this.offers, required this.onOpen});
+
+  final List<Promotion> offers;
+  final ValueChanged<Promotion> onOpen;
+
+  @override
+  State<StitchFeaturedBannerCarousel> createState() =>
+      _StitchFeaturedBannerCarouselState();
+}
+
+class _StitchFeaturedBannerCarouselState
+    extends State<StitchFeaturedBannerCarousel> {
+  static const _slideInterval = Duration(seconds: 2);
+  static const _transitionDuration = Duration(milliseconds: 350);
+
+  Timer? _timer;
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant StitchFeaturedBannerCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.offers.length != widget.offers.length) _page = 0;
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    if (widget.offers.length < 2) return;
+    _timer = Timer.periodic(_slideInterval, (_) {
+      if (mounted) _showPage((_page + 1) % widget.offers.length);
+    });
+  }
+
+  void _showPage(int index) => setState(() => _page = index);
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.offers.isEmpty) return const SizedBox.shrink();
+    final offer = widget.offers[_page.clamp(0, widget.offers.length - 1)];
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      GestureDetector(
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity.abs() < 100 || widget.offers.length < 2) return;
+          final delta = velocity < 0 ? 1 : -1;
+          _showPage(
+              (_page + delta + widget.offers.length) % widget.offers.length);
+        },
+        child: AnimatedSize(
+          alignment: Alignment.topCenter,
+          duration: _transitionDuration,
+          curve: Curves.easeInOut,
+          child: AnimatedSwitcher(
+            duration: _transitionDuration,
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: StitchFeaturedBanner(
+              key: ValueKey('featured-banner:${offer.id}'),
+              offer: offer,
+              onOpen: () => widget.onOpen(offer),
+            ),
+          ),
+        ),
+      ),
+      if (widget.offers.length > 1) ...[
+        const SizedBox(height: 7),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            for (var index = 0; index < widget.offers.length; index++)
+              Semantics(
+                label: 'Banner ${index + 1} of ${widget.offers.length}',
+                selected: index == _page,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: index == _page ? 16 : 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: index == _page
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.outlineVariant,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ]);
+  }
+}
+
 class StitchExpiringOfferStrip extends StatelessWidget {
   const StitchExpiringOfferStrip(
       {super.key, required this.offer, required this.onOpen, this.now});
@@ -642,15 +743,15 @@ class StitchExpiringOfferStrip extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               stitchText(context, copy.merchant,
-                                  size: 12, weight: FontWeight.w700),
+                                  size: 15, weight: FontWeight.w700),
                               if (copy.merchant != offer.title) ...[
                                 const SizedBox(height: 5),
                                 stitchText(context, offer.title,
-                                    size: 11, lines: 2),
+                                    size: 14, lines: 2),
                               ],
                               const SizedBox(height: 5),
                               stitchText(context, copy.benefit,
-                                  size: 12,
+                                  size: 16,
                                   weight: FontWeight.w700,
                                   color: colors.primary),
                               if (copy.bank.isNotEmpty)
@@ -782,7 +883,7 @@ class _StitchOfferCard extends StatelessWidget {
                                         .textTheme
                                         .bodySmall
                                         ?.copyWith(
-                                            fontSize: 11,
+                                            fontSize: 14,
                                             decoration:
                                                 TextDecoration.lineThrough,
                                             color: colors.onSurfaceVariant)),
@@ -884,19 +985,19 @@ class _StitchCompactSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          slot(offer.title, 13, lines: 2, weight: FontWeight.w700),
+          slot(offer.title, 16, lines: 2, weight: FontWeight.w700),
           const SizedBox(height: 4),
           slot(
               offer.merchantName?.trim().isNotEmpty == true
                   ? offer.merchantName!
                   : '—',
-              12,
+              14,
               color: colors.onSurfaceVariant),
           const SizedBox(height: 4),
-          slot(ratingText, 11, color: colors.onSurfaceVariant),
-          slot(distanceText, 11, color: colors.onSurfaceVariant),
+          slot(ratingText, 13, color: colors.onSurfaceVariant),
+          slot(distanceText, 13, color: colors.onSurfaceVariant),
           const SizedBox(height: 4),
-          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 14,
+          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 18,
               lines: 2, weight: FontWeight.w700, color: colors.primary),
         ]);
   }

@@ -16,6 +16,34 @@ class FailedSectionsApi extends StitchFixtureApi {
       throw StateError('Unavailable');
 }
 
+class UnmanagedBannerApi extends StitchFixtureApi {
+  @override
+  Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async =>
+      const CuratedHomeSectionsResponse(
+          banner: [],
+          hotDeals: [],
+          newThisWeek: [],
+          flashSales: [],
+          bannerManaged: false,
+          hotDealsManaged: false,
+          newThisWeekManaged: false,
+          flashSalesManaged: false);
+}
+
+class MultiBannerApi extends StitchFixtureApi {
+  @override
+  Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async =>
+      CuratedHomeSectionsResponse(
+          banner: [offers[0], offers[2]],
+          hotDeals: [],
+          newThisWeek: [],
+          flashSales: [],
+          bannerManaged: true,
+          hotDealsManaged: false,
+          newThisWeekManaged: false,
+          flashSalesManaged: false);
+}
+
 class NearbyPreviewApi extends StitchFixtureApi {
   @override
   Future<List<Promotion>> fetchPromotions({bool forceRefresh = false}) async =>
@@ -104,6 +132,7 @@ void main() {
     expect(find.byType(StitchFullWidthOfferCard), findsNWidgets(3));
     final ordered = [
       find.byType(StitchFeaturedBanner),
+      find.text('Nearby Deals'),
       find.byType(StitchExpiringOfferStrip),
       find.byType(StitchHorizontalOfferCard).first,
       find.byType(StitchBankGridCard).first,
@@ -143,19 +172,60 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('featured offer remains the banner when Section Manager is empty',
+      (tester) async {
+    tester.view.physicalSize = const Size(390, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+        host(HomeScreen(api: UnmanagedBannerApi(), now: () => fixtureNow)));
+    await tester.pumpAndSettle();
+    expect(find.byType(StitchFeaturedBanner), findsOneWidget);
+    expect(
+        tester
+            .widget<StitchFeaturedBanner>(find.byType(StitchFeaturedBanner))
+            .offer
+            .id,
+        'banner');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('banner carousel advances every two seconds', (tester) async {
+    tester.view.physicalSize = const Size(390, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+        host(HomeScreen(api: MultiBannerApi(), now: () => fixtureNow)));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Banner 1 of 2'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.bySemanticsLabel('Banner 2 of 2'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
+  });
+
   testWidgets(
       'failed bank and curated requests expose retries rather than empty inventory claims',
       (tester) async {
     final api = FailedSectionsApi()..lastBankOffersFailed = true;
     await tester.pumpWidget(host(HomeScreen(api: api, now: () => fixtureNow)));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Featured offers could not be refreshed.'),
-        findsOneWidget);
     final scroll = find
         .descendant(
             of: find.byType(CustomScrollView),
             matching: find.byType(Scrollable))
         .first;
+    await tester.scrollUntilVisible(
+        find.textContaining('Featured offers could not be refreshed.'), 200,
+        scrollable: scroll);
+    expect(find.textContaining('Featured offers could not be refreshed.'),
+        findsOneWidget);
     await tester.scrollUntilVisible(
         find.textContaining('Bank offers could not be refreshed.'), 200,
         scrollable: scroll);

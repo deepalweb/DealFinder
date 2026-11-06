@@ -58,13 +58,13 @@ class DiscoverOfferTile extends StatelessWidget {
                       if (offer.merchantName?.isNotEmpty == true)
                         Text(offer.merchantName!,
                             style: theme.textTheme.titleSmall
-                                ?.copyWith(fontSize: 13),
+                                ?.copyWith(fontSize: 15),
                             maxLines: large ? null : 1,
                             overflow: large ? null : TextOverflow.ellipsis),
                       const SizedBox(height: 3),
                       Text(offer.title,
-                          style:
-                              theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(fontSize: 14),
                           maxLines: large ? null : 1,
                           overflow: large ? null : TextOverflow.ellipsis),
                       if ((offer.averageRating != null &&
@@ -86,13 +86,13 @@ class DiscoverOfferTile extends StatelessWidget {
                                             ? '${offer.distance!.round()} m'
                                             : '${(offer.distance! / 1000).toStringAsFixed(1)} km',
                                         style: theme.textTheme.bodySmall
-                                            ?.copyWith(fontSize: 11)),
+                                            ?.copyWith(fontSize: 13)),
                                 ])),
                       const Divider(height: 12),
                       if (offer.bankName?.isNotEmpty == true)
                         Text(offer.bankName!,
                             style: theme.textTheme.labelLarge?.copyWith(
-                                fontSize: 11, color: theme.colorScheme.primary),
+                                fontSize: 13, color: theme.colorScheme.primary),
                             maxLines: large ? null : 1,
                             overflow: large ? null : TextOverflow.ellipsis),
                       if (offer.cardTypes.isNotEmpty)
@@ -105,7 +105,7 @@ class DiscoverOfferTile extends StatelessWidget {
                                         : type)
                                 .join(' · '),
                             style: theme.textTheme.bodySmall
-                                ?.copyWith(fontSize: 11)),
+                                ?.copyWith(fontSize: 13)),
                       const SizedBox(height: 3),
                       Wrap(
                           spacing: 8,
@@ -117,12 +117,12 @@ class DiscoverOfferTile extends StatelessWidget {
                                   l10n.minimumSpendLabel(
                                       offerMoney(offer, offer.minimumSpend!)),
                                   style: theme.textTheme.bodySmall
-                                      ?.copyWith(fontSize: 11)),
+                                      ?.copyWith(fontSize: 13)),
                             if (offer.discountedPrice ?? offer.price
                                 case final price?)
                               Text(offerMoney(offer, price),
                                   style: theme.textTheme.titleSmall?.copyWith(
-                                      fontSize: 12,
+                                      fontSize: 16,
                                       color: theme.colorScheme.primary)),
                           ]),
                       if (offer.endDate != null)
@@ -136,7 +136,7 @@ class DiscoverOfferTile extends StatelessWidget {
                                         const Duration(
                                             hours: 5, minutes: 30)))),
                                 style: theme.textTheme.bodySmall
-                                    ?.copyWith(fontSize: 11))),
+                                    ?.copyWith(fontSize: 13))),
                     ])),
           ])),
     );

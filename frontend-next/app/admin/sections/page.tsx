@@ -11,6 +11,8 @@ type Promotion = {
   discount?: string;
   category?: string;
   status?: string;
+  startDate?: string;
+  endDate?: string;
   merchant?: { name?: string };
 };
 
@@ -104,6 +106,21 @@ const emptyForm: SectionForm = {
 function fmtDate(value?: string | null) {
   if (!value) return 'Not scheduled';
   return new Date(value).toLocaleString();
+}
+
+function promotionAvailability(promotion?: Promotion) {
+  if (!promotion) return null;
+  const now = Date.now();
+  if (promotion.endDate && new Date(promotion.endDate).getTime() < now) {
+    return 'Deal expired';
+  }
+  if (promotion.startDate && new Date(promotion.startDate).getTime() > now) {
+    return 'Deal scheduled';
+  }
+  if (promotion.status && !['active', 'approved', 'scheduled'].includes(promotion.status)) {
+    return `Deal ${promotion.status.replace(/_/g, ' ')}`;
+  }
+  return null;
 }
 
 export default function AdminSectionsPage() {
@@ -444,6 +461,14 @@ export default function AdminSectionsPage() {
                             <div className="flex items-center gap-2 flex-wrap" style={{ marginBottom: '0.25rem' }}>
                               <strong style={{ color: 'var(--text-primary)' }}>{assignment.promotion?.title || 'Unknown deal'}</strong>
                               <span className="status-chip">{assignment.status}</span>
+                              {promotionAvailability(assignment.promotion) && (
+                                <span
+                                  className="status-chip"
+                                  style={{ background: 'rgba(239,68,68,0.08)', color: '#b42318' }}
+                                >
+                                  {promotionAvailability(assignment.promotion)}
+                                </span>
+                              )}
                               <span className="status-chip" style={{ background: 'rgba(37,99,235,0.08)', color: 'var(--primary-color)' }}>
                                 {assignment.mode.replace(/_/g, ' ')}
                               </span>

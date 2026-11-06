@@ -352,5 +352,10 @@
   "profileSaveLabel": "වෙනස්කම් සුරකින්න",
   "profileCurrentPasswordLabel": "වත්මන් මුරපදය",
   "profileNewPasswordLabel": "නව මුරපදය",
-  "profileConfirmPasswordLabel": "නව මුරපදය තහවුරු කරන්න"
+  "profileConfirmPasswordLabel": "නව මුරපදය තහවුරු කරන්න",
+  "deleteAccount": "ගිණුම මකන්න",
+  "deleteAccountConfirmTitle": "ඔබගේ ගිණුම මකන්නද?",
+  "deleteAccountConfirmBody": "මෙයින් ඔබගේ පැතිකඩ, සුරකින ලද දීමනා, අනුගමනය කරන ලද වෙළඳසැල්, සමාලෝචන සහ දැනුම්දීම් සැකසුම් ස්ථිරවම මකා දැමෙනු ඇත. ඔබ වෙළඳසැලක් කළමනාකරණය කරන්නේ නම්, පරිපාලකයෙකු එය සමාලෝචනය කරන තෙක් එය සඟවනු ලැබේ. මෙය අහෝසි කළ නොහැක.",
+  "deleteAccountConfirmAction": "මකන්න",
+  "deleteAccountFailed": "ඔබගේ ගිණුම මකා දැමීමට නොහැකි විය. ඔබගේ සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න."
 }

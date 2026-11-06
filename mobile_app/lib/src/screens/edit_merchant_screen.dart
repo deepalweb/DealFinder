@@ -301,6 +301,21 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
       return;
     }
 
+    if ((_latitude == null) != (_longitude == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter both coordinates, or clear the location pin.')),
+      );
+      return;
+    }
+
+    if ((_latitude != null && (_latitude! < -90 || _latitude! > 90)) ||
+        (_longitude != null && (_longitude! < -180 || _longitude! > 180))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid latitude (-90 to 90) and longitude (-180 to 180).')),
+      );
+      return;
+    }
+
     if (_token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -378,12 +393,15 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
         merchantData['banner'] = _bannerUrlController.text.trim();
       }
 
-      // Add location
+      // Send null when the merchant cleared the location so the backend can
+      // remove the previously saved coordinates.
       if (_latitude != null && _longitude != null) {
         merchantData['location'] = {
           'type': 'Point',
           'coordinates': [_longitude, _latitude],
         };
+      } else {
+        merchantData['location'] = null;
       }
 
       await _apiService.updateMerchant(
@@ -1341,11 +1359,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                   controller: _latitudeController,
                   onChanged: (value) {
                     final lat = double.tryParse(value);
-                    if (lat != null && _longitude != null) {
-                      setState(() => _setLocation(lat, _longitude!));
-                    } else if (lat != null) {
-                      setState(() => _latitude = lat);
-                    }
+                    setState(() => _latitude = lat);
+                    _markDirty();
                   },
                 ),
               ),
@@ -1371,11 +1386,8 @@ class _EditMerchantScreenState extends State<EditMerchantScreen>
                   controller: _longitudeController,
                   onChanged: (value) {
                     final lng = double.tryParse(value);
-                    if (lng != null && _latitude != null) {
-                      setState(() => _setLocation(_latitude!, lng));
-                    } else if (lng != null) {
-                      setState(() => _longitude = lng);
-                    }
+                    setState(() => _longitude = lng);
+                    _markDirty();
                   },
                 ),
               ),

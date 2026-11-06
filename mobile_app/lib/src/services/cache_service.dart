@@ -36,6 +36,7 @@ class CacheService {
   static const _keyCuratedSections = 'cache_curated_sections';
   static const _keyCuratedSectionsTs = 'cache_curated_sections_ts';
   static const _ttl = Duration(minutes: 10); // Cache valid for 10 minutes
+  static const _promotionTtl = Duration(minutes: 1);
   static const _maxNearbyEntries = 8;
   static const _maxNearbyFallbackDistanceKm = 250.0;
 
@@ -73,7 +74,8 @@ class CacheService {
     if (!forceStale) {
       final ts = prefs.getInt(_keyPromotionsTs);
       if (ts == null) return null;
-      if (DateTime.now().millisecondsSinceEpoch - ts > _ttl.inMilliseconds) {
+      if (DateTime.now().millisecondsSinceEpoch - ts >
+          _promotionTtl.inMilliseconds) {
         return null;
       }
     }
@@ -86,6 +88,12 @@ class CacheService {
   static Future<bool> hasPromotions() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.containsKey(_keyPromotions);
+  }
+
+  static Future<void> clearPromotions() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyPromotions);
+    await prefs.remove(_keyPromotionsTs);
   }
 
   // ── Merchants ─────────────────────────────────────────────────────────────

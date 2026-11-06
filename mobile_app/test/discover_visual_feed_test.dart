@@ -178,8 +178,11 @@ void main() {
     await tester.pumpWidget(host(HomeScreen(api: FeedApi())));
     await tester.pumpAndSettle();
     expect(find.byType(StitchQuickFilters), findsOneWidget);
-    expect(find.byType(StitchHorizontalOfferCard), findsWidgets);
-    final firstTitle = tester.getTopLeft(find.text('Weekend lunch')).dy;
+    expect(find.byType(StitchNearbyOfferCard), findsWidgets);
+    final nearbyTitle = find.descendant(
+        of: find.byType(StitchNearbyOfferCard).first,
+        matching: find.text('Weekend lunch'));
+    final firstTitle = tester.getTopLeft(nearbyTitle).dy;
     await tester.scrollUntilVisible(find.text('Bank Perks'), 200,
         scrollable: find.byType(Scrollable).first);
     expect(firstTitle,
@@ -299,9 +302,9 @@ void main() {
       (tester) async {
     await tester.pumpWidget(host(HomeScreen(api: FeedApi())));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Weekend lunch'), 200,
+    await tester.scrollUntilVisible(find.text('Weekend lunch').first, 200,
         scrollable: find.byType(Scrollable).first);
-    expect(find.text('Weekend lunch'), findsOneWidget);
+    expect(find.text('Weekend lunch'), findsWidgets);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, 1800));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Filters').first);
@@ -311,9 +314,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(CloseButton));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Weekend lunch'), 200,
+    await tester.scrollUntilVisible(find.text('Weekend lunch').first, 200,
         scrollable: find.byType(Scrollable).first);
-    expect(find.text('Weekend lunch'), findsOneWidget);
+    expect(find.text('Weekend lunch'), findsWidgets);
     await tester.drag(find.byType(CustomScrollView), const Offset(0, 1800));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Filters').first);
@@ -346,9 +349,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(CustomScrollView), const Offset(0, 1200));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Weekend lunch'), 200,
+    await tester.scrollUntilVisible(find.text('Weekend lunch').first, 200,
         scrollable: find.byType(Scrollable).first);
-    expect(find.text('Weekend lunch'), findsOneWidget);
+    expect(find.text('Weekend lunch'), findsWidgets);
     await tester.pumpWidget(const SizedBox.shrink());
   });
   testWidgets(
@@ -527,10 +530,9 @@ void main() {
           dark: true,
           scale: 2));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(
-          find.widgetWithText(FilledButton, 'View offer'), 250,
+      await tester.scrollUntilVisible(find.bySubtype<FilledButton>(), 250,
           scrollable: find.byType(Scrollable).first);
-      await tester.tap(find.widgetWithText(FilledButton, 'View offer'));
+      await tester.tap(find.bySubtype<FilledButton>());
       expect(opened, true);
       expect(tester.takeException(), isNull);
     }

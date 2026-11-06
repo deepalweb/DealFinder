@@ -115,7 +115,7 @@ export default function AdminMerchantsPage() {
 
   const summary = useMemo(() => {
     const pending = merchants.filter((merchant) => merchant.status === 'pending_approval').length;
-    const approved = merchants.filter((merchant) => ['approved', 'active'].includes(merchant.status || 'active')).length;
+    const approved = merchants.filter((merchant) => ['approved', 'active'].includes(merchant.status || '')).length;
     const suspended = merchants.filter((merchant) => merchant.status === 'suspended').length;
     const dormant = merchants.filter((merchant) => getDealCount(merchant) === 0).length;
     return { pending, approved, suspended, dormant };
@@ -125,7 +125,7 @@ export default function AdminMerchantsPage() {
     let result = [...merchants];
 
     if (statusFilter !== 'all') {
-      result = result.filter((merchant) => (merchant.status || 'active') === statusFilter);
+      result = result.filter((merchant) => (merchant.status || 'unknown') === statusFilter);
     }
     if (dormantOnly) {
       result = result.filter((merchant) => getDealCount(merchant) === 0);
@@ -315,7 +315,7 @@ export default function AdminMerchantsPage() {
               ) : (
                 filtered.map((merchant) => {
                   const dealCount = getDealCount(merchant);
-                  const status = merchant.status || 'active';
+                  const status = merchant.status || 'unknown';
 
                   return (
                     <tr key={merchant._id}>
