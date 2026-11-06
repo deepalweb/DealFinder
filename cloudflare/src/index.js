@@ -1,6 +1,6 @@
 import { Container, getContainer } from '@cloudflare/containers';
 
-// Runs the root Dockerfile (Express API + Next.js) — the same app Azure App Service ran.
+// Runs the combined Express API and Next.js app from the root Dockerfile.
 export class DealFinderApp extends Container {
   defaultPort = 8080;
   sleepAfter = '2h'; // the cron trigger below pings every 5 min, so in practice it stays up
@@ -18,9 +18,8 @@ export class DealFinderApp extends Container {
   }
 }
 
-// ponytail: a single named instance, like the single Azure app today. node-cron jobs run
-// inside it, so more instances would send every notification twice. Move the jobs to Worker
-// cron triggers before raising max_instances.
+// Node cron jobs run inside this single instance; more instances would send every
+// notification twice. Move the jobs to Worker cron triggers before raising max_instances.
 const app = (env) => getContainer(env.APP, 'main');
 
 export default {

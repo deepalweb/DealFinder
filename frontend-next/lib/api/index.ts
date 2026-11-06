@@ -377,7 +377,7 @@ export const NotificationAPI = {
   sendTest: () => fetchAPI<any>('notifications/test', { method: 'POST' }),
 };
 
-// Images (Azure Blob Storage)
+// Images (R2-backed image upload API)
 export const ImageAPI = {
   uploadSingle: async (file: File, folder = 'images'): Promise<string> => {
     const token = getToken();

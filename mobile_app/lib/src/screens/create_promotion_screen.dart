@@ -461,7 +461,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen>
 
     try {
       _uploadedImageUrls = [];
-      // Upload images to Azure first
+      // Upload images to the configured image store first.
       if (_imageFiles.isNotEmpty) {
         final compressedFiles = <File>[];
         for (final file in _imageFiles) {

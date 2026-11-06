@@ -5,7 +5,7 @@ const Merchant = require('../models/Merchant');
 const Promotion = require('../models/Promotion');
 const UserBehaviorEvent = require('../models/UserBehaviorEvent');
 const { authenticateJWT, gentleAuthenticateJWT } = require('../middleware/auth');
-const { getAiConfig, isAzureOpenAIConfigured } = require('../services/ai/config');
+const { getAiConfig } = require('../services/ai/config');
 const { searchPromotions } = require('../services/ai/recommendationService');
 const { understandSearchQuery } = require('../services/ai/queryUnderstandingService');
 const { ensureUserPreferenceProfile, refreshUserPreferenceProfile } = require('../services/ai/userProfileService');
@@ -104,7 +104,6 @@ router.post('/search', gentleAuthenticateJWT, [
   body('location').optional().isObject(),
   body('limit').optional().isInt({ min: 1, max: 50 }),
   body('sessionId').optional().isString(),
-  body('model').optional().isString(),
 ], async (req, res) => {
   if (handleValidationErrors(req, res)) return;
 
@@ -115,14 +114,12 @@ router.post('/search', gentleAuthenticateJWT, [
       location = null,
       limit = 20,
       sessionId,
-      model,
     } = req.body;
 
     const filters = require('../services/ai/queryUnderstandingService').sanitizeAiFilters({filters:rawFilters}).filters;
     const interpretedQuery = await understandSearchQuery({
       query: rawQuery,
       location,
-      model,
     });
 
     const response = await searchPromotions({
@@ -189,9 +186,7 @@ router.get('/status', (_req, res) => {
   res.status(200).json({
     enabled: config.aiSearchEnabled,
     personalizationEnabled: config.personalizationEnabled,
-    azureConfigured: isAzureOpenAIConfigured(),
-    model: config.model,
-    apiVersion: config.apiVersion,
+    queryUnderstanding: 'heuristic',
   });
 });
 

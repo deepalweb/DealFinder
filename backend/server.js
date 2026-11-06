@@ -20,7 +20,7 @@ for (const key of ['JWT_SECRET', 'JWT_REFRESH_SECRET']) {
 }
 
 const app = express();
-// One proxy hop (Cloudflare Worker / Azure front end) sets X-Forwarded-For.
+// One proxy hop (Cloudflare Worker) sets X-Forwarded-For.
 // Without this, every user shares the proxy's IP and one rate-limit bucket.
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 8080;
@@ -68,8 +68,7 @@ const allowedOrigins_DEV = [
 ];
 const allowedOrigins_PROD = [
   APP_URL,
-  'https://www.dealfinderapp.lk',
-  'https://dealfinderlk-eafsbyd7ghaph0az.southindia-01.azurewebsites.net'
+  'https://www.dealfinderapp.lk'
 ];
 const currentOrigins = process.env.NODE_ENV === 'production' ? allowedOrigins_PROD : allowedOrigins_DEV;
 
@@ -160,7 +159,7 @@ app.get('/test-static', (req, res) => {
   res.send('Static file serving is working');
 });
 
-// Connect to MongoDB with optimized settings for Azure Cosmos DB.
+// Connect to MongoDB.
 // Skipped entirely when running on Postgres (DATA_SOURCE=postgres) — there is
 // no Mongo instance to connect to, and every route branches away from Mongoose
 // in that mode, so attempting this connection only produces a startup error.
