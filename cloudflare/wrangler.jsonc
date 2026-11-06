@@ -47,6 +47,7 @@
     "APP_URL": "https://dealfinderapp.lk",
     "DATA_SOURCE": "mongo",
     "R2_BUCKET": "dealfinder-assets",
-    "R2_PUBLIC_URL": "https://pub-50a3238301f643b4b97879c1e4d6041d.r2.dev"
+    "R2_PUBLIC_URL": "https://pub-50a3238301f643b4b97879c1e4d6041d.r2.dev",
+    "R2_KEY_PREFIX": "Deal Images"
   }
 }

@@ -13,6 +13,11 @@ class R2ImageService {
 
     this.bucket = R2_BUCKET;
     this.publicUrl = R2_PUBLIC_URL.replace(/\/+$/, '');
+    this.keyPrefix = String(process.env.R2_KEY_PREFIX || '')
+      .split('/')
+      .map((part) => part.replace(/[^a-zA-Z0-9 _-]/g, '').trim())
+      .filter(Boolean)
+      .join('/');
     this.client = new S3Client({
       region: 'auto',
       endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
@@ -29,7 +34,8 @@ class R2ImageService {
 
     const ext = (originalName.split('.').pop() || 'jpg').toLowerCase();
     const safeFolder = folder.replace(/[^a-zA-Z0-9_-]/g, '') || 'images';
-    const key = `${safeFolder}/${uuidv4()}.${ext}`;
+    const filename = `${uuidv4()}.${ext}`;
+    const key = [this.keyPrefix, safeFolder, filename].filter(Boolean).join('/');
 
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucket,
@@ -38,7 +44,8 @@ class R2ImageService {
       ContentType: getContentType(ext),
     }));
 
-    return `${this.publicUrl}/${key}`;
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+    return `${this.publicUrl}/${encodedKey}`;
   }
 
   async deleteImage(imageUrl) {

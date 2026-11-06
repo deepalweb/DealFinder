@@ -43,8 +43,9 @@ R2_ACCESS_KEY_ID
 R2_SECRET_ACCESS_KEY
 ```
 
-`R2_BUCKET` and `R2_PUBLIC_URL` are non-secret variables in `wrangler.jsonc`.
-The configured bucket is `dealfinder-assets`.
+`R2_BUCKET`, `R2_PUBLIC_URL`, and `R2_KEY_PREFIX` are non-secret variables in
+`wrangler.jsonc`. The configured bucket is `dealfinder-assets`; new user uploads
+are written under its `Deal Images/` key prefix.
 
 ## Notes
 

@@ -34,8 +34,9 @@ credentials if those features are enabled.
 ## Image storage
 
 The Worker sets `IMAGE_STORAGE_PROVIDER=r2` and passes its R2 credentials into
-the container. `R2_BUCKET` and `R2_PUBLIC_URL` are ordinary variables in
-`wrangler.jsonc`.
+the container. `R2_BUCKET`, `R2_PUBLIC_URL`, and `R2_KEY_PREFIX` are ordinary
+variables in `wrangler.jsonc`. New uploads use the `Deal Images/` object-key
+prefix, with per-user subfolders below it.
 
 The staging bucket's public `r2.dev` URL is enabled. For a branded image host,
 connect `images.dealfinderapp.lk` to the bucket in Cloudflare R2 and set

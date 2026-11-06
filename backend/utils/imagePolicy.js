@@ -45,13 +45,12 @@ function uploadFolder(user, requested) {
 }
 function canDelete(user, url) {
   if (user?.role === "admin") return true;
-  // Generated URLs never contain these; providers derive keys from the raw string, so the parsed
-  // (normalised) path checked below must be the path that gets deleted.
-  if (typeof url !== "string" || /%|\.\.|\\|[?#]/.test(url)) return false;
+  if (typeof url !== "string") return false;
   try {
     const parsed = new URL(url);
-    if(!['http:','https:'].includes(parsed.protocol) || parsed.username || parsed.password) return false;
-    const parts = parsed.pathname.split('/').filter(Boolean);
+    if(!['http:','https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) return false;
+    const parts = parsed.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    if (parts.some((part) => part === '.' || part === '..' || part.includes('/') || part.includes('\\'))) return false;
     const folders = new Set(['merchants','promotions','images','profiles'].map(folder=>`u${user.id}-${folder}`));
     // The namespace must be the immediate parent of a generated filename.
     return parts.length >= 2 && folders.has(parts[parts.length-2]) &&

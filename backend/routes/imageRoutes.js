@@ -63,6 +63,18 @@ function handleUploadError(res, error) {
   return res.status(400).json({ message: error.message || 'Invalid image upload request' });
 }
 
+function logStorageError(req, error, operation) {
+  console.error('Image storage operation failed', {
+    operation,
+    traceId: req.get('cf-ray') || null,
+    name: error?.name || 'Error',
+    message: error?.message || 'Unknown storage error',
+    code: error?.Code || error?.code || null,
+    httpStatusCode: error?.$metadata?.httpStatusCode || null,
+    requestId: error?.$metadata?.requestId || null,
+  });
+}
+
 // Upload single image
 router.post('/upload', authenticateJWT, async (req, res) => {
   try {
@@ -98,8 +110,8 @@ router.post('/upload', authenticateJWT, async (req, res) => {
     if (error instanceof multer.MulterError || error.message === 'Only image files allowed') {
       return handleUploadError(res, error);
     }
-    console.error('❌ Image upload error:', error);
-    res.status(500).json({ message: 'Failed to upload image' });
+    logStorageError(req, error, 'single-upload');
+    res.status(500).json({ message: 'Failed to upload image', traceId: req.get('cf-ray') || null });
   }
 });
 
@@ -145,8 +157,8 @@ router.post('/upload-multiple', authenticateJWT, async (req, res) => {
     if (error instanceof multer.MulterError || error.message === 'Only image files allowed') {
       return handleUploadError(res, error);
     }
-    console.error('❌ Multiple image upload error:', error);
-    res.status(500).json({ message: 'Failed to upload images' });
+    logStorageError(req, error, 'multiple-upload');
+    res.status(500).json({ message: 'Failed to upload images', traceId: req.get('cf-ray') || null });
   }
 });
 
