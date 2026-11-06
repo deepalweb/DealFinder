@@ -21,6 +21,8 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    // Local uploads are served from localhost; production must keep blocking private IPs.
+    dangerouslyAllowLocalIP: !isProd,
     remotePatterns: [
       { protocol: 'https', hostname: 'ui-avatars.com' },
       { protocol: 'https', hostname: '**' },

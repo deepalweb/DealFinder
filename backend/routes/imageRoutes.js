@@ -111,7 +111,7 @@ router.post('/upload', authenticateJWT, async (req, res) => {
       return handleUploadError(res, error);
     }
     logStorageError(req, error, 'single-upload');
-    res.status(500).json({ message: 'Failed to upload image', traceId: req.get('cf-ray') || null });
+    res.status(500).json({ message: 'Failed to upload image', traceId: req.get('cf-ray') || null, code: error?.Code || error?.code || error?.name || null });
   }
 });
 
@@ -158,7 +158,7 @@ router.post('/upload-multiple', authenticateJWT, async (req, res) => {
       return handleUploadError(res, error);
     }
     logStorageError(req, error, 'multiple-upload');
-    res.status(500).json({ message: 'Failed to upload images', traceId: req.get('cf-ray') || null });
+    res.status(500).json({ message: 'Failed to upload images', traceId: req.get('cf-ray') || null, code: error?.Code || error?.code || error?.name || null });
   }
 });
 

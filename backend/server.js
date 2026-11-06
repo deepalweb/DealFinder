@@ -110,7 +110,8 @@ app.get('/api/status', (req, res) => {
 app.get('/api/config', (req, res) => {
   res.json({
     GOOGLE_CLIENT_ID: config.GOOGLE_CLIENT_ID,
-    VAPID_PUBLIC_KEY: config.VAPID_PUBLIC_KEY
+    VAPID_PUBLIC_KEY: config.VAPID_PUBLIC_KEY,
+    GOOGLE_MAPS_API_KEY: config.GOOGLE_MAPS_WEB_API_KEY
   });
 });
 
