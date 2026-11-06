@@ -17,8 +17,6 @@ services:
       - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
       - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
       - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
-      - AZURE_STORAGE_CONTAINER_NAME=${AZURE_STORAGE_CONTAINER_NAME}
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/api/status', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
       interval: 30s

@@ -1,5 +1,3 @@
-const { createResponse } = require('./azureOpenAIClient');
-const { getAiConfig, isAzureOpenAIConfigured } = require('./config');
 const {
   expandNaturalLanguageQuery,
   extractMatchedCategories,
@@ -12,23 +10,6 @@ const queryUnderstandingCache = new Map();
 function cacheResult(key,data){
  if(queryUnderstandingCache.size>=500)queryUnderstandingCache.delete(queryUnderstandingCache.keys().next().value);
  queryUnderstandingCache.set(key,{timestamp:Date.now(),data});
-}
-
-function extractJsonObject(text) {
-  const raw = String(text || '').trim();
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw);
-  } catch (_) {
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]);
-    } catch {
-      return null;
-    }
-  }
 }
 
 function parsePriceIntent(query) {
@@ -158,7 +139,7 @@ function sanitizeAiFilters(parsed) {
   };
 }
 
-async function understandSearchQuery({ query, location, model }) {
+async function understandSearchQuery({ query, location }) {
   const heuristic = heuristicQueryUnderstanding(query);
   const normalizedQuery = heuristic.normalizedQuery;
 
@@ -176,90 +157,8 @@ async function understandSearchQuery({ query, location, model }) {
     return cached.data;
   }
 
-  const config = getAiConfig();
-  if (!config.aiSearchEnabled || !isAzureOpenAIConfigured()) {
-    cacheResult(cacheKey,heuristic);
-    return heuristic;
-  }
-
-  const systemPrompt = [
-    'You are a search query understanding service for a deals marketplace.',
-    'Convert the user query into compact JSON only.',
-    'Never add markdown fences or explanation.',
-    'Supported categories: food_dining, beauty_salon, repairs_services, shopping_retail, health_wellness, daily_essentials, auto_services, education_courses, entertainment_activities, other.',
-    'Understand Sinhala, Singlish, English, and Tamil local search language. Examples: "ලගම තියෙන කොට්ටු කඩා", "lagama kottu kade", and "அருகில் கொத்து கடை" mean nearby kottu/food places.',
-    'Use this JSON shape exactly:',
-    '{"normalizedQuery":"","intent":{"wantsNearby":false,"wantsUrgency":false,"wantsFeatured":false},"filters":{"categories":[],"merchantQuery":"","minPrice":null,"maxPrice":null,"minDiscountPercent":null,"featuredOnly":false,"expiringWithinDays":null,"radiusKm":null,"sortBy":"relevance"}}',
-    'Keep unknown fields null or empty.',
-  ].join(' ');
-
-  const userPayload = {
-    query,
-    location: location || null,
-    hintTokens: tokenizeText(query).slice(0, 12),
-  };
-
-  try {
-    const completion = await createResponse({
-      model: config.model,
-      instructions: systemPrompt,
-      input: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'input_text',
-              text: JSON.stringify(userPayload),
-            },
-          ],
-        },
-      ],
-      temperature: 0.1,
-      maxOutputTokens: 350,
-      metadata: { feature: 'ai_search_query_understanding' },
-    });
-
-    const parsed = extractJsonObject(completion.outputText);
-    if (!parsed) {
-      cacheResult(cacheKey,heuristic);
-      return heuristic;
-    }
-
-    const sanitized = sanitizeAiFilters(parsed);
-    const merged = {
-      normalizedQuery: sanitized.normalizedQuery || heuristic.normalizedQuery,
-      intent: {
-        type: 'deal_search',
-        wantsNearby: Boolean(sanitized.intent.wantsNearby || heuristic.intent.wantsNearby),
-        wantsUrgency: Boolean(sanitized.intent.wantsUrgency || heuristic.intent.wantsUrgency),
-        wantsFeatured: Boolean(sanitized.intent.wantsFeatured || heuristic.intent.wantsFeatured),
-      },
-      filters: {
-        categories: [...new Set([...(sanitized.filters.categories || []), ...(heuristic.filters.categories || [])])],
-        merchantQuery: sanitized.filters.merchantQuery || heuristic.filters.merchantQuery,
-        minPrice: sanitized.filters.minPrice ?? heuristic.filters.minPrice,
-        maxPrice: sanitized.filters.maxPrice ?? heuristic.filters.maxPrice,
-        minDiscountPercent: sanitized.filters.minDiscountPercent ?? heuristic.filters.minDiscountPercent,
-        featuredOnly: Boolean(sanitized.filters.featuredOnly || heuristic.filters.featuredOnly),
-        expiringWithinDays: sanitized.filters.expiringWithinDays ?? heuristic.filters.expiringWithinDays,
-        radiusKm: sanitized.filters.radiusKm ?? heuristic.filters.radiusKm,
-        sortBy: sanitized.filters.sortBy || heuristic.filters.sortBy,
-      },
-    };
-    const result = {
-      ...merged,
-      aiUsed: true,
-      fallbackUsed: false,
-      source: 'azure_openai+heuristic',
-    };
-
-    cacheResult(cacheKey,result);
-    return result;
-  } catch (error) {
-    console.warn('[AI Search] Query understanding fallback:', error.message);
-    cacheResult(cacheKey,heuristic);
-    return heuristic;
-  }
+  cacheResult(cacheKey, heuristic);
+  return heuristic;
 }
 
 module.exports = {

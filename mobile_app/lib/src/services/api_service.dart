@@ -1858,7 +1858,7 @@ class ApiService {
     ));
   }
 
-  // Upload single image to Azure Blob Storage
+  // Upload single image to the configured image store.
   Future<String> uploadImage(File imageFile, String token,
       {String folder = 'images'}) async {
     final request =
@@ -1886,7 +1886,7 @@ class ApiService {
     }
   }
 
-  // Upload multiple images to Azure Blob Storage
+  // Upload multiple images to the configured image store.
   Future<List<String>> uploadMultipleImages(List<File> imageFiles, String token,
       {String folder = 'images'}) async {
     final request = http.MultipartRequest(
@@ -1917,7 +1917,7 @@ class ApiService {
     }
   }
 
-  // Delete image from Azure Blob Storage
+  // Delete an image from the configured image store.
   Future<void> deleteImage(String imageUrl, String token) async {
     final response = await http
         .delete(

@@ -32,9 +32,9 @@ async function testPromotionCreation() {
       merchant: merchant._id,
       featured: false,
       status: 'active',
-      // Test with Azure URL (not base64)
-      image: 'https://dealfinderimages.blob.core.windows.net/deals/test/test-image.jpg',
-      images: ['https://dealfinderimages.blob.core.windows.net/deals/test/test-image.jpg']
+      // Test with a hosted URL (not base64)
+      image: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800',
+      images: ['https://images.unsplash.com/photo-1498049794561-7780e7231661?w=800']
     };
 
     console.log('Creating test promotion...');

@@ -42,7 +42,7 @@ class R2ImageService {
   }
 
   async deleteImage(imageUrl) {
-    // Only touch objects in our own bucket; old Azure/local URLs are ignored.
+    // Only touch objects in our own bucket; unrelated legacy URLs are ignored.
     if (!this.client || !imageUrl || !imageUrl.startsWith(`${this.publicUrl}/`)) return;
 
     try {

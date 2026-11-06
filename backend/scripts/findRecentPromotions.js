@@ -28,7 +28,7 @@ async function findRecentPromotions() {
         console.log(`   Status: ${promo.status}`);
         console.log(`   Start: ${new Date(promo.startDate).toISOString().split('T')[0]}`);
         console.log(`   End: ${new Date(promo.endDate).toISOString().split('T')[0]}`);
-        console.log(`   Image: ${promo.image ? (promo.image.startsWith('https://dealfinderimages') ? '✅ Azure URL' : promo.image.substring(0, 50) + '...') : 'None'}`);
+        console.log(`   Image: ${promo.image ? promo.image.substring(0, 70) + '...' : 'None'}`);
         console.log('');
       });
     }
