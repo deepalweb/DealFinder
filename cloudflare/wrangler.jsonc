@@ -23,6 +23,19 @@
 
   "triggers": { "crons": ["*/5 * * * *"] },
 
+  // Keep production deploys from silently publishing a container that cannot
+  // connect to its database, sign sessions, or store uploaded images.
+  "secrets": {
+    "required": [
+      "MONGO_URI",
+      "JWT_SECRET",
+      "JWT_REFRESH_SECRET",
+      "R2_ACCOUNT_ID",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY"
+    ]
+  },
+
   // Cutover step: uncomment once dealfinderapp.lk's DNS is on Cloudflare (see README).
   // Until then the app is reachable at https://dealfinder.<your-subdomain>.workers.dev
   // "routes": [
@@ -33,6 +46,8 @@
   // Plain (non-secret) settings. Secrets go in with `npx wrangler secret put NAME`.
   "vars": {
     "APP_URL": "https://dealfinderapp.lk",
-    "DATA_SOURCE": "mongo"
+    "DATA_SOURCE": "mongo",
+    "R2_BUCKET": "dealfinder-images",
+    "R2_PUBLIC_URL": "https://images.dealfinderapp.lk"
   }
 }
