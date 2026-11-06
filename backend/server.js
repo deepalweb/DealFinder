@@ -103,7 +103,7 @@ app.use(bodyParser.urlencoded({ limit: '15mb', extended: true }));
 // API status route
 app.get('/api/ready', require('./middleware/readiness'));
 app.get('/api/status', (req, res) => {
-  res.send('API is running... deploy 2026-04-22-nearby-refresh');
+  res.send('API is running... deploy 2026-11-06-r2-token');
 });
 
 // Config endpoint
