@@ -131,6 +131,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       label: _homeLabel,
     ),
     (
+      activeIcon: Icons.location_on,
+      icon: Icons.location_on_outlined,
       label: _exploreLabel,
     ),
     (

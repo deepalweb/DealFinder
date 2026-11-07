@@ -1221,6 +1221,19 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
     final offers =
         _filteredPromotions(groupedDeals.values.expand((p) => p).toList());
     final l10n = AppLocalizations.of(context)!;
+    // Very large text needs the full-width card to stay readable.
+    final columns = MediaQuery.textScalerOf(context).scale(16) > 24
+        ? 1
+        : MediaQuery.sizeOf(context).width >= 600
+            ? 3
+            : 2;
+    Widget card(Promotion offer) => DiscoverMarketplaceCard(
+        offer: offer,
+        compact: columns > 1,
+        onOpen: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => DealDetailScreen(promotion: offer))));
     return CustomScrollView(
         key: const PageStorageKey('marketplace-results'),
         physics: const AlwaysScrollableScrollPhysics(),
@@ -1250,16 +1263,25 @@ class _AllDealsScreenState extends State<AllDealsScreen> {
           SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList.builder(
-                  itemCount: offers.length,
-                  itemBuilder: (context, i) => Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: DiscoverMarketplaceCard(
-                          offer: offers[i],
-                          onOpen: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => DealDetailScreen(
-                                      promotion: offers[i]))))))),
+                  itemCount: (offers.length / columns).ceil(),
+                  itemBuilder: (context, row) => Padding(
+                      padding: EdgeInsets.only(bottom: columns > 1 ? 12 : 24),
+                      child: columns == 1
+                          ? card(offers[row])
+                          : IntrinsicHeight(
+                              child: Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (var col = 0; col < columns; col++) ...[
+                                      if (col > 0) const SizedBox(width: 12),
+                                      Expanded(
+                                          child: row * columns + col <
+                                                  offers.length
+                                              ? card(offers[row * columns + col])
+                                              : const SizedBox.shrink()),
+                                    ],
+                                  ]))))),
           if (_hasMore || _pageError)
             SliverToBoxAdapter(
                 child: Padding(

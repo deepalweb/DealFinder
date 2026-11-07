@@ -849,6 +849,54 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextButton(
                                   onPressed: _load, child: Text(l10n.retry)),
                             ]))),
+                      if (banners.isNotEmpty)
+                        box(Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                            child: StitchFeaturedBannerCarousel(
+                                offers: banners, onOpen: _open))),
+                      box(_sectionTitle(context, l10n.nearbyDeals,
+                          subtitle: _position == null
+                              ? null
+                              : l10n.withinRadiusLabel(3),
+                          icon: Icons.near_me_outlined,
+                          action: _nearbyTab)),
+                      if (nearby.isNotEmpty)
+                        box(_rail(context, nearby.take(6).toList(),
+                            nearby: true))
+                      else if (_loading)
+                        box(_loadingOfferRail(context, nearby: true))
+                      else
+                        box(inset(_nearbyEmptyCard(context,
+                            areaSelected: _position != null))),
+                      if (_curatedFailed)
+                        box(inset(TextButton(
+                            onPressed: _loadCurated,
+                            child: Text(_t(
+                                'Featured offers could not be refreshed. Retry',
+                                'විශේෂ දීමනා යාවත්කාලීන කළ නොහැක. නැවත උත්සාහ කරන්න',
+                                'சிறப்புச் சலுகைகளைப் புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்'))))),
+                      if (expiring != null)
+                        box(Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                            child: StitchExpiringOfferStrip(
+                                offer: expiring,
+                                now: _now,
+                                onOpen: () => _open(expiring)))),
+                      if (lead.isNotEmpty) ...[
+                        box(_sectionTitle(
+                            context,
+                            _t('Featured offers', 'විශේෂ දීමනා',
+                                'சிறப்புச் சலுகைகள்'),
+                            subtitle: _t(
+                                'Matching offers loaded so far',
+                                'මෙතෙක් පූරණය කළ ගැළපෙන දීමනා',
+                                'இதுவரை ஏற்றப்பட்ட பொருந்தும் சலுகைகள்'),
+                            action: _all)),
+                        box(_rail(context, lead)),
+                      ] else if (_loading) ...[
+                        box(_sectionTitle(context, l10n.featuredDeals)),
+                        box(_loadingOfferRail(context)),
+                      ],
                       if (!_loading && !_offline && visible.isEmpty)
                         box(Padding(
                             padding: const EdgeInsets.all(16),
