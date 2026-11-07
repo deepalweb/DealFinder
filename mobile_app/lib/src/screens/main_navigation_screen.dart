@@ -8,6 +8,7 @@ import 'all_deals_screen.dart';
 import 'stores_screen.dart';
 import 'nearby_deals_screen.dart';
 import '../services/app_session.dart';
+import '../widgets/push_permission_prompt.dart';
 import '../widgets/sign_in_gate.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -45,6 +46,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     super.initState();
     _session = AppSession(userId: widget.userId, token: widget.token);
     AppSession.changes.addListener(_sessionChanged);
+    if (_session.isSignedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) offerPushNotifications(context);
+      });
+    }
   }
 
   @override

@@ -126,6 +126,8 @@ class NotificationService {
       const message = {
         notification: { title, body },
         data: normalizedData,
+        // Must match the channel the mobile app creates in push_notification_service.dart.
+        android: { notification: { channelId: 'dealfinder_general' } },
         token: prefs.channels.push.token
       };
 
