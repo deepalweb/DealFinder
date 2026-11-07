@@ -34,6 +34,20 @@ class PagingApi extends ApiService {
   }
 }
 
+class GridApi extends ApiService {
+  @override
+  Future<List<Promotion>> fetchPromotions({bool forceRefresh = false}) async => [
+        for (var i = 0; i < 7; i++)
+          Promotion(
+              id: '$i',
+              title: 'Offer $i',
+              description: '',
+              merchantName: 'A store with a very long merchant name $i',
+              discount: '${10 + i}% off',
+              endDate: DateTime.now().add(const Duration(days: 30))),
+      ];
+}
+
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   testWidgets('pagination retries the same offset and stops at the actual end',
@@ -83,6 +97,32 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
+  for (final (width, scale, columns) in [
+    (320.0, 1.0, 2),
+    (390.0, 1.0, 2),
+    (320.0, 1.4, 2),
+    (840.0, 1.0, 3),
+    (390.0, 2.0, 1),
+  ]) {
+    testWidgets('all deals shows $columns per row at $width, text x$scale',
+        (tester) async {
+      tester.view.physicalSize = Size(width, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(host(AllDealsScreen(api: GridApi()), scale: scale));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final firstRow = tester.getTopLeft(find.text('Offer 0')).dy;
+      final inFirstRow = [
+        for (var i = 0; i < 4; i++)
+          if (find.text('Offer $i').evaluate().isNotEmpty &&
+              tester.getTopLeft(find.text('Offer $i')).dy == firstRow)
+            i
+      ];
+      expect(inFirstRow.length, columns);
+    });
+  }
   for (final language in ['en', 'si', 'ta']) {
     for (final width in [320.0, 390.0, 840.0]) {
       testWidgets('categories fit $language at $width with double text',
