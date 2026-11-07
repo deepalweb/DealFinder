@@ -52,6 +52,7 @@ class PushNotificationService {
 
   static GlobalKey<NavigatorState>? navigatorKey;
   static bool _localNotificationsInitialized = false;
+  static const _permissionOfferedKey = 'push_permission_offered';
 
   static Future<void> initialize({GlobalKey<NavigatorState>? navKey}) async {
     navigatorKey = navKey;
@@ -91,6 +92,23 @@ class PushNotificationService {
     final status = await getAuthorizationStatus();
     return status == AuthorizationStatus.authorized ||
         status == AuthorizationStatus.provisional;
+  }
+
+  /// True once per install, and only for people who have not already allowed push.
+  static Future<bool> shouldOfferPermission(
+      {Future<bool> Function()? hasPermission}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_permissionOfferedKey) == true) return false;
+      return !await (hasPermission ?? hasNotificationPermission)();
+    } catch (_) {
+      return false; // Notification setup must never block the app.
+    }
+  }
+
+  static Future<void> markPermissionOffered() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_permissionOfferedKey, true);
   }
 
   static Future<String?> requestPermissionAndGetToken() async {

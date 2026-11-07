@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import '../services/app_session.dart';
 import '../screens/login_screen.dart';
+import 'push_permission_prompt.dart';
 
 /// Keep the originating route alive. A cancelled login never runs its action.
 Future<bool> requireSignIn(BuildContext context,
@@ -14,9 +15,13 @@ Future<bool> requireSignIn(BuildContext context,
       fullscreenDialog: true,
     ),
   );
-  return context.mounted &&
-      accepted == true &&
-      (await AppSession.read()).isSignedIn;
+  if (!context.mounted ||
+      accepted != true ||
+      !(await AppSession.read()).isSignedIn) {
+    return false;
+  }
+  if (context.mounted) await offerPushNotifications(context);
+  return context.mounted;
 }
 
 class SignInGate extends StatefulWidget {
