@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:deal_finder_mobile/src/models/promotion.dart';
 import 'package:deal_finder_mobile/src/screens/home_screen.dart';
+import 'package:deal_finder_mobile/src/services/api_service.dart';
 import 'package:deal_finder_mobile/src/services/browsing_area.dart';
 import 'package:deal_finder_mobile/src/widgets/stitch_discover_components.dart';
 import 'design_system_test.dart' show host;
@@ -25,6 +26,19 @@ class DenseFeedApi extends FeedApi {
               bankName: i >= 4 && i < 8 ? 'Fixture Bank' : null,
               visitAvailable: true),
       ];
+  @override
+  Future<CuratedHomeSectionsResponse> fetchCuratedHomeSections() async {
+    final offers = await fetchPromotions();
+    return CuratedHomeSectionsResponse(
+        banner: [],
+        hotDeals: [],
+        newThisWeek: offers.take(4).toList(),
+        flashSales: [],
+        bannerManaged: false,
+        hotDealsManaged: false,
+        newThisWeekManaged: true,
+        flashSalesManaged: false);
+  }
 }
 
 void main() {

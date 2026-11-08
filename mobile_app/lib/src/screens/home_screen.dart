@@ -741,20 +741,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ..sort((a, b) => a.endDate!.compareTo(b.endDate!));
     final expiring = expiryCandidates.isEmpty ? null : expiryCandidates.first;
     if (expiring != null) used.add(OfferPresentation(expiring).identity);
+    final railSeen = <String>{};
+    final fresh = remaining(_curated?.newThisWeek ?? const <Promotion>[])
+        .where((p) => railSeen.add(OfferPresentation(p).identity))
+        .take(6)
+        .toList();
+    used.addAll(fresh.map((p) => OfferPresentation(p).identity));
     final banks = remaining(visible)
         .where(BankCardPromotionSupport.isBankCardPromotion)
         .take(4)
         .toList();
-    final bankIds = banks.map((p) => OfferPresentation(p).identity).toSet();
-    final railSeen = <String>{};
-    final lead = remaining(
-            _sort == 'default' ? [...?_curated?.hotDeals, ...visible] : visible)
-        .where((p) =>
-            !bankIds.contains(OfferPresentation(p).identity) &&
-            railSeen.add(OfferPresentation(p).identity))
-        .take(2)
-        .toList();
-    used.addAll([...lead, ...banks].map((p) => OfferPresentation(p).identity));
+    used.addAll(banks.map((p) => OfferPresentation(p).identity));
     final more = remaining(visible);
     // Independent geographic preview: keep every existing collection unchanged.
     final nearby = visible.where((p) {
@@ -854,20 +851,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                             child: StitchFeaturedBannerCarousel(
                                 offers: banners, onOpen: _open))),
-                      box(_sectionTitle(context, l10n.nearbyDeals,
-                          subtitle: _position == null
-                              ? null
-                              : l10n.withinRadiusLabel(3),
-                          icon: Icons.near_me_outlined,
-                          action: _nearbyTab)),
-                      if (nearby.isNotEmpty)
-                        box(_rail(context, nearby.take(6).toList(),
-                            nearby: true))
-                      else if (_loading)
-                        box(_loadingOfferRail(context, nearby: true))
-                      else
-                        box(inset(_nearbyEmptyCard(context,
-                            areaSelected: _position != null))),
                       if (_curatedFailed)
                         box(inset(TextButton(
                             onPressed: _loadCurated,
@@ -882,19 +865,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                 offer: expiring,
                                 now: _now,
                                 onOpen: () => _open(expiring)))),
-                      if (lead.isNotEmpty) ...[
+                      box(_sectionTitle(context, l10n.nearbyDeals,
+                          subtitle: _position == null
+                              ? null
+                              : l10n.withinRadiusLabel(3),
+                          icon: Icons.near_me_outlined,
+                          action: _nearbyTab)),
+                      if (nearby.isNotEmpty)
+                        box(_rail(context, nearby.take(6).toList(),
+                            nearby: true))
+                      else if (_loading)
+                        box(_loadingOfferRail(context, nearby: true))
+                      else
+                        box(inset(_nearbyEmptyCard(context,
+                            areaSelected: _position != null))),
+                      if (fresh.isNotEmpty) ...[
                         box(_sectionTitle(
                             context,
-                            _t('Featured offers', 'විශේෂ දීමනා',
-                                'சிறப்புச் சலுகைகள்'),
-                            subtitle: _t(
-                                'Matching offers loaded so far',
-                                'මෙතෙක් පූරණය කළ ගැළපෙන දීමනා',
-                                'இதுவரை ஏற்றப்பட்ட பொருந்தும் சலுகைகள்'),
+                            _t('New this week', 'මෙම සතියේ නව දීමනා',
+                                'இந்த வாரப் புதிய சலுகைகள்'),
+                            icon: Icons.fiber_new_outlined,
                             action: _all)),
-                        box(_rail(context, lead)),
-                      ] else if (_loading) ...[
-                        box(_sectionTitle(context, l10n.featuredDeals)),
+                        box(_rail(context, fresh)),
+                      ] else if (_loading && _curated == null) ...[
+                        box(_sectionTitle(
+                            context,
+                            _t('New this week', 'මෙම සතියේ නව දීමනා',
+                                'இந்த வாரப் புதிய சலுகைகள்'))),
                         box(_loadingOfferRail(context)),
                       ],
                       if (!_loading && !_offline && visible.isEmpty)
@@ -925,7 +922,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             actionLabel: bankNames.isEmpty
                                 ? l10n.viewAll
                                 : _t(
-                                    '${bankNames.length} banks',
+                                    bankNames.length == 1
+                                        ? '1 bank'
+                                        : '${bankNames.length} banks',
                                     'බැංකු ${bankNames.length}',
                                     '${bankNames.length} வங்கிகள்'))),
                       if (_api.lastBankOffersFailed)

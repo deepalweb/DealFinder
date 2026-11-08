@@ -130,10 +130,13 @@ void main() {
     expect(find.byType(StitchHorizontalOfferCard), findsNWidgets(2));
     expect(find.byType(StitchBankGridCard), findsNWidgets(4));
     expect(find.byType(StitchFullWidthOfferCard), findsNWidgets(3));
+    expect(find.text('New this week'), findsOneWidget);
+    expect(find.text('Featured offers'), findsNothing);
     final ordered = [
       find.byType(StitchFeaturedBanner),
-      find.text('Nearby Deals'),
       find.byType(StitchExpiringOfferStrip),
+      find.text('Nearby Deals'),
+      find.text('New this week'),
       find.byType(StitchHorizontalOfferCard).first,
       find.byType(StitchBankGridCard).first,
       find.byType(StitchFullWidthOfferCard).first

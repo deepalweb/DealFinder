@@ -156,8 +156,9 @@ void main() {
         scrollable: find.byType(Scrollable).first);
     await tester.scrollUntilVisible(find.text('Low discount'), 100,
         scrollable: find.byType(Scrollable).first);
-    expect(tester.getTopLeft(find.text('Middle discount')).dx,
-        lessThan(tester.getTopLeft(find.text('Low discount')).dx));
+    // Sorted offers now fill the vertical feed rather than a horizontal rail.
+    expect(tester.getTopLeft(find.text('Middle discount')).dy,
+        lessThan(tester.getTopLeft(find.text('Low discount')).dy));
     await tester.drag(find.byType(CustomScrollView), const Offset(0, 3000));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Filters').first);
