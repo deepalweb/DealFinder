@@ -79,11 +79,11 @@ class StitchFixtureApi extends FeedApi {
       CuratedHomeSectionsResponse(
           banner: [offers[0]],
           hotDeals: [offers[2], offers[3]],
-          newThisWeek: [],
+          newThisWeek: [offers[2], offers[3]],
           flashSales: [offers[1]],
           bannerManaged: true,
           hotDealsManaged: true,
-          newThisWeekManaged: false,
+          newThisWeekManaged: true,
           flashSalesManaged: true);
 }
 
