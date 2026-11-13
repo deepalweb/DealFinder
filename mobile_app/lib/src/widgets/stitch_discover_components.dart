@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -39,6 +40,47 @@ String stitchLabel(BuildContext context, String en, String si, String ta) =>
       'ta' => ta,
       _ => en
     };
+
+/// Lightly frosted treatment for small controls that float above scrolling or
+/// map content. Android uses a restrained blur and stronger fill for legibility.
+class StitchGlassSurface extends StatelessWidget {
+  const StitchGlassSurface(
+      {super.key, required this.child, required this.borderRadius});
+  final Widget child;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final highContrast = MediaQuery.highContrastOf(context);
+    final isAndroid = Theme.of(context).platform == TargetPlatform.android;
+    final opacity = highContrast ? 1.0 : (isAndroid ? 0.88 : 0.78);
+    final decoration = BoxDecoration(
+        color: colors.surface.withValues(alpha: opacity),
+        border: Border.all(
+            color: highContrast
+                ? colors.outline
+                : colors.outlineVariant.withValues(alpha: 0.72)),
+        borderRadius: borderRadius,
+        boxShadow: highContrast
+            ? null
+            : [
+                BoxShadow(
+                    color: colors.shadow.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3))
+              ]);
+    final surface = DecoratedBox(decoration: decoration, child: child);
+    return ClipRRect(
+        borderRadius: borderRadius,
+        child: highContrast
+            ? surface
+            : BackdropFilter(
+                filter: ImageFilter.blur(
+                    sigmaX: isAndroid ? 8 : 14, sigmaY: isAndroid ? 8 : 14),
+                child: surface));
+  }
+}
 
 Widget stitchText(BuildContext context, String text,
         {double size = 12,
@@ -189,53 +231,57 @@ class StitchDiscoverSearchBar extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-        child: Material(
-            color: colors.surfaceContainerHighest,
+        child: StitchGlassSurface(
             borderRadius: BorderRadius.circular(24),
-            child: Row(children: [
-              Expanded(
-                  child: InkWell(
-                      onTap: onSearch,
-                      borderRadius: BorderRadius.circular(24),
-                      child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          child: Row(children: [
-                            Icon(Icons.search,
-                                size: 19, color: colors.onSurfaceVariant),
-                            const SizedBox(width: 8),
-                            Expanded(
-                                child: DiscoverSearchHint(
-                                    fontSize: 15,
-                                    maxLines: 1,
-                                    searchLabel: stitchLabel(
-                                        context,
-                                        'Search deals, stores, or banks',
-                                        'දීමනා, වෙළඳසැල් හෝ බැංකු සොයන්න',
-                                        'சலுகைகள், கடைகள் அல்லது வங்கிகளைத் தேடுங்கள்'),
-                                    suggestions: [
-                                  stitchLabel(
-                                      context,
-                                      'Search food, deals, stores or banks',
-                                      'ආහාර, දීමනා හෝ බැංකු සොයන්න',
-                                      'உணவு, சலுகைகள் அல்லது வங்கிகளைத் தேடுங்கள்'),
-                                  stitchLabel(context, 'Try “pizza”',
-                                      '“පීසා” සොයන්න', '“பீட்சா” தேடுங்கள்'),
-                                  stitchLabel(
-                                      context,
-                                      'Try “groceries”',
-                                      '“සිල්ලර බඩු” සොයන්න',
-                                      '“மளிகை” தேடுங்கள்'),
-                                ]))
-                          ])))),
-              IconButton(
-                  tooltip: AppLocalizations.of(context)!.filtersTitle,
-                  onPressed: onFilters,
-                  icon: Badge(
-                      isLabelVisible: count > 0,
-                      label: Text('$count'),
-                      child: const Icon(Icons.tune, size: 19))),
-            ])));
+            child: Material(
+                type: MaterialType.transparency,
+                child: Row(children: [
+                  Expanded(
+                      child: InkWell(
+                          onTap: onSearch,
+                          borderRadius: BorderRadius.circular(24),
+                          child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              child: Row(children: [
+                                Icon(Icons.search,
+                                    size: 19, color: colors.onSurfaceVariant),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                    child: DiscoverSearchHint(
+                                        fontSize: 15,
+                                        maxLines: 1,
+                                        searchLabel: stitchLabel(
+                                            context,
+                                            'Search deals, stores, or banks',
+                                            'දීමනා, වෙළඳසැල් හෝ බැංකු සොයන්න',
+                                            'சலுகைகள், கடைகள் அல்லது வங்கிகளைத் தேடுங்கள்'),
+                                        suggestions: [
+                                      stitchLabel(
+                                          context,
+                                          'Search food, deals, stores or banks',
+                                          'ආහාර, දීමනා හෝ බැංකු සොයන්න',
+                                          'உணவு, சலுகைகள் அல்லது வங்கிகளைத் தேடுங்கள்'),
+                                      stitchLabel(
+                                          context,
+                                          'Try “pizza”',
+                                          '“පීසා” සොයන්න',
+                                          '“பீட்சா” தேடுங்கள்'),
+                                      stitchLabel(
+                                          context,
+                                          'Try “groceries”',
+                                          '“සිල්ලර බඩු” සොයන්න',
+                                          '“மளிகை” தேடுங்கள்'),
+                                    ]))
+                              ])))),
+                  IconButton(
+                      tooltip: AppLocalizations.of(context)!.filtersTitle,
+                      onPressed: onFilters,
+                      icon: Badge(
+                          isLabelVisible: count > 0,
+                          label: Text('$count'),
+                          child: const Icon(Icons.tune, size: 19))),
+                ]))));
   }
 }
 
@@ -247,12 +293,9 @@ class StitchQuickFilters extends StatelessWidget {
       required this.filtered,
       required this.onReset,
       required this.onEnding,
-      required this.onBank,
-      required this.onCategories,
-      this.categoryLabel});
-  final String? categoryLabel;
+      required this.onBank});
   final bool ending, bankOnly, filtered;
-  final VoidCallback onReset, onEnding, onBank, onCategories;
+  final VoidCallback onReset, onEnding, onBank;
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -268,12 +311,6 @@ class StitchQuickFilters extends StatelessWidget {
         AppLocalizations.of(context)!.endingSoonLabel,
         ending,
         onEnding
-      ),
-      (
-        Icons.category_outlined,
-        categoryLabel ?? AppLocalizations.of(context)!.allCategories,
-        categoryLabel != null,
-        onCategories
       ),
       (
         Icons.credit_card,
@@ -348,6 +385,7 @@ class StitchOfferCopy {
       : view.price != null
           ? offerMoney(offer, view.price!)
           : offer.discount?.trim() ?? '';
+  String get discountBadge => offer.discount?.trim() ?? '';
   String get bank => [
         if (offer.bankName?.isNotEmpty == true) offer.bankName!,
         ...offer.cardTypes.map((type) => switch (type) {
@@ -408,11 +446,12 @@ class StitchOfferPhoto extends StatelessWidget {
       this.ratio = 1.8,
       this.bankOnImage = false,
       this.benefitAtBottom = false,
+      this.showBenefit = true,
       this.heart = false});
   final Promotion offer;
   final VoidCallback onOpen;
   final double ratio;
-  final bool bankOnImage, heart;
+  final bool bankOnImage, heart, showBenefit;
   final bool benefitAtBottom;
   @override
   Widget build(BuildContext context) {
@@ -432,21 +471,23 @@ class StitchOfferPhoto extends StatelessWidget {
           right: 50,
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            if (!benefitAtBottom && copy.benefit.isNotEmpty)
-              _badge(context, copy.benefit),
+            if (showBenefit &&
+                !benefitAtBottom &&
+                copy.discountBadge.isNotEmpty)
+              _badge(context, copy.discountBadge),
             if (bankOnImage && offer.bankName?.isNotEmpty == true) ...[
               const SizedBox(height: 4),
               _badge(context, offer.bankName!, green: false)
             ],
           ])),
-      if (benefitAtBottom && copy.benefit.isNotEmpty)
+      if (showBenefit && benefitAtBottom && copy.discountBadge.isNotEmpty)
         Positioned(
             left: 7,
             right: 7,
             bottom: 7,
             child: Align(
                 alignment: Alignment.centerLeft,
-                child: _badge(context, copy.benefit))),
+                child: _badge(context, copy.discountBadge))),
       Positioned(
           right: 1,
           top: 1,
@@ -480,6 +521,11 @@ class StitchFeaturedBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final copy = StitchOfferCopy(context, offer);
+    final headline = copy.discountBadge.isNotEmpty
+        ? '${copy.discountBadge} · ${copy.merchant}'
+        : copy.benefit.isNotEmpty
+            ? '${copy.benefit} · ${copy.merchant}'
+            : copy.merchant;
     return Material(
         color: const Color(0xFF077F5B),
         borderRadius: BorderRadius.circular(15),
@@ -487,21 +533,38 @@ class StitchFeaturedBanner extends StatelessWidget {
         child: InkWell(
             onTap: onOpen,
             child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                  Container(
+                padding: const EdgeInsets.all(8),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  LayoutBuilder(builder: (context, constraints) {
+                    final imageHeight = (constraints.maxWidth * .52)
+                        .clamp(128.0, 180.0)
+                        .toDouble();
+                    return ClipRRect(
+                        borderRadius: BorderRadius.circular(11),
+                        child: SizedBox(
+                            width: double.infinity,
+                            height: imageHeight,
+                            child: Stack(fit: StackFit.expand, children: [
+                              DiscoverOfferImage(offer: offer),
+                              const DecoratedBox(
+                                  decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                    Colors.transparent,
+                                    Color(0xCC002A1D),
+                                  ],
+                                          stops: [
+                                    0.42,
+                                    1
+                                  ]))),
+                              Positioned(
+                                  left: 10,
+                                  top: 10,
+                                  child: Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
+                                          horizontal: 9, vertical: 5),
                                       decoration: BoxDecoration(
                                           color: const Color(0xFFFFE6AC),
                                           borderRadius:
@@ -515,57 +578,66 @@ class StitchFeaturedBanner extends StatelessWidget {
                                               'சிறப்புச் சலுகை'),
                                           size: 9,
                                           weight: FontWeight.w700,
-                                          color: const Color(0xFF533C1A))),
-                                  const SizedBox(height: 8),
-                                  stitchText(
-                                      context,
-                                      copy.benefit.isEmpty
-                                          ? offer.title
-                                          : '${copy.benefit} · ${copy.merchant}',
+                                          color: const Color(0xFF533C1A)))),
+                              Positioned(
+                                  left: 12,
+                                  right: 12,
+                                  bottom: 11,
+                                  child: stitchText(context, headline,
                                       size: 16,
                                       weight: FontWeight.w800,
-                                      color: Colors.white),
-                                  const SizedBox(height: 5),
-                                  stitchText(
-                                      context,
-                                      copy.bank.isNotEmpty
-                                          ? copy.bank
-                                          : offer.title,
-                                      size: 11,
                                       color: Colors.white,
-                                      lines: 2),
-                                ])),
-                            const SizedBox(width: 12),
-                            ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: SizedBox(
-                                    width: 58,
-                                    height: 58,
-                                    child: DiscoverOfferImage(offer: offer))),
-                          ]),
-                      const Divider(height: 16, color: Color(0xFF50A58B)),
-                      _StitchActionLine(
-                          leading: copy.conditions.isEmpty
-                              ? null
-                              : stitchText(context, copy.conditions,
-                                  size: 11, color: Colors.white),
-                          action: TextButton(
-                              style: TextButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  foregroundColor: const Color(0xFF006748),
-                                  padding: EdgeInsets.zero,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(9))),
-                              onPressed: onOpen,
-                              child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 5),
-                                  decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(8)),
-                                  child: Text(AppLocalizations.of(context)!
-                                      .viewOfferLabel)))),
-                    ]))));
+                                      lines: 2)),
+                            ])));
+                  }),
+                  _StitchActionLine(
+                      leading: copy.view.price == null
+                          ? null
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                  Text(offerMoney(offer, copy.view.price!),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w800)),
+                                  if (copy.view.previous != null)
+                                    Wrap(spacing: 7, runSpacing: 2, children: [
+                                      Text(
+                                          offerMoney(
+                                              offer, copy.view.previous!),
+                                          style: const TextStyle(
+                                              color: Color(0xFFD5EEE5),
+                                              fontSize: 10,
+                                              decoration:
+                                                  TextDecoration.lineThrough)),
+                                      if (copy.view.savings != null)
+                                        Text(
+                                            '${stitchLabel(context, 'Save', 'ඉතිරි', 'சேமி')} ${offerMoney(offer, copy.view.savings!)}',
+                                            style: const TextStyle(
+                                                color: Color(0xFFD5EEE5),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700)),
+                                    ]),
+                                ]),
+                      action: TextButton(
+                          style: TextButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: const Color(0xFF006748),
+                              padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9))),
+                          onPressed: onOpen,
+                          child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 5),
+                              decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8)),
+                              child: Text(AppLocalizations.of(context)!
+                                  .viewOfferLabel)))),
+                ]))));
   }
 }
 
@@ -786,6 +858,17 @@ class StitchNearbyOfferCard extends StatelessWidget {
       _StitchOfferCard(offer: offer, onOpen: onOpen, kind: 'nearby');
 }
 
+class StitchExpiringOfferCard extends StatelessWidget {
+  const StitchExpiringOfferCard(
+      {super.key, required this.offer, required this.onOpen, this.now});
+  final Promotion offer;
+  final DateTime? now;
+  final VoidCallback onOpen;
+  @override
+  Widget build(BuildContext context) => _StitchOfferCard(
+      offer: offer, onOpen: onOpen, kind: 'expiring', now: now);
+}
+
 class StitchBankGridCard extends StatelessWidget {
   const StitchBankGridCard(
       {super.key, required this.offer, required this.onOpen});
@@ -808,16 +891,29 @@ class StitchFullWidthOfferCard extends StatelessWidget {
 
 class _StitchOfferCard extends StatelessWidget {
   const _StitchOfferCard(
-      {required this.offer, required this.onOpen, required this.kind});
+      {required this.offer,
+      required this.onOpen,
+      required this.kind,
+      this.now});
   final Promotion offer;
   final VoidCallback onOpen;
   final String kind;
+  final DateTime? now;
   @override
   Widget build(BuildContext context) {
     final copy = StitchOfferCopy(context, offer);
     final colors = Theme.of(context).colorScheme;
     final feed = kind == 'feed', bank = kind == 'bank';
+    final expiring = kind == 'expiring';
     final large = MediaQuery.textScalerOf(context).scale(16) > 24;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    if ((feed || kind == 'nearby') &&
+        !large &&
+        screenWidth >= 320 &&
+        screenWidth < 620) {
+      return _StitchHorizontalFeedCard(
+          offer: offer, onOpen: onOpen, copy: copy);
+    }
     return Material(
         color: colors.surfaceContainerLowest,
         shape: RoundedRectangleBorder(
@@ -838,8 +934,9 @@ class _StitchOfferCard extends StatelessWidget {
                           : bank
                               ? 1.8
                               : 2.0,
-                      bankOnImage: !bank,
-                      benefitAtBottom: bank,
+                      bankOnImage: true,
+                      benefitAtBottom: true,
+                      showBenefit: true,
                       heart: bank))),
           InkWell(
               onTap: onOpen,
@@ -847,7 +944,8 @@ class _StitchOfferCard extends StatelessWidget {
                   padding: EdgeInsets.fromLTRB(
                       feed ? 13 : 9, feed ? 0 : 9, feed ? 13 : 9, 9),
                   child: !feed
-                      ? _StitchCompactSummary(offer: offer)
+                      ? _StitchCompactSummary(
+                          offer: offer, showExpiry: expiring, now: now)
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -941,10 +1039,146 @@ class _StitchOfferCard extends StatelessWidget {
   }
 }
 
+/// Full-width discovery rows keep the offer photo and key details visible together.
+class _StitchHorizontalFeedCard extends StatelessWidget {
+  const _StitchHorizontalFeedCard(
+      {required this.offer, required this.onOpen, required this.copy});
+  final Promotion offer;
+  final VoidCallback onOpen;
+  final StitchOfferCopy copy;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final imageWidth = (MediaQuery.sizeOf(context).width * .36)
+        .clamp(116.0, 148.0)
+        .toDouble();
+    final price = copy.view.price;
+    final priceText = copy.view.useDiscountHeadline
+        ? copy.benefit
+        : price != null
+            ? offerMoney(offer, price)
+            : copy.benefit;
+    final description = offer.description.trim();
+    final showDescription = description.isNotEmpty &&
+        description.toLowerCase() != 'no description' &&
+        description.trim() != offer.title.trim();
+
+    return Material(
+      color: colors.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: colors.outlineVariant)),
+      clipBehavior: Clip.antiAlias,
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(
+            width: imageWidth,
+            height: 160,
+            child: StitchOfferPhoto(
+                offer: offer,
+                onOpen: onOpen,
+                ratio: imageWidth / 160,
+                bankOnImage: true,
+                benefitAtBottom: true,
+                heart: true)),
+        Expanded(
+            child: SizedBox(
+                height: 160,
+                child: InkWell(
+                    onTap: onOpen,
+                    child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (copy.merchant != offer.title.trim()) ...[
+                            Text(copy.merchant,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelLarge
+                                    ?.copyWith(
+                                        color: colors.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 3),
+                          ],
+                          Text(offer.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700)),
+                          if (showDescription) ...[
+                            const SizedBox(height: 3),
+                            Text(description,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: colors.onSurfaceVariant)),
+                          ],
+                          if (priceText.isNotEmpty) ...[
+                            const SizedBox(height: 7),
+                            Wrap(
+                                spacing: 7,
+                                runSpacing: 2,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(priceText,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleSmall
+                                          ?.copyWith(
+                                              color: colors.primary,
+                                              fontWeight: FontWeight.w800)),
+                                  if (copy.view.previous != null)
+                                    Text(
+                                        offerMoney(
+                                            offer, copy.view.previous!),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                                decoration: TextDecoration
+                                                    .lineThrough,
+                                                color:
+                                                    colors.onSurfaceVariant)),
+                                ]),
+                          ],
+                          if (copy.bank.isNotEmpty ||
+                              copy.metadata.isNotEmpty) ...[
+                            const SizedBox(height: 5),
+                            Text(
+                                [
+                                  if (copy.bank.isNotEmpty) copy.bank,
+                                  if (copy.metadata.isNotEmpty) copy.metadata,
+                                ].join(' · '),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(color: colors.onSurfaceVariant)),
+                          ],
+                        ])))))
+      ]),
+    );
+  }
+}
+
 /// Shared compact content geometry; full-width feed cards retain their own layout.
 class _StitchCompactSummary extends StatelessWidget {
-  const _StitchCompactSummary({required this.offer});
+  const _StitchCompactSummary(
+      {required this.offer, this.showExpiry = false, this.now});
   final Promotion offer;
+  final bool showExpiry;
+  final DateTime? now;
 
   @override
   Widget build(BuildContext context) {
@@ -958,11 +1192,17 @@ class _StitchCompactSummary extends StatelessWidget {
         rating <= 5 &&
         offer.ratingsCount > 0;
     final distance = copy.view.distance;
-    final ratingText = rated
-        ? '${rating.toStringAsFixed(1)} (${offer.ratingsCount})'
-        : stitchLabel(context, 'Not rated', 'ඇගයීම් නැත', 'மதிப்பீடு இல்லை');
+    final remaining = offer.endDate?.difference(now ?? DateTime.now());
+    final expiryText = remaining == null
+        ? null
+        : remaining.inDays >= 1
+            ? '${remaining.inDays} d'
+            : remaining.inHours >= 1
+                ? '${remaining.inHours} h ${remaining.inMinutes % 60} m'
+                : '${remaining.inMinutes.clamp(0, 59)} m';
+    final merchant = offer.merchantName?.trim() ?? '';
     final distanceText = distance == null
-        ? '—'
+        ? null
         : '≈ ${distance < 1000 ? '${distance.round()} m' : '${(distance / 1000).toStringAsFixed(1)} km'}';
     Widget slot(String value, double size,
             {int lines = 1,
@@ -986,19 +1226,99 @@ class _StitchCompactSummary extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           slot(offer.title, 16, lines: 2, weight: FontWeight.w700),
-          const SizedBox(height: 4),
-          slot(
-              offer.merchantName?.trim().isNotEmpty == true
-                  ? offer.merchantName!
-                  : '—',
-              14,
-              color: colors.onSurfaceVariant),
-          const SizedBox(height: 4),
-          slot(ratingText, 13, color: colors.onSurfaceVariant),
-          slot(distanceText, 13, color: colors.onSurfaceVariant),
-          const SizedBox(height: 4),
-          slot(copy.benefit.isNotEmpty ? copy.benefit : '—', 18,
-              lines: 2, weight: FontWeight.w700, color: colors.primary),
+          if (merchant.isNotEmpty && merchant != offer.title.trim()) ...[
+            const SizedBox(height: 4),
+            slot(merchant, 14, color: colors.onSurfaceVariant),
+          ],
+          if (rated || distanceText != null) ...[
+            const SizedBox(height: 6),
+            Wrap(spacing: 10, runSpacing: 4, children: [
+              if (rated)
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.star_rounded,
+                      size: 14, color: Color(0xFFE3A51A)),
+                  const SizedBox(width: 3),
+                  Text('${rating.toStringAsFixed(1)} (${offer.ratingsCount})',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium
+                          ?.copyWith(color: colors.onSurfaceVariant))
+                ]),
+              if (distanceText != null)
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.place_outlined,
+                      size: 14, color: colors.onSurfaceVariant),
+                  const SizedBox(width: 3),
+                  Text(distanceText,
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium
+                          ?.copyWith(color: colors.onSurfaceVariant))
+                ]),
+            ]),
+          ],
+          if (showExpiry && expiryText != null) ...[
+            const SizedBox(height: 7),
+            Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                    color: colors.errorContainer,
+                    borderRadius: BorderRadius.circular(7)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.schedule_rounded,
+                      size: 14, color: colors.onErrorContainer),
+                  const SizedBox(width: 5),
+                  Flexible(
+                      child: Text(
+                          '${stitchLabel(context, 'Ends in', 'අවසන් වීමට', 'முடிய இன்னும்')} $expiryText',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                  color: colors.onErrorContainer,
+                                  fontWeight: FontWeight.w700)))
+                ])),
+          ],
+          const SizedBox(height: 7),
+          Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 7,
+              runSpacing: 3,
+              children: [
+                Text(
+                    copy.view.price != null
+                        ? offerMoney(offer, copy.view.price!)
+                        : copy.benefit.isNotEmpty
+                            ? copy.benefit
+                            : '—',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800, color: colors.primary)),
+                if (copy.view.previous != null)
+                  Text(offerMoney(offer, copy.view.previous!),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          decoration: TextDecoration.lineThrough,
+                          color: colors.onSurfaceVariant)),
+                if (copy.view.savings != null)
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: colors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color:
+                                  colors.outlineVariant.withValues(alpha: .7))),
+                      child: Text(
+                          '${stitchLabel(context, 'Save', 'ඉතිරි', 'சேமி')} ${offerMoney(offer, copy.view.savings!)}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                  color: colors.onSecondaryContainer,
+                                  fontWeight: FontWeight.w700))),
+              ]),
         ]);
   }
 }

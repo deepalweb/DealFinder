@@ -335,12 +335,14 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
   }
 
   Widget _mapButton(String label, IconData icon, VoidCallback? onTap) =>
-      Material(
-          color: Theme.of(context).colorScheme.surfaceContainerLowest,
-          shape: const CircleBorder(),
-          elevation: 2,
-          child:
-              IconButton(tooltip: label, onPressed: onTap, icon: Icon(icon)));
+      StitchGlassSurface(
+          borderRadius: BorderRadius.circular(24),
+          child: Material(
+              type: MaterialType.transparency,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child:
+                  IconButton(tooltip: label, onPressed: onTap, icon: Icon(icon))));
 
   List<List<Promotion>> _groups(List<Promotion> offers) {
     final groups = <List<Promotion>>[];
@@ -621,18 +623,21 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
                           right: 76,
                           child: Align(
                               alignment: Alignment.center,
-                              child: FilledButton.tonalIcon(
-                                  style: FilledButton.styleFrom(
-                                      backgroundColor: theme
-                                          .colorScheme.surfaceContainerLowest,
-                                      foregroundColor:
-                                          theme.colorScheme.primary,
-                                      elevation: 2),
-                                  onPressed: _data.loading ? null : _searchMap,
-                                  icon: const Icon(Icons.refresh),
-                                  label: Text(_dirty
-                                      ? l10n.searchThisAreaLabel
-                                      : l10n.refreshAreaLabel)))),
+                              child: StitchGlassSurface(
+                                  borderRadius: BorderRadius.circular(22),
+                                  child: FilledButton.tonalIcon(
+                                      style: FilledButton.styleFrom(
+                                          backgroundColor: Colors.transparent,
+                                          foregroundColor:
+                                              theme.colorScheme.primary,
+                                          elevation: 0,
+                                          minimumSize: const Size(48, 48)),
+                                      onPressed:
+                                          _data.loading ? null : _searchMap,
+                                      icon: const Icon(Icons.refresh),
+                                      label: Text(_dirty
+                                          ? l10n.searchThisAreaLabel
+                                          : l10n.refreshAreaLabel))))),
                     if (!_expanded)
                       Positioned(
                           top: 12,

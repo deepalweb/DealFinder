@@ -13,6 +13,7 @@ import '../services/browsing_area.dart';
 import '../services/app_session.dart';
 import '../utils/bank_card_promotion_support.dart';
 import '../widgets/discover_filter_sheet.dart';
+import '../widgets/discover_category_strip.dart';
 import 'categories_screen.dart';
 import '../utils/offer_presentation.dart';
 import '../widgets/sign_in_gate.dart';
@@ -399,7 +400,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _all() => Navigator.push(
+  void _all({String? primaryFilter}) => Navigator.push(
       context,
       MaterialPageRoute(
           builder: (_) => AllDealsScreen(
@@ -407,8 +408,10 @@ class _HomeScreenState extends State<HomeScreen> {
               initialCategoryId: _category,
               initialCapabilityPresetId: _fulfillment,
               bankOffersOnly: _bankOnly,
-              initialPrimaryFilter: _endingOnly ? 'ending_soon' : null,
+              initialPrimaryFilter:
+                  primaryFilter ?? (_endingOnly ? 'ending_soon' : null),
               initialSortBy: _sort == 'default' ? null : _sort)));
+  void _allEndingSoon() => _all(primaryFilter: 'ending_soon');
   void _stores() => Navigator.push(
       context, MaterialPageRoute(builder: (_) => const StoresScreen()));
 
@@ -530,12 +533,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _rail(BuildContext context, List<Promotion> offers,
-      {bool nearby = false}) {
+      {bool nearby = false, bool expiring = false}) {
     Widget card(Promotion offer) => nearby
         ? StitchNearbyOfferCard(
             key: ValueKey('nearby:${OfferPresentation(offer).identity}'),
             offer: offer,
             onOpen: () => _open(offer))
+        : expiring
+            ? StitchExpiringOfferCard(
+                key: ValueKey('expiring:${OfferPresentation(offer).identity}'),
+                offer: offer,
+                now: _now,
+                onOpen: () => _open(offer))
         : StitchHorizontalOfferCard(
             key: ValueKey(OfferPresentation(offer).identity),
             offer: offer,
@@ -558,8 +567,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.only(right: 12),
                     child: SizedBox(
                         width: nearby
-                            ? ((MediaQuery.sizeOf(context).width - 44) / 2)
-                                .clamp(160.0, 210.0)
+                            ? (MediaQuery.sizeOf(context).width * .86)
+                                .clamp(300.0, 380.0)
+                                .toDouble()
                             : (MediaQuery.sizeOf(context).width * .66)
                                 .clamp(228.0, 350.0),
                         child: card(offer))))
@@ -732,15 +742,19 @@ class _HomeScreenState extends State<HomeScreen> {
         ? curatedBanners
         : visible.where((p) => p.featured == true));
     used.addAll(banners.map((p) => OfferPresentation(p).identity));
-    final expiryCandidates = remaining([...visible, ...?_curated?.flashSales])
+    final expirySeen = <String>{};
+    final expiryCandidates = [...visible, ...?_curated?.flashSales]
+        .where(_eligible)
+        .map(_withDistance)
         .where((p) =>
             p.endDate != null &&
             p.endDate!.isAfter(_now) &&
-            p.endDate!.difference(_now).inHours <= 72)
+            p.endDate!.difference(_now) <= const Duration(days: 7) &&
+            expirySeen.add(OfferPresentation(p).identity))
         .toList()
       ..sort((a, b) => a.endDate!.compareTo(b.endDate!));
-    final expiring = expiryCandidates.isEmpty ? null : expiryCandidates.first;
-    if (expiring != null) used.add(OfferPresentation(expiring).identity);
+    final expiring = expiryCandidates.take(6).toList();
+    used.addAll(expiring.map((p) => OfferPresentation(p).identity));
     final railSeen = <String>{};
     final fresh = remaining(_curated?.newThisWeek ?? const <Promotion>[])
         .where((p) => railSeen.add(OfferPresentation(p).identity))
@@ -798,28 +812,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           pinned: true,
                           delegate: HybridSearchHeader(
                               height: large ? 66 : 56,
-                              child: ColoredBox(
-                                  color: colors.surface,
-                                  child: StitchDiscoverSearchBar(
-                                      count: _filterCount,
-                                      onSearch: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  const SearchScreen())),
-                                      onFilters: _showFilters)))),
+                              child: StitchDiscoverSearchBar(
+                                  count: _filterCount,
+                                  onSearch: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) =>
+                                              const SearchScreen())),
+                                  onFilters: _showFilters))),
                       box(StitchQuickFilters(
-                          categoryLabel: _category == null
-                              ? null
-                              : getCategoryLabel(_category!),
                           ending: _endingOnly,
                           bankOnly: _bankOnly,
                           filtered: _filterCount > 0,
                           onReset: _clearFilters,
                           onEnding: () =>
                               setState(() => _endingOnly = !_endingOnly),
-                          onBank: () => setState(() => _bankOnly = !_bankOnly),
-                          onCategories: _showFilters)),
+                          onBank: () => setState(() => _bankOnly = !_bankOnly))),
                       if (_filterCount > 0)
                         box(inset(Align(
                             alignment: Alignment.centerLeft,
@@ -846,6 +854,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               TextButton(
                                   onPressed: _load, child: Text(l10n.retry)),
                             ]))),
+                      box(_sectionTitle(
+                          context,
+                          l10n.browseCategoriesTitle,
+                          action: _categories,
+                          actionLabel: l10n.allCategories)),
+                      box(DiscoverCategoryStrip(
+                          selected: _category,
+                          onSelected: (category) =>
+                              setState(() => _category = category),
+                          onAll: _categories)),
                       if (banners.isNotEmpty)
                         box(Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -858,13 +876,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'Featured offers could not be refreshed. Retry',
                                 'විශේෂ දීමනා යාවත්කාලීන කළ නොහැක. නැවත උත්සාහ කරන්න',
                                 'சிறப்புச் சலுகைகளைப் புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்'))))),
-                      if (expiring != null)
-                        box(Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                            child: StitchExpiringOfferStrip(
-                                offer: expiring,
-                                now: _now,
-                                onOpen: () => _open(expiring)))),
                       box(_sectionTitle(context, l10n.nearbyDeals,
                           subtitle: _position == null
                               ? null
@@ -879,6 +890,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       else
                         box(inset(_nearbyEmptyCard(context,
                             areaSelected: _position != null))),
+                      if (expiring.isNotEmpty) ...[
+                        box(_sectionTitle(
+                            context,
+                            _t('Ending soon', 'ළඟදීම අවසන් වන දීමනා',
+                                'விரைவில் முடியும் சலுகைகள்'),
+                            icon: Icons.timer_outlined,
+                            action: _allEndingSoon)),
+                        box(_rail(context, expiring, expiring: true)),
+                      ],
                       if (fresh.isNotEmpty) ...[
                         box(_sectionTitle(
                             context,

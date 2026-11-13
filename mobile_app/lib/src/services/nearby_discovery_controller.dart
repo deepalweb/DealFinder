@@ -82,13 +82,16 @@ class NearbyDiscoveryController extends ChangeNotifier {
   Future<void> initialize() async {
     final generation = _generation;
     final prefs = await SharedPreferences.getInstance();
-    final restored = await BrowsingArea.read();
+    // Discovery may already have selected a location in memory before this
+    // tab is first opened. Prefer that latest shared value over storage.
+    final restored =
+        BrowsingArea.changes.value ?? await BrowsingArea.read();
     if (_disposed) return;
     if (_generation != generation) {
       await loadMerchants();
       return;
     }
-    area = restored ?? BrowsingArea.initial;
+    area = BrowsingArea.changes.value ?? restored ?? BrowsingArea.initial;
     final savedRadius = prefs.getDouble('nearby_radius');
     if ([1.0, 3.0, 5.0, 10.0].contains(savedRadius)) radius = savedRadius!;
     if (_disposed) return;

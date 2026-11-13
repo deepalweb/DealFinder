@@ -1128,6 +1128,12 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
     final dateFormat =
         DateFormat.yMMMd(Localizations.localeOf(context).toLanguageTag());
     final orderLink = _effectiveOrderLink;
+    final onlineDealLink = OfferPresentation(promotion).onlineOnly
+        ? ((promotion.url?.trim().isNotEmpty == true
+                ? promotion.url!.trim()
+                : orderLink ?? promotion.websiteUrl?.trim()) ??
+            '')
+        : '';
     final deepLink = '${AppConfig.publicBaseUrl}/deal/${promotion.id}';
     final hasMerchant =
         promotion.merchantName != null && promotion.merchantName!.isNotEmpty;
@@ -1199,6 +1205,24 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
         const DealVerificationBadge(compact: false),
     ];
     final primaryActionButtons = <Widget>[
+      if (onlineDealLink.isNotEmpty)
+        Semantics(
+          button: true,
+          label: _t(
+            'View online deal',
+            'මාර්ගගත deal එක බලන්න',
+            'ஆன்லைன் சலுகையைப் பார்க்கவும்',
+          ),
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: Text(_t(
+              'View online deal',
+              'මාර්ගගත deal එක බලන්න',
+              'ஆன்லைன் சலுகையைப் பார்க்கவும்',
+            )),
+            onPressed: () => _launchURL(onlineDealLink),
+          ),
+        ),
       if (_showsVisitNow &&
           (_supportsDelivery || _supportsPickup) &&
           orderLink != null &&
@@ -1338,7 +1362,19 @@ class _DealDetailScreenState extends State<DealDetailScreen> {
           ),
         ),
     ];
-    final _StickyActionConfig? stickyPrimaryAction = (_supportsDelivery ||
+    final _StickyActionConfig? stickyPrimaryAction = onlineDealLink.isNotEmpty
+        ? _StickyActionConfig(
+            label: _t(
+              'View online deal',
+              'මාර්ගගත deal එක බලන්න',
+              'ஆன்லைன் சலுகையைப் பார்க்கவும்',
+            ),
+            icon: Icons.open_in_new_rounded,
+            onPressed: () => _launchURL(onlineDealLink),
+            backgroundColor: AppColors.brand,
+            foregroundColor: AppColors.sand,
+          )
+        : (_supportsDelivery ||
                 _supportsPickup) &&
             orderLink != null &&
             orderLink.isNotEmpty
