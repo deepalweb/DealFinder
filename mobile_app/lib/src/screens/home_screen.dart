@@ -499,38 +499,13 @@ class _HomeScreenState extends State<HomeScreen> {
       {String? subtitle,
       VoidCallback? action,
       String? actionLabel,
-      IconData? icon}) {
-    final colors = Theme.of(context).colorScheme;
-    final large = MediaQuery.textScalerOf(context).scale(16) > 24;
-    final heading =
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Wrap(
-          spacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            if (icon != null) Icon(icon, size: 18, color: colors.primary),
-            stitchText(context, title, size: 15, weight: FontWeight.w700),
-          ]),
-      if (subtitle != null) ...[
-        const SizedBox(height: 3),
-        stitchText(context, subtitle, size: 11, color: colors.onSurfaceVariant)
-      ],
-    ]);
-    return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 12, 10),
-        child: Flex(
-            direction: large ? Axis.vertical : Axis.horizontal,
-            crossAxisAlignment:
-                large ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-            children: [
-              if (large) heading else Expanded(child: heading),
-              if (action != null)
-                TextButton(
-                    onPressed: action,
-                    child: Text(
-                        actionLabel ?? AppLocalizations.of(context)!.viewAll))
-            ]));
-  }
+      IconData? icon}) =>
+      StitchSectionHeading(
+          title: title,
+          subtitle: subtitle,
+          action: action,
+          actionLabel: actionLabel,
+          icon: icon);
 
   Widget _rail(BuildContext context, List<Promotion> offers,
       {bool nearby = false, bool expiring = false}) {

@@ -2,10 +2,12 @@ import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
 import '../config/app_theme.dart';
 import 'deal_pills.dart';
+import 'deal_verification_badge.dart';
 
 class ModernDealCard extends StatefulWidget {
   final Promotion promotion;
@@ -111,6 +113,7 @@ class _ModernDealCardState extends State<ModernDealCard> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final p = widget.promotion;
+    final l10n = AppLocalizations.of(context)!;
     final distance = _formatDistance(p.distance);
     final currentPrice = p.discountedPrice ?? p.price ?? p.originalPrice;
     final discount = p.discountPercentage != null
@@ -120,8 +123,12 @@ class _ModernDealCardState extends State<ModernDealCard> {
         ? (_timeLeft == Duration.zero
             ? 'Expired'
             : _formatCountdown(_timeLeft!))
-        : null;
-    final verified = p.trustStatus == 'verified';
+        : p.endDate == null
+            ? null
+            : l10n.offerEndsOn(DateFormat.yMMMd(
+                    Localizations.localeOf(context).toLanguageTag())
+                .format(p.endDate!));
+    final trustStatus = p.trustStatus ?? (p.adminVerified ? 'verified' : null);
     return Semantics(
       button: widget.onTap != null,
       child: Material(
@@ -180,14 +187,16 @@ class _ModernDealCardState extends State<ModernDealCard> {
                                               fontSize: 14,
                                               color: scheme.onSurfaceVariant,
                                               fontWeight: FontWeight.w500))),
-                                  if (verified)
-                                    Tooltip(
-                                        message: AppLocalizations.of(context)!
-                                            .verifiedDealLabel,
-                                        child: const Icon(
-                                            Icons.verified_rounded,
-                                            size: 16,
-                                            color: AppColors.betelGreen)),
+                                  if (trustStatus == 'verified')
+                                    DealVerificationBadge(
+                                      status: 'verified',
+                                      label: l10n.verifiedDealLabel,
+                                    )
+                                  else if (trustStatus == 'reported')
+                                    DealVerificationBadge(
+                                      status: 'reported',
+                                      label: l10n.reportedDealLabel,
+                                    ),
                                 ]),
                               const SizedBox(height: 6),
                               Text(p.title,

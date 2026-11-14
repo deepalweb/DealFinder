@@ -885,6 +885,9 @@ class AppLocalizationsSi extends AppLocalizations {
   String get verifiedDealLabel => 'තහවුරු කළ දීමනාව';
 
   @override
+  String get reportedDealLabel => 'ගැටලුවක් වාර්තා කර ඇත';
+
+  @override
   String get caughtUpTitle => 'සියලු දැනුම්දීම් බලා අවසන්';
 
   @override

@@ -12,6 +12,18 @@ import 'discover_search_hint.dart';
 import 'discovery_offer_card.dart';
 import 'offer_save_button.dart';
 
+/// Shared visual tokens for the Discovery surface.
+/// Keep structure reusable while resolving colors and typography from ThemeData.
+class StitchDiscoverTokens {
+  StitchDiscoverTokens._();
+
+  static const pageGutter = 16.0;
+  static const sectionTop = 20.0;
+  static const sectionBottom = 10.0;
+  static const cardRadius = 16.0;
+  static const pillRadius = 24.0;
+}
+
 /// Compact control sizing for the marketplace screens. Colors come from AppTheme.
 ThemeData stitchDiscoverTheme(ThemeData base) {
   final scheme = base.colorScheme;
@@ -96,6 +108,65 @@ Widget stitchText(BuildContext context, String text,
             height: 1.25,
             fontWeight: weight,
             color: color));
+
+/// Composable section heading with a predictable hierarchy and an accessible
+/// heading role for screen readers.
+class StitchSectionHeading extends StatelessWidget {
+  const StitchSectionHeading(
+      {super.key,
+      required this.title,
+      this.subtitle,
+      this.action,
+      this.actionLabel,
+      this.icon});
+
+  final String title;
+  final String? subtitle;
+  final VoidCallback? action;
+  final String? actionLabel;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final large = MediaQuery.textScalerOf(context).scale(16) > 24;
+    final heading = Semantics(
+        header: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(
+              spacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (icon != null) Icon(icon, size: 18, color: colors.primary),
+                stitchText(context, title, size: 15, weight: FontWeight.w700),
+              ]),
+          if (subtitle != null) ...[
+            const SizedBox(height: 3),
+            stitchText(context, subtitle!,
+                size: 11, color: colors.onSurfaceVariant)
+          ],
+        ]));
+
+    return Padding(
+        padding: const EdgeInsets.fromLTRB(
+            StitchDiscoverTokens.pageGutter,
+            StitchDiscoverTokens.sectionTop,
+            12,
+            StitchDiscoverTokens.sectionBottom),
+        child: Flex(
+            direction: large ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment:
+                large ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+            children: [
+              if (large) heading else Expanded(child: heading),
+              if (action != null)
+                TextButton(
+                    onPressed: action,
+                    child: Text(actionLabel ??
+                        AppLocalizations.of(context)!.viewAll))
+            ]));
+  }
+}
 
 class StitchLocationHeader extends StatelessWidget {
   const StitchLocationHeader(
@@ -232,14 +303,16 @@ class StitchDiscoverSearchBar extends StatelessWidget {
     return Padding(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
         child: StitchGlassSurface(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius:
+                BorderRadius.circular(StitchDiscoverTokens.pillRadius),
             child: Material(
                 type: MaterialType.transparency,
                 child: Row(children: [
                   Expanded(
                       child: InkWell(
                           onTap: onSearch,
-                          borderRadius: BorderRadius.circular(24),
+                          borderRadius:
+                              BorderRadius.circular(StitchDiscoverTokens.pillRadius),
                           child: Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 12, vertical: 12),
@@ -331,7 +404,8 @@ class StitchQuickFilters extends StatelessWidget {
                         button: true,
                         child: InkWell(
                             onTap: item.$4,
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(
+                                StitchDiscoverTokens.pillRadius),
                             child: Container(
                                 constraints:
                                     const BoxConstraints(minHeight: 44),
@@ -343,8 +417,8 @@ class StitchQuickFilters extends StatelessWidget {
                                         color: item.$3
                                             ? colors.primary
                                             : colors.surfaceContainerHighest,
-                                        borderRadius:
-                                            BorderRadius.circular(24)),
+                                        borderRadius: BorderRadius.circular(
+                                            StitchDiscoverTokens.pillRadius)),
                                     child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
@@ -917,7 +991,8 @@ class _StitchOfferCard extends StatelessWidget {
     return Material(
         color: colors.surfaceContainerLowest,
         shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(13),
+            borderRadius:
+                BorderRadius.circular(StitchDiscoverTokens.cardRadius),
             side: BorderSide(color: colors.outlineVariant)),
         clipBehavior: Clip.antiAlias,
         child:
@@ -1067,7 +1142,8 @@ class _StitchHorizontalFeedCard extends StatelessWidget {
     return Material(
       color: colors.surfaceContainerLowest,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius:
+              BorderRadius.circular(StitchDiscoverTokens.cardRadius),
           side: BorderSide(color: colors.outlineVariant)),
       clipBehavior: Clip.antiAlias,
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [

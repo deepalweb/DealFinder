@@ -58,18 +58,24 @@ The tool never deletes source objects. Review its report before applying it.
 ## GitHub deployments
 
 Connect the repository under **Workers & Pages → dealfinder → Settings →
-Builds**. Configure:
+Builds**. The Wrangler config and Cloudflare package are both in `cloudflare/`;
+the Dockerfile and container build context are referenced relative to that
+folder. Configure:
 
 | Setting | Value |
 |---|---|
-| Root directory | `cloudflare` |
-| Build command | *(empty)* |
+| Root directory | `/cloudflare` |
+| Build command | `npm ci` |
 | Deploy command | `npx wrangler deploy` |
 | Production branch | Choose the branch you want Cloudflare to deploy |
 
-Preview builds should use a deploy command that publishes the container image,
-not only Worker code. Confirm the branch and last deployment in the Cloudflare
-dashboard after connecting Builds.
+The root directory must point to `cloudflare/` so Wrangler finds
+`wrangler.jsonc`; from the repository root, plain `npx wrangler deploy` can
+fall back to static-assets detection and produce “Could not detect a directory
+containing static files.” `npm ci` installs the locked Wrangler and
+`@cloudflare/containers` dependencies before deployment. Confirm the
+production branch and last deployment in the Cloudflare dashboard after
+saving these settings.
 
 ## Operations
 

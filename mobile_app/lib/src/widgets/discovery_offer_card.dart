@@ -4,6 +4,7 @@ import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import '../models/promotion.dart';
 import '../services/image_helper.dart';
 import 'offer_save_button.dart';
+import 'deal_verification_badge.dart';
 
 String offerMoney(Promotion offer, double amount) => NumberFormat.currency(
       name: offer.merchantCurrency ?? 'LKR',
@@ -135,8 +136,15 @@ class DiscoveryOfferCard extends StatelessWidget {
                                   style: theme.textTheme.bodySmall),
                             if (offer.adminVerified ||
                                 offer.trustStatus == 'verified')
-                              Icon(Icons.verified_outlined,
-                                  size: 16, color: theme.colorScheme.primary),
+                              DealVerificationBadge(
+                                status: 'verified',
+                                label: l10n.verifiedDealLabel,
+                              )
+                            else if (offer.trustStatus == 'reported')
+                              DealVerificationBadge(
+                                status: 'reported',
+                                label: l10n.reportedDealLabel,
+                              ),
                             if (offer.distance != null)
                               Text(
                                   offer.distance! < 1000

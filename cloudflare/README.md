@@ -25,9 +25,10 @@ npx wrangler deploy
 ```
 
 Cloudflare Workers Builds can deploy pushes from GitHub. Connect the repository
-under **Workers & Pages → dealfinder → Settings → Builds** and set the root to
-`cloudflare`, the build command to empty, and the deploy command to
-`npx wrangler deploy`.
+under **Workers & Pages → dealfinder → Settings → Builds**. Set the root
+directory to `/cloudflare`, the build command to `npm ci`, and the deploy
+command to `npx wrangler deploy`. This runs Wrangler alongside the config and
+dependencies declared in this directory.
 
 ## Required Worker configuration
 
