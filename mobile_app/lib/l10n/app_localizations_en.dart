@@ -889,6 +889,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get verifiedDealLabel => 'Verified deal';
 
   @override
+  String get reportedDealLabel => 'Reported issue';
+
+  @override
   String get caughtUpTitle => 'You are all caught up';
 
   @override

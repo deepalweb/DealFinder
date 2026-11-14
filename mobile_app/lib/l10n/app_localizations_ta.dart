@@ -901,6 +901,9 @@ class AppLocalizationsTa extends AppLocalizations {
   String get verifiedDealLabel => 'சரிபார்க்கப்பட்ட சலுகை';
 
   @override
+  String get reportedDealLabel => 'சிக்கல் புகாரளிக்கப்பட்டது';
+
+  @override
   String get caughtUpTitle => 'எல்லா அறிவிப்புகளையும் பார்த்துவிட்டீர்கள்';
 
   @override

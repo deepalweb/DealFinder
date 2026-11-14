@@ -1726,6 +1726,12 @@ abstract class AppLocalizations {
   /// **'Verified deal'**
   String get verifiedDealLabel;
 
+  /// No description provided for @reportedDealLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Reported issue'**
+  String get reportedDealLabel;
+
   /// No description provided for @caughtUpTitle.
   ///
   /// In en, this message translates to:

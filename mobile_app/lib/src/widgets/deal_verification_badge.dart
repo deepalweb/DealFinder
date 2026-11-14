@@ -29,7 +29,7 @@ class DealVerificationBadge extends StatelessWidget {
           border: const Color(0xFFFFCC80),
           fg: const Color(0xFFE65100),
           label: label ?? 'Reported',
-          tooltip: 'Users reported an issue with this deal',
+          tooltip: label ?? 'Users reported an issue with this deal',
         );
       case 'worked':
         return (
@@ -57,7 +57,7 @@ class DealVerificationBadge extends StatelessWidget {
           border: const Color(0xFFA5D6A7),
           fg: const Color(0xFF1B5E20),
           label: label ?? 'Verified',
-          tooltip: 'Verified active deal',
+          tooltip: label ?? 'Verified active deal',
         );
     }
   }
@@ -71,33 +71,37 @@ class DealVerificationBadge extends StatelessWidget {
         : const EdgeInsets.symmetric(horizontal: 8, vertical: 4);
 
     final style = _style(context);
-    return Tooltip(
-      message: style.tooltip,
-      child: Container(
-        padding: padding,
-        decoration: BoxDecoration(
-          color: style.bg,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: style.border),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              style.icon,
-              size: iconSize,
-              color: style.fg,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              style.label,
-              style: TextStyle(
-                fontSize: fontSize,
+    return Semantics(
+      label: style.label,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: style.tooltip,
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            color: style.bg,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: style.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                style.icon,
+                size: iconSize,
                 color: style.fg,
-                fontWeight: FontWeight.w700,
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                style.label,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  color: style.fg,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
