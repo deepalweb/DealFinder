@@ -6,9 +6,7 @@
   "scripts": {
     "start": "node backend/server.js",
     "mobile:secrets": "node scripts/generate-mobile-secrets.js",
-    "mobile:api": "node scripts/mobile-api-forward.js",
-    "cloudflare:install": "npm ci --prefix cloudflare",
-    "cloudflare:deploy": "npm --prefix cloudflare run deploy"
+    "mobile:api": "node scripts/mobile-api-forward.js"
   },
   "engines": {
     "node": "20.x"
