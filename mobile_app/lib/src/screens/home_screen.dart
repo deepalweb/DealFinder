@@ -47,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime get _now => widget.now?.call() ?? DateTime.now();
   late final _api = widget.api ?? ApiService();
   List<Promotion> _offers = [];
+  List<Promotion> _latestCreatedOffers = [];
+  bool _latestCreatedLoading = true;
   CuratedHomeSectionsResponse? _curated;
   bool _curatedFailed = false;
   int _curatedGeneration = 0;
@@ -144,8 +146,35 @@ class _HomeScreenState extends State<HomeScreen> {
         _loading = false;
       });
     }
-    await Future.wait(
-        [_loadOffers(), _loadLocation(), _loadNotifications(), _loadCurated()]);
+    await Future.wait([
+      _loadOffers(),
+      _loadLatestCreatedOffers(),
+      _loadLocation(),
+      _loadNotifications(),
+      _loadCurated(),
+    ]);
+  }
+
+  Future<void> _loadLatestCreatedOffers() async {
+    if (mounted) setState(() => _latestCreatedLoading = true);
+    try {
+      final offers = await _api.fetchLatestCreatedPromotions(limit: 30);
+      if (!mounted) return;
+      setState(() {
+        _latestCreatedOffers = offers;
+        _latestCreatedLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        final fallback = [..._offers]
+          ..sort((a, b) => (b.createdAt?.millisecondsSinceEpoch ?? 0)
+              .compareTo(a.createdAt?.millisecondsSinceEpoch ?? 0));
+        setState(() {
+          _latestCreatedOffers = fallback.take(10).toList();
+          _latestCreatedLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadCurated() async {
@@ -730,12 +759,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ..sort((a, b) => a.endDate!.compareTo(b.endDate!));
     final expiring = expiryCandidates.take(6).toList();
     used.addAll(expiring.map((p) => OfferPresentation(p).identity));
-    final railSeen = <String>{};
-    final fresh = remaining(_curated?.newThisWeek ?? const <Promotion>[])
-        .where((p) => railSeen.add(OfferPresentation(p).identity))
-        .take(6)
-        .toList();
-    used.addAll(fresh.map((p) => OfferPresentation(p).identity));
+    final latestSeen = <String>{};
+    final latestCreated = _latestCreatedOffers
+        .where(_eligible)
+        .where((p) => latestSeen.add(OfferPresentation(p).identity))
+        .toList()
+      ..sort((a, b) => (b.createdAt?.millisecondsSinceEpoch ?? 0)
+          .compareTo(a.createdAt?.millisecondsSinceEpoch ?? 0));
+    final latest = latestCreated.take(10).toList();
     final banks = remaining(visible)
         .where(BankCardPromotionSupport.isBankCardPromotion)
         .take(4)
@@ -874,19 +905,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             action: _allEndingSoon)),
                         box(_rail(context, expiring, expiring: true)),
                       ],
-                      if (fresh.isNotEmpty) ...[
+                      if (latest.isNotEmpty) ...[
                         box(_sectionTitle(
                             context,
-                            _t('New this week', 'මෙම සතියේ නව දීමනා',
-                                'இந்த வாரப் புதிய சலுகைகள்'),
+                            _t('Latest deals', 'අලුත්ම දීමනා',
+                                'சமீபத்திய சலுகைகள்'),
                             icon: Icons.fiber_new_outlined,
                             action: _all)),
-                        box(_rail(context, fresh)),
-                      ] else if (_loading && _curated == null) ...[
+                        box(_rail(context, latest)),
+                      ] else if (_latestCreatedLoading) ...[
                         box(_sectionTitle(
                             context,
-                            _t('New this week', 'මෙම සතියේ නව දීමනා',
-                                'இந்த வாரப் புதிய சலுகைகள்'))),
+                            _t('Latest deals', 'අලුත්ම දීමනා',
+                                'சமீபத்திய சலுகைகள்'))),
                         box(_loadingOfferRail(context)),
                       ],
                       if (!_loading && !_offline && visible.isEmpty)

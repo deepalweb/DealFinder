@@ -27,8 +27,10 @@ fun readMobileEnvValue(name: String): String? {
 
 val mapsApiKey = System.getenv("GOOGLE_MAPS_ANDROID_API_KEY")
     ?.takeIf { it.isNotBlank() }
-    ?: mapsProperties.getProperty("GOOGLE_MAPS_API_KEY")?.takeIf { it.isNotBlank() }
     ?: readMobileEnvValue("GOOGLE_MAPS_ANDROID_API_KEY")
+    // Keep this legacy local fallback below mobile_app/.env so an old key here
+    // cannot silently override the current Android key.
+    ?: mapsProperties.getProperty("GOOGLE_MAPS_API_KEY")?.takeIf { it.isNotBlank() }
     ?: ""
 
 val hasGoogleServicesFile =

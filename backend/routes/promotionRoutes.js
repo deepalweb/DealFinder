@@ -676,7 +676,7 @@ async function listPromotions(req, res) {
     if((req.query.radiusKm!==undefined||req.query.radius!==undefined) &&
        (radiusValue===null||radiusValue<=0||radiusValue>100||latValue===null||lonValue===null))return res.status(400).json({message:'Radius requires valid coordinates and must be greater than 0 and at most 100 km.'});
     const sortBy = String(req.query.sortBy || req.query.sort || 'recent');
-    if(!['recent','discount','highest_rated','rating','ending_soon','nearest','distance','price_low','price_high'].includes(sortBy))return res.status(400).json({message:'Unsupported sort order.'});
+    if(!['recent','created_at','discount','highest_rated','rating','ending_soon','nearest','distance','price_low','price_high'].includes(sortBy))return res.status(400).json({message:'Unsupported sort order.'});
     if(['nearest','distance'].includes(sortBy)&&(latValue===null||lonValue===null))return res.status(400).json({message:'Distance sorting requires coordinates.'});
     for(const [key,max] of [['minRating',5],['minDiscount',100],['maxPrice',1e12],['minPrice',1e12]]){
       if(req.query[key]!==undefined){const n=parseFiniteNumber(req.query[key]);if(n===null||n<0||n>max)return res.status(400).json({message:'Invalid numeric filter.'});}
@@ -783,6 +783,8 @@ async function listPromotions(req, res) {
         case 'price_high':
           return Number(b.discountedPrice ?? b.price ?? b.originalPrice ?? 0)
             - Number(a.discountedPrice ?? a.price ?? a.originalPrice ?? 0);
+        case 'created_at':
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
         case 'recent':
         default:
           return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);

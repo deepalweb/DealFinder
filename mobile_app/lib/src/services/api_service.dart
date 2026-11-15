@@ -298,6 +298,20 @@ class ApiService {
         .toList();
   }
 
+  Future<List<Promotion>> fetchLatestCreatedPromotions({int limit = 10}) async {
+    final safeLimit = limit.clamp(1, 30).toInt();
+    final response = await http
+        .get(Uri.parse(
+            '${_baseUrl}promotions?limit=$safeLimit&sortBy=created_at'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 200) {
+      throw Exception('Could not load latest offers');
+    }
+    final rows = (jsonDecode(response.body) as List)
+        .map((row) => Promotion.fromJson(row as Map<String, dynamic>));
+    return _visibleConsumerPromotions(rows);
+  }
+
   Future<List<Promotion>> fetchBankOfferPage(
       {int limit = 50, int skip = 0}) async {
     final response = await http
