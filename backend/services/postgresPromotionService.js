@@ -97,6 +97,8 @@ async function getPromotionsFromPostgres({ limit = 0, skip = 0, category, sortBy
         return [['discountedPrice', 'ASC']];
       case 'price_high':
         return [['discountedPrice', 'DESC']];
+      case 'created_at':
+        return [['createdAt', 'DESC'], ['id', 'DESC']];
       case 'recent':
       default:
         return [['updatedAt', 'DESC'], ['createdAt', 'DESC']];
