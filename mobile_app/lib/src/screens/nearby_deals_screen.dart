@@ -52,9 +52,11 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
   final _icons = <String, BitmapDescriptor>{};
   final _pendingIcons = <String>{};
   final _sheet = DraggableScrollableController();
+  final _queryController = TextEditingController();
   bool _mapReady = false;
   bool _dirty = false;
   bool _expanded = false;
+  bool _showMap = false;
   double _sheetExtent = .46;
   bool _locating = false;
   LatLng _draftCenter = const LatLng(6.911, 79.854);
@@ -91,6 +93,7 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
     _data.dispose();
     _map?.dispose();
     _sheet.dispose();
+    _queryController.dispose();
     super.dispose();
   }
 
@@ -313,9 +316,16 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
           onlyOpen: onlyOpen,
           searchQuery: query.text.trim(),
           clearCategory: resetAll);
+      _queryController.text = query.text.trim();
       if (resetAll) await _data.setRadius(3);
     }
     query.dispose();
+  }
+
+  Future<void> _clearFilters() async {
+    _queryController.clear();
+    _data.filter(clearCategory: true, onlyOpen: false, searchQuery: '');
+    if (_data.radius != 3) await _data.setRadius(3);
   }
 
   Future<void> _notifications() async {
@@ -515,11 +525,152 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
               tooltip: l10n.notifications,
               onPressed: _notifications,
               icon: const Icon(Icons.notifications_none, size: 21)),
+          if (!_showMap)
+            IconButton(
+                tooltip: l10n.useMyLocation,
+                onPressed: _locating ? null : _useLocation,
+                icon: _locating
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location_outlined, size: 21)),
           IconButton(
               tooltip: l10n.accountTab,
               onPressed: _account,
               icon: const Icon(Icons.account_circle_outlined, size: 23)),
         ]));
+  }
+
+  Widget _offerList(ThemeData theme, AppLocalizations l10n, String areaLabel,
+      List<Promotion> offers, List<Promotion> ordered, int activeFilterCount) {
+    final colors = theme.colorScheme;
+    return Column(children: [
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+          child: Row(children: [
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(l10n.nearbyOfferCount(offers.length),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                          fontSize: 20, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 3),
+                  Text('$areaLabel · ${_data.radius.toInt()} km',
+                      style: theme.textTheme.bodySmall),
+                ])),
+            IconButton(
+                tooltip: l10n.filterOffersLabel,
+                onPressed: _filters,
+                icon: Badge(
+                    isLabelVisible: activeFilterCount > 0,
+                    label: Text('$activeFilterCount'),
+                    child: const Icon(Icons.tune_rounded))),
+            IconButton(
+                tooltip: l10n.retry,
+                onPressed:
+                    _data.loading ? null : () => _data.search(_data.area),
+                icon: const Icon(Icons.refresh_rounded)),
+          ])),
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                  color: colors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                Icon(Icons.info_outline_rounded,
+                    size: 18, color: colors.onSurfaceVariant),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text(
+                        _data.area.approximate
+                            ? l10n.approximateAreaHint
+                            : l10n.areaDistanceHint,
+                        style: theme.textTheme.bodySmall)),
+                if (_data.area.approximate)
+                  TextButton(
+                      onPressed: Geolocator.openAppSettings,
+                      child: Text(l10n.openSettings)),
+              ]))),
+      if (_data.cached)
+        Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(l10n.offlineShowingCachedDeals,
+                    style: theme.textTheme.bodySmall))),
+      if (_data.loading) const LinearProgressIndicator(minHeight: 2),
+      Expanded(
+          child: _data.failed || _data.cacheMismatch
+              ? Center(
+                  child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.wifi_off_rounded,
+                            size: 36, color: colors.onSurfaceVariant),
+                        const SizedBox(height: 12),
+                        Text(
+                            _data.cacheMismatch
+                                ? l10n.cachedAreaMismatchHint
+                                : l10n.checkConnectionRetry,
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium),
+                        const SizedBox(height: 8),
+                        FilledButton.tonalIcon(
+                            onPressed: () => _data.search(_data.area),
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: Text(l10n.retry)),
+                      ])))
+              : !_data.loading && offers.isEmpty
+                  ? Center(
+                      child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.search_off_rounded,
+                                    size: 40, color: colors.onSurfaceVariant),
+                                const SizedBox(height: 12),
+                                Text(
+                                    _data.openOnly
+                                        ? l10n.noKnownOpenStoresHint
+                                        : l10n.noNearbyDealsFound,
+                                    style: theme.textTheme.titleMedium,
+                                    textAlign: TextAlign.center),
+                                const SizedBox(height: 6),
+                                Text(l10n.noNearbyDealsSubtitle,
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: colors.onSurfaceVariant),
+                                    textAlign: TextAlign.center),
+                                const SizedBox(height: 12),
+                                OutlinedButton(
+                                    onPressed: _clearFilters,
+                                    child: Text(l10n.clearAll)),
+                              ])))
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      itemCount: ordered.length,
+                      itemBuilder: (context, index) {
+                        final offer = ordered[index];
+                        return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: NearbyOfferRow(
+                                key: ValueKey(offer.id),
+                                offer: offer,
+                                selected: offer.id == _data.selectedId,
+                                onSelect: () => _select(offer),
+                                onOpen: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => DealDetailScreen(
+                                            promotion: offer,
+                                            api: widget.api)))));
+                      })),
+    ]);
   }
 
   @override
@@ -585,9 +736,14 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
                     ],
                 child: Chip(
                     side: BorderSide.none,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    backgroundColor: _data.category == null
+                        ? theme.colorScheme.surfaceContainerHighest
+                        : theme.colorScheme.primaryContainer,
                     labelStyle: theme.textTheme.labelLarge?.copyWith(
-                        fontSize: 12, color: theme.colorScheme.onSurface),
+                        fontSize: 12,
+                        color: _data.category == null
+                            ? theme.colorScheme.onSurface
+                            : theme.colorScheme.onPrimaryContainer),
                     avatar: const Icon(Icons.category_outlined),
                     label: Text(_data.category == null
                         ? l10n.allCategories
@@ -603,8 +759,68 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
                 selected: _data.openOnly,
                 onSelected: (value) => _data.filter(onlyOpen: value)),
           ])),
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+          child: TextField(
+              controller: _queryController,
+              textInputAction: TextInputAction.search,
+              onChanged: (value) => _data.filter(searchQuery: value),
+              decoration: InputDecoration(
+                  hintText: l10n.searchNearbyHint,
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: _queryController.text.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: l10n.clearSearchLabel,
+                          onPressed: () {
+                            _queryController.clear();
+                            _data.filter(searchQuery: '');
+                          },
+                          icon: const Icon(Icons.close_rounded)),
+                  isDense: true,
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerLowest,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                          color: theme.colorScheme.outlineVariant)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                          color: theme.colorScheme.outlineVariant)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12)))),
+      Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+          child: SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment<bool>(
+                        value: false,
+                        icon: const Icon(Icons.view_list_rounded),
+                        label: Text(l10n.listView)),
+                    ButtonSegment<bool>(
+                        value: true,
+                        icon: const Icon(Icons.map_outlined),
+                        label: Text(l10n.mapView)),
+                  ],
+                  selected: {_showMap},
+                  onSelectionChanged: (selection) => setState(() {
+                    _showMap = selection.first;
+                    if (_showMap) {
+                      _expanded = false;
+                      _sheetExtent = .46;
+                    } else {
+                      _map = null;
+                      _mapReady = false;
+                    }
+                  })))),
       Expanded(
-          child: LayoutBuilder(
+          child: !_showMap
+              ? _offerList(theme, l10n, areaLabel, offers, ordered,
+                  activeFilterCount)
+              : LayoutBuilder(
               builder: (context, constraints) => Stack(children: [
                     Positioned(
                         top: 0,
@@ -768,10 +984,7 @@ class _NearbyDealsScreenState extends State<_NearbyDealsPage> {
                                           ? l10n.noKnownOpenStoresHint
                                           : l10n.noNearbyDealsFound),
                                       TextButton(
-                                          onPressed: () => _data.filter(
-                                              clearCategory: true,
-                                              onlyOpen: false,
-                                              searchQuery: ''),
+                                          onPressed: _clearFilters,
                                           child: Text(l10n.clearAll)),
                                     ],
                                     ...ordered.map((p) => Padding(
