@@ -1,8 +1,5 @@
 import 'followed_merchants_screen.dart';
-import 'deal_comparison_screen.dart';
-import '../services/deal_comparison_service.dart';
 import '../services/saved_offer_service.dart';
-import '../utils/offer_presentation.dart';
 import 'package:flutter/material.dart';
 import 'package:deal_finder_mobile/l10n/app_localizations.dart';
 import '../models/promotion.dart';
@@ -27,7 +24,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   final _scrollController = ScrollController();
   bool _cached = false;
   String _filter = 'active';
-  final _comparison = <String>{};
   String _t(String en, String si, String ta) =>
       switch (Localizations.localeOf(context).languageCode) {
         'si' => si,
@@ -40,9 +36,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     super.initState();
     FavoritesManager.changes.addListener(_loadFavorites);
     _loadFavorites();
-    DealComparisonService.getComparisonIds().then((ids) {
-      if (mounted) setState(() => _comparison.addAll(ids));
-    });
   }
 
   @override
@@ -127,14 +120,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   MaterialPageRoute(
                       builder: (_) =>
                           FollowedMerchantsScreen(userId: widget.userId)))),
-          IconButton(
-              tooltip: _t('Compare up to five offers',
-                  'දීමනා පහක් දක්වා සසඳන්න', 'ஐந்து சலுகைகள் வரை ஒப்பிடு'),
-              icon: const Icon(Icons.compare_arrows),
-              onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const DealComparisonScreen()))),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
@@ -226,30 +211,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     padding: const EdgeInsets.only(bottom: 24),
                     child: DiscoverMarketplaceCard(
                         offer: promotion,
-                        trailing: OfferPresentation(promotion).standaloneBank
-                            ? null
-                            : CheckboxListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(_t('Compare', 'සසඳන්න', 'ஒப்பிடு')),
-                                value: _comparison.contains(promotion.id),
-                                onChanged: (value) async {
-                                  if (value == true &&
-                                      _comparison.length >= 5) {
-                                    return;
-                                  }
-                                  if (value == true) {
-                                    await DealComparisonService.addToComparison(
-                                        promotion.id);
-                                  } else {
-                                    await DealComparisonService
-                                        .removeFromComparison(promotion.id);
-                                  }
-                                  if (mounted) {
-                                    setState(() => value == true
-                                        ? _comparison.add(promotion.id)
-                                        : _comparison.remove(promotion.id));
-                                  }
-                                }),
                         onOpen: () => Navigator.push(
                             context,
                             MaterialPageRoute(
