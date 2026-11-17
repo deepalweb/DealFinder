@@ -882,8 +882,27 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
     );
   }
 
-  Widget _buildModeChip({required IconData icon, required String label}) =>
-      Chip(avatar: Icon(icon, size: 18), label: Text(label));
+  Widget _buildModeChip({
+    required IconData icon,
+    required String label,
+    bool positive = false,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return Chip(
+        avatar: Icon(icon,
+            size: 16,
+            color: positive ? colors.primary : colors.onSurfaceVariant),
+        label: Text(label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: positive ? colors.primary : colors.onSurfaceVariant,
+                fontWeight: FontWeight.w600)),
+        backgroundColor:
+            positive ? colors.primaryContainer : colors.surfaceContainerHighest,
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1));
+  }
 
   Widget _buildStoreRatingCard() {
     final theme = Theme.of(context);
@@ -1186,103 +1205,191 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
 
   Widget _merchantHero() {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final l10n = AppLocalizations.of(context)!;
     final banner = _merchantText('banner');
     final logo = _merchantText('logo');
     final address = _merchantText('address');
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (banner.isNotEmpty) ...[
-        ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: AspectRatio(
-                aspectRatio: 2.6,
-                child: _buildImageWidget(banner, width: double.infinity))),
-        const SizedBox(height: 16),
-      ],
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+    final logoBadge = Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: colors.outlineVariant),
+            boxShadow: [
+              BoxShadow(
+                  color: colors.shadow.withValues(alpha: 0.12),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4))
+            ]),
+        child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
             child: _buildImageWidget(logo.isEmpty ? null : logo,
-                width: 64, height: 64)),
-        const SizedBox(width: 12),
-        Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Semantics(
-              header: true,
-              child: Text(_merchantText('name'),
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w700, height: 1.15))),
-          if (address.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.location_on_outlined,
-                  size: 17, color: theme.colorScheme.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Expanded(
-                  child: Text(address,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant))),
-            ]),
-          ],
-          if (_ratingsCount > 0) ...[
-            const SizedBox(height: 7),
-            Row(children: [
-              Icon(Icons.star_rounded,
-                  size: 18, color: theme.colorScheme.tertiary),
-              const SizedBox(width: 4),
-              Text(
-                  '${_averageRating.toStringAsFixed(1)} · $_ratingsCount ${l10n.profileReviewsLabel}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface)),
-            ]),
-          ],
-        ])),
-      ]),
-      const SizedBox(height: 16),
-      Wrap(spacing: 8, runSpacing: 8, children: [
-        _buildModeChip(
-            icon: _merchantType == 'online'
-                ? Icons.language
-                : Icons.storefront_outlined,
-            label: _merchantTypeLabel(_merchantType)),
-        if (_merchantDeliveryAvailable)
-          _buildModeChip(
-              icon: Icons.delivery_dining, label: l10n.deliveryLabel),
-        if (_merchantPickupAvailable)
-          _buildModeChip(
-              icon: Icons.shopping_bag_outlined, label: l10n.pickupLabel),
-        if (_isOpenNow != null && _merchantType != 'online')
-          _buildModeChip(
-              icon: Icons.schedule,
-              label: _isOpenNow! ? l10n.openNowLabel : l10n.profileClosedLabel),
-      ]),
-      const SizedBox(height: 18),
-      Wrap(spacing: 10, runSpacing: 10, children: [
-        FilledButton.icon(
-            onPressed: _followBusy ? null : _toggleFollow,
-            icon: _followBusy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : Icon(_isFollowing ? Icons.check : Icons.add),
-            label: Text(_isFollowing ? l10n.following : l10n.followStoreLabel)),
-        if (_merchantType != 'online' &&
-            _merchantLatitude != null &&
-            _merchantLongitude != null)
-          OutlinedButton.icon(
-              onPressed: _directions,
-              icon: const Icon(Icons.near_me_outlined),
-              label: Text(l10n.getDirections)),
-        if (_merchantType != 'offline' && _merchantOrderLink.isNotEmpty)
-          OutlinedButton.icon(
-              onPressed: () => _openExternalUrl(_merchantOrderLink),
-              icon: const Icon(Icons.shopping_bag_outlined),
-              label: Text(l10n.visitWebsite)),
-      ]),
-    ]);
+                width: 58, height: 58)));
+    final actions = <Widget>[
+      FilledButton.icon(
+          onPressed: _followBusy ? null : _toggleFollow,
+          icon: _followBusy
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2))
+              : Icon(_isFollowing ? Icons.check_rounded : Icons.add_rounded),
+          label: Text(_isFollowing ? l10n.following : l10n.followStoreLabel)),
+      if (_merchantType != 'online' &&
+          _merchantLatitude != null &&
+          _merchantLongitude != null)
+        OutlinedButton.icon(
+            onPressed: _directions,
+            icon: const Icon(Icons.near_me_outlined),
+            label: Text(l10n.getDirections)),
+      if (_merchantType != 'offline' && _merchantOrderLink.isNotEmpty)
+        OutlinedButton.icon(
+            onPressed: () => _openExternalUrl(_merchantOrderLink),
+            icon: const Icon(Icons.language_rounded),
+            label: Text(l10n.visitWebsite)),
+    ];
+
+    return Material(
+        color: colors.surfaceContainerLowest,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: BorderSide(color: colors.outlineVariant)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (banner.isNotEmpty)
+            Container(
+                padding: const EdgeInsets.only(bottom: 22),
+                child: Stack(clipBehavior: Clip.none, children: [
+                  AspectRatio(
+                      aspectRatio: 2.7,
+                      child: _buildImageWidget(banner, width: double.infinity)),
+                  Positioned(left: 16, bottom: -22, child: logoBadge),
+                ])),
+          Padding(
+              padding: EdgeInsets.fromLTRB(16, banner.isEmpty ? 16 : 12, 16, 16),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      if (banner.isEmpty) ...[
+                        logoBadge,
+                        const SizedBox(width: 12),
+                      ] else
+                        const SizedBox(width: 82),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Semantics(
+                                header: true,
+                                child: Text(_merchantText('name'),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.12))),
+                            if (address.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 16, color: colors.onSurfaceVariant),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                    child: Text(address,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                            color: colors.onSurfaceVariant))),
+                              ]),
+                            ],
+                          ])),
+                      if (_ratingsCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 9, vertical: 6),
+                            decoration: BoxDecoration(
+                                color: colors.tertiaryContainer,
+                                borderRadius: BorderRadius.circular(20)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.star_rounded,
+                                  size: 16, color: colors.onTertiaryContainer),
+                              const SizedBox(width: 3),
+                              Text(_averageRating.toStringAsFixed(1),
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: colors.onTertiaryContainer)),
+                            ])),
+                      ],
+                    ]),
+                    const SizedBox(height: 14),
+                    Wrap(spacing: 7, runSpacing: 7, children: [
+                      _buildModeChip(
+                          icon: _merchantType == 'online'
+                              ? Icons.language_rounded
+                              : Icons.storefront_outlined,
+                          label: _merchantTypeLabel(_merchantType)),
+                      if (_merchantDeliveryAvailable)
+                        _buildModeChip(
+                            icon: Icons.delivery_dining_rounded,
+                            label: l10n.deliveryLabel),
+                      if (_merchantPickupAvailable)
+                        _buildModeChip(
+                            icon: Icons.shopping_bag_outlined,
+                            label: l10n.pickupLabel),
+                      if (_isOpenNow != null && _merchantType != 'online')
+                        _buildModeChip(
+                            icon: Icons.schedule_rounded,
+                            label: _isOpenNow!
+                                ? l10n.openNowLabel
+                                : l10n.profileClosedLabel,
+                            positive: _isOpenNow == true),
+                    ]),
+                    const SizedBox(height: 12),
+                    Wrap(spacing: 8, runSpacing: 8, children: actions),
+                  ])),
+        ]));
+  }
+
+  Widget _buildProfileSectionTabs(AppLocalizations l10n) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final sections = <(String, String, IconData)>[
+      ('offers', l10n.profileOffersLabel, Icons.local_offer_outlined),
+      ('about', l10n.about, Icons.info_outline_rounded),
+      ('reviews', l10n.profileReviewsLabel, Icons.star_outline_rounded),
+    ];
+
+    return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+            color: colors.surfaceContainerHighest.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(17)),
+        child: Row(children: [
+          for (final (key, label, icon) in sections)
+            Expanded(
+                child: Semantics(
+                    button: true,
+                    selected: _profileSection == key,
+                    label: label,
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: ChoiceChip(
+                            avatar: Icon(icon, size: 17),
+                            label: Text(label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            selected: _profileSection == key,
+                            showCheckmark: false,
+                            onSelected: (_) =>
+                                setState(() => _profileSection = key),
+                            labelStyle: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 7),
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.padded)))),
+          ]));
   }
 
   Widget _merchantAbout() {
@@ -1457,19 +1564,8 @@ class _MerchantProfileScreenState extends State<_MerchantProfilePage> {
                                       ])),
                                 _merchantHero(),
                                 const SizedBox(height: 24),
-                                Wrap(spacing: 8, runSpacing: 8, children: [
-                                  for (final entry in {
-                                    'offers': l10n.profileOffersLabel,
-                                    'about': l10n.about,
-                                    'reviews': l10n.profileReviewsLabel
-                                  }.entries)
-                                    ChoiceChip(
-                                        label: Text(entry.value),
-                                        selected: _profileSection == entry.key,
-                                        onSelected: (_) => setState(
-                                            () => _profileSection = entry.key)),
-                                ]),
-                                const SizedBox(height: 20),
+                                _buildProfileSectionTabs(l10n),
+                                const SizedBox(height: 16),
                                 if (_profileSection == 'offers') ...[
                                   if (_loadingOffers)
                                     const LinearProgressIndicator(),
